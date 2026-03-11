@@ -3,46 +3,137 @@ const ninja = document.querySelector('ninja-keys');
 
 // add the home and posts menu items
 ninja.data = [{
-    id: "nav-about",
-    title: "About",
-    section: "Navigation",
-    handler: () => {
-      window.location.href = "/unaltraweb/";
-    },
-  },{id: "dropdown-the-project",
+      id: "nav-home",
+      title: "Home",
+      section: "Navigation",
+      handler: () => {
+        window.location.href = "/unaltraweb/en/";
+      },
+    },{id: "dropdown-the-project",
               title: "The project",
               description: "",
               section: "Dropdown",
               handler: () => {
-                window.location.href = "/unaltraweb/the-project/";
+                window.location.href = "/unaltraweb/en/the-project/";
               },
             },{id: "dropdown-former-projects",
               title: "Former projects",
               description: "",
               section: "Dropdown",
               handler: () => {
-                window.location.href = "/unaltraweb/former-projects/";
+                window.location.href = "/unaltraweb/en/former-projects/";
               },
-            },{id: "nav-activities",
-          title: "Activities",
-          description: "A growing collection of your cool projects.",
+            },{id: "dropdown-el-projecte",
+              title: "El projecte",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/el-projecte/";
+              },
+            },{id: "dropdown-projectes-anteriors",
+              title: "Projectes anteriors",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/projectes-anteriors/";
+              },
+            },{id: "dropdown-el-proyecto",
+              title: "El proyecto",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/es/el-proyecto/";
+              },
+            },{id: "dropdown-proyectos-previos",
+              title: "Proyectos previos",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/es/proyectos-previos/";
+              },
+            },{id: "nav-outputs",
+          title: "Outputs",
+          description: "Datasets, software tools, maps, indicator fiches, calculations, and other project products.",
           section: "Navigation",
           handler: () => {
-            window.location.href = "/unaltraweb/activities/";
+            window.location.href = "/unaltraweb/en/outputs/";
+          },
+        },{id: "nav-productes",
+          title: "Productes",
+          description: "Dades, eines, mapes, fitxes d&#39;indicadors, calculs i altres productes del projecte.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/ca/productes/";
+          },
+        },{id: "nav-productos",
+          title: "Productos",
+          description: "Datos, herramientas, mapas, fichas de indicadores, calculos y otros productos del proyecto.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/es/productos/";
+          },
+        },{id: "nav-equip",
+          title: "Equip",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/ca/equip/";
+          },
+        },{id: "nav-equipo",
+          title: "Equipo",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/es/equipo/";
           },
         },{id: "nav-team",
           title: "Team",
           description: "",
           section: "Navigation",
           handler: () => {
-            window.location.href = "/unaltraweb/team/";
+            window.location.href = "/unaltraweb/en/team/";
+          },
+        },{id: "nav-publicaciones",
+          title: "Publicaciones",
+          description: "Resultados cientificos e informes tecnicos.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/es/publicaciones/";
+          },
+        },{id: "nav-publicacions",
+          title: "Publicacions",
+          description: "Resultats cientifics i informes tecnics.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/ca/publicacions/";
           },
         },{id: "nav-publications",
           title: "Publications",
-          description: "Publications by categories in reversed chronological order.",
+          description: "Scientific outputs and technical reports.",
           section: "Navigation",
           handler: () => {
-            window.location.href = "/unaltraweb/publications/";
+            window.location.href = "/unaltraweb/en/publications/";
+          },
+        },{id: "nav-repositories",
+          title: "Repositories",
+          description: "Source code and reproducible workflows.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/en/repositories/";
+          },
+        },{id: "nav-repositorios",
+          title: "Repositorios",
+          description: "Codigo fuente y flujos reproducibles.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/es/repositorios/";
+          },
+        },{id: "nav-repositoris",
+          title: "Repositoris",
+          description: "Codi font i fluxos reproduibles.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/ca/repositoris/";
           },
         },{id: "nav-theses",
           title: "Theses",
@@ -51,19 +142,33 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/unaltraweb/theses/";
           },
+        },{id: "nav-blog",
+          title: "Blog",
+          description: "Notes, methods, and development updates.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/en/blog/";
+          },
+        },{id: "nav-blog",
+          title: "Blog",
+          description: "Notes, metodes i actualitzacions de desenvolupament.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/ca/blog/";
+          },
+        },{id: "nav-blog",
+          title: "Blog",
+          description: "Notas, metodos y actualizaciones de desarrollo.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/es/blog/";
+          },
         },{id: "nav-bookshelf",
           title: "Bookshelf",
           description: "",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/books/";
-          },
-        },{id: "nav-repositories",
-          title: "Repositories",
-          description: "Edit the `_data/repositories.yml` and change the `github_users` and `github_repos` lists to include your own GitHub profile and repositories.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/unaltraweb/repositories/";
           },
         },{id: "nav-cv",
           title: "CV",
@@ -451,7 +556,32 @@ ninja.data = [{
             },},{id: "news-a-simple-inline-announcement-with-markdown-emoji-sparkles-smile",
           title: 'A simple inline announcement with Markdown emoji! :sparkles: :smile:',
           description: "",
-          section: "News",},{id: "projects-project-1",
+          section: "News",},{id: "outputs-open-geospatial-dataset",
+          title: 'Open geospatial dataset',
+          description: "Harmonized project dataset ready for reuse and citation.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/outputs/1_open-dataset/";
+            },},{id: "outputs-interactive-web-map",
+          title: 'Interactive web map',
+          description: "Browser-based map viewer for exploring project indicators.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/outputs/2_interactive-web-map/";
+            },},{id: "outputs-methodological-guide",
+          title: 'Methodological guide',
+          description: "Reproducible workflow for data processing and analysis.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/outputs/3_methodological-guide/";
+            },},{id: "outputs-policy-brief",
+          title: 'Policy brief',
+          description: "Action-oriented summary for decision makers and stakeholders.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/outputs/4_policy-brief/";
+            },},{id: "outputs-territorial-resilience-indicator-social-dimension-communities",
+          title: 'Territorial resilience indicator (social dimension: communities)',
+          description: "Demo indicator card with methodological sheet, sample calculations, and interpretation thresholds.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/outputs/5_territorial-resilience-social-indicator/";
+            },},{id: "projects-project-1",
           title: 'project 1',
           description: "with background image",
           section: "Projects",handler: () => {
