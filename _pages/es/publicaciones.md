@@ -2,7 +2,7 @@
 layout: page
 title: Publicaciones
 permalink: /es/publicaciones/
-description: Resultados cientificos e informes tecnicos.
+description: Resultados científicos e informes técnicos.
 lang: es
 ref: publications
 nav: true

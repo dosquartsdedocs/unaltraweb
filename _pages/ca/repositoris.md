@@ -2,7 +2,7 @@
 layout: page
 title: Repositoris
 permalink: /ca/repositoris/
-description: Codi font i fluxos reproduibles.
+description: Codi font i fluxos reproduïbles.
 lang: ca
 ref: repositories
 nav: true

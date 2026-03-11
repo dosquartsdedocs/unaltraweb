@@ -8,30 +8,30 @@ ref: project-details
 
 ## Resum
 
-Escriu una explicacio breu i clara del projecte i de la seua rellevancia.
+Escriu una explicació breu i clara del projecte i de la seua rellevància.
 
 ## Objectius
 
-- Objectiu 1 (especific i mesurable)
+- Objectiu 1 (específic i mesurable)
 - Objectiu 2
 - Objectiu 3
 
-## Metodes i dades
+## Mètodes i dades
 
-Descriu l'enfocament de treball, les fonts de dades i el flux d'analisi.
+Descriu l'enfocament de treball, les fonts de dades i el flux d'anàlisi.
 
 ## Resultats esperats
 
-- Publicacions cientifiques
+- Publicacions científiques
 - Dades i mapes oberts
-- Programari, fluxos i documentacio
+- Programari, fluxos i documentació
 
 ## Cronograma
 
-- Fase 1: preparacio i recollida de dades
-- Fase 2: analisi i validacio
-- Fase 3: difusio i transferencia
+- Fase 1: preparació i recollida de dades
+- Fase 2: anàlisi i validació
+- Fase 3: difusió i transferència
 
-## Finanament i agraiments
+## Finançament i agraïments
 
-Afig programa de finanament, referencia de l'ajuda i suport institucional.
+Afegeix programa de finançament, referència de l'ajuda i suport institucional.

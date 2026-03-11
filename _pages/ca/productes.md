@@ -2,7 +2,7 @@
 layout: page
 title: Productes
 permalink: /ca/productes/
-description: Dades, eines, mapes, fitxes d'indicadors, calculs i altres productes del projecte.
+description: Dades, eines, mapes, fitxes d'indicadors, càlculs i altres productes del projecte.
 lang: ca
 ref: outputs
 nav: true
@@ -28,6 +28,6 @@ nav_order: 3
       {% endfor %}
     </div>
   {% else %}
-    <p>Afig targetes a la colleccio `_outputs` per emplenar aquesta seccio.</p>
+    <p>Afegeix targetes a la col·lecció `_outputs` per emplenar aquesta secció.</p>
   {% endif %}
 </div>

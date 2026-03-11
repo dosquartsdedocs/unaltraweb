@@ -305,6 +305,7 @@
 
 .home-hero-title {
   color: #fff !important;
+  -webkit-text-fill-color: #fff;
   margin: 0;
   line-height: 1.1;
   font-size: clamp(1.45rem, 3vw, 2.5rem);
@@ -313,9 +314,15 @@
 
 .home-hero-subtitle {
   color: rgba(255, 255, 255, 0.95) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.95);
   margin: 0.35rem 0 0;
   font-size: clamp(0.92rem, 1.45vw, 1.15rem);
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme='light'] .home-hero-content,
+html[data-theme='light'] .home-hero-content * {
+  color: #fff !important;
 }
 
 @media (min-width: 576px) {

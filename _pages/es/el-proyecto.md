@@ -8,30 +8,30 @@ ref: project-details
 
 ## Resumen
 
-Escribe una explicacion breve y clara del proyecto y de su relevancia.
+Escribe una explicación breve y clara del proyecto y de su relevancia.
 
 ## Objetivos
 
-- Objetivo 1 (especifico y medible)
+- Objetivo 1 (específico y medible)
 - Objetivo 2
 - Objetivo 3
 
-## Metodos y datos
+## Métodos y datos
 
-Describe el enfoque de trabajo, las fuentes de datos y el flujo de analisis.
+Describe el enfoque de trabajo, las fuentes de datos y el flujo de análisis.
 
 ## Resultados esperados
 
-- Publicaciones cientificas
+- Publicaciones científicas
 - Datos y mapas abiertos
-- Software, flujos y documentacion
+- Software, flujos y documentación
 
 ## Cronograma
 
-- Fase 1: preparacion y recopilacion de datos
-- Fase 2: analisis y validacion
-- Fase 3: difusion y transferencia
+- Fase 1: preparación y recopilación de datos
+- Fase 2: análisis y validación
+- Fase 3: difusión y transferencia
 
-## Financiacion y agradecimientos
+## Financiación y agradecimientos
 
-Incluye programa de financiacion, referencia de ayuda y apoyo institucional.
+Incluye programa de financiación, referencia de ayuda y apoyo institucional.

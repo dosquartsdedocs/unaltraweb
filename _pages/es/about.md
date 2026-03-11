@@ -4,9 +4,9 @@ title: Inicio
 permalink: /es/
 lang: es
 ref: home
-subtitle: Plantilla multilingue reutilizable para webs de proyectos de investigacion.
+subtitle: Plantilla multilingüe reutilizable para webs de proyectos de investigación.
 hero_image: assets/img/10.jpg
-hero_image_alt: Imagen hero de paisaje placeholder
+hero_image_alt: Imagen hero de paisaje de ejemplo
 
 selected_papers: true
 social: true
@@ -22,14 +22,14 @@ latest_posts:
   limit: 5
 ---
 
-Este sitio es una plantilla reutilizable para paginas de proyectos basada en Jekyll y al-folio.
-Mantiene la estructura tecnica preparada para que cada nuevo proyecto solo tenga que sustituir contenidos.
+Este sitio es una plantilla reutilizable para páginas de proyectos basada en Jekyll y al-folio.
+Mantiene la estructura técnica preparada para que cada nuevo proyecto solo tenga que sustituir contenidos.
 
 La plantilla permite:
 
-- presentar objetivos, metodos, calendario y socios,
+- presentar objetivos, métodos, calendario y socios,
 - publicar novedades en noticias y blog,
 - mostrar publicaciones, repositorios y resultados transferibles,
-- mantener una estructura comun entre distintos proyectos.
+- mantener una estructura común entre distintos proyectos.
 
-La configuracion multilingue usa metadatos `lang` y `ref`, carpetas de idioma en `_pages/` y redireccion automatica segun el navegador.
+La configuración multilingüe usa metadatos `lang` y `ref`, carpetas de idioma en `_pages/` y redirección automática según el navegador.

@@ -2,7 +2,7 @@
 layout: page
 title: Productos
 permalink: /es/productos/
-description: Datos, herramientas, mapas, fichas de indicadores, calculos y otros productos del proyecto.
+description: Datos, herramientas, mapas, fichas de indicadores, cálculos y otros productos del proyecto.
 lang: es
 ref: outputs
 nav: true
@@ -28,6 +28,6 @@ nav_order: 3
       {% endfor %}
     </div>
   {% else %}
-    <p>Aade tarjetas en la coleccion `_outputs` para poblar esta seccion.</p>
+    <p>Añade tarjetas en la colección `_outputs` para poblar esta sección.</p>
   {% endif %}
 </div>

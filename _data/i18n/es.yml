@@ -1,5 +1,5 @@
 header:
-  toggle_navigation: Alternar navegacion
+  toggle_navigation: Alternar navegación
   current: actual
   search: Buscar
   change_theme: Cambiar tema
@@ -7,13 +7,26 @@ header:
 
 footer:
   impressum: Aviso legal
-  last_updated: Ultima actualizacion
+  last_updated: Última actualización
 
 search:
   placeholder: Escribe para buscar
 
 bib:
   filter_placeholder: Escribe para filtrar
+  and: y
+  in_prefix: En
+  buttons:
+    awarded: Premio
+    abstract: Resumen
+    bib: Bib
+    supp: Material
+    video: Video
+    blog: Blog
+    code: Código
+    poster: Póster
+    slides: Diapositivas
+    website: Web
 
 about:
   news: Noticias
@@ -21,10 +34,10 @@ about:
   selected_publications: Publicaciones destacadas
 
 news:
-  empty: Todavia no hay noticias.
+  empty: Todavía no hay noticias.
 
 latest_posts:
-  empty: Todavia no hay entradas.
+  empty: Todavía no hay entradas.
 
 page:
   references: Referencias
@@ -32,33 +45,33 @@ page:
 post:
   created_on: Creado el
   by: por
-  last_updated_on: ultima actualizacion el
+  last_updated_on: última actualización el
   references: Referencias
 
 archive:
   category_prefix: Archivo de
-  category_suffix: en esta categoria
+  category_suffix: en esta categoría
   year_prefix: Archivo de
-  year_suffix: de este ano
+  year_suffix: de este año
   tag_prefix: Archivo de
   tag_suffix: con esta etiqueta
 
 related_posts:
-  title: Quieres seguir leyendo?
-  intro: Aqui tienes mas articulos que podrian interesarte.
-  subscribe: "Suscribete para recibir aviso de futuros articulos:"
+  title: ¿Quieres seguir leyendo?
+  intro: Aquí tienes más artículos que podrían interesarte.
+  subscribe: "Suscríbete para recibir aviso de futuros artículos:"
 
 pagination:
-  blog_navigation: Navegacion de paginas del blog
+  blog_navigation: Navegación de páginas del blog
 
 blog:
-  empty: Todavia no hay entradas del blog.
+  empty: Todavía no hay entradas del blog.
 
 projects:
-  code_repository: Repositorio de codigo
+  code_repository: Repositorio de código
   github_stars: Estrellas de GitHub
 
 languages:
-  en: Ingles
-  es: Espanol
-  ca: Catalan
+  en: Inglés
+  es: Español
+  ca: Catalán

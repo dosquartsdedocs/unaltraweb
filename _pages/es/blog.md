@@ -2,7 +2,7 @@
 layout: page
 title: Blog
 permalink: /es/blog/
-description: Notas, metodos y actualizaciones de desarrollo.
+description: Notas, métodos y actualizaciones de desarrollo.
 lang: es
 ref: blog
 nav: true

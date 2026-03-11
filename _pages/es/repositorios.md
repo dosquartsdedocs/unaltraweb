@@ -2,7 +2,7 @@
 layout: page
 title: Repositorios
 permalink: /es/repositorios/
-description: Codigo fuente y flujos reproducibles.
+description: Código fuente y flujos reproducibles.
 lang: es
 ref: repositories
 nav: true

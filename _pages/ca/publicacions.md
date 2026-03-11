@@ -2,7 +2,7 @@
 layout: page
 title: Publicacions
 permalink: /ca/publicacions/
-description: Resultats cientifics i informes tecnics.
+description: Resultats científics i informes tècnics.
 lang: ca
 ref: publications
 nav: true

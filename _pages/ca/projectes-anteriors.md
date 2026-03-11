@@ -6,7 +6,7 @@ lang: ca
 ref: former-projects
 ---
 
-Fes servir aquesta pagina per documentar projectes acabats i aprenentatges reutilitzables.
+Fes servir aquesta pàgina per documentar projectes acabats i aprenentatges reutilitzables.
 
 ## Nom del projecte (Any-Any)
 
@@ -18,4 +18,4 @@ Resumeix el context, les accions clau i l'impacte aconseguit.
 
 ## Nom del projecte (Any-Any)
 
-Repeteix la mateixa estructura per a mes projectes tancats.
+Repeteix la mateixa estructura per a més projectes tancats.

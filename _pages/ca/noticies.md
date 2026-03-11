@@ -1,6 +1,6 @@
 ---
 layout: page
-title: Noticies
+title: Notícies
 permalink: /ca/noticies/
 lang: ca
 ref: news

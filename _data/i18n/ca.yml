@@ -1,5 +1,5 @@
 header:
-  toggle_navigation: Mostra o amaga la navegacio
+  toggle_navigation: Mostra o amaga la navegació
   current: actual
   search: Cerca
   change_theme: Canvia el tema
@@ -7,33 +7,46 @@ header:
 
 footer:
   impressum: Avís legal
-  last_updated: Darrera actualitzacio
+  last_updated: Darrera actualització
 
 search:
   placeholder: Escriu per cercar
 
 bib:
   filter_placeholder: Escriu per filtrar
+  and: i
+  in_prefix: A
+  buttons:
+    awarded: Premi
+    abstract: Resum
+    bib: Bib
+    supp: Material
+    video: Vídeo
+    blog: Blog
+    code: Codi
+    poster: Pòster
+    slides: Diapositives
+    website: Web
 
 about:
-  news: Noticies
+  news: Notícies
   latest_posts: Entrades recents
   selected_publications: Publicacions destacades
 
 news:
-  empty: Encara no hi ha noticies.
+  empty: Encara no hi ha notícies.
 
 latest_posts:
   empty: Encara no hi ha entrades.
 
 page:
-  references: Referencies
+  references: Referències
 
 post:
   created_on: Creat el
   by: per
-  last_updated_on: darrera actualitzacio el
-  references: Referencies
+  last_updated_on: darrera actualització el
+  references: Referències
 
 archive:
   category_prefix: Arxiu de
@@ -45,11 +58,11 @@ archive:
 
 related_posts:
   title: Vols continuar llegint?
-  intro: Aqui tens mes articles que et poden interessar.
+  intro: Aquí tens més articles que et poden interessar.
   subscribe: "Subscriu-te per rebre avis de futurs articles:"
 
 pagination:
-  blog_navigation: Navegacio de pagines del blog
+  blog_navigation: Navegació de pàgines del blog
 
 blog:
   empty: Encara no hi ha entrades al blog.
@@ -59,6 +72,6 @@ projects:
   github_stars: Estrelles de GitHub
 
 languages:
-  en: Angles
-  es: Castella
-  ca: Catala
+  en: Anglès
+  es: Castellà
+  ca: Català
