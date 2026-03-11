@@ -1,5 +1,6 @@
 ---
 layout: page
+published: false
 title: The project
 permalink: /the-project/
 nav: false

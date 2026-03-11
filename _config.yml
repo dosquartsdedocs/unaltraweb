@@ -15,7 +15,9 @@ footer_text: >
   Hosted by <a href="https://pages.github.com/" target="_blank">GitHub Pages</a>.
   Photos from <a href="https://unsplash.com" target="_blank">Unsplash</a>.
 keywords: jekyll, jekyll-theme, academic-website, portfolio-website # add your own keywords or leave empty
-lang: en # the language of your site (for example: en, fr, cn, ru, etc.)
+lang: en # fallback language of the site
+default_lang: en # default language used when no browser match is found
+languages: [en, es, ca] # enabled interface/content languages
 icon: "🧭" # the emoji used as the favicon (alternatively, provide image name in /assets/img/)
 
 url: "https://gratet.github.io" # the base hostname & protocol for your site
@@ -164,6 +166,8 @@ collections:
     output: true
   projects:
     output: true
+  outputs:
+    output: true
   theses:
     output: false
 
@@ -239,6 +243,26 @@ defaults:
       path: "assets"
     values:
       sitemap: false
+  - scope:
+      path: ""
+      type: posts
+    values:
+      lang: en
+  - scope:
+      path: ""
+      type: news
+    values:
+      lang: en
+  - scope:
+      path: ""
+      type: projects
+    values:
+      lang: en
+  - scope:
+      path: ""
+      type: outputs
+    values:
+      lang: en
 
 sass:
   style: compressed

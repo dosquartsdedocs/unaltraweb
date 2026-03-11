@@ -6,17 +6,17 @@ const ninja = document.querySelector('ninja-keys');
 
 // add the home and posts menu items
 ninja.data = [
-  {%- for page in site.pages -%}
-    {%- if page.permalink == '/' -%}{%- assign about_title = page.title | strip -%}{%- endif -%}
-  {%- endfor -%}
-  {
-    id: "nav-{{ about_title | slugify }}",
-    title: "{{ about_title | truncatewords: 13 }}",
-    section: "Navigation",
-    handler: () => {
-      window.location.href = "{{ '/' | relative_url }}";
+  {%- assign default_home = site.pages | where: 'ref', 'home' | where: 'lang', site.default_lang | first -%}
+  {%- if default_home -%}
+    {
+      id: "nav-{{ default_home.title | slugify }}",
+      title: "{{ default_home.title | strip | truncatewords: 13 }}",
+      section: "Navigation",
+      handler: () => {
+        window.location.href = "{{ default_home.url | relative_url }}";
+      },
     },
-  },
+  {%- endif -%}
   {%- assign sorted_pages = site.pages | sort: "nav_order" -%}
   {%- for p in sorted_pages -%}
     {%- if p.nav and p.autogen == null -%}
@@ -25,7 +25,7 @@ ninja.data = [
           {%- unless child.title == 'divider' -%}
             {
               {%- assign title = child.title | escape | strip -%}
-              {%- if child.permalink contains "/blog/" -%}{%- assign url = "/blog/" -%} {%- else -%}{%- assign url = child.permalink -%}{%- endif -%}
+              {%- assign url = child.permalink -%}
               id: "dropdown-{{ title | slugify }}",
               title: "{{ title | truncatewords: 13 }}",
               description: "{{ child.description | strip_html | strip_newlines | escape | strip }}",
@@ -40,7 +40,7 @@ ninja.data = [
       {%- else -%}
         {
           {%- assign title = p.title | escape | strip -%}
-          {%- if p.permalink contains "/blog/" -%}{%- assign url = "/blog/" -%} {%- else -%}{%- assign url = p.url -%}{%- endif -%}
+          {%- assign url = p.url -%}
           id: "nav-{{ title | slugify }}",
           title: "{{ title | truncatewords: 13 }}",
           description: "{{ p.description | strip_html | strip_newlines | escape | strip }}",

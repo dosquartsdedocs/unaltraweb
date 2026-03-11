@@ -1,6 +1,20 @@
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+{% assign default_lang = site.default_lang | default: site.lang %}
+
+{% assign localized_news = site.news | where: 'lang', current_lang %}
+{% if localized_news.size == 0 and current_lang != default_lang %}
+  {% assign localized_news = site.news | where: 'lang', default_lang %}
+{% endif %}
+{% if current_lang == default_lang %}
+  {% assign fallback_news = site.news | where_exp: 'item', 'item.lang == nil' %}
+  {% assign localized_news = localized_news | concat: fallback_news %}
+{% endif %}
+
+{% assign news = localized_news | sort: 'date' | reverse %}
+{% assign news_size = news | size %}
+
 <div class="news">
-  {% if site.news != blank %}
-    {% assign news_size = site.news | size %}
+  {% if news_size > 0 %}
     <div
       class="table-responsive"
       {% if include.limit and page.announcements.scrollable and news_size > 3 %}
@@ -8,15 +22,15 @@
       {% endif %}
     >
       <table class="table table-sm table-borderless">
-        {% assign news = site.news | reverse %}
         {% if include.limit and page.announcements.limit %}
           {% assign news_limit = page.announcements.limit %}
         {% else %}
           {% assign news_limit = news_size %}
         {% endif %}
+
         {% for item in news limit: news_limit %}
           <tr>
-            <th scope="row" style="width: 20%">{{ item.date | date: '%b %d, %Y' }}</th>
+            <th scope="row" style="width: 20%">{{ item.date | date: '%Y-%m-%d' }}</th>
             <td>
               {% if item.inline %}
                 {{ item.content | remove: '<p>' | remove: '</p>' | emojify }}
@@ -29,6 +43,6 @@
       </table>
     </div>
   {% else %}
-    <p>No news so far...</p>
+    <p>{% include t.liquid key='news.empty' default='No news so far...' %}</p>
   {% endif %}
 </div>

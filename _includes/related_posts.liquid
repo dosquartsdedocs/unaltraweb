@@ -1,4 +1,7 @@
 {% assign have_related_posts = false %}
+{% capture related_title %}{% include t.liquid key='related_posts.title' default='Enjoy reading this article?' %}{% endcapture %}
+{% capture related_intro %}{% include t.liquid key='related_posts.intro' default='Here are some more articles you might like to read next.' %}{% endcapture %}
+{% capture related_subscribe %}{% include t.liquid key='related_posts.subscribe' default='Subscribe to be notified of future articles:' %}{% endcapture %}
 {% for post in site.related_posts | limit: site.related_blog_posts.max_related %}
   {% unless have_related_posts %}
     {% assign have_related_posts = true %}
@@ -9,12 +12,12 @@
       <ul class="list-disc pl-8"></ul>
 
       <!-- Adds related posts to the end of an article -->
-      <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2>
+      <h2 class="text-3xl font-semibold mb-4 mt-12">{{ related_title | strip }}</h2>
     {% else %}
-      <h2 class="text-3xl font-semibold mb-4 mt-12">Enjoy Reading This Article?</h2>
+      <h2 class="text-3xl font-semibold mb-4 mt-12">{{ related_title | strip }}</h2>
     {% endif %}
 
-    <p class="mb-2">Here are some more articles you might like to read next:</p>
+    <p class="mb-2">{{ related_intro | strip }}</p>
   {% endunless %}
 
   <li class="my-2">
@@ -31,6 +34,6 @@
   </li>
 {% endfor %}
 {% if site.newsletter.enabled and site.footer_fixed %}
-  <p class="mb-2" style="margin-top: 1.5rem !important">Subscribe to be notified of future articles:</p>
+  <p class="mb-2" style="margin-top: 1.5rem !important">{{ related_subscribe | strip }}</p>
   {% include newsletter.liquid left=true %}
 {% endif %}

@@ -1,0 +1,64 @@
+header:
+  toggle_navigation: Alternar navegacion
+  current: actual
+  search: Buscar
+  change_theme: Cambiar tema
+  language: Idioma
+
+footer:
+  impressum: Aviso legal
+  last_updated: Ultima actualizacion
+
+search:
+  placeholder: Escribe para buscar
+
+bib:
+  filter_placeholder: Escribe para filtrar
+
+about:
+  news: Noticias
+  latest_posts: Entradas recientes
+  selected_publications: Publicaciones destacadas
+
+news:
+  empty: Todavia no hay noticias.
+
+latest_posts:
+  empty: Todavia no hay entradas.
+
+page:
+  references: Referencias
+
+post:
+  created_on: Creado el
+  by: por
+  last_updated_on: ultima actualizacion el
+  references: Referencias
+
+archive:
+  category_prefix: Archivo de
+  category_suffix: en esta categoria
+  year_prefix: Archivo de
+  year_suffix: de este ano
+  tag_prefix: Archivo de
+  tag_suffix: con esta etiqueta
+
+related_posts:
+  title: Quieres seguir leyendo?
+  intro: Aqui tienes mas articulos que podrian interesarte.
+  subscribe: "Suscribete para recibir aviso de futuros articulos:"
+
+pagination:
+  blog_navigation: Navegacion de paginas del blog
+
+blog:
+  empty: Todavia no hay entradas del blog.
+
+projects:
+  code_repository: Repositorio de codigo
+  github_stars: Estrellas de GitHub
+
+languages:
+  en: Ingles
+  es: Espanol
+  ca: Catalan

@@ -1,0 +1,8 @@
+{%- assign current_lang = include.lang | default: page.lang | default: site.default_lang | default: site.lang -%}
+{%- assign linked_page = site.pages | where: 'ref', include.ref | where: 'lang', current_lang | first -%}
+
+{%- if linked_page -%}
+  {{- linked_page.url | relative_url -}}
+{%- else -%}
+  {{- '/' | append: current_lang | append: '/' | relative_url -}}
+{%- endif -%}

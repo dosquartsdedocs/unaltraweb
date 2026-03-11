@@ -1,6 +1,7 @@
 ---
 layout: page
-title: Project info
+published: false
+title: Project
 nav: true
 nav_order: 2
 dropdown: true

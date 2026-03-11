@@ -1,0 +1,31 @@
+{%- assign current_lang = page.lang | default: site.default_lang | default: site.lang -%}
+{%- assign default_lang = site.default_lang | default: site.lang -%}
+{%- assign keys = include.key | split: '.' -%}
+
+{%- assign value = site.data.i18n[current_lang] -%}
+{%- for key in keys -%}
+  {%- if value and value[key] != nil -%}
+    {%- assign value = value[key] -%}
+  {%- else -%}
+    {%- assign value = nil -%}
+    {%- break -%}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- if value == nil -%}
+  {%- assign value = site.data.i18n[default_lang] -%}
+  {%- for key in keys -%}
+    {%- if value and value[key] != nil -%}
+      {%- assign value = value[key] -%}
+    {%- else -%}
+      {%- assign value = nil -%}
+      {%- break -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+
+{%- if value == nil -%}
+  {{- include.default | default: include.key -}}
+{%- else -%}
+  {{- value -}}
+{%- endif -%}

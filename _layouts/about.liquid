@@ -1,18 +1,45 @@
 ---
 layout: default
 ---
-<div class="post">
-  <header class="post-header">
-    <h1 class="post-title">
-      {% if site.title == 'blank' %}
-        <span class="font-weight-bold">{{ site.first_name }}</span> {{ site.middle_name }}
-        {{ site.last_name }}
-      {% else %}
-        {{ site.title }}
-      {% endif %}
-    </h1>
-    <p class="desc">{{ page.subtitle }}</p>
-  </header>
+{% capture home_title %}
+  {% if site.title == 'blank' %}
+    <span class="font-weight-bold">{{ site.first_name }}</span> {{ site.middle_name }} {{ site.last_name }}
+  {% else %}
+    {{ site.title }}
+  {% endif %}
+{% endcapture %}
+
+{% if page.hero_image %}
+  {% if page.hero_image contains '://' %}
+    {% assign hero_src = page.hero_image %}
+  {% else %}
+    {% assign hero_src = page.hero_image | relative_url %}
+  {% endif %}
+  <section class="home-hero home-hero-fullwidth">
+    <img
+      class="home-hero-image"
+      src="{{ hero_src }}"
+      alt="{{ page.hero_image_alt | default: page.title | escape }}"
+      loading="eager"
+    >
+    <div class="home-hero-overlay">
+      <div class="home-hero-content">
+        <h1 class="home-hero-title">{{ home_title | strip }}</h1>
+        {% if page.subtitle %}
+          <p class="home-hero-subtitle">{{ page.subtitle }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+{% endif %}
+
+<div class="post{% if page.hero_image %} post-home-hero{% endif %}">
+  {% unless page.hero_image %}
+    <header class="post-header">
+      <h1 class="post-title">{{ home_title | strip }}</h1>
+      <p class="desc">{{ page.subtitle }}</p>
+    </header>
+  {% endunless %}
 
   <article>
     {% if page.profile %}
@@ -40,26 +67,28 @@ layout: default
 
     <div class="clearfix">{{ content }}</div>
 
-    <!-- News -->
+    {% capture news_url %}{% include page-link.liquid ref='news' %}{% endcapture %}
+    {% capture blog_url %}{% include page-link.liquid ref='blog' %}{% endcapture %}
+    {% capture publications_url %}{% include page-link.liquid ref='publications' %}{% endcapture %}
+
     {% if page.announcements and page.announcements.enabled %}
       <h2>
-        <a href="{{ '/news/' | relative_url }}" style="color: inherit">News</a>
+        <a href="{{ news_url | strip }}" style="color: inherit">{% include t.liquid key='about.news' default='News' %}</a>
       </h2>
       {% include news.liquid limit=true %}
     {% endif %}
 
-    <!-- Latest posts -->
     {% if page.latest_posts and page.latest_posts.enabled %}
       <h2>
-        <a href="{{ '/blog/' | relative_url }}" style="color: inherit">Latest posts</a>
+        <a href="{{ blog_url | strip }}" style="color: inherit">{% include t.liquid key='about.latest_posts' default='Latest posts' %}</a>
       </h2>
       {% include latest_posts.liquid %}
     {% endif %}
 
-    <!-- Selected papers -->
     {% if page.selected_papers %}
       <h2>
-        <a href="{{ '/publications/' | relative_url }}" style="color: inherit">Selected publications</a>
+        <a href="{{ publications_url | strip }}" style="color: inherit"
+          >{% include t.liquid key='about.selected_publications' default='Selected publications' %}</a>
       </h2>
       {% include selected_papers.liquid %}
     {% endif %}

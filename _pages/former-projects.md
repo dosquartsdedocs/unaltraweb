@@ -1,5 +1,6 @@
 ---
 layout: page
+published: false
 title: Former projects
 permalink: /former-projects/
 nav: false
@@ -19,11 +20,11 @@ This page highlights selected past projects completed by our group. Each entry i
 
 ### Adaptour (2021–2025)
 
-Adaptour examined how complex tourism destinations respond to global change, with a focus on climate change and decarbonization. The project combined conceptual development with empirical work and knowledge transfer activities, aiming to inform practical pathways toward destination resilience.
+Adaptour examined how complex tourism destinations respond to global change, with a focus on climate change and decarbonization. The project combined conceptual development with empirical work and knowledge-transfer actions, aiming to inform practical pathways toward destination resilience.
 
 **What we did**
 - Developed a framework to interpret destination vulnerability, adaptability, and resilience
-- Conducted case-based analysis and stakeholder-oriented activities
+- Conducted case-based analysis and stakeholder-oriented actions
 - Produced academic outputs and knowledge-transfer materials
 
 **Selected outputs**
@@ -40,9 +41,9 @@ Adaptour examined how complex tourism destinations respond to global change, wit
 Write a brief narrative (4–8 lines): what the project addressed, why it was needed, and what the main contribution was.
 
 **What we did**
-- Activity or work package 1
-- Activity or work package 2
-- Activity or work package 3
+- Work package 1
+- Work package 2
+- Work package 3
 
 **Selected outputs**
 - Paper/report: link
@@ -59,8 +60,8 @@ Write a brief narrative (4–8 lines): what the project addressed, why it was ne
 Write a brief narrative (4–8 lines). Focus on outcomes and reusability (methods, data, tools).
 
 **What we did**
-- Activity or work package 1
-- Activity or work package 2
+- Work package 1
+- Work package 2
 
 **Selected outputs**
 - Paper/report: link

@@ -1,11 +1,12 @@
-{% assign lang = site.lang | split: '-' | first %}
+{% assign lang_source = page.lang | default: site.default_lang | default: site.lang %}
+{% assign lang = lang_source | split: '-' | first %}
 
 {% case lang %}
   {% when 'pt' %}
-    {% assign lang = site.lang %}
+    {% assign lang = lang_source %}
 
   {% when 'zh' %}
-    {% assign lang_last = site.lang | split: '-' | last %}
+    {% assign lang_last = lang_source | split: '-' | last %}
     {% case lang_last %}
       {% when 'cn', 'sg', 'my', 'hans' %}
         {% assign lang = 'cn' %}

@@ -1,13 +1,16 @@
+{% capture impressum_text %}{% include t.liquid key='footer.impressum' default='Impressum' %}{% endcapture %}
+{% capture last_updated_text %}{% include t.liquid key='footer.last_updated' default='Last updated' %}{% endcapture %}
+
 {% capture footer_contents %}
   &copy; Copyright {{ site.time | date: '%Y' }}
   {{ site.first_name }}
   {{ site.middle_name }}
   {{ site.last_name }}. {{ site.footer_text }}
   {% if site.impressum_path %}
-    <a href="{{ site.url }}{{ site.baseurl }}{{ site.impressum_path }}">Impressum</a>.
+    <a href="{{ site.url }}{{ site.baseurl }}{{ site.impressum_path }}">{{ impressum_text | strip }}</a>.
   {% endif %}
   {% if site.last_updated %}
-    Last updated: {{ 'now' | date: '%B %d, %Y' }}.
+    {{ last_updated_text | strip }}: {{ 'now' | date: '%Y-%m-%d' }}.
   {% endif %}
 {% endcapture %}
 

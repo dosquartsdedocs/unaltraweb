@@ -1,0 +1,64 @@
+header:
+  toggle_navigation: Mostra o amaga la navegacio
+  current: actual
+  search: Cerca
+  change_theme: Canvia el tema
+  language: Idioma
+
+footer:
+  impressum: Avís legal
+  last_updated: Darrera actualitzacio
+
+search:
+  placeholder: Escriu per cercar
+
+bib:
+  filter_placeholder: Escriu per filtrar
+
+about:
+  news: Noticies
+  latest_posts: Entrades recents
+  selected_publications: Publicacions destacades
+
+news:
+  empty: Encara no hi ha noticies.
+
+latest_posts:
+  empty: Encara no hi ha entrades.
+
+page:
+  references: Referencies
+
+post:
+  created_on: Creat el
+  by: per
+  last_updated_on: darrera actualitzacio el
+  references: Referencies
+
+archive:
+  category_prefix: Arxiu de
+  category_suffix: en aquesta categoria
+  year_prefix: Arxiu de
+  year_suffix: d'aquest any
+  tag_prefix: Arxiu de
+  tag_suffix: amb aquesta etiqueta
+
+related_posts:
+  title: Vols continuar llegint?
+  intro: Aqui tens mes articles que et poden interessar.
+  subscribe: "Subscriu-te per rebre avis de futurs articles:"
+
+pagination:
+  blog_navigation: Navegacio de pagines del blog
+
+blog:
+  empty: Encara no hi ha entrades al blog.
+
+projects:
+  code_repository: Repositori de codi
+  github_stars: Estrelles de GitHub
+
+languages:
+  en: Angles
+  es: Castella
+  ca: Catala

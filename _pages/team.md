@@ -1,5 +1,6 @@
 ---
 layout: page
+published: false
 title: Team
 permalink: /team/
 nav: true

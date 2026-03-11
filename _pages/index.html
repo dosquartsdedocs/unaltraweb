@@ -1,0 +1,43 @@
+---
+layout: none
+permalink: /
+sitemap: false
+---
+<!doctype html>
+<html lang="{{ site.default_lang | default: site.lang }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ site.title }}</title>
+    <script>
+      (function () {
+        var supportedLanguages = {{ site.languages | jsonify }};
+        var defaultLanguage = "{{ site.default_lang | default: site.lang }}";
+        var baseUrl = "{{ site.baseurl }}";
+
+        var browserLanguages = navigator.languages || [navigator.language || defaultLanguage];
+        var selectedLanguage = defaultLanguage;
+
+        for (var i = 0; i < browserLanguages.length; i += 1) {
+          var languageCode = (browserLanguages[i] || "").toLowerCase().split("-")[0];
+          if (supportedLanguages.indexOf(languageCode) !== -1) {
+            selectedLanguage = languageCode;
+            break;
+          }
+        }
+
+        var targetPath = (baseUrl || "") + "/" + selectedLanguage + "/";
+        var suffix = (window.location.search || "") + (window.location.hash || "");
+        window.location.replace(targetPath + suffix);
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>
+      <p>
+        JavaScript is required for language redirection.
+        <a href="{{ site.baseurl }}/{{ site.default_lang | default: site.lang }}/">Continue to the default language</a>.
+      </p>
+    </noscript>
+  </body>
+</html>

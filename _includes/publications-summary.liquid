@@ -1,0 +1,127 @@
+{% capture n_total_raw %}{% bibliography_count -f papers %}{% endcapture %}
+{% assign n_total = n_total_raw | strip | plus: 0 %}
+
+{% capture n_article_raw %}{% bibliography_count -f papers --query @article %}{% endcapture %}
+{% assign n_article = n_article_raw | strip | plus: 0 %}
+
+{% capture n_inproceedings_raw %}{% bibliography_count -f papers --query @inproceedings %}{% endcapture %}
+{% assign n_inproceedings = n_inproceedings_raw | strip | plus: 0 %}
+
+{% capture n_incollection_raw %}{% bibliography_count -f papers --query @incollection %}{% endcapture %}
+{% assign n_incollection = n_incollection_raw | strip | plus: 0 %}
+
+{% capture n_book_raw %}{% bibliography_count -f papers --query @book %}{% endcapture %}
+{% assign n_book = n_book_raw | strip | plus: 0 %}
+
+{% capture n_inbook_raw %}{% bibliography_count -f papers --query @inbook %}{% endcapture %}
+{% assign n_inbook = n_inbook_raw | strip | plus: 0 %}
+
+{% capture n_techreport_raw %}{% bibliography_count -f papers --query @techreport %}{% endcapture %}
+{% assign n_techreport = n_techreport_raw | strip | plus: 0 %}
+
+{% capture n_phdthesis_raw %}{% bibliography_count -f papers --query @phdthesis %}{% endcapture %}
+{% assign n_phdthesis = n_phdthesis_raw | strip | plus: 0 %}
+
+{% capture n_mastersthesis_raw %}{% bibliography_count -f papers --query @mastersthesis %}{% endcapture %}
+{% assign n_mastersthesis = n_mastersthesis_raw | strip | plus: 0 %}
+
+{% capture n_misc_raw %}{% bibliography_count -f papers --query @misc %}{% endcapture %}
+{% assign n_misc = n_misc_raw | strip | plus: 0 %}
+
+{% if n_total > 0 %}
+  {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+
+  {% if current_lang == 'es' %}
+    {% assign intro = 'Esta pagina muestra' %}
+    {% assign publications_word = 'publicaciones' %}
+    {% assign article_s = 'articulo' %}
+    {% assign article_p = 'articulos' %}
+    {% assign conference_s = 'comunicacion a congreso' %}
+    {% assign conference_p = 'comunicaciones a congresos' %}
+    {% assign chapter_s = 'capitulo de libro' %}
+    {% assign chapter_p = 'capitulos de libro' %}
+    {% assign book_s = 'libro' %}
+    {% assign book_p = 'libros' %}
+    {% assign report_s = 'informe tecnico' %}
+    {% assign report_p = 'informes tecnicos' %}
+    {% assign thesis_s = 'tesis' %}
+    {% assign thesis_p = 'tesis' %}
+    {% assign other_s = 'otro item' %}
+    {% assign other_p = 'otros items' %}
+  {% elsif current_lang == 'ca' %}
+    {% assign intro = 'Aquesta pagina mostra' %}
+    {% assign publications_word = 'publicacions' %}
+    {% assign article_s = 'article' %}
+    {% assign article_p = 'articles' %}
+    {% assign conference_s = 'comunicacio a congres' %}
+    {% assign conference_p = 'comunicacions a congressos' %}
+    {% assign chapter_s = 'capitol de llibre' %}
+    {% assign chapter_p = 'capitols de llibre' %}
+    {% assign book_s = 'llibre' %}
+    {% assign book_p = 'llibres' %}
+    {% assign report_s = 'informe tecnic' %}
+    {% assign report_p = 'informes tecnics' %}
+    {% assign thesis_s = 'tesi' %}
+    {% assign thesis_p = 'tesis' %}
+    {% assign other_s = 'altre item' %}
+    {% assign other_p = 'altres items' %}
+  {% else %}
+    {% assign intro = 'This page currently lists' %}
+    {% assign publications_word = 'publications' %}
+    {% assign article_s = 'journal article' %}
+    {% assign article_p = 'journal articles' %}
+    {% assign conference_s = 'conference paper' %}
+    {% assign conference_p = 'conference papers' %}
+    {% assign chapter_s = 'book chapter' %}
+    {% assign chapter_p = 'book chapters' %}
+    {% assign book_s = 'book' %}
+    {% assign book_p = 'books' %}
+    {% assign report_s = 'technical report' %}
+    {% assign report_p = 'technical reports' %}
+    {% assign thesis_s = 'thesis' %}
+    {% assign thesis_p = 'theses' %}
+    {% assign other_s = 'other item' %}
+    {% assign other_p = 'other items' %}
+  {% endif %}
+
+  {% assign parts = '' | split: '|' %}
+
+  {% if n_article > 0 %}
+    {% capture s %}<strong>{{ n_article }}</strong> {% if n_article == 1 %}{{ article_s }}{% else %}{{ article_p }}{% endif %}{% endcapture %}
+    {% assign parts = parts | push: s %}
+  {% endif %}
+
+  {% assign n_books_total = n_book | plus: n_inbook %}
+  {% if n_books_total > 0 %}
+    {% capture s %}<strong>{{ n_books_total }}</strong> {% if n_books_total == 1 %}{{ book_s }}{% else %}{{ book_p }}{% endif %}{% endcapture %}
+    {% assign parts = parts | push: s %}
+  {% endif %}
+
+  {% if n_incollection > 0 %}
+    {% capture s %}<strong>{{ n_incollection }}</strong> {% if n_incollection == 1 %}{{ chapter_s }}{% else %}{{ chapter_p }}{% endif %}{% endcapture %}
+    {% assign parts = parts | push: s %}
+  {% endif %}
+
+  {% if n_inproceedings > 0 %}
+    {% capture s %}<strong>{{ n_inproceedings }}</strong> {% if n_inproceedings == 1 %}{{ conference_s }}{% else %}{{ conference_p }}{% endif %}{% endcapture %}
+    {% assign parts = parts | push: s %}
+  {% endif %}
+
+  {% if n_techreport > 0 %}
+    {% capture s %}<strong>{{ n_techreport }}</strong> {% if n_techreport == 1 %}{{ report_s }}{% else %}{{ report_p }}{% endif %}{% endcapture %}
+    {% assign parts = parts | push: s %}
+  {% endif %}
+
+  {% assign n_thesis_total = n_phdthesis | plus: n_mastersthesis %}
+  {% if n_thesis_total > 0 %}
+    {% capture s %}<strong>{{ n_thesis_total }}</strong> {% if n_thesis_total == 1 %}{{ thesis_s }}{% else %}{{ thesis_p }}{% endif %}{% endcapture %}
+    {% assign parts = parts | push: s %}
+  {% endif %}
+
+  {% if n_misc > 0 %}
+    {% capture s %}<strong>{{ n_misc }}</strong> {% if n_misc == 1 %}{{ other_s }}{% else %}{{ other_p }}{% endif %}{% endcapture %}
+    {% assign parts = parts | push: s %}
+  {% endif %}
+
+  <p class="pub-counts">{{ intro }} <strong>{{ n_total }}</strong> {{ publications_word }}: {{ parts | join: ', ' }}.</p>
+{% endif %}

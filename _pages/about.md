@@ -1,5 +1,6 @@
 ---
 layout: about
+published: false
 title: About
 permalink: /
 subtitle: "Write your project subtitle here (plain text)."

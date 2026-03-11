@@ -1,0 +1,64 @@
+header:
+  toggle_navigation: Toggle navigation
+  current: current
+  search: Search
+  change_theme: Change theme
+  language: Language
+
+footer:
+  impressum: Impressum
+  last_updated: Last updated
+
+search:
+  placeholder: Type to start searching
+
+bib:
+  filter_placeholder: Type to filter
+
+about:
+  news: News
+  latest_posts: Latest posts
+  selected_publications: Selected publications
+
+news:
+  empty: No news so far...
+
+latest_posts:
+  empty: No posts so far...
+
+page:
+  references: References
+
+post:
+  created_on: Created on
+  by: by
+  last_updated_on: last updated on
+  references: References
+
+archive:
+  category_prefix: Archive of
+  category_suffix: in this category
+  year_prefix: Archive of
+  year_suffix: from this year
+  tag_prefix: Archive of
+  tag_suffix: with this tag
+
+related_posts:
+  title: Enjoy reading this article?
+  intro: Here are some more articles you might like to read next.
+  subscribe: "Subscribe to be notified of future articles:"
+
+pagination:
+  blog_navigation: Blog page navigation
+
+blog:
+  empty: No blog posts yet.
+
+projects:
+  code_repository: Code repository
+  github_stars: GitHub stars
+
+languages:
+  en: English
+  es: Spanish
+  ca: Catalan

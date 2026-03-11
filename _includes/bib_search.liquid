@@ -1,4 +1,5 @@
 {% if site.bib_search %}
   <script src="{{ '/assets/js/bibsearch.js' | relative_url | bust_file_cache }}" type="module"></script>
-  <input type="text" id="bibsearch" spellcheck="false" autocomplete="off" class="search bibsearch-form-input" placeholder="Type to filter">
+  {% capture bib_filter_placeholder %}{% include t.liquid key='bib.filter_placeholder' default='Type to filter' %}{% endcapture %}
+  <input type="text" id="bibsearch" spellcheck="false" autocomplete="off" class="search bibsearch-form-input" placeholder="{{ bib_filter_placeholder | strip }}">
 {% endif %}

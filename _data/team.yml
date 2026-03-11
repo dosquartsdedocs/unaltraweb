@@ -1,688 +1,249 @@
-
-- name: Salvador
-  lastname: Anton-Clavé
-  position: Principal Investigator
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: salvador-anton.png
-  keywords:
-    - tourism,
-    - geography
-    
-  email: 
-    - title: E-mail
-      url: salvador.anton@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-#    - title: home
-#      url: https://www.researchgate.net/profile/
-#      class: "fa-solid fa-house-user fa-2x"
-    - title: ORCID
-      url:  https://orcid.org/0000-0001-9818-2778
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.com/citations?user=WDfXg8cAAAAJ&hl=en
-      class: "ai ai-google-scholar ai-2x"
-      
-- name: Aaron
-  lastname: Gutiérrez
-  position: co-Principal Investigator
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: aaron-gutierrez.png
-  keywords:
-    - geography,  
-    - urban studies,  
-    - tourism,  
-    - mobilities,  
-    - housing  
-  email: 
-    - title: E-mail
-      url: aaron.gutierrez@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0003-0557-6319
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.com/citations?user=yrywqJ8AAAAJ&hl=en
-      class: "ai ai-google-scholar ai-2x"
-    - title: ResearchGate
-      url: https://www.researchgate.net/profile/Aaron-Gutierrez-5
-      class: "ai ai-researchgate ai-2x"
-
-      
-- name: Jules
-  lastname: Wilson
-  position: Associate Professor
-  organization: Universitat Oberta de Catalunya
-  department: Faculty of Economics and Business Studies
-  pic: julie-wilson.png
-  keywords:
-    - platform geographies,
-    - tourism geographies,
-    - evolucionary economic geography,
-    - urban and regional transformations
-  email: 
-    - title: E-mail
-      url: jwilson2@uoc.edu
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0003-2802-7275
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.com/citations?hl=en&user=FpEeJ3kAAAAJ&view_op=list_works&sortby=pubdate
-      class: "ai ai-google-scholar ai-2x"
-    - title: Academia.edu
-      url: https://uoc.academia.edu/jules
-      class: "ai ai-academia ai-2x"
-    - title: SCOPUS
-      url: https://www.scopus.com/authid/detail.uri?authorId=56073346800
-      class: "ai ai-scopus ai-2x"
-#    - title: Publons
-#      url: https://publons.com/researcher/2105211/julie-c-wilson/
-#      class: "ai ai-publons ai-2x"
-#   - title: linkedin
-#     url: https://www.linkedin.com/in/jules-wilson-55623793
-#     class: "fa-brands fa-linkedin fa-2x"
-      
-- name: Antonio Paolo
-  lastname: Russo
-  position: Coord. H2020 - <a href="http://smartdest.eu/" target="_blank">SMARTDEST Project</a>
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: paolo-russo.png
-  keywords:
-    - tourism geography,
-    - urban and regional planning,
-    - social geography,
-    - population change,
-    - tourism mobilities,
-    - agency,
-    - governance
-  email: 
-    - title: E-mail
-      url: antonio.russo@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0001-8768-246X
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.com/citations?user=x7_tYNoAAAAJ&hl=es
-      class: "ai ai-google-scholar ai-2x"
-    - title: SCOPUS
-      url: https://www.scopus.com/authid/detail.uri?authorId=54790606100
-      class: "ai ai-scopus ai-2x"
-    - title: WoS Researcher ID
-      url: https://publons.com/researcher/A-9456-2014/
-      class: "ai ai-researcherid ai-2x"
- 
-- name: Cinta
-  lastname: Sanz-Ibáñez
-  position: Researcher
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: cinta-sanz.png
-  keywords:
-    - tourism geography,
-    - evolutionary economic geography,
-    - global production networks
-  email: 
-    - title: E-mail
-      url: cinta.sanzi@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  http://orcid.org/0000-0001-9552-4285
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.es/citations?user=Xb2pW5YAAAAJ&hl=ca
-      class: "ai ai-google-scholar ai-2x"
-
-- name: Maria Assumpció
-  lastname: Huertas Roig
-  position: Associate professor
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Communication Studies
-  pic: sunsi-huertas.png
-  keywords:
-    - destination branding,
-    - smart destination's communication,
-    - tourism digital communication,
-    - social media,
-    - crisis communication
-  email: 
-    - title: E-mail
-      url: sunsi.huertas@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  http://orcid.org/0000-0001-6684-4220
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.com/citations?user=ZqU-iYAAAAAJ&hl=en
-      class: "ai ai-google-scholar ai-2x"
-
-
-- name: Marta Gemma
-  lastname: Nel·lo-Andreu
-  position: Associate Professor
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: marta-nello.png
-  keywords:
-    - geography,
-    - tourism
-  email: 
-    - title: E-mail
-      url: martagemma.nello@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0002-0437-4056
-      class: "ai ai-orcid ai-2x"
-    - title: ResearchGate
-      url: https://www.researchgate.net/profile/Marta-Andreu
-      class: "ai ai-researchgate ai-2x"
-      
-- name: Òscar
-  lastname: Saladié-Borraz
-  position: Full Professor
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: oscar-saladie.png
-  keywords:
-    - tourism,
-    - mobility,
-    - climate change
-  email: 
-    - title: E-mail
-      url: oscar.saladie@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0002-7989-0717
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.com/citations?user=lSNGqp8AAAAJ&hl=ca
-      class: "ai ai-google-scholar ai-2x"
-      
-      
-- name: Raquel
-  lastname: Santos-Lacueva
-  position: Consultant
-  organization: 
-  department: 
-  pic: raquel-santos.png
-  keywords:
-    - sustainable tourism,
-    - tourism policies,
-    - tourism innovation  
-  email: 
-    - title: E-mail
-      url: raquel.santos@fi-group.com
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0001-5317-8476 
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.es/citations?user=dZhp74cAAAAJ
-      class: "ai ai-google-scholar ai-2x"
-    - title: ResearchGate
-      url: https://www.researchgate.net/profile/Raquel-Santos-Lacueva
-      class: "ai ai-researchgate ai-2x"
-    - title: linkedin
-      url: https://es.linkedin.com/in/raquel-santos-lacueva-phd-79951235
-      class: "fa-brands fa-linkedin fa-2x"
-      
-          
-#- name: Joan
-#  lastname: Borràs-Nogués
-#  position: Data Scientist
-#  organization: Eurecat. Technology Centre of Catalonia
-#  department:  Dept. of Geography
-#  pic: joan-borras.png
-#  keywords:
-#    - data science
-#    - artificial intelligence
-#    - smart destinations
-#    - tourism
-#  email: 
-#    - title: E-mail
-#      url: joan.borras@eurecat.org
-#      class: "fa-solid fa-envelope fa-2x"
-#  social:
-#    - title: ORCID
-#      url:  https://orcid.org/0000-0002-3894-4010
-#      class: "ai ai-orcid ai-2x"
-#    - title: linkedin
-#      url: https://www.linkedin.com/in/wilbert-den-hoed-05b2b344
-#      class: "fa-brands fa-linkedin fa-2x"
-      
-- name: Jordi
-  lastname: Andreu-Bertran
-  position: Research staff
-  organization: Universitat Rovira i Virgili
-  department:  Dept. of Geography
+- name: Alexander
+  lastname: von Humboldt
+  position: Template Lead Geographer (Placeholder)
+  organization: Template Geography Consortium
+  department: Exploratory Landscapes Unit
   pic: user-placeholder.png
   keywords:
-    - gis,
-    - cartography,
-    - tourism
-  email: 
+    - physical geography,
+    - biogeography,
+    - exploration
+  email:
     - title: E-mail
-      url: jordi.andreu@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: home
-      url: https://www.urv.cat/html/grupsrecerca/investigadors/general-I2369.php
-      class: "fa-solid fa-house-user fa-2x"
-
-
-- name: Wilbert
-  lastname: den Hoed
-  position: Postdoctoral researcher
-  organization: Universitat Rovira i Virgili
-  department:  Dept. of Geography
-  pic: wilbert-den-hoed.png
-  keywords:
-    - urban geography,
-    - active mobility,
-    - tourism,
-    - Age-friendly Cities,
-    - mobile methods
-  email: 
-    - title: E-mail
-      url: wilbert.denhoed@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: Google Scholar
-      url: https://scholar.google.es/citations?user=n49TSDYAAAAJ&hl=en&oi=sra
-      class: "ai ai-google-scholar ai-2x"
-    - title: ORCID
-      url: http://orcid.org/0000-0003-1758-704X
-      class: "ai ai-orcid ai-2x"
-    - title: linkedin
-      url: https://www.linkedin.com/in/wilbert-den-hoed-05b2b344
-      class: "fa-brands fa-linkedin fa-2x"
-      
-- name: Xavier
-  lastname: Delclòs-Alió
-  position: Postdoctoral researher
-  organization: Universitat Rovira i Virgili
-  department:  Dept. of Geography
-  pic: xavier-delclos.png
-  keywords:
-    - travel behavior,
-    - active mobility,
-    - physical activity
-  email: 
-    - title: E-mail
-      url: xavier.delclos@urv.cat
+      url: alexander.humboldt@example.org
       class: "fa-solid fa-envelope fa-2x"
   social:
     - title: ORCID
-      url:  https://orcid.org/0000-0002-7206-2310
+      url: https://orcid.org/0000-0000-0000-1001
       class: "ai ai-orcid ai-2x"
     - title: Google Scholar
-      url: https://scholar.google.com/citations?user=YZRxfjgAAAAJ&hl=ca&oi=ao
+      url: https://scholar.google.com/citations?user=humboldt-template
       class: "ai ai-google-scholar ai-2x"
-    - title: SCOPUS
-      url: https://www.scopus.com/authid/detail.uri?authorId=57194897977
-      class: "ai ai-scopus ai-2x"
-    - title: WoS Researcher ID
-      url: https://publons.com/researcher/X-7513-2019/
-      class: "ai ai-researcherid ai-2x"
-#    - title: Twitter
-#      url: https://twitter.com/xavidelclos
-#      class: "fa-brands fa-twitter fa-2x"
-
-
-- name: Benito
-  lastname: Zaragozí
-  position: Lecturer
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: benito-zaragozi.png
-  keywords:
-    - gis,
-    - geodatabases,
-    - data mining,
-    - giscience
-  email: 
-    - title: E-mail
-      url: benito.zaragozi@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: home
-      url: https://benito-zaragozi.com
-      class: "fa-solid fa-house-user fa-2x"
-    - title: ORCID
-      url:  https://orcid.org/0000-0003-2501-484X
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.es/citations?user=sO9xAc8AAAAJ
-      class: "ai ai-google-scholar ai-2x"
-    - title: ResearchGate
-      url: https://www.researchgate.net/profile/Benito-Zaragozi
-      class: "ai ai-researchgate ai-2x"
-#    - title: linkedin
-#      url: https://es.linkedin.com/in/benito-m-zaragozí-295b6940
-#      class: "fa-brands fa-linkedin fa-2x"
-      
-      
-- name: Antoni
-  lastname: Domènech-Montaña
-  position: Associate Lecturer
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: antoni-domenech.png
-  keywords:
-    - gis,
-    - geodatabases,
-    - data mining,
-    - giscience
-  email: 
-    - title: E-mail
-      url: antoni.domenech@urv.cat 
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0002-1881-6679 
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.es/citations?user=bpiYG5UAAAAJ&hl=es
-      class: "ai ai-google-scholar ai-2x"
-    - title: ResearchGate
-      url: https://www.researchgate.net/profile/Antoni-Domenech
-      class: "ai ai-researchgate ai-2x"
-    - title: linkedin
-      url: https://es.linkedin.com/in/antoni-domenech
+    - title: LinkedIn
+      url: https://www.linkedin.com/in/alexander-von-humboldt-template
       class: "fa-brands fa-linkedin fa-2x"
 
-
-#- name: Isabel
-#  lastname: Paulino-Valldeperéz
-#  position: Postdoctoral researher
-#  organization: Universitat Rovira i Virgili
-#  department: Dept. of Geography
-#  pic: isabel-paulino.png
-#  keywords:
-#    - Cross-border destinations
-#    - Travel patterns
-#    - Tourism Destination Management
-#    - Tourism destination branding
-#    - Destination resilience
-#    - Destination governance
-#  email: 
-#    - title: E-mail
-#      url: isabel.paulino@udg.edu
-#      class: "fa-solid fa-envelope fa-2x"
-#  social:
-#    - title: ORCID
-#      url:  https://orcid.org/0000-0002-8428-8878
-#      class: "ai ai-orcid ai-2x"
-#    - title: ResearchGate
-#      url: https://www.researchgate.net/profile/Isabel-Paulino-Valldeperez
-#      class: "ai ai-researchgate ai-2x"
-#    - title: Academia.edu
-#      url: https://uoc.academia.edu/sabelPaulino
-#      class: "ai ai-academia ai-2x"
-#    - title: linkedin
-#      url: https://es.linkedin.com/in/isabel-paulino-valldep%C3%A9rez-a089ab64
-#      class: "fa-brands fa-linkedin fa-2x"
-#    - title: Twitter
-#      url: https://twitter.com/isabelpaulino82
-#      class: "fa-brands fa-twitter fa-2x"
-
-      
-- name: Daniel
-  lastname: Miravet-Arnau
-  position: Associate Lecturer
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Economy
-  pic: daniel-miravet.png
-  keywords:
-    - public transportation,
-    - tourism,
-    - education ecnonomics
-  email: 
-    - title: E-mail
-      url: daniel.miravet@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0001-7830-5515
-      class: "ai ai-orcid ai-2x"
-      
-      
-- name: Fiammetta
-  lastname: Brandajs Di Martino
-  position: Postdoctoral researher
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: fiammetta-brandajs.png
-  keywords:
-    - gis,
-    - mobilities,
-    - human and digital flows
-  email: 
-    - title: E-mail
-      url: fiammetta.brandajs@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0002-1600-1089
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.es/citations?user=i5VgwegAAAAJ&hl=it
-      class: "ai ai-google-scholar ai-2x"
-      
-- name: Francesc
-  lastname: González-Reverté
-  position: Associate Professor
-  organization: Universitat Oberta de Catalunya
-  department: Dept. of Economy and Bussiness
-  pic: francesc-gonzalez.png
-  keywords:
-    - mass tourism,
-    - smart destinations,
-    - technology and tourism,
-    - residents attitude towards tourism
-  email: 
-    - title: E-mail
-      url: fgonzalezre@uoc.edu
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0002-9554-3934
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.com/citations?user=hXdNaAYAAAAJ&hl=es
-      class: "ai ai-google-scholar ai-2x"
-    - title: ResearchGate
-      url: https://www.researchgate.net/profile/Francesc-Gonzalez
-      class: "ai ai-researchgate ai-2x"
-
-
-- name: Maria Ángeles
-  lastname: Casado-Diaz
-  position: Associate Professor
-  organization: University of the West of England
-  department: Geography and Environmental Management
-  pic: maria-casado.png
-  keywords:
-    - impacts of tourism,
-    - lifestyle migration,
-    - social capital,
-    - sharing economy
-  email: 
-    - title: E-mail
-      url: maria.casado-diaz@uwe.ac.uk
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: home
-      url: https://people.uwe.ac.uk/Person/MariaCasado-Diaz
-      class: "fa-solid fa-house-user fa-2x"
-    - title: ORCID
-      url:  https://orcid.org/0000-0002-7107-3413
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.com/citations?user=GVbUtRQAAAAJ&hl=en
-      class: "ai ai-google-scholar ai-2x"
-
-
-- name: Alejandro
-  lastname: González-Domingo
-  position: PhD candidate
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: alejandro-gonzalez.png
+- name: Ellen
+  lastname: Churchill Semple
+  position: Human Geography Advisor (Placeholder)
+  organization: Template Geography Consortium
+  department: Human-Environment Studies
+  pic: user-placeholder.png
   keywords:
     - human geography,
-    - tourism,
-    - labour
-  email: 
+    - regional analysis,
+    - environmental influence
+  email:
     - title: E-mail
-      url: alejandro.gonzalez@urv.cat
+      url: ellen.semple@example.org
       class: "fa-solid fa-envelope fa-2x"
   social:
     - title: ORCID
-      url:  https://orcid.org/0000-0002-8515-7140
-      class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.com/citations?user=WtOcidsAAAAJ&hl=es
-      class: "ai ai-google-scholar ai-2x"
-
-- name: María Eugenia
-  lastname: Altamirano
-  position: PhD candidate
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: eugenia-altamirano.png
-  keywords:
-    - geography,
-    - urban studies,
-    - community-based tourism,
-    - slum tourism
-  email: 
-    - title: E-mail
-      url: mariaeugenia.altamirano@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0003-3103-5399
+      url: https://orcid.org/0000-0000-0000-1002
       class: "ai ai-orcid ai-2x"
     - title: ResearchGate
-      url: https://www.researchgate.net/profile/Maria-Altamirano-2
+      url: https://www.researchgate.net/profile/Ellen-Semple-Template
       class: "ai ai-researchgate ai-2x"
-    - title: linkedin
-      url: https://www.linkedin.com/in/mariaeugeniaaltamirano
+    - title: X
+      url: https://x.com/ellen_semple_template
+      class: "fa-brands fa-twitter fa-2x"
+
+- name: Halford
+  lastname: Mackinder
+  position: Geopolitics Specialist (Placeholder)
+  organization: Template Geography Consortium
+  department: Spatial Strategy Lab
+  pic: user-placeholder.png
+  keywords:
+    - geopolitics,
+    - regional systems,
+    - strategic geography
+  email:
+    - title: E-mail
+      url: halford.mackinder@example.org
+      class: "fa-solid fa-envelope fa-2x"
+  social:
+    - title: ORCID
+      url: https://orcid.org/0000-0000-0000-1003
+      class: "ai ai-orcid ai-2x"
+    - title: Google Scholar
+      url: https://scholar.google.com/citations?user=mackinder-template
+      class: "ai ai-google-scholar ai-2x"
+    - title: LinkedIn
+      url: https://www.linkedin.com/in/halford-mackinder-template
       class: "fa-brands fa-linkedin fa-2x"
 
-
-- name: María Esperanza
-  lastname: Medina-Chavarría
-  position: PhD candidate
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: maria-medina.png
+- name: Marie
+  lastname: Tharp
+  position: Cartography and Mapping Lead (Placeholder)
+  organization: Template Geography Consortium
+  department: Ocean and Relief Mapping
+  pic: user-placeholder.png
   keywords:
-    - tourism,
-    - sustainability,
-    - mobility
-  email: 
+    - cartography,
+    - ocean mapping,
+    - geomorphology
+  email:
     - title: E-mail
-      url: mariaesperanza.medina@urv.cat
+      url: marie.tharp@example.org
       class: "fa-solid fa-envelope fa-2x"
   social:
     - title: ORCID
-      url:  https://orcid.org/0000-0002-6580-3408
+      url: https://orcid.org/0000-0000-0000-1004
       class: "ai ai-orcid ai-2x"
-    - title: Google Scholar
-      url: https://scholar.google.es/citations?user=6ysGka4AAAAJ&hl=en
-      class: "ai ai-google-scholar ai-2x"
     - title: ResearchGate
-      url: https://www.researchgate.net/profile/Maria-Medina-Chavarria
+      url: https://www.researchgate.net/profile/Marie-Tharp-Template
       class: "ai ai-researchgate ai-2x"
-    - title: linkedin
-      url: https://www.linkedin.com/in/maria-e-medina-chavarria
+    - title: LinkedIn
+      url: https://www.linkedin.com/in/marie-tharp-template
       class: "fa-brands fa-linkedin fa-2x"
 
-- name: Ana
-  lastname: Pastor-Alcaraz
-  position: PhD candidate
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: ana-pastor.png
+- name: Yi-Fu
+  lastname: Tuan
+  position: Place and Culture Researcher (Placeholder)
+  organization: Template Geography Consortium
+  department: Cultural and Behavioral Geography
+  pic: user-placeholder.png
   keywords:
-    - tourism governance,
-    - tourism resilience,
-    - smart governance,
-    - smart tourism city,
-    - tourism stakeholders
-  email: 
+    - sense of place,
+    - cultural geography,
+    - human experience
+  email:
     - title: E-mail
-      url: ana.pastor@urv.cat
+      url: yifu.tuan@example.org
       class: "fa-solid fa-envelope fa-2x"
   social:
     - title: ORCID
-      url:  https://orcid.org/0000-0002-0085-0959
-      class: "ai ai-orcid ai-2x"
-    - title: ResearchGate
-      url: https://www.researchgate.net/profile/Ana-Pastor-8
-      class: "ai ai-researchgate ai-2x"
-      
-
-- name: Alba
-  lastname: Viana-Lora
-  position: PhD candidate
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: alba-viana.png
-  keywords:
-    - tourism,
-    - social impact of research,
-    - assessment,
-    - sustainability,
-    - transfer knowledge
-  email: 
-    - title: E-mail
-      url: alba.viana@urv.cat
-      class: "fa-solid fa-envelope fa-2x"
-  social:
-    - title: ORCID
-      url:  https://orcid.org/0000-0002-1497-2025
+      url: https://orcid.org/0000-0000-0000-1005
       class: "ai ai-orcid ai-2x"
     - title: Google Scholar
-      url: https://scholar.google.com/citations?user=K6-3kZwAAAAJ&hl=en
+      url: https://scholar.google.com/citations?user=tuan-template
       class: "ai ai-google-scholar ai-2x"
-    - title: ResearchGate
-      url: https://www.researchgate.net/profile/Alba-Viana-Lora
-      class: "ai ai-researchgate ai-2x"
-      
-- name: Alba
-  lastname: Font-Barnet
-  position: PhD candidate
-  organization: Universitat Rovira i Virgili
-  department: Dept. of Geography
-  pic: alba-font.png
+    - title: X
+      url: https://x.com/yifu_tuan_template
+      class: "fa-brands fa-twitter fa-2x"
+
+- name: Doreen
+  lastname: Massey
+  position: Spatial Theory Coordinator (Placeholder)
+  organization: Template Geography Consortium
+  department: Space, Society and Policy
+  pic: user-placeholder.png
   keywords:
-    - tourism
-  email: 
+    - spatial theory,
+    - regional development,
+    - inequality
+  email:
     - title: E-mail
-      url: alba.font@urv.cat
+      url: doreen.massey@example.org
       class: "fa-solid fa-envelope fa-2x"
   social:
     - title: ORCID
-      url: https://orcid.org/0000-0002-2806-6242
+      url: https://orcid.org/0000-0000-0000-1006
       class: "ai ai-orcid ai-2x"
-#    - title: ResearchGate
-#      url: https://www.researchgate.net/profile/Liliana-Sole-Figueras
-#      class: "ai ai-researchgate ai-2x"
-#    - title: linkedin
-#      url: https://www.linkedin.com/in/lilianasole
-#      class: "fa-brands fa-linkedin fa-2x"
+    - title: ResearchGate
+      url: https://www.researchgate.net/profile/Doreen-Massey-Template
+      class: "ai ai-researchgate ai-2x"
+    - title: LinkedIn
+      url: https://www.linkedin.com/in/doreen-massey-template
+      class: "fa-brands fa-linkedin fa-2x"
+
+- name: David
+  lastname: Harvey
+  position: Urban and Economic Geography Analyst (Placeholder)
+  organization: Template Geography Consortium
+  department: Cities and Capital Dynamics
+  pic: user-placeholder.png
+  keywords:
+    - urban geography,
+    - political economy,
+    - social justice
+  email:
+    - title: E-mail
+      url: david.harvey@example.org
+      class: "fa-solid fa-envelope fa-2x"
+  social:
+    - title: ORCID
+      url: https://orcid.org/0000-0000-0000-1007
+      class: "ai ai-orcid ai-2x"
+    - title: Google Scholar
+      url: https://scholar.google.com/citations?user=harvey-template
+      class: "ai ai-google-scholar ai-2x"
+    - title: X
+      url: https://x.com/david_harvey_template
+      class: "fa-brands fa-twitter fa-2x"
+
+- name: Waldo
+  lastname: Tobler
+  position: GIS and Spatial Analysis Mentor (Placeholder)
+  organization: Template Geography Consortium
+  department: Geocomputation Unit
+  pic: user-placeholder.png
+  keywords:
+    - GIS,
+    - spatial analysis,
+    - cartographic modelling
+  email:
+    - title: E-mail
+      url: waldo.tobler@example.org
+      class: "fa-solid fa-envelope fa-2x"
+  social:
+    - title: ORCID
+      url: https://orcid.org/0000-0000-0000-1008
+      class: "ai ai-orcid ai-2x"
+    - title: Google Scholar
+      url: https://scholar.google.com/citations?user=tobler-template
+      class: "ai ai-google-scholar ai-2x"
+    - title: LinkedIn
+      url: https://www.linkedin.com/in/waldo-tobler-template
+      class: "fa-brands fa-linkedin fa-2x"
+
+- name: Gillian
+  lastname: Rose
+  position: Visual and Digital Geographies Lead (Placeholder)
+  organization: Template Geography Consortium
+  department: Visual Methods and Communication
+  pic: user-placeholder.png
+  keywords:
+    - visual geography,
+    - digital methods,
+    - urban culture
+  email:
+    - title: E-mail
+      url: gillian.rose@example.org
+      class: "fa-solid fa-envelope fa-2x"
+  social:
+    - title: ORCID
+      url: https://orcid.org/0000-0000-0000-1009
+      class: "ai ai-orcid ai-2x"
+    - title: ResearchGate
+      url: https://www.researchgate.net/profile/Gillian-Rose-Template
+      class: "ai ai-researchgate ai-2x"
+    - title: X
+      url: https://x.com/gillian_rose_template
+      class: "fa-brands fa-twitter fa-2x"
+
+- name: Torsten
+  lastname: Hagerstrand
+  position: Time Geography Consultant (Placeholder)
+  organization: Template Geography Consortium
+  department: Mobility and Temporal Analysis
+  pic: user-placeholder.png
+  keywords:
+    - time geography,
+    - mobility,
+    - diffusion studies
+  email:
+    - title: E-mail
+      url: torsten.hagerstrand@example.org
+      class: "fa-solid fa-envelope fa-2x"
+  social:
+    - title: ORCID
+      url: https://orcid.org/0000-0000-0000-1010
+      class: "ai ai-orcid ai-2x"
+    - title: Google Scholar
+      url: https://scholar.google.com/citations?user=hagerstrand-template
+      class: "ai ai-google-scholar ai-2x"
+    - title: LinkedIn
+      url: https://www.linkedin.com/in/torsten-hagerstrand-template
+      class: "fa-brands fa-linkedin fa-2x"

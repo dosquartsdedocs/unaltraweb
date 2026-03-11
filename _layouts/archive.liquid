@@ -1,17 +1,24 @@
 ---
 layout: default
 ---
+{% capture category_prefix %}{% include t.liquid key='archive.category_prefix' default='Archive of' %}{% endcapture %}
+{% capture category_suffix %}{% include t.liquid key='archive.category_suffix' default='in this category' %}{% endcapture %}
+{% capture year_prefix %}{% include t.liquid key='archive.year_prefix' default='Archive of' %}{% endcapture %}
+{% capture year_suffix %}{% include t.liquid key='archive.year_suffix' default='from this year' %}{% endcapture %}
+{% capture tag_prefix %}{% include t.liquid key='archive.tag_prefix' default='Archive of' %}{% endcapture %}
+{% capture tag_suffix %}{% include t.liquid key='archive.tag_suffix' default='with this tag' %}{% endcapture %}
+
 <div class="post">
   <header class="post-header">
     {% if page.type == 'categories' %}
       <h1 class="post-title"><i class="fa-solid fa-tag fa-sm"></i> {{ page.title }}</h1>
-      <p class="post-description">an archive of {{ page.collection_name }} in this category</p>
+      <p class="post-description">{{ category_prefix | strip }} {{ page.collection_name }} {{ category_suffix | strip }}</p>
     {% elsif page.type == 'year' %}
       <h1 class="post-title"><i class="fa-solid fa-calendar fa-sm"></i> {{ page.date | date: '%Y' }}</h1>
-      <p class="post-description">an archive of {{ page.collection_name }} from this year</p>
+      <p class="post-description">{{ year_prefix | strip }} {{ page.collection_name }} {{ year_suffix | strip }}</p>
     {% elsif page.type == 'tags' %}
       <h1 class="post-title"><i class="fa-solid fa-hashtag fa-sm"></i> {{ page.title }}</h1>
-      <p class="post-description">an archive of {{ page.collection_name }} with this tag</p>
+      <p class="post-description">{{ tag_prefix | strip }} {{ page.collection_name }} {{ tag_suffix | strip }}</p>
     {% endif %}
   </header>
 
@@ -20,7 +27,7 @@ layout: default
       <table class="table table-sm table-borderless">
         {% for document in page.documents %}
           <tr>
-            <th scope="row">{{ document.date | date: '%b %d, %Y' }}</th>
+            <th scope="row">{{ document.date | date: '%Y-%m-%d' }}</th>
             <td>
               {% if document.redirect == blank %}
                 <a class="post-link" href="{{ document.url | relative_url }}">{{ document.title }}</a>

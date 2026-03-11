@@ -1,3 +1,6 @@
+{% capture code_repository_text %}{% include t.liquid key='projects.code_repository' default='Code repository' %}{% endcapture %}
+{% capture github_stars_text %}{% include t.liquid key='projects.github_stars' default='GitHub stars' %}{% endcapture %}
+
 <div class="col mb-4">
   <a href="{% if project.redirect %}{{ project.redirect }}{% else %}{{ project.url | relative_url }}{% endif %}">
     <div class="card h-100 hoverable">
@@ -14,11 +17,11 @@
             <div class="row ml-1 mr-1 p-0">
               {% if project.github %}
                 <div class="github-icon">
-                  <div class="icon" data-toggle="tooltip" title="Code Repository">
+                  <div class="icon" data-toggle="tooltip" title="{{ code_repository_text | strip }}">
                     <a href="{{ project.github }}"><i class="fa-brands fa-github gh-icon"></i></a>
                   </div>
                   {% if project.github_stars %}
-                    <span class="stars" data-toggle="tooltip" title="GitHub Stars">
+                    <span class="stars" data-toggle="tooltip" title="{{ github_stars_text | strip }}">
                       <i class="fa-solid fa-star"></i>
                       <span id="{{ project.github_stars }}-stars"></span>
                     </span>
