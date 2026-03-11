@@ -60,14 +60,14 @@ ninja.data = [{
           },
         },{id: "nav-productes",
           title: "Productes",
-          description: "Dades, eines, mapes, fitxes d&#39;indicadors, calculs i altres productes del projecte.",
+          description: "Dades, eines, mapes, fitxes d&#39;indicadors, càlculs i altres productes del projecte.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/ca/productes/";
           },
         },{id: "nav-productos",
           title: "Productos",
-          description: "Datos, herramientas, mapas, fichas de indicadores, calculos y otros productos del proyecto.",
+          description: "Datos, herramientas, mapas, fichas de indicadores, cálculos y otros productos del proyecto.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/es/productos/";
@@ -95,14 +95,14 @@ ninja.data = [{
           },
         },{id: "nav-publicaciones",
           title: "Publicaciones",
-          description: "Resultados cientificos e informes tecnicos.",
+          description: "Resultados científicos e informes técnicos.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/es/publicaciones/";
           },
         },{id: "nav-publicacions",
           title: "Publicacions",
-          description: "Resultats cientifics i informes tecnics.",
+          description: "Resultats científics i informes tècnics.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/ca/publicacions/";
@@ -123,14 +123,14 @@ ninja.data = [{
           },
         },{id: "nav-repositorios",
           title: "Repositorios",
-          description: "Codigo fuente y flujos reproducibles.",
+          description: "Código fuente y flujos reproducibles.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/es/repositorios/";
           },
         },{id: "nav-repositoris",
           title: "Repositoris",
-          description: "Codi font i fluxos reproduibles.",
+          description: "Codi font i fluxos reproduïbles.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/ca/repositoris/";
@@ -151,14 +151,14 @@ ninja.data = [{
           },
         },{id: "nav-blog",
           title: "Blog",
-          description: "Notes, metodes i actualitzacions de desenvolupament.",
+          description: "Notes, mètodes i actualitzacions de desenvolupament.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/ca/blog/";
           },
         },{id: "nav-blog",
           title: "Blog",
-          description: "Notas, metodos y actualizaciones de desarrollo.",
+          description: "Notas, métodos y actualizaciones de desarrollo.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/es/blog/";
@@ -177,7 +177,29 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/unaltraweb/cv/";
           },
-        },{id: "post-a-post-with-plotly-js",
+        },{id: "post-actualització-de-plantilla-per-a-webs-de-projecte",
+        
+          title: "Actualització de plantilla per a webs de projecte",
+        
+        description: "Entrada de mostra per documentar avenços i canvis metodològics del projecte.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/unaltraweb/ca/blog/2026/actualitzacio-plantilla-projecte/";
+          
+        },
+      },{id: "post-actualización-de-plantilla-para-webs-de-proyecto",
+        
+          title: "Actualización de plantilla para webs de proyecto",
+        
+        description: "Entrada de ejemplo para documentar avances y cambios metodológicos del proyecto.",
+        section: "Posts",
+        handler: () => {
+          
+            window.location.href = "/unaltraweb/es/blog/2026/actualizacion-plantilla-proyecto/";
+          
+        },
+      },{id: "post-a-post-with-plotly-js",
         
           title: "a post with plotly.js",
         
@@ -556,6 +578,12 @@ ninja.data = [{
             },},{id: "news-a-simple-inline-announcement-with-markdown-emoji-sparkles-smile",
           title: 'A simple inline announcement with Markdown emoji! :sparkles: :smile:',
           description: "",
+          section: "News",},{id: "news-publicada-la-versión-base-de-la-plantilla-multilingüe-del-proyecto-es-ca-en-con-estructura-de-productos-publicaciones-y-equipo",
+          title: 'Publicada la versión base de la plantilla multilingüe del proyecto (ES/CA/EN) con estructura...',
+          description: "",
+          section: "News",},{id: "news-publicada-la-versió-base-de-la-plantilla-multilingüe-del-projecte-es-ca-en-amb-estructura-de-productes-publicacions-i-equip",
+          title: 'Publicada la versió base de la plantilla multilingüe del projecte (ES/CA/EN) amb estructura...',
+          description: "",
           section: "News",},{id: "outputs-open-geospatial-dataset",
           title: 'Open geospatial dataset',
           description: "Harmonized project dataset ready for reuse and citation.",
@@ -581,6 +609,56 @@ ninja.data = [{
           description: "Demo indicator card with methodological sheet, sample calculations, and interpretation thresholds.",
           section: "Outputs",handler: () => {
               window.location.href = "/unaltraweb/outputs/5_territorial-resilience-social-indicator/";
+            },},{id: "outputs-conjunt-de-dades-geoespacials-obert",
+          title: 'Conjunt de dades geoespacials obert',
+          description: "Dataset harmonitzat del projecte llest per a reutilització i citació.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/ca/outputs/conjunt-dades-geoespacials/";
+            },},{id: "outputs-mapa-web-interactiu",
+          title: 'Mapa web interactiu',
+          description: "Visor cartogràfic per explorar indicadors del projecte.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/ca/outputs/mapa-web-interactiu/";
+            },},{id: "outputs-guia-metodològica",
+          title: 'Guia metodològica',
+          description: "Flux reproduïble per al processament i l&#39;anàlisi de dades.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/ca/outputs/guia-metodologica/";
+            },},{id: "outputs-informe-de-recomanacions",
+          title: 'Informe de recomanacions',
+          description: "Resum accionable per a decisors i agents del territori.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/ca/outputs/informe-recomanacions/";
+            },},{id: "outputs-indicador-de-resiliència-territorial-dimensió-social-comunitats",
+          title: 'Indicador de resiliència territorial (dimensió social: comunitats)',
+          description: "Fitxa demo amb metodologia, càlculs de mostra i llindars d&#39;interpretació.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/ca/outputs/indicador-resiliencia-territorial-social/";
+            },},{id: "outputs-conjunto-de-datos-geoespaciales-abierto",
+          title: 'Conjunto de datos geoespaciales abierto',
+          description: "Dataset armonizado del proyecto listo para reutilización y cita.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/es/outputs/conjunto-datos-geoespaciales/";
+            },},{id: "outputs-mapa-web-interactivo",
+          title: 'Mapa web interactivo',
+          description: "Visor cartográfico para explorar indicadores del proyecto.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/es/outputs/mapa-web-interactivo/";
+            },},{id: "outputs-guía-metodológica",
+          title: 'Guía metodológica',
+          description: "Flujo reproducible para el procesamiento y análisis de datos.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/es/outputs/guia-metodologica/";
+            },},{id: "outputs-informe-de-recomendaciones",
+          title: 'Informe de recomendaciones',
+          description: "Resumen accionable para decisores y agentes del territorio.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/es/outputs/informe-recomendaciones/";
+            },},{id: "outputs-indicador-de-resiliencia-territorial-dimensión-social-comunidades",
+          title: 'Indicador de resiliencia territorial (dimensión social: comunidades)',
+          description: "Ficha demo con metodología, cálculos de ejemplo y umbrales de interpretación.",
+          section: "Outputs",handler: () => {
+              window.location.href = "/unaltraweb/es/outputs/indicador-resiliencia-territorial-social/";
             },},{id: "projects-project-1",
           title: 'project 1',
           description: "with background image",
