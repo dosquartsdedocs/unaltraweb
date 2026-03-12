@@ -25,7 +25,7 @@ Large Scimago datasets are intentionally excluded from git.
 `make metrics-scimago-fetch` downloads the public `sjrdata` R dataset and converts it to CSV:
 
 - source: `https://raw.githubusercontent.com/ikashnitsky/sjrdata/master/data/sjr_journals.rda`
-- output columns used by this project: `year,issn,sjr,sjr_best_quartile,categories`
+- output: full CSV (all available Scimago columns). Required minimum columns: `year,issn,sjr,sjr_best_quartile,categories`
 
 You can also pass local files:
 

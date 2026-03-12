@@ -51,28 +51,7 @@ ninja.data = [{
               handler: () => {
                 window.location.href = "/unaltraweb/es/proyectos-previos/";
               },
-            },{id: "nav-outputs",
-          title: "Outputs",
-          description: "Datasets, software tools, maps, indicator fiches, calculations, and other project products.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/unaltraweb/en/outputs/";
-          },
-        },{id: "nav-productes",
-          title: "Productes",
-          description: "Dades, eines, mapes, fitxes d&#39;indicadors, càlculs i altres productes del projecte.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/unaltraweb/ca/productes/";
-          },
-        },{id: "nav-productos",
-          title: "Productos",
-          description: "Datos, herramientas, mapas, fichas de indicadores, cálculos y otros productos del proyecto.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/unaltraweb/es/productos/";
-          },
-        },{id: "nav-equip",
+            },{id: "nav-equip",
           title: "Equip",
           description: "",
           section: "Navigation",
@@ -114,26 +93,26 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/unaltraweb/en/publications/";
           },
-        },{id: "nav-repositories",
-          title: "Repositories",
-          description: "Source code and reproducible workflows.",
+        },{id: "nav-tesis",
+          title: "Tesis",
+          description: "Tesis doctorals en curs o finalitzades.",
           section: "Navigation",
           handler: () => {
-            window.location.href = "/unaltraweb/en/repositories/";
+            window.location.href = "/unaltraweb/ca/tesis/";
           },
-        },{id: "nav-repositorios",
-          title: "Repositorios",
-          description: "Código fuente y flujos reproducibles.",
+        },{id: "nav-tesis",
+          title: "Tesis",
+          description: "Tesis doctorales en curso o finalizadas.",
           section: "Navigation",
           handler: () => {
-            window.location.href = "/unaltraweb/es/repositorios/";
+            window.location.href = "/unaltraweb/es/tesis/";
           },
-        },{id: "nav-repositoris",
-          title: "Repositoris",
-          description: "Codi font i fluxos reproduïbles.",
+        },{id: "nav-theses",
+          title: "Theses",
+          description: "Ongoing or completed PhD theses.",
           section: "Navigation",
           handler: () => {
-            window.location.href = "/unaltraweb/ca/repositoris/";
+            window.location.href = "/unaltraweb/en/theses/";
           },
         },{id: "nav-theses",
           title: "Theses",
@@ -142,27 +121,6 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/unaltraweb/theses/";
           },
-        },{id: "nav-blog",
-          title: "Blog",
-          description: "Notes, methods, and development updates.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/unaltraweb/en/blog/";
-          },
-        },{id: "nav-blog",
-          title: "Blog",
-          description: "Notes, mètodes i actualitzacions de desenvolupament.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/unaltraweb/ca/blog/";
-          },
-        },{id: "nav-blog",
-          title: "Blog",
-          description: "Notas, métodos y actualizaciones de desarrollo.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/unaltraweb/es/blog/";
-          },
         },{id: "nav-bookshelf",
           title: "Bookshelf",
           description: "",
@@ -170,7 +128,91 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/unaltraweb/books/";
           },
-        },{id: "nav-cv",
+        },{id: "dropdown-productes",
+              title: "Productes",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/productes/";
+              },
+            },{id: "dropdown-repositoris",
+              title: "Repositoris",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/repositoris/";
+              },
+            },{id: "dropdown-productos",
+              title: "Productos",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/es/productos/";
+              },
+            },{id: "dropdown-repositorios",
+              title: "Repositorios",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/es/repositorios/";
+              },
+            },{id: "dropdown-outputs",
+              title: "Outputs",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/en/outputs/";
+              },
+            },{id: "dropdown-repositories",
+              title: "Repositories",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/en/repositories/";
+              },
+            },{id: "dropdown-blog",
+              title: "Blog",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/en/blog/";
+              },
+            },{id: "dropdown-reading",
+              title: "Reading",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/en/book-reviews/";
+              },
+            },{id: "dropdown-blog",
+              title: "Blog",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/es/blog/";
+              },
+            },{id: "dropdown-lecturas",
+              title: "Lecturas",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/es/resenas-libros/";
+              },
+            },{id: "dropdown-blog",
+              title: "Blog",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/blog/";
+              },
+            },{id: "dropdown-lectures",
+              title: "Lectures",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/ressenyes-llibres/";
+              },
+            },{id: "nav-cv",
           title: "CV",
           description: "This is a description of the page. You can modify it in &#39;_pages/cv.md&#39;. You can also change or remove the top pdf download button.",
           section: "Navigation",
@@ -562,11 +604,36 @@ ninja.data = [{
             window.location.href = "/unaltraweb/blog/2015/formatting-and-links/";
           
         },
-      },{id: "books-the-godfather",
-          title: 'The Godfather',
+      },{id: "books-parcs-temàtics-el-paper-de-l-39-oci-en-la-construcció-social-de-l-39-espai",
+          title: 'Parcs temàtics: el paper de l&amp;#39;oci en la construcció social de l&amp;#39;espai',
           description: "",
           section: "Books",handler: () => {
-              window.location.href = "/unaltraweb/books/the_godfather/";
+              window.location.href = "/unaltraweb/ca/ressenyes-llibres/parcs-tematics-i-turisme/";
+            },},{id: "books-theme-parks-leisure-and-the-social-construction-of-space",
+          title: 'Theme Parks: Leisure and the Social Construction of Space',
+          description: "",
+          section: "Books",handler: () => {
+              window.location.href = "/unaltraweb/en/book-reviews/theme-parks-and-tourism/";
+            },},{id: "books-parques-temáticos-el-papel-del-ocio-en-la-construcción-social-del-espacio",
+          title: 'Parques temáticos: el papel del ocio en la construcción social del espacio',
+          description: "",
+          section: "Books",handler: () => {
+              window.location.href = "/unaltraweb/es/resenas-libros/parques-tematicos-y-turismo/";
+            },},{id: "books-geografia-d-39-europa",
+          title: 'Geografia d&amp;#39;Europa',
+          description: "",
+          section: "Books",handler: () => {
+              window.location.href = "/unaltraweb/ca/ressenyes-llibres/geografia-ue-manual/";
+            },},{id: "books-geography-of-europe",
+          title: 'Geography of Europe',
+          description: "",
+          section: "Books",handler: () => {
+              window.location.href = "/unaltraweb/en/book-reviews/geography-eu-manual/";
+            },},{id: "books-geografía-de-europa",
+          title: 'Geografía de Europa',
+          description: "",
+          section: "Books",handler: () => {
+              window.location.href = "/unaltraweb/es/resenas-libros/geografia-ue-manual/";
             },},{id: "news-a-simple-inline-announcement",
           title: 'A simple inline announcement.',
           description: "",
@@ -704,16 +771,21 @@ ninja.data = [{
           description: "another project with an image 🎉",
           section: "Projects",handler: () => {
               window.location.href = "/unaltraweb/projects/9_project/";
-            },},{id: "theses-example-thesis",
-          title: 'Example thesis',
+            },},{id: "theses-001-example",
+          title: '001 Example',
           description: "",
           section: "Theses",handler: () => {
               window.location.href = "/unaltraweb/theses/001-example/";
-            },},{id: "theses-example-thesis",
-          title: 'Example thesis',
+            },},{id: "theses-002-example",
+          title: '002 Example',
           description: "",
           section: "Theses",handler: () => {
               window.location.href = "/unaltraweb/theses/002-example/";
+            },},{id: "theses-003-example",
+          title: '003 Example',
+          description: "",
+          section: "Theses",handler: () => {
+              window.location.href = "/unaltraweb/theses/003-example/";
             },},{
         id: 'social-email',
         title: 'email',

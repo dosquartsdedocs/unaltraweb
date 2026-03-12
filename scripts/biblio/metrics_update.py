@@ -37,6 +37,15 @@ X_FIELDS = [
     "x_gs_cited_by",
     "x_openalex_fwci",
     "x_openalex_citation_normalized_percentile",
+    "x_openalex_topic",
+    "x_openalex_subfield",
+    "x_openalex_field",
+    "x_openalex_domain",
+    "x_openalex_funders",
+    "x_openalex_source_display_name",
+    "x_openalex_source_works_count",
+    "x_openalex_source_cited_by_count",
+    "x_openalex_source_is_oa",
     "x_openalex_source_is_core",
     "x_openalex_source_is_in_doaj",
     "x_openalex_source_h_index",
@@ -48,6 +57,13 @@ X_FIELDS = [
     "x_scimago_quartile",
     "x_scimago_year",
     "x_scimago_categories",
+    "x_scimago_h_index",
+    "x_scimago_cites_per_doc_2y",
+    "x_scimago_total_docs_3y",
+    "x_scimago_total_cites_3y",
+    "x_scimago_country",
+    "x_scimago_type",
+    "x_scimago_coverage",
     "x_metrics_updated",
     "note",
 ]
@@ -209,6 +225,13 @@ def detect_scimago_columns(fieldnames: list[str]) -> dict[str, str]:
         "sjr": pick("sjr", "sjrindex"),
         "quartile": pick("sjrbestquartile", "bestquartile", "quartile"),
         "categories": pick("categories", "category", "subjectareaandcategory"),
+        "h_index": pick("hindex", "hindexscore"),
+        "cites_per_doc_2y": pick("citesdoc2years", "citesdoc2year", "citesdoc2y", "citesperdoc2years", "citesperdoc2year"),
+        "total_docs_3y": pick("totaldocs3years", "totaldocs3year"),
+        "total_cites_3y": pick("totalcites3years", "totalcites3year"),
+        "country": pick("country", "sourcecountry"),
+        "type": pick("type", "sourcetype"),
+        "coverage": pick("coverage"),
     }
     return columns
 
@@ -246,6 +269,13 @@ def load_scimago(path: Path) -> tuple[dict[str, list[dict[str, Any]]], dict[str,
             quartile = (row.get(columns["quartile"]) or "").strip().upper() if columns["quartile"] else ""
             categories = (row.get(columns["categories"]) or "").strip() if columns["categories"] else ""
             title = (row.get(columns["title"]) or "").strip() if columns["title"] else ""
+            h_index = parse_int_text(row.get(columns["h_index"])) if columns["h_index"] else None
+            cites_per_doc_2y = parse_float_text(row.get(columns["cites_per_doc_2y"])) if columns["cites_per_doc_2y"] else None
+            total_docs_3y = parse_int_text(row.get(columns["total_docs_3y"])) if columns["total_docs_3y"] else None
+            total_cites_3y = parse_int_text(row.get(columns["total_cites_3y"])) if columns["total_cites_3y"] else None
+            country = (row.get(columns["country"]) or "").strip() if columns["country"] else ""
+            source_type = (row.get(columns["type"]) or "").strip() if columns["type"] else ""
+            coverage = (row.get(columns["coverage"]) or "").strip() if columns["coverage"] else ""
 
             payload = {
                 "title": title,
@@ -253,6 +283,13 @@ def load_scimago(path: Path) -> tuple[dict[str, list[dict[str, Any]]], dict[str,
                 "sjr": sjr,
                 "quartile": quartile if quartile in {"Q1", "Q2", "Q3", "Q4"} else "",
                 "categories": categories,
+                "h_index": h_index,
+                "cites_per_doc_2y": cites_per_doc_2y,
+                "total_docs_3y": total_docs_3y,
+                "total_cites_3y": total_cites_3y,
+                "country": country,
+                "type": source_type,
+                "coverage": coverage,
             }
             for issn in issns:
                 index[issn].append(payload)
@@ -544,6 +581,43 @@ def main() -> None:
                 if cnp is not None:
                     set_field(entry, "x_openalex_citation_normalized_percentile", cnp * 100)
 
+                primary_topic = work.get("primary_topic") or {}
+                if isinstance(primary_topic, dict):
+                    subfield = primary_topic.get("subfield")
+                    field = primary_topic.get("field")
+                    domain = primary_topic.get("domain")
+                    subfield_name = subfield.get("display_name") if isinstance(subfield, dict) else ""
+                    field_name = field.get("display_name") if isinstance(field, dict) else ""
+                    domain_name = domain.get("display_name") if isinstance(domain, dict) else ""
+                    set_field(entry, "x_openalex_topic", str(primary_topic.get("display_name") or "").strip())
+                    set_field(entry, "x_openalex_subfield", str(subfield_name or "").strip())
+                    set_field(entry, "x_openalex_field", str(field_name or "").strip())
+                    set_field(entry, "x_openalex_domain", str(domain_name or "").strip())
+                else:
+                    set_field(entry, "x_openalex_topic", "")
+                    set_field(entry, "x_openalex_subfield", "")
+                    set_field(entry, "x_openalex_field", "")
+                    set_field(entry, "x_openalex_domain", "")
+
+                funders: list[str] = []
+                seen_funders: set[str] = set()
+                for grant in (work.get("grants") or []):
+                    if not isinstance(grant, dict):
+                        continue
+                    funder_name = str(grant.get("funder_display_name") or "").strip()
+                    if not funder_name:
+                        funder = grant.get("funder")
+                        if isinstance(funder, dict):
+                            funder_name = str(funder.get("display_name") or "").strip()
+                    if not funder_name:
+                        continue
+                    canonical = funder_name.lower()
+                    if canonical in seen_funders:
+                        continue
+                    seen_funders.add(canonical)
+                    funders.append(funder_name)
+                set_field(entry, "x_openalex_funders", "; ".join(funders))
+
                 cited_2y, cited_5y = parse_counts_by_year(work)
                 set_field(entry, "x_openalex_cited_by_2y", cited_2y)
                 set_field(entry, "x_openalex_cited_by_5y", cited_5y)
@@ -554,6 +628,10 @@ def main() -> None:
                     set_field(entry, "x_openalex_source_id", source_id)
                 source_full = client.get_openalex_source(source_id)
                 source_payload = source_full or source
+                set_field(entry, "x_openalex_source_display_name", str(source_payload.get("display_name") or "").strip())
+                set_field(entry, "x_openalex_source_works_count", as_int(source_payload.get("works_count")))
+                set_field(entry, "x_openalex_source_cited_by_count", as_int(source_payload.get("cited_by_count")))
+                set_field(entry, "x_openalex_source_is_oa", as_bool(source_payload.get("is_oa")))
                 set_field(entry, "x_openalex_source_is_core", as_bool(source_payload.get("is_core")))
                 set_field(entry, "x_openalex_source_is_in_doaj", as_bool(source_payload.get("is_in_doaj")))
                 summary_stats = source_payload.get("summary_stats") or {}
@@ -598,6 +676,13 @@ def main() -> None:
                     set_field(entry, "x_scimago_quartile", chosen.get("quartile"))
                     set_field(entry, "x_scimago_year", chosen.get("year"))
                     set_field(entry, "x_scimago_categories", chosen.get("categories"))
+                    set_field(entry, "x_scimago_h_index", chosen.get("h_index"))
+                    set_field(entry, "x_scimago_cites_per_doc_2y", chosen.get("cites_per_doc_2y"))
+                    set_field(entry, "x_scimago_total_docs_3y", chosen.get("total_docs_3y"))
+                    set_field(entry, "x_scimago_total_cites_3y", chosen.get("total_cites_3y"))
+                    set_field(entry, "x_scimago_country", chosen.get("country"))
+                    set_field(entry, "x_scimago_type", chosen.get("type"))
+                    set_field(entry, "x_scimago_coverage", chosen.get("coverage"))
             else:
                 status["scimago"] = "not-article"
 
