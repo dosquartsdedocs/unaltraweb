@@ -1,0 +1,27 @@
+metrics:
+  updated_on: '2026-03-11'
+  sources:
+    openalex: api
+    crossref: api
+    google_scholar: bibtex + _data/citations.yml
+    scimago: .cache/scimago/scimagojr.csv
+  summary:
+    articles_with_metrics: 5
+    openalex_citations_total: 10359
+    crossref_citations_total: 7668
+    google_scholar_citations_total: 77924
+    openalex_citations_2y_total: 905
+    openalex_citations_5y_total: 3477
+    fwci_avg: 14.2815
+    cnp_avg: 80.3427
+    journals_core_count: 0
+    journals_doaj_count: 0
+    scimago_articles_count: 2
+    scimago_q1_count: 2
+    scimago_q2_count: 0
+    scimago_q3_count: 0
+    scimago_q4_count: 0
+    scimago_stale_rejected: 1
+    scimago_max_year_gap: 2
+    scimago_year_min: 2020
+    scimago_year_max: 2024

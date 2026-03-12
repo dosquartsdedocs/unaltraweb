@@ -71,6 +71,16 @@ projects:
   code_repository: Repositorio de código
   github_stars: Estrellas de GitHub
 
+publications:
+  metrics:
+    title: Métricas bibliométricas
+    updated_on: Actualizado el
+    scimago_meta: Metadatos del emparejamiento Scimago
+    coverage: cobertura
+    stale_rejected: descartados por obsolescencia
+    max_year_gap: brecha máxima de años
+    not_available: n/d
+
 languages:
   en: Inglés
   es: Español

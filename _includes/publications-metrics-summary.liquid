@@ -1,0 +1,40 @@
+{% assign metrics_root = site.data.metrics.metrics %}
+{% if metrics_root and metrics_root.summary %}
+  {% assign m = metrics_root.summary %}
+  {% capture metrics_title %}{% include t.liquid key='publications.metrics.title' default='Bibliometric metrics' %}{% endcapture %}
+  {% capture metrics_updated_on %}{% include t.liquid key='publications.metrics.updated_on' default='Updated on' %}{% endcapture %}
+  {% capture metrics_scimago_meta %}{% include t.liquid key='publications.metrics.scimago_meta' default='Scimago matching meta' %}{% endcapture %}
+  {% capture metrics_coverage %}{% include t.liquid key='publications.metrics.coverage' default='coverage' %}{% endcapture %}
+  {% capture metrics_stale_rejected %}{% include t.liquid key='publications.metrics.stale_rejected' default='stale rejected' %}{% endcapture %}
+  {% capture metrics_max_year_gap %}{% include t.liquid key='publications.metrics.max_year_gap' default='max year gap' %}{% endcapture %}
+  {% capture metrics_na %}{% include t.liquid key='publications.metrics.not_available' default='n/a' %}{% endcapture %}
+  <div class="pub-metrics-summary">
+    <h3>{{ metrics_title }}</h3>
+    <p class="pub-metrics-updated">{{ metrics_updated_on }} {{ metrics_root.updated_on }}</p>
+
+    <div class="pub-summary-badges">
+      <span class="metrics-badge"><span class="metrics-badge-label">Articles</span><span class="metrics-badge-value">{{ m.articles_with_metrics | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">OpenAlex cites</span><span class="metrics-badge-value">{{ m.openalex_citations_total | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">Crossref cites</span><span class="metrics-badge-value">{{ m.crossref_citations_total | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">Google Scholar cites</span><span class="metrics-badge-value">{{ m.google_scholar_citations_total | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">OA cites 2y</span><span class="metrics-badge-value">{{ m.openalex_citations_2y_total | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">OA cites 5y</span><span class="metrics-badge-value">{{ m.openalex_citations_5y_total | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">FWCI avg</span><span class="metrics-badge-value">{{ m.fwci_avg | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">CNP avg</span><span class="metrics-badge-value">{{ m.cnp_avg | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">Core journals</span><span class="metrics-badge-value">{{ m.journals_core_count | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">DOAJ journals</span><span class="metrics-badge-value">{{ m.journals_doaj_count | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">Scimago articles</span><span class="metrics-badge-value">{{ m.scimago_articles_count | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">Q1</span><span class="metrics-badge-value">{{ m.scimago_q1_count | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">Q2</span><span class="metrics-badge-value">{{ m.scimago_q2_count | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">Q3</span><span class="metrics-badge-value">{{ m.scimago_q3_count | default: 0 }}</span></span>
+      <span class="metrics-badge"><span class="metrics-badge-label">Q4</span><span class="metrics-badge-value">{{ m.scimago_q4_count | default: 0 }}</span></span>
+    </div>
+
+    <p class="pub-metrics-meta">
+      {{ metrics_scimago_meta }}:
+      {{ metrics_coverage }} {% if m.scimago_year_min and m.scimago_year_max %}{{ m.scimago_year_min }}-{{ m.scimago_year_max }}{% else %}{{ metrics_na }}{% endif %};
+      {{ metrics_stale_rejected }} {{ m.scimago_stale_rejected | default: 0 }};
+      {{ metrics_max_year_gap }} {{ m.scimago_max_year_gap | default: 2 }}.
+    </p>
+  </div>
+{% endif %}

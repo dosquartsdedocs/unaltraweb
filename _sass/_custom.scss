@@ -340,4 +340,108 @@ html[data-theme='light'] .home-hero-content * {
   margin: 0.75rem 0 1.1rem;
   font-size: 0.96rem;
 }
+
+.pub-metrics-summary {
+  margin: 0.35rem 0 1.25rem;
+}
+
+.pub-metrics-summary .pub-metrics-updated {
+  margin-bottom: 0.45rem;
+  font-size: 0.9rem;
+  color: var(--global-text-color-light);
+}
+
+.pub-summary-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.9rem;
+}
+
+.pub-metrics-meta {
+  margin: 0.15rem 0 0.95rem;
+  font-size: 0.86rem;
+  color: var(--global-text-color-light);
+}
+
+.metrics-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--global-text-color);
+  border-radius: 0.12rem;
+  background: var(--global-bg-color);
+  color: var(--global-text-color);
+  font-size: 0.82rem;
+  line-height: 1.2;
+  overflow: hidden;
+}
+
+.metrics-badge-label {
+  padding: 0.28rem 0.5rem;
+  border-right: 1px solid var(--global-text-color);
+  text-transform: lowercase;
+}
+
+.metrics-badge-value {
+  padding: 0.28rem 0.5rem;
+  font-weight: 600;
+}
+
+.publications ol.bibliography li .badges a {
+  color: var(--global-text-color);
+}
+
+.publications ol.bibliography li .badges .metrics-badge,
+.publications ol.bibliography li .badges .metrics-badge span {
+  color: inherit;
+}
+
+.publications ol.bibliography li .badges .metrics-badge > span {
+  height: auto;
+  text-decoration: none;
+}
+
+.publications ol.bibliography li .badges .metrics-badge > .metrics-badge-label,
+.publications ol.bibliography li .badges .metrics-badge > .metrics-badge-value {
+  padding: 0.28rem 0.5rem;
+}
+
+.publications ol.bibliography li .badges .metrics-badge > span:hover {
+  text-decoration: none;
+}
+
+.badges a:hover .metrics-badge {
+  border-color: var(--global-theme-color);
+  color: var(--global-theme-color);
+}
+
+.badges a:hover .metrics-badge-label {
+  border-right-color: var(--global-theme-color);
+}
+
+.publications .badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.35rem;
+  row-gap: 0.45rem;
+  margin: 0.6rem 0 0.75rem;
+}
+
+.publications .badges > a,
+.publications .badges > span {
+  margin: 0;
+}
+
+.publications div.scimago.hidden {
+  border: dashed 1px var(--global-bg-color);
+}
+
+.publications div.scimago.hidden.open {
+  border-color: var(--global-text-color);
+}
+
+.publications div.scimago.hidden ul {
+  margin: 0.2rem 1.2rem 0.5rem;
+}
   

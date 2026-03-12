@@ -1,0 +1,19 @@
+defaults:
+  max_year_gap: 2
+  mailto: ""
+
+entries:
+  # Example:
+  # yourBibKey:
+  #   openalex_id: "https://openalex.org/W1234567890"
+  #   x_openalex_id: "https://openalex.org/W1234567890"
+  #   crossref_cited_by: 120
+  #   x_crossref_cited_by: 120
+  #   gs_id: "cites:1234567890123456789"
+  #   x_gs_id: "cites:1234567890123456789"
+  #   gs_cited_by: 240
+  #   x_gs_cited_by: 240
+  #   x_scimago_sjr: 1.234
+  #   x_scimago_quartile: Q1
+  #   x_scimago_year: 2024
+  #   x_scimago_categories: "Geography, Planning and Development"

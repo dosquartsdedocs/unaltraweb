@@ -196,31 +196,213 @@
     <div class="periodical">
       {{ periodical | strip }}
     </div>
-    <div class="periodical">
-      {{ entry.note | strip }}
-    </div>
+
+    {% assign cite_oa = entry.x_openalex_cited_by | default: '' | strip | plus: 0 %}
+    {% assign cite_cr = entry.x_crossref_cited_by | default: '' | strip | plus: 0 %}
+    {% assign cite_gs = entry.x_gs_cited_by | default: '' | strip | plus: 0 %}
+    {% assign fwci_val = entry.x_openalex_fwci | default: '' | strip %}
+    {% assign fwci_num = fwci_val | plus: 0 %}
+    {% assign cnp_val = entry.x_openalex_citation_normalized_percentile | default: '' | strip %}
+    {% assign cnp_num = cnp_val | plus: 0 %}
+    {% assign sc_q = entry.x_scimago_quartile | default: '' | strip %}
+    {% assign sc_sjr = entry.x_scimago_sjr | default: '' | strip %}
+    {% assign sc_year = entry.x_scimago_year | default: '' | strip %}
+    {% assign sc_categories = entry.x_scimago_categories | default: '' | strip %}
+    {% assign sc_has_categories = false %}
+    {% assign sc_count = 0 %}
+    {% capture sc_all_items %}{% endcapture %}
+    {% if sc_categories != '' %}
+      {% assign sc_items_raw = sc_categories | replace: '|', ';' | split: ';' %}
+      {% for sc_item_raw in sc_items_raw %}
+        {% assign sc_item = sc_item_raw | strip %}
+        {% if sc_item != '' %}
+          {% assign sc_has_categories = true %}
+          {% assign sc_count = sc_count | plus: 1 %}
+          {% capture sc_all_items %}{{ sc_all_items }}{% if sc_count > 1 %}; {% endif %}{{ sc_item }}{% endcapture %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {% assign entry_note = entry.note | default: '' | strip %}
+    {% assign note_prefix = entry_note | slice: 0, 8 %}
+    {% if entry_note != '' and note_prefix != 'Metrics:' %}
+      <div class="periodical">
+        {{ entry_note }}
+      </div>
+    {% endif %}
+
+    {% if site.enable_publication_badges %}
+      {% assign entry_has_altmetric_badge = false %}
+      {% if entry.altmetric and entry.altmetric != 'false' %}
+        {% assign entry_has_altmetric_badge = true %}
+      {% endif %}
+
+      {% assign entry_has_dimensions_badge = false %}
+      {% if entry.dimensions and entry.dimensions != 'false' %}
+        {% assign entry_has_dimensions_badge = true %}
+      {% endif %}
+
+      {% assign entry_has_google_scholar_badge = false %}
+      {% if entry.x_gs_id and cite_gs > 0 %}
+        {% assign entry_has_google_scholar_badge = true %}
+      {% endif %}
+
+      {% assign entry_has_openalex_badge = false %}
+      {% if cite_oa > 0 %}
+        {% assign entry_has_openalex_badge = true %}
+      {% endif %}
+
+      {% assign entry_has_fwci_badge = false %}
+      {% if fwci_num > 0 %}
+        {% assign entry_has_fwci_badge = true %}
+      {% endif %}
+
+      {% assign entry_has_cnp_badge = false %}
+      {% if cnp_num > 0 %}
+        {% assign entry_has_cnp_badge = true %}
+      {% endif %}
+
+      {% assign entry_has_crossref_badge = false %}
+      {% if cite_cr > 0 %}
+        {% assign entry_has_crossref_badge = true %}
+      {% endif %}
+
+      {% assign entry_has_inspirehep_badge = false %}
+      {% if entry.inspirehep_id %}
+        {% assign entry_has_inspirehep_badge = true %}
+      {% endif %}
+
+      {% if entry_has_altmetric_badge or entry_has_dimensions_badge or entry_has_google_scholar_badge or entry_has_inspirehep_badge or entry_has_openalex_badge or entry_has_crossref_badge or entry_has_fwci_badge or entry_has_cnp_badge %}
+        <div class="badges">
+          {% if site.enable_publication_badges.altmetric and entry_has_altmetric_badge %}
+            <span
+              class="altmetric-embed"
+              data-badge-type="2"
+              data-badge-popover="right"
+              {% if entry.altmetric != blank and entry.altmetric != 'true' %}
+                data-altmetric-id="{{ entry.altmetric }}"
+              {% elsif entry.arxiv %}
+                data-arxiv-id="{{ entry.arxiv }}"
+              {% elsif entry.eprint %}
+                data-arxiv-id="{{ entry.eprint }}"
+              {% elsif entry.doi %}
+                data-doi="{{ entry.doi }}"
+              {% elsif entry.pmid %}
+                data-pmid="{{ entry.pmid }}"
+              {% elsif entry.isbn %}
+                data-isbn="{{ entry.isbn }}"
+              {% endif %}
+            ></span>
+          {% endif %}
+
+          {% if site.enable_publication_badges.dimensions and entry_has_dimensions_badge %}
+            <span
+              class="__dimensions_badge_embed__"
+              {% if entry.dimensions != blank and entry.dimensions != 'true' %}
+                data-id="{{ entry.dimensions }}"
+              {% elsif entry.doi %}
+                data-doi="{{ entry.doi }}"
+              {% else %}
+                data-pmid="{{ entry.pmid }}"
+              {% endif %}
+              data-style="small_rectangle"
+              data-legend="hover-right"
+              style="margin-bottom: 3px;"
+            ></span>
+          {% endif %}
+
+          {% if site.enable_publication_badges.google_scholar and entry_has_google_scholar_badge %}
+            {% assign scholar_entry_id = entry.x_gs_id | strip %}
+            {% assign scholar_cites_id = scholar_entry_id | remove: 'cites:' | strip %}
+            <a
+              href="https://scholar.google.com/scholar?cites={{ scholar_cites_id }}"
+              aria-label="Google Scholar link"
+              role="button"
+            >
+              <span class="metrics-badge metrics-badge-scholar" aria-label="{{ cite_gs }} Google Scholar citations">
+                <span class="metrics-badge-label">Google Scholar</span>
+                <span class="metrics-badge-value">{{ cite_gs }}</span>
+              </span>
+            </a>
+          {% endif %}
+
+          {% if entry_has_openalex_badge %}
+            <a href="{{ entry.x_openalex_id | default: 'https://openalex.org' }}" aria-label="OpenAlex citations" role="button">
+              <span class="metrics-badge" aria-label="{{ cite_oa }} OpenAlex citations">
+                <span class="metrics-badge-label">OpenAlex</span>
+                <span class="metrics-badge-value">{{ cite_oa }}</span>
+              </span>
+            </a>
+          {% endif %}
+
+          {% if entry_has_fwci_badge %}
+            <span class="metrics-badge" aria-label="FWCI {{ fwci_val }}">
+              <span class="metrics-badge-label">FWCI</span>
+              <span class="metrics-badge-value">{{ fwci_val }}</span>
+            </span>
+          {% endif %}
+
+          {% if entry_has_cnp_badge %}
+            <span class="metrics-badge" aria-label="CNP {{ cnp_val }}">
+              <span class="metrics-badge-label">CNP</span>
+              <span class="metrics-badge-value">{{ cnp_val }}</span>
+            </span>
+          {% endif %}
+
+          {% if entry_has_crossref_badge %}
+            <a href="https://www.crossref.org" aria-label="Crossref citations" role="button">
+              <span class="metrics-badge" aria-label="{{ cite_cr }} Crossref citations">
+                <span class="metrics-badge-label">Crossref</span>
+                <span class="metrics-badge-value">{{ cite_cr }}</span>
+              </span>
+            </a>
+          {% endif %}
+
+          {% if site.enable_publication_badges.inspirehep and entry_has_inspirehep_badge %}
+            <a
+              href="https://inspirehep.net/literature/{{ entry.inspirehep_id }}"
+              aria-label="Inspirehep link"
+              role="button"
+            >
+              <img
+                src="https://img.shields.io/badge/inspire-{% inspirehep_citations entry.inspirehep_id %}-001628?logo=inspire&logoColor=001628&labelColor=beige"
+                alt="{% inspirehep_citations entry.inspirehep_id %} InspireHEP citations"
+              >
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endif %}
 
     <!-- Links/Buttons -->
     <div class="links">
+      {% if entry.doi %}
+        <a href="https://doi.org/{{ entry.doi }}" class="btn btn-sm z-depth-0" role="button">DOI</a>
+      {% endif %}
+      {% if entry.website %}
+        <a href="{{ entry.website }}" class="btn btn-sm z-depth-0" role="button">LINK</a>
+      {% endif %}
+
+      {% if entry.abstract %}
+        <a class="abstract btn btn-sm z-depth-0" role="button">{{ bib_abstract_text | strip }}</a>
+      {% endif %}
+      {% if entry.bibtex_show %}
+        <a class="bibtex btn btn-sm z-depth-0" role="button">{{ bib_bib_text | strip }}</a>
+      {% endif %}
+      {% if sc_has_categories %}
+        <a class="scimago btn btn-sm z-depth-0" role="button">Scimago quartiles</a>
+      {% endif %}
       {% if entry.award %}
         <a class="award btn btn-sm z-depth-0" role="button">
           {%- if entry.award_name %}{{ entry.award_name }}{% else %}{{ bib_awarded_text | strip }}{% endif -%}
         </a>
       {% endif %}
-      {% if entry.abstract %}
-        <a class="abstract btn btn-sm z-depth-0" role="button">{{ bib_abstract_text | strip }}</a>
-      {% endif %}
-      {% if entry.doi %}
-        <a href="https://doi.org/{{ entry.doi }}" class="btn btn-sm z-depth-0" role="button">DOI</a>
-      {% endif %}
+
       {% if entry.arxiv %}
         <a href="http://arxiv.org/abs/{{ entry.arxiv }}" class="btn btn-sm z-depth-0" role="button">arXiv</a>
       {% endif %}
       {% if entry.hal %}
         <a href="https://hal.science/{{ entry.hal }}" class="btn btn-sm z-depth-0" role="button">HAL</a>
-      {% endif %}
-      {% if entry.bibtex_show %}
-        <a class="bibtex btn btn-sm z-depth-0" role="button">{{ bib_bib_text | strip }}</a>
       {% endif %}
       {% if entry.html %}
         {% if entry.html contains '://' %}
@@ -268,126 +450,17 @@
           <a href="{{ entry.slides | prepend: '/assets/pdf/' | relative_url }}" class="btn btn-sm z-depth-0" role="button">{{ bib_slides_text | strip }}</a>
         {% endif %}
       {% endif %}
-      {% if entry.website %}
-        <a href="{{ entry.website }}" class="btn btn-sm z-depth-0" role="button">{{ bib_website_text | strip }}</a>
-      {% endif %}
     </div>
-    {% if site.enable_publication_badges %}
-      {% assign entry_has_altmetric_badge = false %}
-      {% if entry.altmetric and entry.altmetric != 'false' %}
-        {% assign entry_has_altmetric_badge = true %}
-      {% endif %}
 
-      {% assign entry_has_dimensions_badge = false %}
-      {% if entry.dimensions and entry.dimensions != 'false' %}
-        {% assign entry_has_dimensions_badge = true %}
-      {% endif %}
-
-      {% assign entry_has_google_scholar_badge = false %}
-      {% if entry.google_scholar_id %}
-        {% assign entry_has_google_scholar_badge = true %}
-      {% endif %}
-
-      {% assign entry_has_inspirehep_badge = false %}
-      {% if entry.inspirehep_id %}
-        {% assign entry_has_inspirehep_badge = true %}
-      {% endif %}
-      {% if entry_has_altmetric_badge or entry_has_dimensions_badge or entry_has_google_scholar_badge or entry_has_inspirehep_badge %}
-        <div class="badges">
-          {% if site.enable_publication_badges.altmetric and entry_has_altmetric_badge %}
-            <span
-              class="altmetric-embed"
-              data-badge-type="2"
-              data-badge-popover="right"
-              {% if entry.altmetric != blank and entry.altmetric != 'true' %}
-                data-altmetric-id="{{ entry.altmetric }}"
-              {% elsif entry.arxiv %}
-                data-arxiv-id="{{ entry.arxiv }}"
-              {% elsif entry.eprint %}
-                data-arxiv-id="{{ entry.eprint }}"
-              {% elsif entry.doi %}
-                data-doi="{{ entry.doi }}"
-              {% elsif entry.pmid %}
-                data-pmid="{{ entry.pmid }}"
-              {% elsif entry.isbn %}
-                data-isbn="{{ entry.isbn }}"
-              {% endif %}
-            ></span>
-          {% endif %}
-          {% if site.enable_publication_badges.dimensions and entry_has_dimensions_badge %}
-            <span
-              class="__dimensions_badge_embed__"
-              {% if entry.dimensions != blank and entry.dimensions != 'true' %}
-                data-id="{{ entry.dimensions }}"
-              {% elsif entry.doi %}
-                data-doi="{{ entry.doi }}"
-              {% else %}
-                data-pmid="{{ entry.pmid }}"
-              {% endif %}
-              data-style="small_rectangle"
-              data-legend="hover-right"
-              style="margin-bottom: 3px;"
-            ></span>
-          {% endif %}
-          {% if site.enable_publication_badges.google_scholar and entry_has_google_scholar_badge %}
-            {% assign scholar_profile_id = site.data.socials.scholar_userid | default: site.scholar_userid %}
-            {% assign scholar_entry_id = entry.google_scholar_id | default: '' | strip %}
-            {% assign scholar_cites_id = entry.google_scholar_cites_id | default: '' | strip %}
-            {% if scholar_entry_id contains 'cites:' %}
-              {% assign scholar_cites_id = scholar_entry_id | remove: 'cites:' | strip %}
-            {% endif %}
-
-            <a
-              href="{% if scholar_cites_id != '' %}https://scholar.google.com/scholar?cites={{ scholar_cites_id }}{% elsif scholar_profile_id != '' and scholar_entry_id != '' %}https://scholar.google.com/citations?view_op=view_citation&hl=en&user={{ scholar_profile_id }}&citation_for_view={{ scholar_profile_id }}:{{ scholar_entry_id }}{% else %}https://scholar.google.com/scholar?q={{ entry.title | url_encode }}{% endif %}"
-              aria-label="Google Scholar link"
-              role="button"
-            >
-              {% assign citation_count = entry.google_scholar_citations %}
-
-              {% if citation_count == nil %}
-                {% assign citation_count = 0 %}
-                {% if scholar_entry_id != '' and scholar_cites_id == '' %}
-                  {% assign scholar_id_key = scholar_profile_id | append: ':' | append: scholar_entry_id %}
-                  {% assign publication_key = scholar_entry_id %}
-
-                  {% if site.data.citations.papers[scholar_id_key] %}
-                    {% assign citation_count = site.data.citations.papers[scholar_id_key].citations %}
-                  {% elsif site.data.citations.papers[publication_key] %}
-                    {% assign citation_count = site.data.citations.papers[publication_key].citations %}
-                  {% else %}
-                    {% for paper in site.data.citations.papers %}
-                      {% assign paper_key = paper[0] %}
-                      {% if paper_key contains scholar_entry_id %}
-                        {% assign citation_count = paper[1].citations %}
-                        {% break %}
-                      {% endif %}
-                    {% endfor %}
-                  {% endif %}
-                {% endif %}
-              {% endif %}
-
-              {% assign citation_count = citation_count | append: '' | replace: ',', '' | replace: '.', '' | plus: 0 %}
-
-              <img
-                src="https://img.shields.io/badge/scholar-{{ citation_count }}-4285F4?logo=googlescholar&labelColor=beige"
-                alt="{{ citation_count }} Google Scholar citations"
-              >
-            </a>
-          {% endif %}
-          {% if site.enable_publication_badges.inspirehep and entry_has_inspirehep_badge %}
-            <a
-              href="https://inspirehep.net/literature/{{ entry.inspirehep_id }}"
-              aria-label="Inspirehep link"
-              role="button"
-            >
-              <img
-                src="https://img.shields.io/badge/inspire-{% inspirehep_citations entry.inspirehep_id %}-001628?logo=inspire&logoColor=001628&labelColor=beige"
-                alt="{% inspirehep_citations entry.inspirehep_id %} InspireHEP citations"
-              >
-            </a>
-          {% endif %}
-        </div>
-      {% endif %}
+    {% if sc_has_categories %}
+      <div class="scimago hidden">
+        <p>
+          {% if sc_q != '' %}<strong>Best quartile:</strong> {{ sc_q }}{% endif %}
+          {% if sc_sjr != '' %} · <strong>SJR:</strong> {{ sc_sjr }}{% endif %}
+          {% if sc_year != '' %} · <strong>Year:</strong> {{ sc_year }}{% endif %}
+        </p>
+        <p>{{ sc_all_items }}</p>
+      </div>
     {% endif %}
 
     {% if entry.award %}

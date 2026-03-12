@@ -71,6 +71,16 @@ projects:
   code_repository: Code repository
   github_stars: GitHub stars
 
+publications:
+  metrics:
+    title: Bibliometric metrics
+    updated_on: Updated on
+    scimago_meta: Scimago matching meta
+    coverage: coverage
+    stale_rejected: stale rejected
+    max_year_gap: max year gap
+    not_available: n/a
+
 languages:
   en: English
   es: Spanish

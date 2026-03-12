@@ -26,6 +26,16 @@
 
 </div>
 
+## Bibliometric metrics
+
+This fork includes a data-first bibliometric pipeline for publications:
+
+- enriches BibTeX entries with `x_*` metrics fields and a compact `note`,
+- generates aggregated metrics into `_data/metrics.yml`,
+- keeps Jekyll build static (no metrics API calls at render time).
+
+See `docs/bibliometrics.md` for commands and workflow details.
+
 ## User community
 
 The vibrant community of **al-folio** users is growing!

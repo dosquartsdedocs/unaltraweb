@@ -91,6 +91,8 @@ nav_order: 4
   </p>
 {% endif %}
 
+{% include publications-metrics-summary.liquid %}
+
 
 {% bibliography %}
 

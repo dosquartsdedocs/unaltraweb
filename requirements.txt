@@ -1,3 +1,6 @@
 nbconvert
 pyyaml
 scholarly
+requests
+bibtexparser
+rdata
