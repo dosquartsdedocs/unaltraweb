@@ -8,6 +8,12 @@ header:
 footer:
   impressum: Impressum
   last_updated: Last updated
+  copyright: Copyright
+  text: >
+    Powered by <a href="https://jekyllrb.com/" target="_blank">Jekyll</a>, based on <a href="https://github.com/alshedivat/al-folio">al-folio</a>.
+    Hosted by <a href="https://pages.github.com/" target="_blank">GitHub Pages</a>.
+    Photos from <a href="https://unsplash.com" target="_blank">Unsplash</a>.
+  last_updated_format: "%Y-%m-%d"
 
 search:
   placeholder: Type to start searching
@@ -32,6 +38,7 @@ about:
   news: News
   latest_posts: Latest posts
   selected_publications: Selected publications
+  hero_source: Source
 
 news:
   empty: No news so far...
@@ -71,9 +78,55 @@ projects:
   code_repository: Code repository
   github_stars: GitHub stars
 
+theses:
+  empty: No theses found yet.
+  student: Student
+  status: Status
+  institution: Institution
+  year: Year
+  supervisors: Supervisors
+  image_source: Source
+  status_values:
+    defended: Defended
+    ongoing: Ongoing
+
+reading:
+  bibliographic_record: Bibliographic record
+  type: Type
+  publisher: Publisher
+  collection: Collection
+  edition: Edition
+  year: Year
+  pages: Pages
+  isbn: ISBN
+  doi: DOI
+  language: Language
+  reviewed_on: Reviewed on
+  status: Status
+  topics: Topics
+  links: Links
+  external_resource: Resource
+  doi_link: DOI record
+  openlibrary: Open Library
+  cover_caption: Cover
+  no_review: No review text yet.
+  empty_shelf: No reading notes available yet.
+  uncategorized: Uncategorized
+  not_dated: n.d.
+  status_values:
+    abandoned: Abandoned
+    finished: Finished
+    interested: Interested
+    paused: Paused
+    queued: Queued
+    reading: Reading
+    reread: Reread
+
 publications:
   metrics:
-    title: Bibliometric metrics
+    title: Bibliometrics
+    indicators_calculated: Indicators calculated from
+    articles_label: articles
     updated_on: Updated on
     scimago_meta: Scimago matching meta
     coverage: coverage

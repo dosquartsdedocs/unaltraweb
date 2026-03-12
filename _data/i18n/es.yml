@@ -8,6 +8,12 @@ header:
 footer:
   impressum: Aviso legal
   last_updated: Última actualización
+  copyright: Derechos de autor
+  text: >
+    Funciona con <a href="https://jekyllrb.com/" target="_blank">Jekyll</a>, basado en <a href="https://github.com/alshedivat/al-folio">al-folio</a>.
+    Alojado en <a href="https://pages.github.com/" target="_blank">GitHub Pages</a>.
+    Fotos de <a href="https://unsplash.com" target="_blank">Unsplash</a>.
+  last_updated_format: "%d/%m/%Y"
 
 search:
   placeholder: Escribe para buscar
@@ -32,6 +38,7 @@ about:
   news: Noticias
   latest_posts: Entradas recientes
   selected_publications: Publicaciones destacadas
+  hero_source: Fuente
 
 news:
   empty: Todavía no hay noticias.
@@ -71,9 +78,55 @@ projects:
   code_repository: Repositorio de código
   github_stars: Estrellas de GitHub
 
+theses:
+  empty: Todavía no hay tesis disponibles.
+  student: Doctorando/a
+  status: Estado
+  institution: Institución
+  year: Año
+  supervisors: Dirección
+  image_source: Fuente
+  status_values:
+    defended: Defendida
+    ongoing: En curso
+
+reading:
+  bibliographic_record: Ficha bibliográfica
+  type: Tipo
+  publisher: Editorial
+  collection: Colección
+  edition: Edición
+  year: Año
+  pages: Páginas
+  isbn: ISBN
+  doi: DOI
+  language: Idioma
+  reviewed_on: Reseñado el
+  status: Estado
+  topics: Temas
+  links: Enlaces
+  external_resource: Recurso
+  doi_link: Registro DOI
+  openlibrary: Open Library
+  cover_caption: Cubierta
+  no_review: Todavía no hay texto de reseña.
+  empty_shelf: Todavía no hay lecturas disponibles.
+  uncategorized: Sin categoría
+  not_dated: s. f.
+  status_values:
+    abandoned: Abandonada
+    finished: Finalizada
+    interested: De interés
+    paused: Pausada
+    queued: En cola
+    reading: En lectura
+    reread: Relectura
+
 publications:
   metrics:
-    title: Métricas bibliométricas
+    title: Bibliometría
+    indicators_calculated: Indicadores calculados a partir de
+    articles_label: artículos
     updated_on: Actualizado el
     scimago_meta: Metadatos del emparejamiento Scimago
     coverage: cobertura

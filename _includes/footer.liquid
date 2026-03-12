@@ -1,16 +1,19 @@
 {% capture impressum_text %}{% include t.liquid key='footer.impressum' default='Impressum' %}{% endcapture %}
 {% capture last_updated_text %}{% include t.liquid key='footer.last_updated' default='Last updated' %}{% endcapture %}
+{% capture copyright_text %}{% include t.liquid key='footer.copyright' default='Copyright' %}{% endcapture %}
+{% capture footer_text %}{% include t.liquid key='footer.text' default=site.footer_text %}{% endcapture %}
+{% capture last_updated_format %}{% include t.liquid key='footer.last_updated_format' default='%Y-%m-%d' %}{% endcapture %}
 
 {% capture footer_contents %}
-  &copy; Copyright {{ site.time | date: '%Y' }}
+  &copy; {{ copyright_text | strip }} {{ site.time | date: '%Y' }}
   {{ site.first_name }}
   {{ site.middle_name }}
-  {{ site.last_name }}. {{ site.footer_text }}
+  {{ site.last_name }}. {{ footer_text | strip }}
   {% if site.impressum_path %}
     <a href="{{ site.url }}{{ site.baseurl }}{{ site.impressum_path }}">{{ impressum_text | strip }}</a>.
   {% endif %}
   {% if site.last_updated %}
-    {{ last_updated_text | strip }}: {{ 'now' | date: '%Y-%m-%d' }}.
+    {{ last_updated_text | strip }}: {{ 'now' | date: last_updated_format | strip }}.
   {% endif %}
 {% endcapture %}
 

@@ -5,7 +5,7 @@ permalink: /es/productos/
 description: Datos, herramientas, mapas, fichas de indicadores, cálculos y otros productos del proyecto.
 lang: es
 ref: outputs
-nav: true
+nav: false
 nav_order: 3
 ---
 

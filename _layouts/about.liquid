@@ -8,12 +8,17 @@ layout: default
     {{ site.title }}
   {% endif %}
 {% endcapture %}
+{% capture hero_source_label %}{% include t.liquid key='about.hero_source' default='Source' %}{% endcapture %}
 
 {% if page.hero_image %}
   {% if page.hero_image contains '://' %}
     {% assign hero_src = page.hero_image %}
   {% else %}
     {% assign hero_src = page.hero_image | relative_url %}
+  {% endif %}
+  {% assign hero_source_domain = nil %}
+  {% if page.hero_source_url %}
+    {% assign hero_source_domain = page.hero_source_url | replace: 'https://', '' | replace: 'http://', '' | split: '/' | first %}
   {% endif %}
   <section class="home-hero home-hero-fullwidth">
     <img
@@ -30,6 +35,29 @@ layout: default
         {% endif %}
       </div>
     </div>
+    {% if page.hero_caption or page.hero_source %}
+      <div class="home-hero-caption">
+        {% if page.hero_caption %}
+          <span class="home-hero-caption-text">{{ page.hero_caption | escape }}</span>
+        {% endif %}
+        {% if page.hero_source %}
+          <span class="home-hero-caption-source">
+            <span class="home-hero-caption-source-label">{{ hero_source_label | strip }}:</span>
+            {% if page.hero_source_url %}
+              <a class="home-hero-caption-source-link" href="{{ page.hero_source_url }}" target="_blank" rel="noopener noreferrer">
+                {% if hero_source_domain and hero_source_domain != '' %}
+                  {{ hero_source_domain }}
+                {% else %}
+                  {{ page.hero_source | escape }}
+                {% endif %}
+              </a>
+            {% else %}
+              <span class="home-hero-caption-source-link">{{ page.hero_source | escape }}</span>
+            {% endif %}
+          </span>
+        {% endif %}
+      </div>
+    {% endif %}
   </section>
 {% endif %}
 

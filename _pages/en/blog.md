@@ -5,7 +5,7 @@ permalink: /en/blog/
 description: Notes, methods, and development updates.
 lang: en
 ref: blog
-nav: true
+nav: false
 nav_order: 7
 ---
 

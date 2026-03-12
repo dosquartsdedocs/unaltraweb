@@ -1,257 +1,156 @@
 ---
 layout: default
 ---
-{% assign year = page.started | date: '%Y' %}
-{% assign tags = page.tags | join: '' %}
-{% assign categories = page.categories | join: '' %}
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 
-{% if page._styles %}
-  <!-- Page/Post style -->
-  <style type="text/css">
-    {{ page._styles }}
-  </style>
+{% assign title_key = "title_" | append: current_lang %}
+{% assign author_key = "author_" | append: current_lang %}
+{% assign type_key = "book_type_" | append: current_lang %}
+{% assign publisher_key = "publisher_" | append: current_lang %}
+{% assign collection_key = "collection_" | append: current_lang %}
+{% assign edition_key = "edition_" | append: current_lang %}
+{% assign language_key = "book_language_" | append: current_lang %}
+{% assign status_key = "status_" | append: current_lang %}
+{% assign review_key = "review_" | append: current_lang %}
+
+{% assign localized_title = page[title_key] | default: page.title %}
+{% assign localized_author = page[author_key] | default: page.author %}
+{% assign localized_type = page[type_key] | default: page.book_type %}
+{% assign localized_publisher = page[publisher_key] | default: page.publisher %}
+{% assign localized_collection = page[collection_key] | default: page.collection_name %}
+{% assign localized_edition = page[edition_key] | default: page.edition %}
+{% assign localized_book_language = page[language_key] | default: page.book_language %}
+{% assign localized_status_raw = page[status_key] | default: page.status %}
+{% assign localized_review_text = page[review_key] %}
+
+{% assign localized_year = page.year | default: page.released %}
+{% assign localized_isbn = page.isbn %}
+{% assign localized_doi = page.doi %}
+{% assign localized_pages = page.pages | default: page.page_count %}
+{% assign localized_review_date = page.review_date | default: page.date %}
+{% assign localized_tags = page.tags %}
+
+{% assign status_slug = localized_status_raw | downcase | replace: ' ', '_' %}
+{% assign status_i18n_key = "reading.status_values." | append: status_slug %}
+
+{% assign resource_url = page.resource_url | default: page.website | default: page.url_external %}
+{% assign doi_url = page.doi_url %}
+{% if doi_url == nil and localized_doi %}
+  {% assign doi_url = "https://doi.org/" | append: localized_doi %}
+{% endif %}
+{% assign openlibrary_url = page.openlibrary_url %}
+{% if openlibrary_url == nil and page.olid %}
+  {% assign openlibrary_url = "https://openlibrary.org/olid/" | append: page.olid %}
 {% endif %}
 
-<div class="post">
-  <header class="post-header">
-    <h1 class="post-title">{{ page.title }}</h1>
-    {% if page.author or page.released %}
-      <p class="post-meta">
-        {% if page.author %}
-          {{ page.author }}
-        {% endif %}
-        {% if page.author and page.released %} &nbsp;&middot;&nbsp; {% endif %}
-        {% if page.released %}
-          {{ page.released }}
-        {% endif %}
-      </p>
-    {% endif %}
+{% capture bibliographic_record_text %}{% include t.liquid key='reading.bibliographic_record' default='Bibliographic record' %}{% endcapture %}
+{% capture type_text %}{% include t.liquid key='reading.type' default='Type' %}{% endcapture %}
+{% capture publisher_text %}{% include t.liquid key='reading.publisher' default='Publisher' %}{% endcapture %}
+{% capture collection_text %}{% include t.liquid key='reading.collection' default='Collection' %}{% endcapture %}
+{% capture edition_text %}{% include t.liquid key='reading.edition' default='Edition' %}{% endcapture %}
+{% capture year_text %}{% include t.liquid key='reading.year' default='Year' %}{% endcapture %}
+{% capture pages_text %}{% include t.liquid key='reading.pages' default='Pages' %}{% endcapture %}
+{% capture isbn_text %}{% include t.liquid key='reading.isbn' default='ISBN' %}{% endcapture %}
+{% capture doi_text %}{% include t.liquid key='reading.doi' default='DOI' %}{% endcapture %}
+{% capture language_text %}{% include t.liquid key='reading.language' default='Language' %}{% endcapture %}
+{% capture reviewed_on_text %}{% include t.liquid key='reading.reviewed_on' default='Reviewed on' %}{% endcapture %}
+{% capture status_text %}{% include t.liquid key='reading.status' default='Status' %}{% endcapture %}
+{% capture topics_text %}{% include t.liquid key='reading.topics' default='Topics' %}{% endcapture %}
+{% capture links_text %}{% include t.liquid key='reading.links' default='Links' %}{% endcapture %}
+{% capture external_resource_text %}{% include t.liquid key='reading.external_resource' default='External resource' %}{% endcapture %}
+{% capture doi_link_text %}{% include t.liquid key='reading.doi_link' default='DOI record' %}{% endcapture %}
+{% capture openlibrary_text %}{% include t.liquid key='reading.openlibrary' default='Open Library' %}{% endcapture %}
+{% capture cover_caption_text %}{% include t.liquid key='reading.cover_caption' default='Cover' %}{% endcapture %}
+{% capture no_review_text %}{% include t.liquid key='reading.no_review' default='No review text yet.' %}{% endcapture %}
+{% capture localized_status %}{% include t.liquid key=status_i18n_key default=localized_status_raw %}{% endcapture %}
 
-    {% if page.started or page.finished or page.stars %}
-      <p class="post-meta">
-        {% if page.started %}
-          <i class="fa-solid fa-play fa-sm" style="color: var(--global-tip-block) !important"></i> <em>{{ page.started }}</em>
-        {% endif %}
-        {% if page.finished %}
-          {% if page.started %}
-            &nbsp;&middot;&nbsp;
-          {% endif %}
-          <i class="fa-solid fa-stop fa-sm" style="color: #e56565 !important"></i> <em>{{ page.finished }}</em>
-        {% endif %}
-        {% if page.stars %}
-          {% if page.started or page.finished %}
-            &nbsp;&middot;&nbsp;
-          {% endif %}
-          {% if page.goodreads_review %}
-            <a target="_blank" href="https://www.goodreads.com/review/show/{{ page.goodreads_review }}"><i class="fa-brands fa-goodreads-g"></i>
-          {% endif %}
-          {% assign full_stars = page.stars | floor %}
-          {% assign half_star = page.stars | minus: full_stars %}
-          {% assign empty_stars = 5 | minus: full_stars %}
-          {% if half_star > 0 %}
-            {% assign empty_stars = empty_stars | minus: 1 %}
-          {% endif %}
-          {% for i in (1..full_stars) -%}
-            <i class="fa-solid fa-star fa-sm"></i>
-          {%- endfor -%}
-          {%- if half_star > 0 %}<i class="fa-solid fa-star-half-stroke fa-sm"></i>{% endif -%}
-          {%- for i in (1..empty_stars) -%}
-            <i class="fa-regular fa-star fa-sm"></i>
-          {%- endfor -%}
-          {% if page.goodreads_review %}
-            </a>
-          {% endif %}
-        {% endif %}
-        {% if page.buy_link %}
-          {% if page.started or page.finished or page.stars %}
-            &nbsp;&middot;&nbsp;
-          {% endif %}
-          <a target="_blank" href="{{ page.buy_link }}"
-            ><i class="fa-solid fa-cart-shopping"></i>
-            {% assign is_amazon_link = page.buy_link | slice: 0, 19 %}
-            {% if is_amazon_link == 'https://www.amazon.' %}
-              <i class="fa-brands fa-amazon"></i>
-            {% endif %}
-          </a>
-        {% endif %}
-      </p>
-    {% endif %}
-    <p class="post-tags">
-      <a href="{{ year | prepend: '/books/' | relative_url }}"> <i class="fa-solid fa-calendar fa-sm"></i> {{ year }}</a>
-      {% if tags != '' %}
-        &nbsp;&middot;&nbsp;
-        {% for tag in page.tags %}
-          <a href="{{ tag | slugify | prepend: '/books/tag/' | relative_url }}"> <i class="fa-solid fa-hashtag fa-sm"></i> {{ tag }}</a>
-          {% unless forloop.last %}
-            &nbsp;
-          {% endunless %}
-        {% endfor %}
-      {% endif %}
+{% if page.cover %}
+  {% if page.cover contains '://' %}
+    {% assign cover_src = page.cover %}
+  {% else %}
+    {% assign cover_src = page.cover | relative_url %}
+  {% endif %}
+{% endif %}
 
-      {% if categories != '' %}
-        &nbsp;&middot;&nbsp;
-        {% for category in page.categories %}
-          <a href="{{ category | slugify | prepend: '/books/category/' | relative_url }}"> <i class="fa-solid fa-tag fa-sm"></i> {{ category }}</a>
-          {% unless forloop.last %}
-            &nbsp;
-          {% endunless %}
-        {% endfor %}
-      {% endif %}
-    </p>
-    <hr>
-  </header>
+{% capture review_html %}
+  {% if localized_review_text and localized_review_text != "" %}
+    {{ localized_review_text | markdownify }}
+  {% elsif content and content != "" %}
+    {{ content }}
+  {% else %}
+    <p>{{ no_review_text | strip }}</p>
+  {% endif %}
+{% endcapture %}
 
+<div class="post reading-review">
   <article>
-    {% if content == '' %}
-      <figure class="empty-review">
-        {% if page.cover %}
-          <img class="empty-review-cover" alt="{{ page.title }} cover" src="{{ site.baseurl }}/{{ page.cover }}">
-          <figcaption class="empty-review-caption">
-            Cover of <em>{{ page.title }}</em>
-          </figcaption>
-        {% elsif page.olid %}
-          <img class="empty-review-cover" alt="{{ page.title }} cover" src="http://covers.openlibrary.org/b/olid/{{ page.olid }}-L.jpg?default=false">
-          <figcaption class="empty-review-caption">
-            Cover of <em>{{ page.title }}</em> on the <a href="https://openlibrary.org/olid/{{ page.olid }}">Open Library</a>.
-          </figcaption>
-        {% elsif page.isbn %}
-          <img class="empty-review-cover" alt="{{ page.title }} cover" src="http://covers.openlibrary.org/b/isbn/{{ page.isbn }}-L.jpg?default=false">
-          <figcaption class="empty-review-caption">
-            Cover of <em>{{ page.title }}</em> on the <a href="https://openlibrary.org/isbn/{{ page.isbn }}">Open Library</a>.
-          </figcaption>
-        {% endif %}
-      </figure>
-      {% assign status = page.status | upcase %}
-      <div class="clearfix">
-        <h4>{{ status }}</h4>
+    <div class="reading-top-grid{% unless cover_src %} reading-top-grid--single{% endunless %}">
+      {% if cover_src %}
+        <figure class="reading-figure reading-figure-left">
+          <img alt="{{ localized_title | escape }}" src="{{ cover_src }}">
+          <figcaption>{{ cover_caption_text | strip }}: <em>{{ localized_title }}</em></figcaption>
+        </figure>
+      {% endif %}
+
+      <div class="reading-main">
+        <header class="post-header reading-main-header">
+          <h1 class="post-title">{{ localized_title }}</h1>
+
+          {% if localized_author or localized_year %}
+            <p class="post-meta">
+              {% if localized_author %}
+                {{ localized_author }}
+              {% endif %}
+              {% if localized_author and localized_year %}
+                &nbsp;&middot;&nbsp;
+              {% endif %}
+              {% if localized_year %}
+                {{ localized_year }}
+              {% endif %}
+            </p>
+          {% endif %}
+        </header>
+
+        <div class="reading-content reading-content-main clearfix">
+          {{ review_html }}
+        </div>
       </div>
-    {% else %}
-      <figure>
-        {% if page.cover %}
-          <img alt="{{ page.title }} cover" src="{{ site.baseurl }}/{{ page.cover }}">
-          <figcaption>
-            Cover of <em>{{ page.title }}</em>
-          </figcaption>
-        {% elsif page.olid %}
-          <img alt="{{ page.title }} cover" src="http://covers.openlibrary.org/b/olid/{{ page.olid }}-L.jpg?default=false">
-          <figcaption>
-            Cover of <em>{{ page.title }}</em> on the <a href="https://openlibrary.org/olid/{{ page.olid }}">Open Library</a>.
-          </figcaption>
-        {% elsif page.isbn %}
-          <img alt="{{ page.title }} cover" src="http://covers.openlibrary.org/b/isbn/{{ page.isbn }}-L.jpg?default=false">
-          <figcaption>
-            Cover of <em>{{ page.title }}</em> on the <a href="https://openlibrary.org/isbn/{{ page.isbn }}">Open Library</a>.
-          </figcaption>
+    </div>
+
+    <div class="reading-biblio-wrap">
+      <div class="links reading-biblio-actions">
+        <a class="abstract btn btn-sm z-depth-0" role="button">{{ bibliographic_record_text | strip }}</a>
+        {% if resource_url %}
+          <a href="{{ resource_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">{{ external_resource_text | strip }}</a>
         {% endif %}
-      </figure>
-      <br class="mobile-break" clear="right">
-      <h4>
-        {% if page.start %} Start Date: {{ page.start | date: '%-d %B %Y' }}. {% endif %}
-        {% if page.end %} End Date: {{ page.end | date: '%-d %B %Y' }}. {% endif %}
-      </h4>
-      {{ content }}
-    {% endif %}
+        {% if doi_url %}
+          <a href="{{ doi_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">{{ doi_link_text | strip }}</a>
+        {% endif %}
+        {% if openlibrary_url %}
+          <a href="{{ openlibrary_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">{{ openlibrary_text | strip }}</a>
+        {% endif %}
+      </div>
+
+      <div class="abstract hidden reading-biblio-panel">
+        <ul class="reading-record-list">
+          {% if localized_type %}<li><strong>{{ type_text | strip }}:</strong> {{ localized_type }}</li>{% endif %}
+          {% if localized_publisher %}<li><strong>{{ publisher_text | strip }}:</strong> {{ localized_publisher }}</li>{% endif %}
+          {% if localized_collection %}<li><strong>{{ collection_text | strip }}:</strong> {{ localized_collection }}</li>{% endif %}
+          {% if localized_edition %}<li><strong>{{ edition_text | strip }}:</strong> {{ localized_edition }}</li>{% endif %}
+          {% if localized_year %}<li><strong>{{ year_text | strip }}:</strong> {{ localized_year }}</li>{% endif %}
+          {% if localized_pages %}<li><strong>{{ pages_text | strip }}:</strong> {{ localized_pages }}</li>{% endif %}
+          {% if localized_isbn %}<li><strong>{{ isbn_text | strip }}:</strong> {{ localized_isbn }}</li>{% endif %}
+          {% if localized_doi %}<li><strong>{{ doi_text | strip }}:</strong> {{ localized_doi }}</li>{% endif %}
+          {% if localized_book_language %}<li><strong>{{ language_text | strip }}:</strong> {{ localized_book_language }}</li>{% endif %}
+          {% if localized_review_date %}<li><strong>{{ reviewed_on_text | strip }}:</strong> {{ localized_review_date | date: "%Y-%m-%d" }}</li>{% endif %}
+          {% if localized_status_raw %}<li><strong>{{ status_text | strip }}:</strong> {{ localized_status | strip }}</li>{% endif %}
+          {% if localized_tags and localized_tags.size > 0 %}<li><strong>{{ topics_text | strip }}:</strong> {{ localized_tags | join: ", " }}</li>{% endif %}
+        </ul>
+      </div>
+    </div>
   </article>
 
   {% if site.giscus and page.giscus_comments %}
     {% include giscus.liquid %}
   {% endif %}
 </div>
-
-<style>
-      figure {
-        float: none;
-        width: auto;
-        display: block;
-        margin-right: auto;
-        margin-left: auto;
-
-      }
-      figure  > img {
-
-           vertical-align: top;
-           display: block;
-           margin-right: 0px;
-           margin-left: 0px;
-           padding: 0px;
-
-      }
-      figure figcaption {
-
-        display: block;
-        caption-side: bottom;
-        text-align: center;
-      }
-
-      @media screen and (min-width: 600px)  {
-
-        .empty-review{
-          float: left;
-          display: block; /* in-line block; */
-          margin: 0px 0px 0px 0px;  /* adjust as needed */
-          padding: 0px 0px 0px 20px;
-         /* top right bottom left */
-          }
-
-         .empty-review-caption {
-                  caption-side: left;
-                  text-align: left;
-
-
-                  }
-
-          .empty-review-cover {
-              width:250px;
-              vertical-align: top;
-              padding-right: 40px;
-              }
-
-          figure {
-
-                float: right;
-                display: in-line block; /* in-line block; */
-                margin: 0px 0px 0px 0px;  /* adjust as needed */
-                padding: 0px 0px 0px 20px;
-               /* top right bottom left */
-              }
-
-          figure img {
-                  width:300px;
-                  vertical-align: top;
-
-                }
-
-          figure figcaption {
-                  caption-side: bottom;
-                  text-align: left;
-
-                  }
-
-          .mobile-break { display: none; }
-
-  /* =Blockquote
-  -------------------------------------------------------------- */
-  blockquote {
-
-      position: relative;
-      marign: 0px;
-      display: table;
-
-  }
-  blockquote:before, blockquote:after {
-
-   /* properties to format the block quotes /*
-
-  }
-  blockquote:before {
-      top: 0;
-      left: 0;
-
-
-  }
-  blockquote:after {
-      top: 0;
-      right: 0;
-
-  }
-</style>

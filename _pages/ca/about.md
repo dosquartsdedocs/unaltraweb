@@ -5,8 +5,11 @@ permalink: /ca/
 lang: ca
 ref: home
 subtitle: Plantilla multilingüe reutilitzable per a webs de projectes de recerca.
-hero_image: assets/img/10.jpg
-hero_image_alt: Imatge hero de paisatge de mostra
+hero_image: https://images.unsplash.com/photo-1663793815893-cf80ab25f400?auto=format&fit=crop&fm=jpg&ixid=M3wxMjA3fDB8MXxzZWFyY2h8Mnx8Y29hc3R8ZW58MHx8fHwxNzYzMjk4MzY0fDA&ixlib=rb-4.1.0&q=60&w=3000
+hero_image_alt: Costa rocosa mediterrània amb aigua turquesa
+hero_caption: Costa rocosa mediterrània (foto de Sergey Konstantinov).
+hero_source: Unsplash
+hero_source_url: https://unsplash.com/photos/a-beach-with-rocks-and-water-ZM8gmvmAzGk
 
 selected_papers: true
 social: true

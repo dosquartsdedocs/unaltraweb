@@ -5,7 +5,7 @@ permalink: /ca/blog/
 description: Notes, mètodes i actualitzacions de desenvolupament.
 lang: ca
 ref: blog
-nav: true
+nav: false
 nav_order: 7
 ---
 

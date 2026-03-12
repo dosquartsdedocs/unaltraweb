@@ -8,6 +8,12 @@ header:
 footer:
   impressum: Avís legal
   last_updated: Darrera actualització
+  copyright: Drets d'autor
+  text: >
+    Funciona amb <a href="https://jekyllrb.com/" target="_blank">Jekyll</a>, basat en <a href="https://github.com/alshedivat/al-folio">al-folio</a>.
+    Allotjat a <a href="https://pages.github.com/" target="_blank">GitHub Pages</a>.
+    Fotos d'<a href="https://unsplash.com" target="_blank">Unsplash</a>.
+  last_updated_format: "%d/%m/%Y"
 
 search:
   placeholder: Escriu per cercar
@@ -32,6 +38,7 @@ about:
   news: Notícies
   latest_posts: Entrades recents
   selected_publications: Publicacions destacades
+  hero_source: Font
 
 news:
   empty: Encara no hi ha notícies.
@@ -71,9 +78,55 @@ projects:
   code_repository: Repositori de codi
   github_stars: Estrelles de GitHub
 
+theses:
+  empty: Encara no hi ha tesis disponibles.
+  student: Doctorand/a
+  status: Estat
+  institution: Institució
+  year: Any
+  supervisors: Direcció
+  image_source: Font
+  status_values:
+    defended: Defensada
+    ongoing: En curs
+
+reading:
+  bibliographic_record: Fitxa bibliogràfica
+  type: Tipus
+  publisher: Editorial
+  collection: Col·lecció
+  edition: Edició
+  year: Any
+  pages: Pàgines
+  isbn: ISBN
+  doi: DOI
+  language: Idioma
+  reviewed_on: Ressenyat el
+  status: Estat
+  topics: Temes
+  links: Enllaços
+  external_resource: Recurs
+  doi_link: Registre DOI
+  openlibrary: Open Library
+  cover_caption: Coberta
+  no_review: Encara no hi ha text de ressenya.
+  empty_shelf: Encara no hi ha lectures disponibles.
+  uncategorized: Sense categoria
+  not_dated: s. d.
+  status_values:
+    abandoned: Abandonada
+    finished: Finalitzada
+    interested: D'interès
+    paused: Pausada
+    queued: En cua
+    reading: En lectura
+    reread: Relectura
+
 publications:
   metrics:
-    title: Mètriques bibliomètriques
+    title: Bibliometría
+    indicators_calculated: Indicadors calculats a partir de
+    articles_label: articles
     updated_on: Actualitzat el
     scimago_meta: Metadades de l'aparellament Scimago
     coverage: cobertura

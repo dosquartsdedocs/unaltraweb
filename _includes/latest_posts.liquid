@@ -2,12 +2,11 @@
 {% assign default_lang = site.default_lang | default: site.lang %}
 
 {% assign localized_posts = site.posts | where: 'lang', current_lang %}
-{% if localized_posts.size == 0 and current_lang != default_lang %}
-  {% assign localized_posts = site.posts | where: 'lang', default_lang %}
-{% endif %}
-{% if current_lang == default_lang %}
-  {% assign fallback_posts = site.posts | where_exp: 'post', 'post.lang == nil' %}
-  {% assign localized_posts = localized_posts | concat: fallback_posts %}
+{% assign fallback_posts = site.posts | where_exp: 'post', 'post.lang == nil' %}
+{% assign localized_posts = localized_posts | concat: fallback_posts %}
+{% if current_lang != default_lang and localized_posts.size == fallback_posts.size %}
+  {% assign default_lang_posts = site.posts | where: 'lang', default_lang %}
+  {% assign localized_posts = default_lang_posts | concat: fallback_posts %}
 {% endif %}
 
 {% assign latest_posts = localized_posts | sort: 'date' | reverse %}

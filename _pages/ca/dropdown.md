@@ -8,7 +8,6 @@ nav: true
 nav_order: 2
 dropdown: true
 children:
-  - title: divider
   - title: El projecte
     permalink: /ca/el-projecte/
   - title: divider

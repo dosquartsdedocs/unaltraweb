@@ -95,7 +95,9 @@
                   <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
                     {% for child in p.children %}
                       {% if child.title == 'divider' %}
-                        <div class="dropdown-divider"></div>
+                        {% unless forloop.first or forloop.last %}
+                          <div class="dropdown-divider"></div>
+                        {% endunless %}
                       {% else %}
                         <a
                           class="dropdown-item {% if page.title == child.title or page.url == child.permalink %}active{% endif %}"
@@ -136,6 +138,14 @@
             {% endif %}
           {% endfor %}
 
+          {% if site.search_enabled %}
+            <li class="nav-item">
+              <button id="search-toggle" title="{{ search_text | strip }}" onclick="openSearchModal()">
+                <span class="nav-link">ctrl k <i class="ti ti-search"></i></span>
+              </button>
+            </li>
+          {% endif %}
+
           {% if site.languages and site.languages.size > 1 %}
             {% assign current_ref = page.ref | default: 'home' %}
             {% assign current_lang_flag = '🏳️' %}
@@ -164,6 +174,9 @@
               <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarLangDropdown">
                 {% for lang_code in site.languages %}
                   {% assign localized_page = site.pages | where: 'ref', current_ref | where: 'lang', lang_code | first %}
+                  {% if localized_page == nil %}
+                    {% assign localized_page = site.documents | where: 'ref', current_ref | where: 'lang', lang_code | first %}
+                  {% endif %}
                   {% if localized_page %}
                     {% assign lang_url = localized_page.url %}
                   {% else %}
@@ -202,14 +215,6 @@
                   </a>
                 {% endfor %}
               </div>
-            </li>
-          {% endif %}
-
-          {% if site.search_enabled %}
-            <li class="nav-item">
-              <button id="search-toggle" title="{{ search_text | strip }}" onclick="openSearchModal()">
-                <span class="nav-link">ctrl k <i class="ti ti-search"></i></span>
-              </button>
             </li>
           {% endif %}
 

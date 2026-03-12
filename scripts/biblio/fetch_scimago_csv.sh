@@ -66,7 +66,7 @@ if missing:
     print(f"RDA dataset missing expected columns: {missing}", file=sys.stderr)
     raise SystemExit(1)
 
-df = payload.loc[:, required].copy()
+df = payload.copy()
 df.to_csv(dst, index=False)
 print(f"Converted RDA -> CSV ({len(df)} rows): {dst}")
 PY

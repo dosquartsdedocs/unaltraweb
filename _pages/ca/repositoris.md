@@ -5,7 +5,7 @@ permalink: /ca/repositoris/
 description: Codi font i fluxos reproduïbles.
 lang: ca
 ref: repositories
-nav: true
+nav: false
 nav_order: 6
 ---
 

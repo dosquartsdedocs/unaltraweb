@@ -3,47 +3,79 @@ layout: page
 ---
 {{ content }}
 
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+
+{% capture empty_shelf_text %}{% include t.liquid key='reading.empty_shelf' default='No reading notes available yet.' %}{% endcapture %}
+{% capture uncategorized_text %}{% include t.liquid key='reading.uncategorized' default='Uncategorized' %}{% endcapture %}
+{% capture not_dated_text %}{% include t.liquid key='reading.not_dated' default='n.d.' %}{% endcapture %}
+
 {% if page.collection and page.collection.size > 0 %}
   {% assign collection = site[page.collection] %}
-  {% if collection and collection.size > 0 %}
-    {% for item in collection reversed %}
-      {% assign current_year = item.started | date: '%Y' %}
-      {% if current_year != year %}
-        {% unless forloop.first %}
-          </ul>
-        {% endunless %}
-        <h1 id="y{{item.started | date: "%Y"}}">
-          <a href="{{ current_year | prepend: '/books/' | relative_url }}">{{ current_year }}</a>
-        </h1>
-        <ul>
-          {% assign year = current_year %}
-      {% endif %}
+  {% assign localized_items = collection | where: 'lang', current_lang %}
+  {% if localized_items.size == 0 and current_lang != site.default_lang %}
+    {% assign localized_items = collection | where: 'lang', site.default_lang %}
+  {% endif %}
+  {% if localized_items.size == 0 %}
+    {% assign localized_items = collection | where_exp: 'item', 'item.lang == nil' %}
+  {% endif %}
 
-      <figure class="cover">
-        <a class="cover-link" href="{{ item.url | relative_url }}">
-          {% if item.cover %}
-            <img alt="{{ item.title }} cover" src="{{ item.cover | prepend: page.covers | relative_url }}" style="height:200px">
-          {% elsif item.olid %}
-            <img alt="{{ item.title }} cover" src="http://covers.openlibrary.org/b/olid/{{ item.olid }}-L.jpg?default=false" style="height:200px">
-          {% elsif item.isbn %}
-            <img alt="{{ item.title }} cover" src="http://covers.openlibrary.org/b/isbn/{{ item.isbn }}-L.jpg?default=false" style="height:200px">
-          {% endif %}
-          {% if item.status %}
-            {% assign statuses = 'abandoned,finished,interested,paused,queued,reading,reread' | split: ',' %}
-            {% assign status = item.status | downcase | strip %}
-            {% if statuses contains status %}
-              <figcaption class="{{ status | downcase }}">{{ status | upcase }}</figcaption>
-            {% else %}
-              <figcaption class="uncategorized">UNCATEGORIZED</figcaption>
-            {% endif %}
+  {% assign sorted_items = localized_items | sort: 'date' | reverse %}
+
+  {% if sorted_items.size > 0 %}
+    <div class="reading-shelf">
+      {% for item in sorted_items %}
+        {% assign title_key = 'title_' | append: current_lang %}
+        {% assign author_key = 'author_' | append: current_lang %}
+        {% assign status_key = 'status_' | append: current_lang %}
+
+        {% assign item_title = item[title_key] | default: item.title %}
+        {% assign item_author = item[author_key] | default: item.author %}
+        {% assign item_status_raw = item[status_key] | default: item.status %}
+        {% assign status_slug = item_status_raw | downcase | replace: ' ', '_' %}
+        {% assign status_i18n_key = 'reading.status_values.' | append: status_slug %}
+        {% capture status_label %}{% include t.liquid key=status_i18n_key default=item_status_raw %}{% endcapture %}
+
+        {% assign item_year = item.review_year | default: item.year %}
+        {% if item_year == nil or item_year == '' %}
+          {% assign item_date = item.review_date | default: item.date | default: item.finished | default: item.started %}
+          {% if item_date %}
+            {% assign item_year = item_date | date: '%Y' %}
           {% else %}
-            <figcaption class="uncategorized">UNCATEGORIZED</figcaption>
+            {% assign item_year = not_dated_text | strip %}
           {% endif %}
-        </a>
-      </figure>
-      {% if forloop.last %}
-        </ul>
-      {% endif %}
-    {% endfor %}
+        {% endif %}
+
+        <figure class="cover reading-cover">
+          <a class="cover-link" href="{{ item.url | relative_url }}">
+            {% if item.cover %}
+              {% if item.cover contains '://' %}
+                {% assign item_cover = item.cover %}
+              {% else %}
+                {% assign item_cover = item.cover | relative_url %}
+              {% endif %}
+              <img alt="{{ item_title | escape }}" src="{{ item_cover }}" style="height: 220px">
+            {% elsif item.olid %}
+              <img alt="{{ item_title | escape }}" src="https://covers.openlibrary.org/b/olid/{{ item.olid }}-L.jpg?default=false" style="height: 220px">
+            {% elsif item.isbn %}
+              <img alt="{{ item_title | escape }}" src="https://covers.openlibrary.org/b/isbn/{{ item.isbn }}-L.jpg?default=false" style="height: 220px">
+            {% else %}
+              <img alt="{{ item_title | escape }}" src="{{ '/assets/img/11.jpg' | relative_url }}" style="height: 220px">
+            {% endif %}
+            {% if item_status_raw %}
+              <figcaption class="{{ status_slug }}">{{ status_label | strip | upcase }}</figcaption>
+            {% else %}
+              <figcaption class="uncategorized">{{ uncategorized_text | strip | upcase }}</figcaption>
+            {% endif %}
+          </a>
+          <div class="reading-cover-meta">
+            <a href="{{ item.url | relative_url }}" class="reading-cover-title">{{ item_title }}</a>
+            {% if item_author %}<span class="reading-cover-author">{{ item_author }}</span>{% endif %}
+            {% if item_year %}<span class="reading-cover-year">{{ item_year }}</span>{% endif %}
+          </div>
+        </figure>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>{{ empty_shelf_text | strip }}</p>
   {% endif %}
 {% endif %}
