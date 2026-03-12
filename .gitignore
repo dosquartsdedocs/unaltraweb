@@ -12,6 +12,8 @@ node_modules/
 vendor
 .idea
 .venv
+__pycache__/
+*.pyc
 .cache/scimago/
 tmp/metrics-report*.json
 tmp/metrics-unmatched*.tsv
