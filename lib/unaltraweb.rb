@@ -10,6 +10,7 @@ require_relative "unaltraweb/version"
   hide-custom-bibtex
   inspirehep-citations
   remove-accents
+  theme-cache-bust
 ].each do |plugin|
   require File.expand_path("../_plugins/#{plugin}", __dir__)
 end
