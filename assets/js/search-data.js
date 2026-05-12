@@ -23,20 +23,6 @@ ninja.data = [{
               handler: () => {
                 window.location.href = "/unaltraweb/en/former-projects/";
               },
-            },{id: "dropdown-el-projecte",
-              title: "El projecte",
-              description: "",
-              section: "Dropdown",
-              handler: () => {
-                window.location.href = "/unaltraweb/ca/el-projecte/";
-              },
-            },{id: "dropdown-projectes-anteriors",
-              title: "Projectes anteriors",
-              description: "",
-              section: "Dropdown",
-              handler: () => {
-                window.location.href = "/unaltraweb/ca/projectes-anteriors/";
-              },
             },{id: "dropdown-el-proyecto",
               title: "El proyecto",
               description: "",
@@ -50,6 +36,20 @@ ninja.data = [{
               section: "Dropdown",
               handler: () => {
                 window.location.href = "/unaltraweb/es/proyectos-previos/";
+              },
+            },{id: "dropdown-el-projecte",
+              title: "El projecte",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/el-projecte/";
+              },
+            },{id: "dropdown-projectes-anteriors",
+              title: "Projectes anteriors",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/projectes-anteriors/";
               },
             },{id: "nav-equip",
           title: "Equip",
@@ -95,17 +95,17 @@ ninja.data = [{
           },
         },{id: "nav-tesis",
           title: "Tesis",
-          description: "Tesis doctorals en curs o finalitzades.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/unaltraweb/ca/tesis/";
-          },
-        },{id: "nav-tesis",
-          title: "Tesis",
           description: "Tesis doctorales en curso o finalizadas.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/unaltraweb/es/tesis/";
+          },
+        },{id: "nav-tesis",
+          title: "Tesis",
+          description: "Tesis doctorals en curs o finalitzades.",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/unaltraweb/ca/tesis/";
           },
         },{id: "nav-theses",
           title: "Theses",
@@ -128,21 +128,7 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/unaltraweb/books/";
           },
-        },{id: "dropdown-productes",
-              title: "Productes",
-              description: "",
-              section: "Dropdown",
-              handler: () => {
-                window.location.href = "/unaltraweb/ca/productes/";
-              },
-            },{id: "dropdown-repositoris",
-              title: "Repositoris",
-              description: "",
-              section: "Dropdown",
-              handler: () => {
-                window.location.href = "/unaltraweb/ca/repositoris/";
-              },
-            },{id: "dropdown-productos",
+        },{id: "dropdown-productos",
               title: "Productos",
               description: "",
               section: "Dropdown",
@@ -155,6 +141,20 @@ ninja.data = [{
               section: "Dropdown",
               handler: () => {
                 window.location.href = "/unaltraweb/es/repositorios/";
+              },
+            },{id: "dropdown-productes",
+              title: "Productes",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/productes/";
+              },
+            },{id: "dropdown-repositoris",
+              title: "Repositoris",
+              description: "",
+              section: "Dropdown",
+              handler: () => {
+                window.location.href = "/unaltraweb/ca/repositoris/";
               },
             },{id: "dropdown-outputs",
               title: "Outputs",

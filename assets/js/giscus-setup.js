@@ -18,7 +18,7 @@ function determineGiscusTheme() {
 
   let giscusAttributes = {
     src: "https://giscus.app/client.js",
-    "data-repo": "gratet/unaltraweb",
+    "data-repo": "dosquartsdedocs/unaltraweb",
     "data-repo-id": "",
     "data-category": "Comments",
     "data-category-id": "",
