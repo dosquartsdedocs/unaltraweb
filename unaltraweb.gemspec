@@ -24,7 +24,8 @@ Gem::Specification.new do |spec|
     end
   end
   spec.files = tracked_files.select do |file|
-    file.match?(%r{\A(_includes|_layouts|_sass|_plugins|assets|lib|scripts)/}) ||
+    ["_config.yml", "requirements.txt"].include?(file) ||
+      file.match?(%r{\A(_includes|_layouts|_sass|_plugins|assets|lib|scripts)/}) ||
       file.match?(%r{\A(README|LICENSE|docs)/})
   end
 
