@@ -57,6 +57,10 @@
     display: none;
   }
 
+  #light-toggle-sepia {
+    display: none;
+  }
+
   .only-light {
     display: block;
   }
@@ -123,6 +127,41 @@ html[data-theme="dark"] {
   }
 }
 
+html[data-theme="sepia"] {
+  color-scheme: light;
+  --global-bg-color: #f3eacb;
+  --global-code-bg-color: #ede0c2;
+  --global-text-color: #463524;
+  --global-text-color-light: #756349;
+  --global-theme-color: #7a591b;
+  --global-hover-color: #7a591b;
+  --global-hover-text-color: #fff8e6;
+  --global-footer-bg-color: #4a3724;
+  --global-footer-text-color: #f3eacb;
+  --global-footer-link-color: #fff8e6;
+  --global-distill-app-color: #756349;
+  --global-divider-color: rgba(70, 53, 36, 0.22);
+  --global-card-bg-color: #fbf4df;
+  --global-highlight-color: #9b3f2f;
+  --global-back-to-top-bg-color: rgba(70, 53, 36, 0.45);
+  --global-back-to-top-text-color: #fff8e6;
+  --global-newsletter-bg-color: #fbf4df;
+  --global-newsletter-text-color: #463524;
+
+  --global-tip-block: #3f7a5a;
+  --global-tip-block-bg: #e7efe3;
+  --global-tip-block-text: #2f513d;
+  --global-tip-block-title: #2f684d;
+  --global-warning-block: #a9781f;
+  --global-warning-block-bg: #f5e7c8;
+  --global-warning-block-text: #5f4318;
+  --global-warning-block-title: #7a591b;
+  --global-danger-block: #a14a3f;
+  --global-danger-block-bg: #f3ddd9;
+  --global-danger-block-text: #5a2a24;
+  --global-danger-block-title: #7c352f;
+}
+
 html[data-theme-setting="dark"] {
   #light-toggle-system {
     display: none;
@@ -135,6 +174,10 @@ html[data-theme-setting="dark"] {
   }
 
   #light-toggle-light {
+    display: none;
+  }
+
+  #light-toggle-sepia {
     display: none;
   }
 
@@ -157,5 +200,34 @@ html[data-theme-setting="light"] {
     padding-left: 10px;
     padding-top: 12px;
     display: block;
+  }
+
+  #light-toggle-sepia {
+    display: none;
+  }
+}
+
+html[data-theme-setting="sepia"] {
+  #light-toggle-system {
+    display: none;
+  }
+
+  #light-toggle-dark {
+    display: none;
+  }
+
+  #light-toggle-light {
+    display: none;
+  }
+
+  #light-toggle-sepia {
+    padding-left: 10px;
+    padding-top: 12px;
+    display: block;
+  }
+
+  #back-to-top {
+    color: var(--global-back-to-top-text-color);
+    background: var(--global-back-to-top-bg-color);
   }
 }

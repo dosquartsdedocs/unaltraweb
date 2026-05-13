@@ -1,5 +1,6 @@
+{% assign unaltraweb_site_type = site.unaltraweb.site_type | default: 'project' | slugify %}
 <!doctype html>
-<html lang="{{ page.lang | default: site.default_lang | default: site.lang }}">
+<html lang="{{ page.lang | default: site.default_lang | default: site.lang }}" data-site-type="{{ unaltraweb_site_type }}">
   <!-- Head -->
   <head>
     {% if page.redirect %}
@@ -16,7 +17,7 @@
   </head>
 
   <!-- Body -->
-  <body class="{% if site.navbar_fixed %}fixed-top-nav{% endif %} {% unless site.footer_fixed %}sticky-bottom-footer{% endunless %}">
+  <body class="site-type-{{ unaltraweb_site_type }} {% if site.navbar_fixed %}fixed-top-nav{% endif %} {% unless site.footer_fixed %}sticky-bottom-footer{% endunless %}">
     <!-- Header -->
     {% include header.liquid %}
 

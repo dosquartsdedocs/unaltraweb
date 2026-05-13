@@ -404,6 +404,99 @@ html[data-theme='light'] .home-hero-content * {
 }
 
 /* =============================================================================
+   Personal profile mode
+   ============================================================================= */
+
+.profile-page-grid {
+  display: grid;
+  grid-template-columns: minmax(210px, 280px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.profile-page-sidebar {
+  position: sticky;
+  top: 5rem;
+}
+
+.profile-card {
+  border: 1px solid var(--global-divider-color);
+  padding: 0.9rem;
+  background: var(--global-bg-color);
+}
+
+.profile-card-avatar {
+  width: 100%;
+  max-width: 220px;
+  display: block;
+  margin: 0 auto 0.75rem;
+  border-radius: 0.2rem;
+}
+
+.profile-card-name {
+  margin: 0 0 0.3rem;
+  font-size: 1.15rem;
+}
+
+.profile-card-bio,
+.profile-card-affiliation,
+.profile-card-meta {
+  margin: 0.25rem 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.profile-card-meta span {
+  font-weight: 600;
+}
+
+.profile-card-links {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.profile-card-links li {
+  margin: 0;
+}
+
+.profile-card-links a {
+  width: 2rem;
+  height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--global-text-color);
+  border-radius: 999px;
+  color: var(--global-text-color);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.profile-card-links a:hover {
+  border-color: var(--global-theme-color);
+  color: var(--global-theme-color);
+  text-decoration: none;
+}
+
+.profile-page-content > :first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 767.98px) {
+  .profile-page-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-page-sidebar {
+    position: static;
+  }
+}
+
+/* =============================================================================
    Reading (books and manuals)
    ============================================================================= */
 

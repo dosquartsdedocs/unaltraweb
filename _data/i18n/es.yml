@@ -134,6 +134,11 @@ publications:
     max_year_gap: brecha máxima de años
     not_available: n/d
 
+profile:
+  email: Correo
+  website: Web
+  location: Ubicación
+
 languages:
   en: Inglés
   es: Español

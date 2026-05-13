@@ -1,11 +1,13 @@
 // Has to be in the head tag, otherwise a flicker effect will occur.
 
-// Toggle through light, dark, and system theme settings.
+// Toggle through light, sepia, dark, and system theme settings.
 let toggleThemeSetting = () => {
   let themeSetting = determineThemeSetting();
   if (themeSetting == "system") {
     setThemeSetting("light");
   } else if (themeSetting == "light") {
+    setThemeSetting("sepia");
+  } else if (themeSetting == "sepia") {
     setThemeSetting("dark");
   } else {
     setThemeSetting("system");
@@ -21,41 +23,43 @@ let setThemeSetting = (themeSetting) => {
   applyTheme();
 };
 
-// Apply the computed dark or light theme to the website.
+// Apply the computed visual theme to the website.
 let applyTheme = () => {
   let theme = determineComputedTheme();
+  let integrationTheme = theme == "dark" ? "dark" : "light";
 
   transTheme();
-  setHighlight(theme);
-  setGiscusTheme(theme);
-  setSearchTheme(theme);
+  setHighlight(integrationTheme);
+  setGiscusTheme(integrationTheme);
+  setSearchTheme(integrationTheme);
 
   // if mermaid is not defined, do nothing
   if (typeof mermaid !== "undefined") {
-    setMermaidTheme(theme);
+    setMermaidTheme(integrationTheme);
   }
 
   // if diff2html is not defined, do nothing
   if (typeof Diff2HtmlUI !== "undefined") {
-    setDiff2htmlTheme(theme);
+    setDiff2htmlTheme(integrationTheme);
   }
 
   // if echarts is not defined, do nothing
   if (typeof echarts !== "undefined") {
-    setEchartsTheme(theme);
+    setEchartsTheme(integrationTheme);
   }
 
   // if Plotly is not defined, do nothing
   if (typeof Plotly !== "undefined") {
-    setPlotlyTheme(theme);
+    setPlotlyTheme(integrationTheme);
   }
 
   // if vegaEmbed is not defined, do nothing
   if (typeof vegaEmbed !== "undefined") {
-    setVegaLiteTheme(theme);
+    setVegaLiteTheme(integrationTheme);
   }
 
   document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.setAttribute("data-theme-integration", integrationTheme);
 
   // Add class to tables.
   let tables = document.getElementsByTagName("table");
@@ -86,6 +90,16 @@ let applyTheme = () => {
       background: getComputedStyle(document.documentElement).getPropertyValue("--global-bg-color") + "ee", // + 'ee' for trasparency.
     });
   }
+
+  document.dispatchEvent(
+    new CustomEvent("unaltraweb:themechange", {
+      detail: {
+        theme: theme,
+        themeSetting: determineThemeSetting(),
+        integrationTheme: integrationTheme,
+      },
+    })
+  );
 };
 
 let setHighlight = (theme) => {
@@ -251,18 +265,18 @@ let transTheme = () => {
   }, 500);
 };
 
-// Determine the expected state of the theme toggle, which can be "dark", "light", or
-// "system". Default is "system".
+// Determine the expected state of the theme toggle, which can be "dark", "light",
+// "sepia", or "system". Default is "system".
 let determineThemeSetting = () => {
   let themeSetting = localStorage.getItem("theme");
-  if (themeSetting != "dark" && themeSetting != "light" && themeSetting != "system") {
+  if (themeSetting != "dark" && themeSetting != "light" && themeSetting != "sepia" && themeSetting != "system") {
     themeSetting = "system";
   }
   return themeSetting;
 };
 
-// Determine the computed theme, which can be "dark" or "light". If the theme setting is
-// "system", the computed theme is determined based on the user's system preference.
+// Determine the computed theme. If the theme setting is "system", the computed theme is
+// determined based on the user's system preference.
 let determineComputedTheme = () => {
   let themeSetting = determineThemeSetting();
   if (themeSetting == "system") {

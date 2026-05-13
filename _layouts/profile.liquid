@@ -1,0 +1,27 @@
+---
+layout: default
+---
+
+<div class="post profile-page">
+  <header class="post-header">
+    <h1 class="post-title">{{ page.title }}</h1>
+    {% if page.description %}<p class="post-description">{{ page.description }}</p>{% endif %}
+  </header>
+
+  {% assign profile_author = page.author | default: site.author %}
+
+  {% if profile_author %}
+    <div class="profile-page-grid">
+      <div class="profile-page-sidebar">
+        {% include profile-card.liquid author=profile_author %}
+      </div>
+      <article class="profile-page-content">
+        {{ content }}
+      </article>
+    </div>
+  {% else %}
+    <article class="profile-page-content">
+      {{ content }}
+    </article>
+  {% endif %}
+</div>

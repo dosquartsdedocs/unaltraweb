@@ -124,7 +124,7 @@ reading:
 
 publications:
   metrics:
-    title: Bibliometría
+    title: Bibliometria
     indicators_calculated: Indicadors calculats a partir de
     articles_label: articles
     updated_on: Actualitzat el
@@ -133,6 +133,11 @@ publications:
     stale_rejected: descartats per obsolescència
     max_year_gap: bretxa màxima d'anys
     not_available: n/d
+
+profile:
+  email: Correu
+  website: Web
+  location: Ubicació
 
 languages:
   en: Anglès

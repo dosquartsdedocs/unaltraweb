@@ -134,6 +134,11 @@ publications:
     max_year_gap: max year gap
     not_available: n/a
 
+profile:
+  email: Email
+  website: Website
+  location: Location
+
 languages:
   en: English
   es: Spanish

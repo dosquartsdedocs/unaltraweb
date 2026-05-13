@@ -69,7 +69,11 @@
 
           {% assign sorted_pages = site.pages | where: 'lang', current_lang | sort: 'nav_order' %}
           {% for p in sorted_pages %}
-            {% if p.nav and p.autogen == null and p.ref != 'home' %}
+            {% assign show_nav_item = true %}
+            {% if p.ref == 'blog' and site.unaltraweb.features.blog == false %}
+              {% assign show_nav_item = false %}
+            {% endif %}
+            {% if p.nav and show_nav_item and p.autogen == null and p.ref != 'home' %}
               {% if p.dropdown %}
                 {% assign has_active_child = false %}
                 {% for child in p.children %}
@@ -224,6 +228,7 @@
                 <i class="ti ti-sun-moon" id="light-toggle-system"></i>
                 <i class="ti ti-moon-filled" id="light-toggle-dark"></i>
                 <i class="ti ti-sun-filled" id="light-toggle-light"></i>
+                <i class="ti ti-coffee" id="light-toggle-sepia"></i>
               </button>
             </li>
           {% endif %}
