@@ -9,7 +9,9 @@ require_relative "unaltraweb/version"
   google-scholar-citations
   hide-custom-bibtex
   inspirehep-citations
+  profile-pages
   remove-accents
+  search-data
   theme-cache-bust
 ].each do |plugin|
   require File.expand_path("../_plugins/#{plugin}", __dir__)
