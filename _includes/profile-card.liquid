@@ -6,36 +6,35 @@
   {% capture profile_location_text %}{% include t.liquid key='profile.location' default='Location' %}{% endcapture %}
 
   <aside class="profile-card" itemscope itemtype="https://schema.org/Person">
-    {% if author.avatar %}
-      {% if author.avatar contains '://' %}
-        {% assign avatar_src = author.avatar %}
-      {% elsif author.avatar contains '/' %}
-        {% assign avatar_src = author.avatar | relative_url %}
-      {% else %}
-        {% assign avatar_src = author.avatar | prepend: '/assets/img/' | relative_url %}
-      {% endif %}
-      <img class="profile-card-avatar" src="{{ avatar_src }}" alt="{{ author.name | default: site.title | escape }}" itemprop="image">
+    {% assign profile_avatar = author.avatar | default: 'profile-placeholder.svg' %}
+    {% if profile_avatar contains '://' %}
+      {% assign avatar_src = profile_avatar %}
+    {% elsif profile_avatar contains '/' %}
+      {% assign avatar_src = profile_avatar | relative_url %}
+    {% else %}
+      {% assign avatar_src = profile_avatar | prepend: '/assets/img/' | relative_url %}
     {% endif %}
+    <img class="profile-card-avatar" src="{{ avatar_src }}" alt="{{ author.name | default: site.title | escape }}" itemprop="image">
 
     <div class="profile-card-body">
       {% if author.name %}<h2 class="profile-card-name" itemprop="name">{{ author.name }}</h2>{% endif %}
       {% if author.bio %}<p class="profile-card-bio" itemprop="description">{{ author.bio }}</p>{% endif %}
       {% if author.affiliation %}<p class="profile-card-affiliation">{{ author.affiliation }}</p>{% endif %}
-      {% if author.location %}<p class="profile-card-meta"><span>{{ profile_location_text | strip }}:</span> {{ author.location }}</p>{% endif %}
+      {% if author.location %}<p class="profile-card-meta"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span class="sr-only">{{ profile_location_text | strip }}:</span> {{ author.location }}</p>{% endif %}
     </div>
 
     <ul class="profile-card-links" aria-label="Profile links">
-      {% if author.email %}<li><a href="mailto:{{ author.email }}" title="{{ profile_email_text | strip }}" aria-label="{{ profile_email_text | strip }}"><i class="fa-solid fa-envelope" aria-hidden="true"></i><span class="sr-only">{{ profile_email_text | strip }}</span></a></li>{% endif %}
-      {% if author.uri %}<li><a href="{{ author.uri }}" title="{{ profile_website_text | strip }}" aria-label="{{ profile_website_text | strip }}"><i class="fa-solid fa-globe" aria-hidden="true"></i><span class="sr-only">{{ profile_website_text | strip }}</span></a></li>{% endif %}
-      {% if author.orcid %}<li><a href="https://orcid.org/{{ author.orcid }}" title="ORCID" aria-label="ORCID"><i class="fa-brands fa-orcid" aria-hidden="true"></i><span class="sr-only">ORCID</span></a></li>{% endif %}
-      {% if author.google_scholar %}<li><a href="https://scholar.google.com/citations?user={{ author.google_scholar }}" title="Google Scholar" aria-label="Google Scholar"><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i><span class="sr-only">Google Scholar</span></a></li>{% endif %}
-      {% if author.research_gate %}<li><a href="https://www.researchgate.net/profile/{{ author.research_gate }}" title="ResearchGate" aria-label="ResearchGate"><i class="fa-brands fa-researchgate" aria-hidden="true"></i><span class="sr-only">ResearchGate</span></a></li>{% endif %}
-      {% if author.researcherid %}<li><a href="https://www.webofscience.com/wos/author/record/{{ author.researcherid }}" title="ResearcherID" aria-label="ResearcherID"><i class="fa-solid fa-id-badge" aria-hidden="true"></i><span class="sr-only">ResearcherID</span></a></li>{% endif %}
-      {% if author.github %}<li><a href="https://github.com/{{ author.github }}" title="GitHub" aria-label="GitHub"><i class="fa-brands fa-github" aria-hidden="true"></i><span class="sr-only">GitHub</span></a></li>{% endif %}
-      {% if author.linkedin %}<li><a href="https://www.linkedin.com/in/{{ author.linkedin }}" title="LinkedIn" aria-label="LinkedIn"><i class="fa-brands fa-linkedin" aria-hidden="true"></i><span class="sr-only">LinkedIn</span></a></li>{% endif %}
-      {% if author.bluesky %}<li><a href="{{ author.bluesky }}" title="Bluesky" aria-label="Bluesky"><i class="fa-brands fa-bluesky" aria-hidden="true"></i><span class="sr-only">Bluesky</span></a></li>{% endif %}
-      {% if author.mastodon %}<li><a href="{{ author.mastodon }}" title="Mastodon" aria-label="Mastodon"><i class="fa-brands fa-mastodon" aria-hidden="true"></i><span class="sr-only">Mastodon</span></a></li>{% endif %}
-      {% if author.x %}<li><a href="https://x.com/{{ author.x }}" title="X" aria-label="X"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i><span class="sr-only">X</span></a></li>{% endif %}
+      {% if author.email %}<li><a href="mailto:{{ author.email }}" aria-label="{{ profile_email_text | strip }}"><i class="fa-solid fa-envelope" aria-hidden="true"></i><span>{{ profile_email_text | strip }}</span></a></li>{% endif %}
+      {% if author.uri %}<li><a href="{{ author.uri }}" aria-label="{{ profile_website_text | strip }}"><i class="fa-solid fa-globe" aria-hidden="true"></i><span>{{ profile_website_text | strip }}</span></a></li>{% endif %}
+      {% if author.orcid %}<li><a href="https://orcid.org/{{ author.orcid }}" aria-label="ORCID"><i class="ai ai-orcid" aria-hidden="true"></i><span>ORCID</span></a></li>{% endif %}
+      {% if author.google_scholar %}<li><a href="https://scholar.google.com/citations?user={{ author.google_scholar }}" aria-label="Google Scholar"><i class="ai ai-google-scholar" aria-hidden="true"></i><span>Google Scholar</span></a></li>{% endif %}
+      {% if author.research_gate %}<li><a href="https://www.researchgate.net/profile/{{ author.research_gate }}" aria-label="ResearchGate"><i class="ai ai-researchgate" aria-hidden="true"></i><span>ResearchGate</span></a></li>{% endif %}
+      {% if author.researcherid %}<li><a href="https://www.webofscience.com/wos/author/record/{{ author.researcherid }}" aria-label="ResearcherID"><i class="fa-solid fa-id-badge" aria-hidden="true"></i><span>ResearcherID</span></a></li>{% endif %}
+      {% if author.github %}<li><a href="https://github.com/{{ author.github }}" aria-label="GitHub"><i class="fa-brands fa-github" aria-hidden="true"></i><span>GitHub</span></a></li>{% endif %}
+      {% if author.linkedin %}<li><a href="https://www.linkedin.com/in/{{ author.linkedin }}" aria-label="LinkedIn"><i class="fa-brands fa-linkedin" aria-hidden="true"></i><span>LinkedIn</span></a></li>{% endif %}
+      {% if author.bluesky %}<li><a href="{{ author.bluesky }}" aria-label="Bluesky"><i class="fa-brands fa-bluesky" aria-hidden="true"></i><span>Bluesky</span></a></li>{% endif %}
+      {% if author.mastodon %}<li><a href="{{ author.mastodon }}" aria-label="Mastodon"><i class="fa-brands fa-mastodon" aria-hidden="true"></i><span>Mastodon</span></a></li>{% endif %}
+      {% if author.x %}<li><a href="https://x.com/{{ author.x }}" aria-label="X"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i><span>X</span></a></li>{% endif %}
     </ul>
   </aside>
 {% endif %}

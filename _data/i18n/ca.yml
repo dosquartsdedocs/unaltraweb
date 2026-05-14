@@ -77,6 +77,8 @@ blog:
 projects:
   code_repository: Repositori de codi
   github_stars: Estrelles de GitHub
+  view_project: Veure projecte
+  resources: Recursos
 
 theses:
   empty: Encara no hi ha tesis disponibles.
@@ -138,6 +140,12 @@ profile:
   email: Correu
   website: Web
   location: Ubicació
+  selected_publications: Publicacions seleccionades
+  active_projects: Projectes actius
+  recent_posts: Últimes entrades
+  view_all_publications: Totes les publicacions
+  view_all_projects: Tots els projectes
+  view_all_posts: Totes les entrades
 
 languages:
   en: Anglès

@@ -26,6 +26,16 @@ last_updated: true # set to true if you want to display last updated in the foot
 impressum_path: # set to path to include impressum link in the footer, use the same path as permalink in a page, helps to conform with EU GDPR
 back_to_top: true # set to false to disable the back to top button
 
+unaltraweb:
+  site_profile: project # project, personal, software, manual, or course
+  features:
+    blog: true
+    cv: true
+    projects: true
+    publications: true
+    metrics: true
+    docs: false
+
 # -----------------------------------------------------------------------------
 # Theme
 # -----------------------------------------------------------------------------
@@ -57,7 +67,7 @@ external_services:
 
 navbar_fixed: true
 footer_fixed: true
-search_enabled: true
+search_enabled: false
 socials_in_search: true
 posts_in_search: true
 bib_search: true
@@ -102,7 +112,7 @@ lsi: false # produce an index for related posts
 
 # Pagination
 pagination:
-  enabled: true
+  enabled: false
 
 related_blog_posts:
   enabled: true
@@ -179,8 +189,9 @@ kramdown:
       start_line: 1
 
 # Includes & excludes
-include: ["_pages", "_scripts"]
+include: ["_pages"]
 exclude:
+  - .bundle/
   - bin/
   - CONTRIBUTING.md
   - CUSTOMIZE.md
@@ -199,7 +210,9 @@ exclude:
   - purgecss.config.js
   - README.md
   - readme_preview/
+  - tmp/
   - vendor
+  - _site/
 keep_files:
   - CNAME
   - .nojekyll
@@ -213,7 +226,6 @@ plugins:
   - jekyll-feed
   - jekyll-get-json
   - jekyll-imagemagick
-  - jekyll-jupyter-notebook
   - jekyll-link-attributes
   - jekyll-minifier
   - jekyll-paginate-v2

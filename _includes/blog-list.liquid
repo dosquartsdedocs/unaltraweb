@@ -1,37 +1,48 @@
 {%- assign current_lang = page.lang | default: site.default_lang | default: site.lang -%}
 {%- assign default_lang = site.default_lang | default: site.lang -%}
 
-{%- assign localized_posts = site.posts | where: 'lang', current_lang -%}
-{%- assign fallback_posts = site.posts | where_exp: 'post', 'post.lang == nil' -%}
-{%- assign localized_posts = localized_posts | concat: fallback_posts -%}
-{%- if current_lang != default_lang and localized_posts.size == fallback_posts.size -%}
-  {%- assign default_lang_posts = site.posts | where: 'lang', default_lang -%}
-  {%- assign localized_posts = default_lang_posts | concat: fallback_posts -%}
+{%- if paginator and paginator.posts -%}
+  {%- assign archive_posts = paginator.posts -%}
+{%- else -%}
+  {%- assign localized_posts = site.posts | where: 'lang', current_lang -%}
+  {%- assign fallback_posts = site.posts | where_exp: 'post', 'post.lang == nil' -%}
+  {%- assign localized_posts = localized_posts | concat: fallback_posts -%}
+  {%- if current_lang != default_lang and localized_posts.size == fallback_posts.size -%}
+    {%- assign default_lang_posts = site.posts | where: 'lang', default_lang -%}
+    {%- assign localized_posts = default_lang_posts | concat: fallback_posts -%}
+  {%- endif -%}
+  {%- assign archive_posts = localized_posts | sort: 'date' | reverse -%}
 {%- endif -%}
 
-{%- assign localized_posts = localized_posts | sort: 'date' | reverse -%}
-
-<div class="news">
-  {% if localized_posts.size > 0 %}
-    <div class="table-responsive">
-      <table class="table table-sm table-borderless">
-        {% for item in localized_posts %}
-          <tr>
-            <th scope="row" style="width: 20%">{{ item.date | date: '%Y-%m-%d' }}</th>
-            <td>
-              {% if item.redirect == blank %}
-                <a class="news-title" href="{{ item.url | relative_url }}">{{ item.title }}</a>
-              {% elsif item.redirect contains '://' %}
-                <a class="news-title" href="{{ item.redirect }}" target="_blank">{{ item.title }}</a>
-              {% else %}
-                <a class="news-title" href="{{ item.redirect | relative_url }}">{{ item.title }}</a>
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </table>
-    </div>
+<div class="blog-archive">
+  {% if archive_posts.size > 0 %}
+    {% for item in archive_posts %}
+      <article class="blog-archive-item">
+        <p class="blog-archive-meta">
+          <time datetime="{{ item.date | date_to_xmlschema }}">{{ item.date | date: '%Y-%m-%d' }}</time>
+          {% if item.categories and item.categories.size > 0 %}<span>{{ item.categories | join: ', ' }}</span>{% endif %}
+        </p>
+        <h2 class="blog-archive-title">
+          {% if item.redirect == blank %}
+            <a href="{{ item.url | relative_url }}">{{ item.title }}</a>
+          {% elsif item.redirect contains '://' %}
+            <a href="{{ item.redirect }}" target="_blank" rel="noopener">{{ item.title }}</a>
+          {% else %}
+            <a href="{{ item.redirect | relative_url }}">{{ item.title }}</a>
+          {% endif %}
+        </h2>
+        {% assign item_excerpt = item.description | default: item.excerpt | strip_html | strip_newlines %}
+        {% if item_excerpt %}<p class="blog-archive-excerpt">{{ item_excerpt }}</p>{% endif %}
+        {% if item.tags and item.tags.size > 0 %}
+          <ul class="blog-archive-tags" aria-label="Tags">
+            {% for tag in item.tags %}<li>{{ tag }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </article>
+    {% endfor %}
   {% else %}
     <p>{% include t.liquid key='blog.empty' default='No blog posts yet.' %}</p>
   {% endif %}
 </div>
+
+{% include pagination.liquid %}

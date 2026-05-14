@@ -1,6 +1,11 @@
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 {% assign default_lang = site.default_lang | default: site.lang %}
-{% assign home_page = site.pages | where: 'ref', 'home' | where: 'lang', current_lang | first %}
+{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign home_candidates = site.pages | where: 'ref', 'home' | where: 'lang', current_lang %}
+{% assign home_page = home_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
+{% if home_page == nil %}
+  {% assign home_page = home_candidates | where_exp: 'candidate', 'candidate.profiles == nil' | first %}
+{% endif %}
 
 {% if home_page %}
   {% assign home_title = home_page.title %}
@@ -69,9 +74,20 @@
 
           {% assign sorted_pages = site.pages | where: 'lang', current_lang | sort: 'nav_order' %}
           {% for p in sorted_pages %}
+            {% assign nav_feature = p.feature | default: p.ref %}
             {% assign show_nav_item = true %}
-            {% if p.ref == 'blog' and site.unaltraweb.features.blog == false %}
+            {% assign nav_profiles = p.profiles | default: p.site_profiles %}
+            {% if nav_profiles %}
               {% assign show_nav_item = false %}
+              {% if nav_profiles contains current_profile %}
+                {% assign show_nav_item = true %}
+              {% endif %}
+            {% endif %}
+            {% if site.unaltraweb and site.unaltraweb.features and nav_feature %}
+              {% assign feature_setting = site.unaltraweb.features[nav_feature] %}
+              {% if feature_setting == false %}
+                {% assign show_nav_item = false %}
+              {% endif %}
             {% endif %}
             {% if p.nav and show_nav_item and p.autogen == null and p.ref != 'home' %}
               {% if p.dropdown %}
@@ -128,7 +144,7 @@
                   {% if p.permalink contains '://' %}
                     {% assign url = p.permalink %}
                   {% else %}
-                    {% assign url = p.url %}
+                    {% assign url = p.url | remove: 'index.html' %}
                   {% endif %}
 
                   <a class="nav-link" href="{{ url | relative_url }}">
@@ -177,12 +193,16 @@
               </a>
               <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarLangDropdown">
                 {% for lang_code in site.languages %}
-                  {% assign localized_page = site.pages | where: 'ref', current_ref | where: 'lang', lang_code | first %}
+                  {% assign localized_candidates = site.pages | where: 'ref', current_ref | where: 'lang', lang_code %}
+                  {% assign localized_page = localized_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
+                  {% if localized_page == nil %}
+                    {% assign localized_page = localized_candidates | where_exp: 'candidate', 'candidate.profiles == nil' | first %}
+                  {% endif %}
                   {% if localized_page == nil %}
                     {% assign localized_page = site.documents | where: 'ref', current_ref | where: 'lang', lang_code | first %}
                   {% endif %}
                   {% if localized_page %}
-                    {% assign lang_url = localized_page.url %}
+                    {% assign lang_url = localized_page.url | remove: 'index.html' %}
                   {% else %}
                     {% assign fallback_home = site.pages | where: 'ref', 'home' | where: 'lang', lang_code | first %}
                     {% if fallback_home %}

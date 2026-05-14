@@ -1,6 +1,7 @@
-{% assign unaltraweb_site_type = site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign unaltraweb_site_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign unaltraweb_developer_mode = site.developer_mode | default: site.unaltraweb.developer_mode %}
 <!doctype html>
-<html lang="{{ page.lang | default: site.default_lang | default: site.lang }}" data-site-type="{{ unaltraweb_site_type }}">
+<html lang="{{ page.lang | default: site.default_lang | default: site.lang }}" data-site-profile="{{ unaltraweb_site_profile }}" data-site-type="{{ unaltraweb_site_profile }}">
   <!-- Head -->
   <head>
     {% if page.redirect %}
@@ -17,7 +18,7 @@
   </head>
 
   <!-- Body -->
-  <body class="site-type-{{ unaltraweb_site_type }} {% if site.navbar_fixed %}fixed-top-nav{% endif %} {% unless site.footer_fixed %}sticky-bottom-footer{% endunless %}">
+  <body class="site-profile-{{ unaltraweb_site_profile }} site-type-{{ unaltraweb_site_profile }} {% if site.navbar_fixed %}fixed-top-nav{% endif %} {% unless site.footer_fixed %}sticky-bottom-footer{% endunless %}">
     <!-- Header -->
     {% include header.liquid %}
 
@@ -50,6 +51,10 @@
 
     <!-- Footer -->
     {% include footer.liquid %}
+
+    {% if unaltraweb_developer_mode and jekyll.environment != 'production' %}
+      {% include developer-mode-switcher.liquid current_profile=unaltraweb_site_profile %}
+    {% endif %}
 
     <!-- JavaScripts -->
     {% include scripts.liquid %}

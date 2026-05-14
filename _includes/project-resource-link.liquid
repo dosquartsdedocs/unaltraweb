@@ -1,0 +1,45 @@
+{% assign resource = include.resource %}
+{% assign resource_type = resource.type | default: resource.kind | default: 'resource' | downcase %}
+{% assign resource_label = resource.label | default: resource.title | default: resource_type | replace: '_', ' ' | capitalize %}
+{% assign resource_url = resource.url | default: resource.href %}
+{% if resource_url == nil and resource.doi %}
+  {% assign resource_url = 'https://doi.org/' | append: resource.doi %}
+{% endif %}
+
+{% assign resource_icon = resource.icon %}
+{% if resource_icon == nil %}
+  {% case resource_type %}
+    {% when 'zenodo' %}
+      {% assign resource_icon = 'si si-zenodo' %}
+    {% when 'doi', 'datacite' %}
+      {% assign resource_icon = 'si si-doi' %}
+    {% when 'dataset', 'data' %}
+      {% assign resource_icon = 'fa-solid fa-database' %}
+    {% when 'code', 'github', 'repository' %}
+      {% assign resource_icon = 'fa-brands fa-github' %}
+    {% when 'documentation', 'docs', 'manual' %}
+      {% assign resource_icon = 'fa-solid fa-book' %}
+    {% when 'map', 'maps' %}
+      {% assign resource_icon = 'fa-solid fa-map-location-dot' %}
+    {% when 'publication', 'paper', 'report' %}
+      {% assign resource_icon = 'fa-solid fa-file-lines' %}
+    {% when 'website', 'link' %}
+      {% assign resource_icon = 'fa-solid fa-arrow-up-right-from-square' %}
+    {% else %}
+      {% assign resource_icon = 'fa-solid fa-link' %}
+  {% endcase %}
+{% endif %}
+
+{% assign resource_class = include.class | default: 'project-resource-pill' %}
+
+{% if resource_url %}
+  <a class="{{ resource_class }}" href="{{ resource_url }}" target="_blank" rel="noopener" data-resource-type="{{ resource_type | escape }}">
+    <i class="{{ resource_icon }}" aria-hidden="true"></i>
+    <span>{{ resource_label }}</span>
+  </a>
+{% else %}
+  <span class="{{ resource_class }}" data-resource-type="{{ resource_type | escape }}">
+    <i class="{{ resource_icon }}" aria-hidden="true"></i>
+    <span>{{ resource_label }}</span>
+  </span>
+{% endif %}

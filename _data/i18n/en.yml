@@ -77,6 +77,8 @@ blog:
 projects:
   code_repository: Code repository
   github_stars: GitHub stars
+  view_project: View project
+  resources: Resources
 
 theses:
   empty: No theses found yet.
@@ -138,6 +140,12 @@ profile:
   email: Email
   website: Website
   location: Location
+  selected_publications: Selected publications
+  active_projects: Active projects
+  recent_posts: Recent posts
+  view_all_publications: All publications
+  view_all_projects: All projects
+  view_all_posts: All posts
 
 languages:
   en: English

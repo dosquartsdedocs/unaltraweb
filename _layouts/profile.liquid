@@ -3,12 +3,19 @@ layout: default
 ---
 
 <div class="post profile-page">
-  <header class="post-header">
-    <h1 class="post-title">{{ page.title }}</h1>
-    {% if page.description %}<p class="post-description">{{ page.description }}</p>{% endif %}
-  </header>
-
   {% assign profile_author = page.author | default: site.author %}
+  {% assign profile_author_name = profile_author.name | default: '' %}
+  {% assign show_profile_title = true %}
+  {% if page.hide_title or page.title == profile_author_name %}
+    {% assign show_profile_title = false %}
+  {% endif %}
+
+  {% if show_profile_title or page.description %}
+    <header class="post-header">
+      {% if show_profile_title %}<h1 class="post-title">{{ page.title }}</h1>{% endif %}
+      {% if page.description %}<p class="post-description">{{ page.description }}</p>{% endif %}
+    </header>
+  {% endif %}
 
   {% if profile_author %}
     <div class="profile-page-grid">

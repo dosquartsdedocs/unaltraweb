@@ -1,0 +1,166 @@
+/*******************************************************************************
+ * Reading layouts
+ ******************************************************************************/
+
+.reading-record {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-left: 3px solid var(--global-theme-color);
+  background: var(--global-code-bg-color);
+}
+
+.reading-record h5 {
+  margin: 0 0 0.4rem;
+  font-size: 0.76rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.reading-record-list {
+  margin: 0;
+  padding-left: 1.05rem;
+  font-size: 0.94rem;
+}
+
+.reading-record-list li {
+  margin: 0.18rem 0;
+}
+
+.reading-top-grid {
+  display: grid;
+  grid-template-columns: minmax(165px, 230px) minmax(0, 1fr);
+  gap: 1rem 1.1rem;
+  align-items: start;
+}
+
+.reading-top-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.reading-main-header {
+  margin-bottom: 0.3rem;
+}
+
+.reading-figure {
+  width: 100%;
+  margin: 0;
+}
+
+.reading-figure-left {
+  justify-self: start;
+}
+
+.reading-figure > img {
+  width: 100%;
+  max-width: 230px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+}
+
+.reading-figure figcaption {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--global-text-color-light);
+  max-width: 230px;
+}
+
+.reading-content-main {
+  margin-top: 0;
+}
+
+.reading-content-main > :first-child {
+  margin-top: 0;
+}
+
+.reading-biblio-wrap {
+  margin-top: 0.65rem;
+}
+
+.reading-biblio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+  margin: 0 0 0.4rem;
+}
+
+.reading-biblio-actions a.btn {
+  color: var(--global-text-color);
+  border: 1px solid var(--global-text-color);
+  padding: 0.24rem 0.92rem;
+  margin-left: 0;
+}
+
+.reading-biblio-actions a.btn:hover {
+  color: var(--global-theme-color);
+  border-color: var(--global-theme-color);
+}
+
+.reading-biblio-panel.hidden {
+  font-size: 0.875rem;
+  max-height: 0;
+  overflow: hidden;
+  text-align: justify;
+  border: dashed 1px var(--global-bg-color);
+  transition: all 0.15s ease;
+}
+
+.reading-biblio-panel.hidden.open {
+  max-height: 100em;
+  border-color: var(--global-text-color);
+}
+
+.reading-biblio-panel.hidden .reading-record-list {
+  margin: 0.5rem 1rem 0.65rem;
+  padding-left: 1.05rem;
+  font-size: 0.92rem;
+}
+
+.reading-shelf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+}
+
+.reading-cover {
+  margin: 0.5rem 0.35rem 0.8rem;
+}
+
+.reading-cover-meta {
+  max-width: 220px;
+  margin-top: 0.28rem;
+  text-align: left;
+}
+
+.reading-cover-title {
+  display: block;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.reading-cover-author,
+.reading-cover-year {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.84rem;
+  color: var(--global-text-color-light);
+}
+
+@media (max-width: 720px) {
+  .reading-top-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .reading-figure-left {
+    justify-self: start;
+  }
+
+  .reading-figure > img {
+    max-width: 250px;
+  }
+
+  .reading-figure figcaption {
+    max-width: 250px;
+  }
+}

@@ -1,0 +1,26 @@
+{% assign cv_pdf = include.pdf | default: page.cv_pdf %}
+{% assign cv_preview = include.preview | default: page.cv_preview %}
+{% assign cv_title = include.title | default: page.cv_title | default: page.title %}
+{% assign cv_description = include.description | default: page.cv_description %}
+
+{% if cv_pdf or cv_preview %}
+  <section class="cv-download-card">
+    {% if cv_preview %}
+      <a class="cv-download-preview" href="{{ cv_pdf | default: cv_preview | relative_url }}">
+        <img src="{{ cv_preview | relative_url }}" alt="{{ cv_title | escape }} preview">
+      </a>
+    {% endif %}
+    <div class="cv-download-body">
+      <h2>{{ cv_title }}</h2>
+      {% if cv_description %}<p>{{ cv_description }}</p>{% endif %}
+      {% if cv_pdf %}
+        <a class="cv-download-button" href="{{ cv_pdf | relative_url }}">
+          <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+          <span>{{ include.button | default: 'Download PDF' }}</span>
+        </a>
+      {% else %}
+        <p class="cv-download-note">Add a PDF and generate a preview to enable the download button.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}

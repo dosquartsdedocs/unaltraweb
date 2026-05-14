@@ -1,0 +1,54 @@
+/* =============================================================================
+   Blog archive
+   ============================================================================= */
+
+.blog-archive {
+  display: grid;
+  gap: 1.15rem;
+}
+
+.blog-archive-item {
+  padding-bottom: 1.15rem;
+  border-bottom: 1px solid var(--global-divider-color);
+}
+
+.blog-archive-item:last-child {
+  border-bottom: 0;
+}
+
+.blog-archive-meta {
+  margin: 0 0 0.2rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  color: var(--global-text-color-light);
+  font-size: 0.82rem;
+}
+
+.blog-archive-title {
+  margin: 0;
+  font-size: 1.18rem;
+  line-height: 1.25;
+}
+
+.blog-archive-excerpt {
+  margin: 0.4rem 0 0;
+  color: var(--global-text-color);
+}
+
+.blog-archive-tags {
+  list-style: none;
+  padding: 0;
+  margin: 0.55rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.blog-archive-tags li {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--global-divider-color);
+  border-radius: 999px;
+  color: var(--global-text-color-light);
+  font-size: 0.75rem;
+}

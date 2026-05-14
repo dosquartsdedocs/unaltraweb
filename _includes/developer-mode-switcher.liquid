@@ -1,0 +1,7 @@
+{% assign current_profile = include.current_profile | default: site.unaltraweb.site_profile | default: 'project' %}
+
+<aside class="developer-mode-switcher" data-developer-mode-switcher aria-label="Developer mode">
+  <strong>Developer mode</strong>
+  <span class="developer-mode-current">Real build profile: <code data-current-profile>{{ current_profile }}</code></span>
+  <small>Change profile by rebuilding, for example <code>make serve SITE_PROFILE=project</code>. This UI is not included in production builds.</small>
+</aside>

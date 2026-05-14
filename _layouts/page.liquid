@@ -1,6 +1,11 @@
 ---
 layout: default
 ---
+{% assign page_hero_image = page.hero_image %}
+{% if page.hero and page.hero.image %}
+  {% assign page_hero_image = page.hero.image %}
+{% endif %}
+
 {% if page._styles %}
   <!-- Page/Post style -->
   <style type="text/css">
@@ -8,11 +13,17 @@ layout: default
   </style>
 {% endif %}
 
-<div class="post">
-  <header class="post-header">
-    <h1 class="post-title">{{ page.title }}</h1>
-    <p class="post-description">{{ page.description }}</p>
-  </header>
+{% if page_hero_image %}
+  {% include page-hero.liquid title=page.title %}
+{% endif %}
+
+<div class="post{% if page_hero_image %} post-page-hero{% endif %}">
+  {% unless page_hero_image %}
+    <header class="post-header">
+      <h1 class="post-title">{{ page.title }}</h1>
+      <p class="post-description">{{ page.description }}</p>
+    </header>
+  {% endunless %}
 
   <article>
     {{ content }}

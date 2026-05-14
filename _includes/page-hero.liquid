@@ -1,0 +1,96 @@
+{% assign hero_data = page.hero %}
+{% assign hero_image = include.image | default: page.hero_image %}
+{% if hero_data and hero_data.image %}
+  {% assign hero_image = hero_data.image %}
+{% endif %}
+
+{% if hero_image %}
+  {% assign hero_title = include.title | default: page.hero_title | default: page.title %}
+  {% if hero_data and hero_data.title %}
+    {% assign hero_title = hero_data.title %}
+  {% endif %}
+  {% assign hero_subtitle = include.subtitle | default: page.subtitle | default: page.description %}
+  {% if hero_data and hero_data.subtitle %}
+    {% assign hero_subtitle = hero_data.subtitle %}
+  {% endif %}
+  {% assign hero_alt = include.alt | default: page.hero_image_alt | default: page.title %}
+  {% if hero_data and hero_data.alt %}
+    {% assign hero_alt = hero_data.alt %}
+  {% endif %}
+  {% assign hero_caption = include.caption | default: page.hero_caption %}
+  {% if hero_data and hero_data.caption %}
+    {% assign hero_caption = hero_data.caption %}
+  {% endif %}
+  {% assign hero_source = include.source | default: page.hero_source %}
+  {% if hero_data and hero_data.source %}
+    {% assign hero_source = hero_data.source %}
+  {% endif %}
+  {% assign hero_source_url = include.source_url | default: page.hero_source_url %}
+  {% if hero_data and hero_data.source_url %}
+    {% assign hero_source_url = hero_data.source_url %}
+  {% endif %}
+  {% assign hero_position = include.position | default: page.hero_image_position %}
+  {% if hero_data and hero_data.position %}
+    {% assign hero_position = hero_data.position %}
+  {% endif %}
+  {% if hero_position == nil or hero_position == '' %}
+    {% assign hero_position = 'center' %}
+  {% endif %}
+  {% assign hero_class = include.class | default: page.hero_class %}
+  {% if hero_data and hero_data.class %}
+    {% assign hero_class = hero_data.class %}
+  {% endif %}
+
+  {% if hero_image contains '://' %}
+    {% assign hero_src = hero_image %}
+  {% else %}
+    {% assign hero_src = hero_image | relative_url %}
+  {% endif %}
+
+  {% assign hero_source_domain = nil %}
+  {% if hero_source_url %}
+    {% assign hero_source_domain = hero_source_url | replace: 'https://', '' | replace: 'http://', '' | split: '/' | first %}
+  {% endif %}
+  {% capture hero_source_label %}{% include t.liquid key='about.hero_source' default='Source' %}{% endcapture %}
+
+  <section class="page-hero home-hero home-hero-fullwidth{% if hero_class %} {{ hero_class }}{% endif %}">
+    <img
+      class="home-hero-image"
+      src="{{ hero_src }}"
+      alt="{{ hero_alt | escape }}"
+      loading="eager"
+      style="object-position: {{ hero_position | escape }};"
+    >
+    <div class="home-hero-overlay">
+      <div class="home-hero-content">
+        <h1 class="home-hero-title">{{ hero_title | strip }}</h1>
+        {% if hero_subtitle %}
+          <p class="home-hero-subtitle">{{ hero_subtitle }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% if hero_caption or hero_source %}
+      <div class="home-hero-caption">
+        {% if hero_caption %}
+          <span class="home-hero-caption-text">{{ hero_caption | escape }}</span>
+        {% endif %}
+        {% if hero_source %}
+          <span class="home-hero-caption-source">
+            <span class="home-hero-caption-source-label">{{ hero_source_label | strip }}:</span>
+            {% if hero_source_url %}
+              <a class="home-hero-caption-source-link" href="{{ hero_source_url }}" target="_blank" rel="noopener noreferrer">
+                {% if hero_source_domain and hero_source_domain != '' %}
+                  {{ hero_source_domain }}
+                {% else %}
+                  {{ hero_source | escape }}
+                {% endif %}
+              </a>
+            {% else %}
+              <span class="home-hero-caption-source-link">{{ hero_source | escape }}</span>
+            {% endif %}
+          </span>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+{% endif %}

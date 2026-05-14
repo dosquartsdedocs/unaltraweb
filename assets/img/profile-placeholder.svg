@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
+  <title id="title">Profile image placeholder</title>
+  <desc id="desc">Neutral grey and white profile silhouette placeholder.</desc>
+  <rect width="320" height="320" rx="160" fill="#f3f4f6"/>
+  <circle cx="160" cy="118" r="54" fill="#d1d5db"/>
+  <path d="M67 272c13-55 50-86 93-86s80 31 93 86" fill="#d1d5db"/>
+  <circle cx="160" cy="160" r="154" fill="none" stroke="#e5e7eb" stroke-width="12"/>
+</svg>

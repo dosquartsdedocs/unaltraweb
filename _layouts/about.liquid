@@ -8,61 +8,17 @@ layout: default
     {{ site.title }}
   {% endif %}
 {% endcapture %}
-{% capture hero_source_label %}{% include t.liquid key='about.hero_source' default='Source' %}{% endcapture %}
-
-{% if page.hero_image %}
-  {% if page.hero_image contains '://' %}
-    {% assign hero_src = page.hero_image %}
-  {% else %}
-    {% assign hero_src = page.hero_image | relative_url %}
-  {% endif %}
-  {% assign hero_source_domain = nil %}
-  {% if page.hero_source_url %}
-    {% assign hero_source_domain = page.hero_source_url | replace: 'https://', '' | replace: 'http://', '' | split: '/' | first %}
-  {% endif %}
-  <section class="home-hero home-hero-fullwidth">
-    <img
-      class="home-hero-image"
-      src="{{ hero_src }}"
-      alt="{{ page.hero_image_alt | default: page.title | escape }}"
-      loading="eager"
-    >
-    <div class="home-hero-overlay">
-      <div class="home-hero-content">
-        <h1 class="home-hero-title">{{ home_title | strip }}</h1>
-        {% if page.subtitle %}
-          <p class="home-hero-subtitle">{{ page.subtitle }}</p>
-        {% endif %}
-      </div>
-    </div>
-    {% if page.hero_caption or page.hero_source %}
-      <div class="home-hero-caption">
-        {% if page.hero_caption %}
-          <span class="home-hero-caption-text">{{ page.hero_caption | escape }}</span>
-        {% endif %}
-        {% if page.hero_source %}
-          <span class="home-hero-caption-source">
-            <span class="home-hero-caption-source-label">{{ hero_source_label | strip }}:</span>
-            {% if page.hero_source_url %}
-              <a class="home-hero-caption-source-link" href="{{ page.hero_source_url }}" target="_blank" rel="noopener noreferrer">
-                {% if hero_source_domain and hero_source_domain != '' %}
-                  {{ hero_source_domain }}
-                {% else %}
-                  {{ page.hero_source | escape }}
-                {% endif %}
-              </a>
-            {% else %}
-              <span class="home-hero-caption-source-link">{{ page.hero_source | escape }}</span>
-            {% endif %}
-          </span>
-        {% endif %}
-      </div>
-    {% endif %}
-  </section>
+{% assign about_hero_image = page.hero_image %}
+{% if page.hero and page.hero.image %}
+  {% assign about_hero_image = page.hero.image %}
 {% endif %}
 
-<div class="post{% if page.hero_image %} post-home-hero{% endif %}">
-  {% unless page.hero_image %}
+{% if about_hero_image %}
+  {% include page-hero.liquid title=home_title %}
+{% endif %}
+
+<div class="post{% if about_hero_image %} post-home-hero{% endif %}">
+  {% unless about_hero_image %}
     <header class="post-header">
       <h1 class="post-title">{{ home_title | strip }}</h1>
       <p class="desc">{{ page.subtitle }}</p>

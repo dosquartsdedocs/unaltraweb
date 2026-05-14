@@ -1,0 +1,21 @@
+{% assign resource_project = include.project | default: page %}
+{% assign project_resources = resource_project.resources %}
+{% assign resource_variant = include.variant | default: 'page' %}
+{% assign resource_limit = include.limit | default: project_resources.size %}
+
+{% if project_resources and project_resources.size > 0 %}
+  {% capture resources_title %}{% include t.liquid key='projects.resources' default='Resources' %}{% endcapture %}
+  <section class="project-resources project-resources-{{ resource_variant }}">
+    {% unless resource_variant == 'card' %}
+      <h2 class="project-resources-title">{{ resources_title | strip }}</h2>
+    {% endunless %}
+    <div class="project-resource-list">
+      {% for resource in project_resources limit: resource_limit %}
+        {% include project-resource-link.liquid resource=resource class='project-resource-pill' %}
+      {% endfor %}
+      {% if resource_variant == 'card' and project_resources.size > resource_limit %}
+        <span class="project-resource-pill project-resource-more">+{{ project_resources.size | minus: resource_limit }}</span>
+      {% endif %}
+    </div>
+  </section>
+{% endif %}

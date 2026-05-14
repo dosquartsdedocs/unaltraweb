@@ -1,0 +1,240 @@
+/* =============================================================================
+   Personal profile mode
+   ============================================================================= */
+
+.profile-page-grid {
+  display: grid;
+  grid-template-columns: minmax(230px, 285px) minmax(0, 1fr);
+  gap: 2.25rem;
+  align-items: start;
+}
+
+.profile-page-sidebar {
+  position: sticky;
+  top: 5rem;
+}
+
+.profile-card {
+  padding: 0.25rem 0 0;
+  background: transparent;
+  color: var(--global-text-color);
+}
+
+.profile-card-avatar {
+  width: min(100%, 205px);
+  aspect-ratio: 1;
+  display: block;
+  object-fit: cover;
+  margin: 0 0 1rem;
+  border: 1px solid var(--global-divider-color);
+  border-radius: 999px;
+}
+
+.profile-card-name {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.profile-card-bio,
+.profile-card-affiliation,
+.profile-card-meta {
+  margin: 0.25rem 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.profile-card-bio {
+  max-width: 24rem;
+}
+
+.profile-card-affiliation {
+  font-weight: 600;
+}
+
+.profile-card-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  color: var(--global-text-color-light);
+}
+
+.profile-card-links {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  border-top: 1px solid var(--global-divider-color);
+  padding-top: 0.65rem;
+}
+
+.profile-card-links li {
+  margin: 0;
+}
+
+.profile-card-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.22rem 0;
+  color: var(--global-text-color-light);
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.profile-card-links i {
+  width: 1.05rem;
+  color: var(--global-text-color);
+  text-align: center;
+}
+
+.profile-card-links a[aria-label="ORCID"] i {
+  color: #a6ce39;
+}
+
+.profile-card-links a[aria-label="Google Scholar"] i {
+  color: #4285f4;
+}
+
+.profile-card-links a[aria-label="ResearchGate"] i {
+  color: #00ccbb;
+}
+
+.profile-card-links a[aria-label="GitHub"] i {
+  color: #181717;
+}
+
+.profile-card-links a[aria-label="LinkedIn"] i {
+  color: #0a66c2;
+}
+
+.profile-card-links a[aria-label="Bluesky"] i {
+  color: #1185fe;
+}
+
+.profile-card-links a[aria-label="Mastodon"] i {
+  color: #6364ff;
+}
+
+.profile-card-links a[aria-label="X"] i {
+  color: #000;
+}
+
+html[data-theme="dark"] .profile-card-links a[aria-label="GitHub"] i,
+html[data-theme="dark"] .profile-card-links a[aria-label="X"] i {
+  color: #fff;
+}
+
+.profile-card-links a:hover {
+  color: var(--global-theme-color);
+  text-decoration: underline;
+}
+
+.profile-card-links a:hover i {
+  filter: brightness(0.9);
+}
+
+.profile-page-content > :first-child {
+  margin-top: 0;
+}
+
+.profile-page-content {
+  min-width: 0;
+}
+
+.profile-highlights {
+  display: grid;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.profile-highlight-section {
+  min-width: 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--global-divider-color);
+}
+
+.profile-highlight-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.profile-highlight-heading h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.profile-highlight-heading a {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.profile-highlight-publications .publications {
+  margin-top: 0;
+  overflow-x: auto;
+}
+
+.profile-highlight-publications .bibliography,
+.profile-highlight-publications .bibliography li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profile-highlight-publications .bibliography {
+  margin-bottom: 0;
+}
+
+.profile-highlight-projects .project-card {
+  min-height: 12rem;
+}
+
+.profile-highlight-projects .row {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+.profile-post-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.profile-post-list li {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.profile-post-list time {
+  color: var(--global-text-color-light);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 767.98px) {
+  .profile-page-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-page-sidebar {
+    position: static;
+  }
+
+  .profile-card-avatar {
+    width: 145px;
+  }
+
+  .profile-post-list li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
+}

@@ -37,7 +37,7 @@
      This block updates the accent variables ONLY in light mode.
      ============================================================================= */
   
-  html:not([data-theme="dark"]) {
+  html[data-theme="light"] {
     /* Global theme accent used across the UI */
     --global-theme-color: var(--custom-accent-color);
   
@@ -57,13 +57,13 @@
      Force link colors ONLY in light mode. Dark mode keeps the theme defaults.
      ============================================================================= */
   
-  html:not([data-theme="dark"]) a,
-  html:not([data-theme="dark"]) table.table a {
+  html[data-theme="light"] a,
+  html[data-theme="light"] table.table a {
     color: var(--custom-link-color);
   }
   
-  html:not([data-theme="dark"]) a:hover,
-  html:not([data-theme="dark"]) table.table a:hover {
+  html[data-theme="light"] a:hover,
+  html[data-theme="light"] table.table a:hover {
     color: var(--custom-link-hover-color);
     text-decoration: underline;
   }
@@ -78,21 +78,21 @@
      - Active item uses the global theme color
      ============================================================================= */
   
-  html:not([data-theme="dark"]) .navbar a,
-  html:not([data-theme="dark"]) .navbar .nav-link,
-  html:not([data-theme="dark"]) .navbar .dropdown-item {
+  html[data-theme="light"] .navbar a,
+  html[data-theme="light"] .navbar .nav-link,
+  html[data-theme="light"] .navbar .dropdown-item {
     color: var(--global-text-color);
   }
   
-  html:not([data-theme="dark"]) .navbar a:hover,
-  html:not([data-theme="dark"]) .navbar .nav-link:hover,
-  html:not([data-theme="dark"]) .navbar .dropdown-item:hover {
+  html[data-theme="light"] .navbar a:hover,
+  html[data-theme="light"] .navbar .nav-link:hover,
+  html[data-theme="light"] .navbar .dropdown-item:hover {
     color: var(--global-hover-color);
   }
   
   /* Active nav item (current page) */
-  html:not([data-theme="dark"]) .navbar .nav-link.active,
-  html:not([data-theme="dark"]) .navbar .nav-item.active > .nav-link {
+  html[data-theme="light"] .navbar .nav-link.active,
+  html[data-theme="light"] .navbar .nav-item.active > .nav-link {
     color: var(--global-theme-color);
   }
   
@@ -103,14 +103,14 @@
      These selectors force a consistent inline code background in light mode.
      ============================================================================= */
   
-  html:not([data-theme="dark"]) code {
+  html[data-theme="light"] code {
     background: var(--custom-inline-code-bg);
     /* border: 1px solid var(--custom-inline-code-border); */
     color: var(--custom-inline-code-text);
   }
   
   /* Avoid affecting fenced code blocks in light mode */
-  html:not([data-theme="dark"]) pre code {
+  html[data-theme="light"] pre code {
     background: inherit;
     border: none;
   }
@@ -121,7 +121,7 @@
      Optional: highlight color when selecting text with the mouse.
      ============================================================================= */
   
-  html:not([data-theme="dark"]) ::selection {
+  html[data-theme="light"] ::selection {
     background: var(--custom-selection-bg);
     color: var(--custom-selection-text);
   }
@@ -132,143 +132,12 @@
      If any remaining purple highlight persists, it may be coming from a more
      specific class (e.g., .highlight, .kbd, .search-keyword, etc.). In that case,
      add a targeted rule here, always prefixed with:
-       html:not([data-theme="dark"]) ...
-     so dark mode remains untouched.
+       html[data-theme="light"] ...
+     so sepia and dark modes remain untouched.
      ============================================================================= */
   
-  /* =============================================================================
-     Team grid
-     ============================================================================= */
-  
-  /* CUSTOM: team grid images */
-  .team-photo {
-    width: 120px;
-    height: 120px;
-    object-fit: cover;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-  }
-  
-  html[data-theme="dark"] .team-photo {
-    border-color: rgba(255, 255, 255, 0.12);
-  }
-  
-  /* CUSTOM: team social icons */
-  .team-icons {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: inline-flex;
-    gap: 14px;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .team-icons li {
-    display: inline-flex;
-  }
-  
-  /* =============================================================================
-     Team card typography and spacing
-     ============================================================================= */
-  
-  /* CUSTOM: team card typography */
-  .team-grid .card-body {
-    font-size: 0.95rem;
-    line-height: 1.35;
-  }
-  
-  .team-grid .card-title {
-    font-size: 1.05rem;
-    line-height: 1.25;
-  }
-  
-  .team-grid .team-position,
-  .team-grid .team-org,
-  .team-grid .team-dept {
-    font-size: 0.95rem;
-  }
-  
-  /* CUSTOM: team card vertical spacing */
-  .team-grid .card-body {
-    padding-top: 1.25rem;
-    padding-bottom: 2rem;
-  }
-  
-  .team-grid .card-title {
-    margin-top: 0.9rem;
-    margin-bottom: 0.35rem;
-  }
-  
-  .team-grid .team-position {
-    margin-bottom: 0.7rem;
-  }
-  
-  .team-grid .team-org {
-    margin-top: 0.2rem;
-    margin-bottom: 0.15rem;
-  }
-  
-  .team-grid .team-dept {
-    margin-top: 0.15rem;
-    margin-bottom: 0.9rem;
-  }
-  
-  .team-grid .team-icons {
-    margin-top: 0.9rem;
-  }
-  
-  /* =============================================================================
-     Optional: keywords styling (currently unused)
-     -----------------------------------------------------------------------------
-     Keep these rules in case you re-enable keywords later.
-     ============================================================================= */
-  
-  .team-keywords {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .team-keywords-label {
-    margin-right: 6px;
-    opacity: 0.8;
-  }
-  
-  .team-keyword {
-    padding: 0.15rem 0.35rem;
-    border-radius: 6px;
-  }
-  
-  /* CUSTOM: team grid spacing and hover stacking */
-
-/* More space between rows/columns (independent of Bootstrap gutters) */
-.team-grid .col {
-    margin-bottom: 1.25rem;
-  }
-  
-  /* Make hover shadow appear above neighboring cards */
-  .team-grid .card {
-    position: relative;
-    z-index: 1;
-  }
-  
-  .team-grid .card.hoverable:hover {
-    z-index: 10;
-  }
-  
-  /* If any container clips shadows, force visible overflow */
-  .team-grid {
-    overflow: visible;
-  }
-  
-.team-grid .col {
-    overflow: visible;
-  }
-
 /* =============================================================================
-   Homepage hero
+   Page hero
    ============================================================================= */
 
 .home-hero-fullwidth {
@@ -401,266 +270,6 @@ html[data-theme='light'] .home-hero-content * {
   margin-top: 0.12rem;
   font-size: 0.92em;
   opacity: 0.9;
-}
-
-/* =============================================================================
-   Personal profile mode
-   ============================================================================= */
-
-.profile-page-grid {
-  display: grid;
-  grid-template-columns: minmax(210px, 280px) minmax(0, 1fr);
-  gap: 1.5rem;
-  align-items: start;
-}
-
-.profile-page-sidebar {
-  position: sticky;
-  top: 5rem;
-}
-
-.profile-card {
-  border: 1px solid var(--global-divider-color);
-  padding: 0.9rem;
-  background: var(--global-bg-color);
-}
-
-.profile-card-avatar {
-  width: 100%;
-  max-width: 220px;
-  display: block;
-  margin: 0 auto 0.75rem;
-  border-radius: 0.2rem;
-}
-
-.profile-card-name {
-  margin: 0 0 0.3rem;
-  font-size: 1.15rem;
-}
-
-.profile-card-bio,
-.profile-card-affiliation,
-.profile-card-meta {
-  margin: 0.25rem 0;
-  font-size: 0.92rem;
-  line-height: 1.35;
-}
-
-.profile-card-meta span {
-  font-weight: 600;
-}
-
-.profile-card-links {
-  list-style: none;
-  margin: 0.75rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.profile-card-links li {
-  margin: 0;
-}
-
-.profile-card-links a {
-  width: 2rem;
-  height: 2rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--global-text-color);
-  border-radius: 999px;
-  color: var(--global-text-color);
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.profile-card-links a:hover {
-  border-color: var(--global-theme-color);
-  color: var(--global-theme-color);
-  text-decoration: none;
-}
-
-.profile-page-content > :first-child {
-  margin-top: 0;
-}
-
-@media (max-width: 767.98px) {
-  .profile-page-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .profile-page-sidebar {
-    position: static;
-  }
-}
-
-/* =============================================================================
-   Reading (books and manuals)
-   ============================================================================= */
-
-.reading-record {
-  margin: 0;
-  padding: 0.7rem 0.85rem;
-  border-left: 3px solid var(--global-theme-color);
-  background: var(--global-code-bg-color);
-}
-
-.reading-record h5 {
-  margin: 0 0 0.4rem;
-  font-size: 0.76rem;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-
-.reading-record-list {
-  margin: 0;
-  padding-left: 1.05rem;
-  font-size: 0.94rem;
-}
-
-.reading-record-list li {
-  margin: 0.18rem 0;
-}
-
-.reading-top-grid {
-  display: grid;
-  grid-template-columns: minmax(165px, 230px) minmax(0, 1fr);
-  gap: 1rem 1.1rem;
-  align-items: start;
-}
-
-.reading-top-grid--single {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.reading-main-header {
-  margin-bottom: 0.3rem;
-}
-
-.reading-figure {
-  width: 100%;
-  margin: 0;
-}
-
-.reading-figure-left {
-  justify-self: start;
-}
-
-.reading-figure > img {
-  width: 100%;
-  max-width: 230px;
-  height: auto;
-  border-radius: 8px;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
-}
-
-.reading-figure figcaption {
-  margin-top: 0.35rem;
-  font-size: 0.78rem;
-  color: var(--global-text-color-light);
-  max-width: 230px;
-}
-
-.reading-content-main {
-  margin-top: 0;
-}
-
-.reading-content-main > :first-child {
-  margin-top: 0;
-}
-
-.reading-biblio-wrap {
-  margin-top: 0.65rem;
-}
-
-.reading-biblio-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.38rem;
-  margin: 0 0 0.4rem;
-}
-
-.reading-biblio-actions a.btn {
-  color: var(--global-text-color);
-  border: 1px solid var(--global-text-color);
-  padding: 0.24rem 0.92rem;
-  margin-left: 0;
-}
-
-.reading-biblio-actions a.btn:hover {
-  color: var(--global-theme-color);
-  border-color: var(--global-theme-color);
-}
-
-.reading-biblio-panel.hidden {
-  font-size: 0.875rem;
-  max-height: 0;
-  overflow: hidden;
-  text-align: justify;
-  border: dashed 1px var(--global-bg-color);
-  transition: all 0.15s ease;
-}
-
-.reading-biblio-panel.hidden.open {
-  max-height: 100em;
-  border-color: var(--global-text-color);
-}
-
-.reading-biblio-panel.hidden .reading-record-list {
-  margin: 0.5rem 1rem 0.65rem;
-  padding-left: 1.05rem;
-  font-size: 0.92rem;
-}
-
-.reading-shelf {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.6rem;
-}
-
-.reading-cover {
-  margin: 0.5rem 0.35rem 0.8rem;
-}
-
-.reading-cover-meta {
-  max-width: 220px;
-  margin-top: 0.28rem;
-  text-align: left;
-}
-
-.reading-cover-title {
-  display: block;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.reading-cover-author,
-.reading-cover-year {
-  display: block;
-  margin-top: 0.1rem;
-  font-size: 0.84rem;
-  color: var(--global-text-color-light);
-}
-
-@media (max-width: 720px) {
-  .reading-top-grid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
-
-  .reading-figure-left {
-    justify-self: start;
-  }
-
-  .reading-figure > img {
-    max-width: 250px;
-  }
-
-  .reading-figure figcaption {
-    max-width: 250px;
-  }
 }
 
 /* =============================================================================

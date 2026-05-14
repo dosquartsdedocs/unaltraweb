@@ -2,6 +2,60 @@
  * CV shared styles
  *****************************/
 
+.cv-download-card {
+  display: grid;
+  grid-template-columns: minmax(130px, 190px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: center;
+  margin: 1.2rem 0 1.8rem;
+  padding: 1rem;
+  border: 1px solid var(--global-divider-color);
+  background: var(--global-card-bg-color);
+}
+
+.cv-download-preview {
+  display: block;
+  background: #f4f4f4;
+  border: 1px solid var(--global-divider-color);
+  box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.12);
+}
+
+.cv-download-preview img {
+  width: 100%;
+  display: block;
+}
+
+.cv-download-body h2 {
+  margin-top: 0;
+}
+
+.cv-download-button {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--global-theme-color);
+  color: var(--global-theme-color);
+  font-weight: 600;
+}
+
+.cv-download-button:hover {
+  background: var(--global-theme-color);
+  color: var(--global-hover-text-color);
+  text-decoration: none;
+}
+
+.cv-download-note {
+  color: var(--global-text-color-light);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 575.98px) {
+  .cv-download-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 div.container-link-button {
   margin-right: 0.5rem;
 }
