@@ -68,6 +68,49 @@ nav: true
 
 If `unaltraweb.features.projects` is `false`, that page is hidden from the navigation. The page still exists if it is published, so users can keep drafts or direct links while changing presets.
 
+## Standard Section Layouts
+
+Several reusable sections are layouts. Child sites should prefer these layouts over copying Liquid loops into their pages:
+
+```yaml
+---
+layout: outputs
+title: Outputs
+ref: outputs
+permalink: /en/outputs/
+---
+```
+
+```yaml
+---
+layout: repositories
+title: Repositories
+ref: repositories
+permalink: /en/repositories/
+---
+```
+
+```yaml
+---
+layout: theses
+title: Theses
+ref: theses
+permalink: /en/theses/
+---
+```
+
+```yaml
+---
+layout: book-shelf
+title: Readings
+ref: books
+collection: books
+permalink: /en/readings/
+---
+```
+
+The content lives in the site repository: `_outputs/` for output cards, `_data/repositories.yml` for repository cards, `_theses/` for thesis records, and `_books/` for reading notes. The rendering logic stays in `unaltraweb`.
+
 ## Page Hero Images
 
 Any page that uses `layout: page` or `layout: about` can define a hero image in front matter. The compact form keeps compatibility with older pages:

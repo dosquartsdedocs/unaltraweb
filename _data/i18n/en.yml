@@ -80,6 +80,14 @@ projects:
   view_project: View project
   resources: Resources
 
+outputs:
+  empty: Add output cards in the `_outputs` collection to populate this section.
+
+repositories:
+  github_users: GitHub users
+  github_repositories: GitHub repositories
+  empty: Add GitHub users or repositories in `_data/repositories.yml` to populate this section.
+
 theses:
   empty: No theses found yet.
   student: Student

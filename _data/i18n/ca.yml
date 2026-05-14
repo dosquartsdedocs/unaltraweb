@@ -80,6 +80,14 @@ projects:
   view_project: Veure projecte
   resources: Recursos
 
+outputs:
+  empty: Afegeix targetes a la col·lecció `_outputs` per emplenar aquesta secció.
+
+repositories:
+  github_users: Usuaris de GitHub
+  github_repositories: Repositoris de GitHub
+  empty: Afegeix usuaris o repositoris de GitHub a `_data/repositories.yml` per emplenar aquesta secció.
+
 theses:
   empty: Encara no hi ha tesis disponibles.
   student: Doctorand/a

@@ -2,10 +2,6 @@
 layout: page
 ---
 
-{%- comment -%}
-CUSTOM: theses index layout (inherits from al-folio "page")
-{%- endcomment -%}
-
 {%- assign current_lang = page.lang | default: site.default_lang | default: site.lang -%}
 {%- assign theses_for_lang = site.theses | where: "lang", current_lang -%}
 {%- assign theses_without_lang = site.theses | where_exp: "thesis", "thesis.lang == nil" -%}
@@ -24,114 +20,107 @@ CUSTOM: theses index layout (inherits from al-folio "page")
 {% capture supervisors_text %}{% include t.liquid key='theses.supervisors' default='Supervisors' %}{% endcapture %}
 {% capture image_source_text %}{% include t.liquid key='theses.image_source' default='Source' %}{% endcapture %}
 
-<div class="post">
-  <article>
-    {% if content and content != "" %}
-      <div class="mb-3">{{ content }}</div>
-    {% endif %}
+{{ content }}
 
-    {%- if theses_sorted == nil or theses_sorted.size == 0 -%}
-      <p>{{ empty_text | strip }}</p>
-    {%- endif -%}
+{%- if theses_sorted == nil or theses_sorted.size == 0 -%}
+  <p>{{ empty_text | strip }}</p>
+{%- endif -%}
 
-    {%- for t in theses_sorted -%}
-      <hr>
+{%- for t in theses_sorted -%}
+  <hr>
 
-      {%- assign title_key = "title_" | append: current_lang -%}
-      {%- assign summary_key = "summary_" | append: current_lang -%}
-      {%- assign institution_key = "institution_" | append: current_lang -%}
-      {%- assign more_info_key = "more_info_" | append: current_lang -%}
-      {%- assign status_key = "status_" | append: current_lang -%}
-      {%- assign image_alt_key = "image_alt_" | append: current_lang -%}
-      {%- assign image_caption_key = "image_caption_" | append: current_lang -%}
-      {%- assign image_source_key = "image_source_" | append: current_lang -%}
+  {%- assign title_key = "title_" | append: current_lang -%}
+  {%- assign summary_key = "summary_" | append: current_lang -%}
+  {%- assign institution_key = "institution_" | append: current_lang -%}
+  {%- assign more_info_key = "more_info_" | append: current_lang -%}
+  {%- assign status_key = "status_" | append: current_lang -%}
+  {%- assign image_alt_key = "image_alt_" | append: current_lang -%}
+  {%- assign image_caption_key = "image_caption_" | append: current_lang -%}
+  {%- assign image_source_key = "image_source_" | append: current_lang -%}
 
-      {%- assign localized_title = t[title_key] | default: t.title -%}
-      {%- assign localized_institution = t[institution_key] | default: t.institution -%}
-      {%- assign localized_more_info = t[more_info_key] | default: t.more_info -%}
-      {%- assign localized_status_raw = t[status_key] | default: t.status -%}
-      {%- assign localized_image_alt = t[image_alt_key] | default: t.image_alt | default: t.student -%}
-      {%- assign localized_image_caption = t[image_caption_key] | default: t.image_caption -%}
-      {%- assign localized_image_source = t[image_source_key] | default: t.image_source -%}
-      {%- assign image_source_url = t.image_source_url -%}
-      {%- assign image_source_domain = nil -%}
-      {%- if image_source_url -%}
-        {%- assign image_source_domain = image_source_url | replace: 'https://', '' | replace: 'http://', '' | split: '/' | first -%}
+  {%- assign localized_title = t[title_key] | default: t.title -%}
+  {%- assign localized_institution = t[institution_key] | default: t.institution -%}
+  {%- assign localized_more_info = t[more_info_key] | default: t.more_info -%}
+  {%- assign localized_status_raw = t[status_key] | default: t.status -%}
+  {%- assign localized_image_alt = t[image_alt_key] | default: t.image_alt | default: t.student -%}
+  {%- assign localized_image_caption = t[image_caption_key] | default: t.image_caption -%}
+  {%- assign localized_image_source = t[image_source_key] | default: t.image_source -%}
+  {%- assign image_source_url = t.image_source_url -%}
+  {%- assign image_source_domain = nil -%}
+  {%- if image_source_url -%}
+    {%- assign image_source_domain = image_source_url | replace: 'https://', '' | replace: 'http://', '' | split: '/' | first -%}
+  {%- endif -%}
+
+  {%- assign status_i18n_key = "theses.status_values." | append: localized_status_raw -%}
+  {% capture localized_status %}{% include t.liquid key=status_i18n_key default=localized_status_raw %}{% endcapture %}
+
+  {%- assign align = t.align | default: "right" -%}
+  <div class="profile float-{% if align == 'left' %}left{% else %}right{% endif %}">
+
+    {%- if t.image -%}
+      {%- if t.image contains '://' -%}
+        {%- assign profile_image_path = t.image -%}
+      {%- else -%}
+        {%- assign profile_image_path = t.image | prepend: 'assets/img/' -%}
       {%- endif -%}
 
-      {%- assign status_i18n_key = "theses.status_values." | append: localized_status_raw -%}
-      {% capture localized_status %}{% include t.liquid key=status_i18n_key default=localized_status_raw %}{% endcapture %}
+      {%- if t.image_circular -%}
+        {%- assign profile_image_class = 'img-fluid z-depth-1 rounded-circle' -%}
+      {%- else -%}
+        {%- assign profile_image_class = 'img-fluid z-depth-1 rounded' -%}
+      {%- endif -%}
 
-      {%- assign align = t.align | default: "right" -%}
-      <div class="profile float-{% if align == 'left' %}left{% else %}right{% endif %}">
+      {%- capture sizes -%}
+        (min-width: {{ site.max_width }}) {{ site.max_width | minus: 30 | times: 0.3 }}px,
+        (min-width: 576px) 30vw,
+        95vw
+      {%- endcapture -%}
 
-        {%- if t.image -%}
-          {%- if t.image contains '://' -%}
-            {%- assign profile_image_path = t.image -%}
-          {%- else -%}
-            {%- assign profile_image_path = t.image | prepend: 'assets/img/' -%}
-          {%- endif -%}
-
-          {%- if t.image_circular -%}
-            {%- assign profile_image_class = 'img-fluid z-depth-1 rounded-circle' -%}
-          {%- else -%}
-            {%- assign profile_image_class = 'img-fluid z-depth-1 rounded' -%}
-          {%- endif -%}
-
-          {%- capture sizes -%}
-            (min-width: {{ site.max_width }}) {{ site.max_width | minus: 30 | times: 0.3 }}px,
-            (min-width: 576px) 30vw,
-            95vw
-          {%- endcapture -%}
-
-          {%- capture thesis_image_caption -%}
-            {%- if localized_image_caption -%}
-              {{ localized_image_caption }}
+      {%- capture thesis_image_caption -%}
+        {%- if localized_image_caption -%}
+          {{ localized_image_caption }}
+        {%- endif -%}
+        {%- if localized_image_source or image_source_url -%}
+          {%- if localized_image_caption -%} {% endif -%}
+          <span class="thesis-image-source">
+            {{ image_source_text | strip }}:
+            {%- if image_source_url -%}
+              <a href="{{ image_source_url }}" target="_blank" rel="noopener noreferrer">
+                {{ localized_image_source | default: image_source_domain }}
+              </a>
+            {%- else -%}
+              {{ localized_image_source }}
             {%- endif -%}
-            {%- if localized_image_source or image_source_url -%}
-              {%- if localized_image_caption -%} {% endif -%}
-              <span class="thesis-image-source">
-                {{ image_source_text | strip }}:
-                {%- if image_source_url -%}
-                  <a href="{{ image_source_url }}" target="_blank" rel="noopener noreferrer">
-                    {{ localized_image_source | default: image_source_domain }}
-                  </a>
-                {%- else -%}
-                  {{ localized_image_source }}
-                {%- endif -%}
-              </span>
-            {%- endif -%}
-          {%- endcapture -%}
-
-          {%- if t.image contains '://' -%}
-            {% include figure.liquid url=profile_image_path class=profile_image_class sizes=sizes alt=localized_image_alt caption=thesis_image_caption loading="lazy" avoid_scaling=true %}
-          {%- else -%}
-            {% include figure.liquid path=profile_image_path class=profile_image_class sizes=sizes alt=localized_image_alt caption=thesis_image_caption loading="lazy" %}
-          {%- endif -%}
+          </span>
         {%- endif -%}
+      {%- endcapture -%}
 
-        {%- if localized_more_info -%}
-          <div class="more-info">{{ localized_more_info }}</div>
-        {%- endif -%}
-      </div>
+      {%- if t.image contains '://' -%}
+        {% include figure.liquid url=profile_image_path class=profile_image_class sizes=sizes alt=localized_image_alt caption=thesis_image_caption loading="lazy" avoid_scaling=true %}
+      {%- else -%}
+        {% include figure.liquid path=profile_image_path class=profile_image_class sizes=sizes alt=localized_image_alt caption=thesis_image_caption loading="lazy" %}
+      {%- endif -%}
+    {%- endif -%}
 
-      <div class="clearfix">
-        {%- if localized_title -%}<h2>{{ localized_title }}</h2>{%- endif -%}
-        {%- if t.student -%}<p><strong>{{ student_text | strip }}:</strong> {{ t.student }}</p>{%- endif -%}
-        {%- if localized_status_raw -%}<p><strong>{{ status_text | strip }}:</strong> {{ localized_status | strip }}</p>{%- endif -%}
-        {%- if localized_institution -%}<p><strong>{{ institution_text | strip }}:</strong> {{ localized_institution }}</p>{%- endif -%}
-        {%- if t.year -%}<p><strong>{{ year_text | strip }}:</strong> {{ t.year }}</p>{%- endif -%}
-        {%- if t.supervisors -%}<p><strong>{{ supervisors_text | strip }}:</strong> {{ t.supervisors }}</p>{%- endif -%}
+    {%- if localized_more_info -%}
+      <div class="more-info">{{ localized_more_info }}</div>
+    {%- endif -%}
+  </div>
 
-        {%- if t[summary_key] -%}
-          {{ t[summary_key] | markdownify }}
-        {%- elsif t.summary -%}
-          {{ t.summary | markdownify }}
-        {%- else -%}
-          {{ t.content }}
-        {%- endif -%}
-      </div>
-    {%- endfor -%}
+  <div class="clearfix">
+    {%- if localized_title -%}<h2>{{ localized_title }}</h2>{%- endif -%}
+    {%- if t.student -%}<p><strong>{{ student_text | strip }}:</strong> {{ t.student }}</p>{%- endif -%}
+    {%- if localized_status_raw -%}<p><strong>{{ status_text | strip }}:</strong> {{ localized_status | strip }}</p>{%- endif -%}
+    {%- if localized_institution -%}<p><strong>{{ institution_text | strip }}:</strong> {{ localized_institution }}</p>{%- endif -%}
+    {%- if t.year -%}<p><strong>{{ year_text | strip }}:</strong> {{ t.year }}</p>{%- endif -%}
+    {%- if t.supervisors -%}<p><strong>{{ supervisors_text | strip }}:</strong> {{ t.supervisors }}</p>{%- endif -%}
 
-  </article>
-</div>
+    {%- if t[summary_key] -%}
+      {{ t[summary_key] | markdownify }}
+    {%- elsif t.summary -%}
+      {{ t.summary | markdownify }}
+    {%- else -%}
+      {{ t.content }}
+    {%- endif -%}
+  </div>
+{%- endfor -%}
