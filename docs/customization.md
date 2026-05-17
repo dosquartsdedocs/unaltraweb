@@ -111,6 +111,90 @@ permalink: /en/readings/
 
 The content lives in the site repository: `_outputs/` for output cards, `_data/repositories.yml` for repository cards, `_theses/` for thesis records, and `_books/` for reading notes. The rendering logic stays in `unaltraweb`.
 
+## Callout Shorthand
+
+Use nested Markdown blockquotes for lightweight teaching callouts. A single `>` remains a normal quotation; deeper levels become callouts:
+
+```markdown
+>> A note or tip.
+
+>>> A worked example.
+
+>>>> A warning.
+
+>>>>> Learning objectives.
+
+>>>>>> A caution or danger note.
+```
+
+The labels are localized through `_data/i18n/*.yml` under `callouts`, and the colors follow the active light, sepia, or dark theme.
+
+## Manual Profile
+
+Use the `manual` site profile for academic handbooks, course manuals and book-like teaching material. The core profile provides a cover page, a sticky contents sidebar, a right-hand chapter table of contents, multilingual chapter routing, teacher blocks, automatic figure captions for chapters, a full-text manual search index, navbar reader font-size controls and a bibliography section without bibliometric badges.
+
+```yaml
+unaltraweb:
+  site_profile: manual
+  manual:
+    collection: chapters
+    cover_image: /assets/img/manual-cover.svg
+    logo: /assets/img/brand/dosquartsdedocs-logo.svg
+    logo_inverse: /assets/img/brand/dosquartsdedocs-logo-white.svg
+  figure_captions:
+    enabled: true
+    collections: [chapters]
+
+scholar:
+  # Optional, useful when porting a GitBook/TIG-style course bibliography.
+  style: _bibliography/my-apa-cv-no-access.csl
+  bibliography_template: manual-bib
+  group_by: none
+```
+
+Create one localized home page per language with `layout: manual-home` and `ref: home`, then add chapters to `_chapters/<lang>/`:
+
+```yaml
+---
+layout: manual-chapter
+title: Reading Spatial Data
+lang: en
+ref: reading-spatial-data
+weight: 20
+permalink: /en/chapters/reading-spatial-data/
+manual_references: true
+mermaid:
+  enabled: true
+  zoomable: true
+---
+```
+
+Markdown images inside configured chapter collections are wrapped in `<figure>` elements and get localized labels. Use the optional image title as the caption:
+
+```markdown
+![Digitizing workflow]({{ site.baseurl }}/assets/img/workflow.svg "Main editing steps")
+```
+
+For multi-panel teaching figures, use a compact subfigure block. The layout string uses `/` for rows and `+` for columns, inspired by patchwork-style composition:
+
+```markdown
+::: subfigures a+b/c "Three views of the same exercise"
+![Interface]({{ site.baseurl }}/assets/img/interface.svg "Interface")
+![Map]({{ site.baseurl }}/assets/img/map.svg "Map")
+![Diagram]({{ site.baseurl }}/assets/img/diagram.svg "Diagram")
+:::
+```
+
+This renders one numbered figure with panel labels `a`, `b`, `c`; the contained images remain ordinary Markdown image declarations.
+
+The manual profile also writes `assets/js/manual-search-index.json` during the build so the sidebar search can find terms anywhere in the localized manual.
+
+Mermaid source references ending in `.mmd` are rewritten to `.mmd.edited.svg` when that file exists, or `.mmd.svg` otherwise. Manual Mermaid figures also receive diagram surfaces tuned for light, dark and sepia themes. This keeps generated diagrams and hand-edited diagrams readable in the same Markdown:
+
+```markdown
+![Vector workflow]({{ site.baseurl }}/assets/diagrams/vector-workflow.mmd "Vector workflow")
+```
+
 ## Page Hero Images
 
 Any page that uses `layout: page` or `layout: about` can define a hero image in front matter. The compact form keeps compatibility with older pages:
