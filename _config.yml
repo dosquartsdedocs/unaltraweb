@@ -35,6 +35,16 @@ unaltraweb:
     publications: true
     metrics: true
     docs: false
+    manual: true
+  manual:
+    collection: chapters
+    cover_image:
+    logo:
+    logo_inverse:
+    bibliography: true
+  figure_captions:
+    enabled: true
+    collections: [chapters]
 
 # -----------------------------------------------------------------------------
 # Theme
@@ -160,6 +170,9 @@ newsletter:
 collections:
   books:
     output: true
+  chapters:
+    output: true
+    sort_by: weight
   news:
     defaults:
       layout: post
@@ -250,6 +263,12 @@ defaults:
       type: posts
     values:
       lang: en
+  - scope:
+      path: ""
+      type: chapters
+    values:
+      lang: en
+      layout: manual-chapter
   - scope:
       path: ""
       type: news

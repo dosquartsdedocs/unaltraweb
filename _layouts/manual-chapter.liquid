@@ -1,0 +1,81 @@
+---
+layout: default
+---
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+{% assign manual_config = site.unaltraweb.manual %}
+{% assign manual_collection_name = manual_config.collection | default: 'chapters' %}
+{% assign manual_collection = site[manual_collection_name] %}
+{% assign manual_chapters = manual_collection | where: 'lang', current_lang | sort: 'weight' %}
+{% if manual_chapters.size == 0 and current_lang != site.default_lang %}
+  {% assign manual_chapters = manual_collection | where: 'lang', site.default_lang | sort: 'weight' %}
+{% endif %}
+{% assign previous_chapter = nil %}
+{% assign next_chapter = nil %}
+{% assign current_seen = false %}
+{% assign current_chapter_number = 0 %}
+{% for chapter in manual_chapters %}
+  {% if chapter.url == page.url %}
+    {% assign current_chapter_number = forloop.index %}
+  {% endif %}
+{% endfor %}
+{% for chapter in manual_chapters %}
+  {% if current_seen and next_chapter == nil %}
+    {% assign next_chapter = chapter %}
+  {% endif %}
+  {% if chapter.url == page.url %}
+    {% assign current_seen = true %}
+  {% elsif current_seen == false %}
+    {% assign previous_chapter = chapter %}
+  {% endif %}
+{% endfor %}
+{% capture manual_contents_text %}{% include t.liquid key='manual.contents' default='Contents' %}{% endcapture %}
+{% capture manual_toggle_text %}{% include t.liquid key='manual.toggle_sidebar' default='Toggle contents' %}{% endcapture %}
+{% capture manual_previous_text %}{% include t.liquid key='manual.previous' default='Previous' %}{% endcapture %}
+{% capture manual_next_text %}{% include t.liquid key='manual.next' default='Next' %}{% endcapture %}
+{% capture manual_references_text %}{% include t.liquid key='manual.references' default='References' %}{% endcapture %}
+<script>
+  window.unaltrawebManualSearchUrl = {{ '/assets/js/manual-search-index.json' | relative_url | jsonify }};
+</script>
+
+<div class="manual-layout manual-chapter-layout">
+  {% include manual-sidebar.liquid chapters=manual_chapters %}
+
+  <article class="manual-main manual-chapter" data-chapter="{{ current_chapter_number | default: page.weight | default: 0 }}" data-lang="{{ current_lang }}">
+    <header class="manual-chapter-header">
+      <h1>{{ page.title }}</h1>
+      {% if page.description %}<p class="manual-subtitle">{{ page.description }}</p>{% endif %}
+    </header>
+
+    <div class="manual-content">
+      {{ content }}
+    </div>
+
+    {% if page.related_publications or page.manual_references or page.references %}
+      <section class="manual-references" aria-labelledby="manual-references-title">
+        <h2 id="manual-references-title">{{ manual_references_text | strip }}</h2>
+        <div class="manual-bibliography publications">
+          {% bibliography --cited_in_order --template manual-bib --group_by none %}
+        </div>
+      </section>
+    {% endif %}
+
+    <nav class="manual-chapter-nav" aria-label="{{ manual_contents_text | strip }}">
+      {% if previous_chapter %}
+        <a class="manual-chapter-nav-link previous" href="{{ previous_chapter.url | relative_url }}">
+          <span>{{ manual_previous_text | strip }}</span>
+          <strong>{{ previous_chapter.title }}</strong>
+        </a>
+      {% else %}
+        <span></span>
+      {% endif %}
+      {% if next_chapter %}
+        <a class="manual-chapter-nav-link next" href="{{ next_chapter.url | relative_url }}">
+          <span>{{ manual_next_text | strip }}</span>
+          <strong>{{ next_chapter.title }}</strong>
+        </a>
+      {% endif %}
+    </nav>
+  </article>
+
+  {% include manual-page-toc.liquid %}
+</div>

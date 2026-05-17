@@ -18,6 +18,13 @@ footer:
 search:
   placeholder: Escriu per cercar
 
+callouts:
+  info: NOTA
+  example: EXEMPLE
+  warning: ADVERTÈNCIA
+  objectives: OBJECTIUS D'APRENENTATGE
+  danger: ATENCIÓ
+
 bib:
   filter_placeholder: Escriu per filtrar
   and: i
@@ -159,3 +166,25 @@ languages:
   en: Anglès
   es: Castellà
   ca: Català
+
+manual:
+  contents: Continguts
+  on_this_page: En aquesta pàgina
+  previous: Anterior
+  next: Següent
+  start_reading: Comença a llegir
+  teachers: Professorat
+  references: Bibliografia
+  no_chapters: Encara no hi ha capítols disponibles.
+  filter: Filtra capítols
+  cover: Portada
+
+  search_placeholder: Escriu per cercar
+  search_results: Resultats de cerca
+  toggle_sidebar: Mostra o amaga els continguts
+  font_decrease: Redueix el text
+  font_increase: Augmenta el text
+  font_reset: Restableix el text
+  chapter: Capítol
+figures:
+  label: Figura

@@ -183,17 +183,40 @@
 <script src="{{ '/assets/js/no_defer.js' | relative_url | bust_file_cache }}"></script>
 <script defer src="{{ '/assets/js/common.js' | relative_url | bust_file_cache }}"></script>
 <script defer src="{{ '/assets/js/copy_code.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
+{% capture callout_info_text %}{% include t.liquid key='callouts.info' default='NOTE' %}{% endcapture %}
+{% capture callout_example_text %}{% include t.liquid key='callouts.example' default='EXAMPLE' %}{% endcapture %}
+{% capture callout_warning_text %}{% include t.liquid key='callouts.warning' default='WARNING' %}{% endcapture %}
+{% capture callout_objectives_text %}{% include t.liquid key='callouts.objectives' default='LEARNING OBJECTIVES' %}{% endcapture %}
+{% capture callout_danger_text %}{% include t.liquid key='callouts.danger' default='CAUTION' %}{% endcapture %}
+<script>
+  window.unaltrawebCalloutLabels = window.unaltrawebCalloutLabels || {};
+  window.unaltrawebCalloutLabels["{{ page.lang | default: site.default_lang | default: site.lang }}"] = {
+    info: {{ callout_info_text | strip | jsonify }},
+    example: {{ callout_example_text | strip | jsonify }},
+    warning: {{ callout_warning_text | strip | jsonify }},
+    objectives: {{ callout_objectives_text | strip | jsonify }},
+    danger: {{ callout_danger_text | strip | jsonify }},
+  };
+</script>
+<script defer src="{{ '/assets/js/callouts.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
+{% assign unaltraweb_current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% if unaltraweb_current_profile == 'manual' or page.layout == 'manual-home' or page.layout == 'manual-chapter' %}
+  <script defer src="{{ '/assets/js/manual.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
+{% endif %}
+
 
 <!-- Jupyter Open External Links New Tab -->
 <script defer src="{{ '/assets/js/jupyter_new_tab.js' | relative_url | bust_file_cache }}"></script>
 
 <!-- Badges -->
-{% if site.enable_publication_badges.altmetric %}
-  <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script>
-{% endif %}
-{% if site.enable_publication_badges.dimensions %}
-  <script async src="https://badge.dimensions.ai/badge.js"></script>
-{% endif %}
+{% unless unaltraweb_current_profile == 'manual' %}
+  {% if site.enable_publication_badges.altmetric %}
+    <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script>
+  {% endif %}
+  {% if site.enable_publication_badges.dimensions %}
+    <script async src="https://badge.dimensions.ai/badge.js"></script>
+  {% endif %}
+{% endunless %}
 
 {% if site.enable_math %}
   <!-- MathJax -->

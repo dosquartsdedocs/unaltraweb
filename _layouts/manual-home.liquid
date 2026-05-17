@@ -1,0 +1,64 @@
+---
+layout: default
+---
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+{% assign manual_config = site.unaltraweb.manual %}
+{% assign manual_collection_name = manual_config.collection | default: 'chapters' %}
+{% assign manual_collection = site[manual_collection_name] %}
+{% assign manual_chapters = manual_collection | where: 'lang', current_lang | sort: 'weight' %}
+{% if manual_chapters.size == 0 and current_lang != site.default_lang %}
+  {% assign manual_chapters = manual_collection | where: 'lang', site.default_lang | sort: 'weight' %}
+{% endif %}
+{% assign manual_cover_image = page.cover_image | default: page.cover.image | default: manual_config.cover_image %}
+{% assign manual_cover_alt = page.cover_alt | default: page.cover.alt | default: page.title %}
+{% assign manual_subtitle = page.subtitle | default: page.description | default: site.description %}
+{% capture manual_contents_text %}{% include t.liquid key='manual.contents' default='Contents' %}{% endcapture %}
+{% capture manual_toggle_text %}{% include t.liquid key='manual.toggle_sidebar' default='Toggle contents' %}{% endcapture %}
+{% capture manual_no_chapters_text %}{% include t.liquid key='manual.no_chapters' default='No chapters available yet.' %}{% endcapture %}
+<script>
+  window.unaltrawebManualSearchUrl = {{ '/assets/js/manual-search-index.json' | relative_url | jsonify }};
+</script>
+
+<div class="manual-layout manual-home-layout">
+  {% include manual-sidebar.liquid chapters=manual_chapters %}
+
+  <article class="manual-main manual-home">
+    <header class="manual-cover">
+      <div class="manual-cover-copy">
+        <p class="manual-kicker">{{ site.title }}</p>
+        <h1>{{ page.title }}</h1>
+        {% if manual_subtitle %}<p class="manual-subtitle">{{ manual_subtitle }}</p>{% endif %}
+      </div>
+      {% if manual_cover_image %}
+        <figure class="manual-cover-art">
+          <img src="{{ manual_cover_image | relative_url }}" alt="{{ manual_cover_alt | escape }}">
+        </figure>
+      {% endif %}
+    </header>
+
+    <div class="manual-content">
+      {{ content }}
+    </div>
+
+    {% include manual-teachers.liquid %}
+
+    <section class="manual-chapter-index" aria-labelledby="manual-chapter-index-title">
+      <h2 id="manual-chapter-index-title">{{ manual_contents_text | strip }}</h2>
+      {% if manual_chapters.size > 0 %}
+        <ol class="manual-chapter-cards">
+          {% for chapter in manual_chapters %}
+            <li>
+              <a href="{{ chapter.url | relative_url }}">
+                <span class="manual-chapter-card-number">{{ forloop.index }}</span>
+                <span class="manual-chapter-card-title">{{ chapter.title }}</span>
+                {% if chapter.description %}<span class="manual-chapter-card-description">{{ chapter.description }}</span>{% endif %}
+              </a>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p>{{ manual_no_chapters_text | strip }}</p>
+      {% endif %}
+    </section>
+  </article>
+</div>

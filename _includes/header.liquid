@@ -24,6 +24,19 @@
 <header>
   <nav id="navbar" class="navbar navbar-light navbar-expand-sm {% if site.navbar_fixed %}fixed-top{% else %}sticky-top{% endif %}" role="navigation">
     <div class="container">
+      {% if current_profile == 'manual' %}
+        <button
+          class="manual-navbar-sidebar-toggle"
+          type="button"
+          data-manual-sidebar-toggle
+          aria-expanded="true"
+          aria-controls="manual-sidebar manual-page-toc"
+          title="{% include t.liquid key='manual.toggle_sidebar' default='Toggle contents' %}"
+        >
+          <span aria-hidden="true">☰</span>
+          <span class="sr-only">{% include t.liquid key='manual.toggle_sidebar' default='Toggle contents' %}</span>
+        </button>
+      {% endif %}
       {% if page.ref == 'home' and site.enable_navbar_social %}
         <div class="navbar-brand social">{% social_links %}</div>
       {% else %}
@@ -63,14 +76,16 @@
 
       <div class="collapse navbar-collapse text-right" id="navbarNav">
         <ul class="navbar-nav ml-auto flex-nowrap">
-          <li class="nav-item {% if page.ref == 'home' %}active{% endif %}">
-            <a class="nav-link" href="{{ home_url | relative_url }}">
-              {{- home_title -}}
-              {% if page.ref == 'home' %}
-                <span class="sr-only">({{ current_text | strip }})</span>
-              {% endif %}
-            </a>
-          </li>
+          {% unless current_profile == 'manual' %}
+            <li class="nav-item {% if page.ref == 'home' %}active{% endif %}">
+              <a class="nav-link" href="{{ home_url | relative_url }}">
+                {{- home_title -}}
+                {% if page.ref == 'home' %}
+                  <span class="sr-only">({{ current_text | strip }})</span>
+                {% endif %}
+              </a>
+            </li>
+          {% endunless %}
 
           {% assign sorted_pages = site.pages | where: 'lang', current_lang | sort: 'nav_order' %}
           {% for p in sorted_pages %}
@@ -163,6 +178,32 @@
               <button id="search-toggle" title="{{ search_text | strip }}" onclick="openSearchModal()">
                 <span class="nav-link">ctrl k <i class="ti ti-search"></i></span>
               </button>
+            </li>
+          {% endif %}
+
+          {% if current_profile == 'manual' %}
+            {% capture manual_font_decrease_text %}{% include t.liquid key='manual.font_decrease' default='Decrease text size' %}{% endcapture %}
+            {% capture manual_font_increase_text %}{% include t.liquid key='manual.font_increase' default='Increase text size' %}{% endcapture %}
+            {% capture manual_font_reset_text %}{% include t.liquid key='manual.font_reset' default='Reset text size' %}{% endcapture %}
+            <li class="nav-item dropdown manual-font-nav">
+              <a
+                class="nav-link dropdown-toggle manual-font-nav-toggle"
+                href="#"
+                id="navbarManualFontDropdown"
+                role="button"
+                data-toggle="dropdown"
+                aria-haspopup="true"
+                aria-expanded="false"
+                title="{{ manual_font_increase_text | strip }}"
+              >
+                <span aria-hidden="true">A</span>
+                <span class="sr-only">{{ manual_font_increase_text | strip }}</span>
+              </a>
+              <div class="dropdown-menu dropdown-menu-right manual-font-menu" aria-labelledby="navbarManualFontDropdown">
+                <button class="dropdown-item" type="button" data-manual-font="decrease">A- <span>{{ manual_font_decrease_text | strip }}</span></button>
+                <button class="dropdown-item" type="button" data-manual-font="reset">A <span>{{ manual_font_reset_text | strip }}</span></button>
+                <button class="dropdown-item" type="button" data-manual-font="increase">A+ <span>{{ manual_font_increase_text | strip }}</span></button>
+              </div>
             </li>
           {% endif %}
 

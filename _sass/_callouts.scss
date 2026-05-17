@@ -1,0 +1,100 @@
+/*******************************************************************************
+ * Callouts
+ ******************************************************************************/
+
+.uw-callout-wrapper {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+.uw-callout {
+  --uw-callout-border: var(--global-tip-block);
+  --uw-callout-bg: var(--global-tip-block-bg);
+  --uw-callout-text: var(--global-tip-block-text);
+  --uw-callout-title: var(--global-tip-block-title);
+
+  margin: 1.35rem 0;
+  padding: 0.85rem 1rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--uw-callout-border) 42%, transparent);
+  border-left: 0.28rem solid var(--uw-callout-border);
+  border-radius: 0 0.35rem 0.35rem 0;
+  background: var(--uw-callout-bg);
+  font-size: 1rem;
+
+  p,
+  li,
+  em,
+  strong,
+  code {
+    color: var(--uw-callout-text);
+  }
+
+  a,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: var(--uw-callout-title);
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  .uw-callout-title {
+    margin: 0 0 0.45rem;
+    color: var(--uw-callout-title);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.25;
+    text-transform: uppercase;
+  }
+}
+
+.uw-callout-example {
+  --uw-callout-border: var(--global-tip-block);
+  --uw-callout-bg: var(--global-tip-block-bg);
+  --uw-callout-text: var(--global-tip-block-text);
+  --uw-callout-title: var(--global-tip-block-title);
+}
+
+.uw-callout-warning {
+  --uw-callout-border: var(--global-warning-block);
+  --uw-callout-bg: var(--global-warning-block-bg);
+  --uw-callout-text: var(--global-warning-block-text);
+  --uw-callout-title: var(--global-warning-block-title);
+}
+
+.uw-callout-objectives {
+  --uw-callout-border: #2f6fd6;
+  --uw-callout-bg: #edf3ff;
+  --uw-callout-text: #20458b;
+  --uw-callout-title: #2a5fb8;
+}
+
+.uw-callout-danger {
+  --uw-callout-border: var(--global-danger-block);
+  --uw-callout-bg: var(--global-danger-block-bg);
+  --uw-callout-text: var(--global-danger-block-text);
+  --uw-callout-title: var(--global-danger-block-title);
+}
+
+html[data-theme="sepia"] .uw-callout-objectives {
+  --uw-callout-border: #3d5f93;
+  --uw-callout-bg: #e4eaf5;
+  --uw-callout-text: #2d4570;
+  --uw-callout-title: #355784;
+}
+
+html[data-theme="dark"] .uw-callout-objectives {
+  --uw-callout-border: #78b8ff;
+  --uw-callout-bg: #1a2d48;
+  --uw-callout-text: #d6eaff;
+  --uw-callout-title: #9bceff;
+}

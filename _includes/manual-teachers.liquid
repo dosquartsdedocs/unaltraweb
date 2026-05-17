@@ -1,0 +1,27 @@
+{% assign teacher_items = include.teachers | default: page.teachers | default: page.professors | default: site.data.teachers %}
+{% capture manual_teachers_text %}{% include t.liquid key='manual.teachers' default='Teaching team' %}{% endcapture %}
+{% if teacher_items and teacher_items.size > 0 %}
+  <section class="manual-teachers" aria-labelledby="manual-teachers-title">
+    <h2 id="manual-teachers-title">{{ manual_teachers_text | strip }}</h2>
+    <div class="manual-teacher-list">
+      {% for teacher in teacher_items %}
+        <article class="manual-teacher">
+          {% if teacher.photo %}
+            <img class="manual-teacher-photo" src="{{ teacher.photo | relative_url }}" alt="{{ teacher.name | escape }}">
+          {% endif %}
+          <div class="manual-teacher-body">
+            <h3>{{ teacher.name | default: teacher }}</h3>
+            {% if teacher.role %}<p class="manual-teacher-role">{{ teacher.role }}</p>{% endif %}
+            {% if teacher.affiliation %}<p class="manual-teacher-affiliation">{{ teacher.affiliation }}</p>{% endif %}
+            {% if teacher.email or teacher.url %}
+              <p class="manual-teacher-links">
+                {% if teacher.email %}<a href="mailto:{{ teacher.email }}">{{ teacher.email }}</a>{% endif %}
+                {% if teacher.url %}<a href="{{ teacher.url }}">{{ teacher.url_label | default: 'Web' }}</a>{% endif %}
+              </p>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}

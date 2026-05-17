@@ -1,0 +1,7 @@
+{% capture manual_on_this_page_text %}{% include t.liquid key='manual.on_this_page' default='On this page' %}{% endcapture %}
+<aside id="manual-page-toc" class="manual-right-rail" data-manual-page-toc-container hidden aria-label="{{ manual_on_this_page_text | strip }}">
+  <div class="manual-right-rail-inner">
+    <p class="manual-sidebar-heading">{{ manual_on_this_page_text | strip }}</p>
+    <nav class="manual-page-toc" data-manual-page-toc aria-label="{{ manual_on_this_page_text | strip }}"></nav>
+  </div>
+</aside>

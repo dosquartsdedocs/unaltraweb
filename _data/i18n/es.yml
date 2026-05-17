@@ -18,6 +18,13 @@ footer:
 search:
   placeholder: Escribe para buscar
 
+callouts:
+  info: NOTA
+  example: EJEMPLO
+  warning: ADVERTENCIA
+  objectives: OBJETIVOS DE APRENDIZAJE
+  danger: ATENCIÓN
+
 bib:
   filter_placeholder: Escribe para filtrar
   and: y
@@ -159,3 +166,25 @@ languages:
   en: Inglés
   es: Español
   ca: Catalán
+
+manual:
+  contents: Contenidos
+  on_this_page: En esta página
+  previous: Anterior
+  next: Siguiente
+  start_reading: Empezar a leer
+  teachers: Profesorado
+  references: Bibliografía
+  no_chapters: Todavía no hay capítulos disponibles.
+  filter: Filtrar capítulos
+  cover: Portada
+
+  search_placeholder: Escribe para buscar
+  search_results: Resultados de búsqueda
+  toggle_sidebar: Mostrar u ocultar contenidos
+  font_decrease: Reducir el texto
+  font_increase: Aumentar el texto
+  font_reset: Restablecer el texto
+  chapter: Capítulo
+figures:
+  label: Figura

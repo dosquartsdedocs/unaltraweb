@@ -1,0 +1,12 @@
+---
+---
+<div id="{{ entry.key }}" class="manual-reference">
+  <div class="manual-reference-text">{{ reference | replace: "\Textperiodcentered", "·" }}</div>
+  <div class="manual-reference-links">
+    {% if entry.doi %}
+      DOI: <a href="https://doi.org/{{ entry.doi }}">{{ entry.doi }}</a>
+    {% elsif entry.url %}
+      URL: <a href="{{ entry.url }}">{{ entry.url }}</a>
+    {% endif %}
+  </div>
+</div>

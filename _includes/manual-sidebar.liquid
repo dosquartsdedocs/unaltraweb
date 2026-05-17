@@ -1,0 +1,56 @@
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign manual_config = site.unaltraweb.manual %}
+{% assign default_manual_home_url = '/' | append: current_lang | append: '/' %}
+{% assign home_candidates = site.pages | where: 'ref', 'home' | where: 'lang', current_lang %}
+{% assign manual_home = home_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
+{% if manual_home == nil %}
+  {% assign manual_home = home_candidates | where_exp: 'candidate', 'candidate.profiles == nil' | first %}
+{% endif %}
+{% assign chapters = include.chapters %}
+{% capture manual_contents_text %}{% include t.liquid key='manual.contents' default='Contents' %}{% endcapture %}
+{% capture manual_search_text %}{% include t.liquid key='manual.search_placeholder' default='Type to search' %}{% endcapture %}
+{% capture manual_search_results_text %}{% include t.liquid key='manual.search_results' default='Search results' %}{% endcapture %}
+{% capture manual_cover_text %}{% include t.liquid key='manual.cover' default='Cover' %}{% endcapture %}
+
+<aside id="manual-sidebar" class="manual-sidebar" aria-label="{{ manual_contents_text | strip }}">
+  <div class="manual-sidebar-inner">
+    {% if manual_config.logo %}
+      <a class="manual-brand" href="{{ manual_home.url | default: default_manual_home_url | relative_url }}">
+        <span class="manual-brand-logo-stack" aria-hidden="true">
+          <img class="manual-brand-logo manual-brand-logo-default" src="{{ manual_config.logo | relative_url }}" alt="">
+          {% if manual_config.logo_inverse %}
+            <img class="manual-brand-logo manual-brand-logo-inverse" src="{{ manual_config.logo_inverse | relative_url }}" alt="">
+          {% endif %}
+        </span>
+        <span>{{ site.title }}</span>
+      </a>
+    {% endif %}
+
+    <div class="manual-search" role="search">
+      <label class="sr-only" for="manual-search-input">{{ manual_search_text | strip }}</label>
+      <input id="manual-search-input" class="manual-search-input" type="search" data-manual-search placeholder="{{ manual_search_text | strip }}" autocomplete="off">
+      <div class="manual-search-results" data-manual-search-results hidden>
+        <h2>{{ manual_search_results_text | strip }}</h2>
+        <ol data-manual-search-list></ol>
+      </div>
+    </div>
+
+    <nav class="manual-nav" aria-label="{{ manual_contents_text | strip }}">
+      <p class="manual-sidebar-heading">{{ manual_contents_text | strip }}</p>
+      <ol class="manual-chapter-tree">
+        <li class="manual-sidebar-item manual-home-link{% if page.ref == 'home' %} active{% endif %}">
+          <a href="{{ manual_home.url | default: default_manual_home_url | relative_url }}">{{ manual_cover_text | strip }}</a>
+        </li>
+        {% for chapter in chapters %}
+          <li class="manual-sidebar-item{% if page.url == chapter.url %} active{% endif %}" data-manual-title="{{ chapter.title | downcase | escape }}">
+            <a href="{{ chapter.url | relative_url }}">
+              <span class="manual-chapter-number">{{ forloop.index }}</span>
+              <span class="manual-chapter-title">{{ chapter.title }}</span>
+            </a>
+          </li>
+        {% endfor %}
+      </ol>
+    </nav>
+  </div>
+</aside>
