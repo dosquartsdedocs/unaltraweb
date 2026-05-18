@@ -1,0 +1,98 @@
+name: Reusable site deploy
+
+on:
+  workflow_call:
+    inputs:
+      ruby-version:
+        description: Ruby version used to build the Jekyll site.
+        required: false
+        type: string
+        default: "3.3.5"
+      python-version:
+        description: Python version used by optional unaltraweb tooling.
+        required: false
+        type: string
+        default: "3.13"
+      install-python-requirements:
+        description: Install requirements.txt from the site repository when present.
+        required: false
+        type: boolean
+        default: true
+      build-command:
+        description: Optional custom command that builds the site into the output folder.
+        required: false
+        type: string
+        default: ""
+      output-folder:
+        description: Folder to publish.
+        required: false
+        type: string
+        default: "_site"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby-version }}
+          bundler-cache: true
+
+      - name: Setup Python
+        if: ${{ inputs.install-python-requirements }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: pip
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+
+      - name: Install Python dependencies
+        if: ${{ inputs.install-python-requirements }}
+        run: |
+          if test -f requirements.txt; then
+            python -m pip install -r requirements.txt
+          fi
+
+      - name: Build
+        run: |
+          if test -n "${{ inputs.build-command }}"; then
+            ${{ inputs.build-command }}
+          else
+            core_config="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print File.join(spec.full_gem_path, "_config.yml")')"
+            bundle exec jekyll build --config "$core_config,_config.yml"
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ inputs.output-folder }}
+
+  deploy:
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
