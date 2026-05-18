@@ -2,7 +2,12 @@
 {%- assign default_lang = site.default_lang | default: site.lang -%}
 
 {%- if paginator and paginator.posts -%}
-  {%- assign archive_posts = paginator.posts -%}
+  {%- assign localized_posts = paginator.posts | where: 'lang', current_lang -%}
+  {%- assign fallback_posts = paginator.posts | where_exp: 'post', 'post.lang == nil' -%}
+  {%- assign archive_posts = localized_posts | concat: fallback_posts -%}
+  {%- if archive_posts.size == 0 -%}
+    {%- assign archive_posts = paginator.posts -%}
+  {%- endif -%}
 {%- else -%}
   {%- assign localized_posts = site.posts | where: 'lang', current_lang -%}
   {%- assign fallback_posts = site.posts | where_exp: 'post', 'post.lang == nil' -%}
@@ -13,9 +18,19 @@
   {%- endif -%}
   {%- assign archive_posts = localized_posts | sort: 'date' | reverse -%}
 {%- endif -%}
+{%- assign archive_posts_size = archive_posts | size -%}
 
 <div class="blog-archive">
-  {% if archive_posts.size > 0 %}
+  {% if archive_posts_size > 0 %}
+    {% if paginator and paginator.total_pages > 1 %}
+      {% assign newest_post = archive_posts | first %}
+      {% assign oldest_post = archive_posts | last %}
+      {% capture range_from_text %}{% include t.liquid key='blog.archive_range_from' default='Posts from' %}{% endcapture %}
+      {% capture range_to_text %}{% include t.liquid key='blog.archive_range_to' default='to' %}{% endcapture %}
+      {% capture newest_date %}{% include localized-date.liquid date=newest_post.date format_key='date.formats.medium' default_format='%b %-d, %Y' %}{% endcapture %}
+      {% capture oldest_date %}{% include localized-date.liquid date=oldest_post.date format_key='date.formats.medium' default_format='%b %-d, %Y' %}{% endcapture %}
+      <p class="blog-archive-range">{{ range_from_text | strip }} {{ oldest_date | strip }} {{ range_to_text | strip }} {{ newest_date | strip }}.</p>
+    {% endif %}
     {% for item in archive_posts %}
       <article class="blog-archive-item">
         <p class="blog-archive-meta">

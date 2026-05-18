@@ -13,6 +13,7 @@ footer:
   made_with: Made with
   using_profile: using the
   profile_word: profile
+  based_on: based on
   project_by: A dosquartsdedocs project for academic websites.
   powered_by: Powered by
   and: and
@@ -96,6 +97,8 @@ pagination:
 
 blog:
   empty: No blog posts yet.
+  archive_range_from: Posts from
+  archive_range_to: to
 
 projects:
   code_repository: Code repository

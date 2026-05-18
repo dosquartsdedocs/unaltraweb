@@ -281,6 +281,7 @@ pagination:
   collection: posts
   per_page: 4
   permalink: /page/:num/
+  title: ":title"
   sort_field: date
   sort_reverse: true
 ```
@@ -290,10 +291,11 @@ pagination:
 title: Blog
 pagination:
   enabled: true
+  locale: en
 ---
 ```
 
-`blog-list.liquid` uses `paginator.posts` when Jekyll generates paginated pages and falls back to the localized post archive otherwise.
+`blog-list.liquid` uses `paginator.posts` when Jekyll generates paginated pages and falls back to the localized post archive otherwise. For multilingual sites, set the page-level `pagination.locale` and the same `locale` value in each post front matter.
 
 ## Project Card Images
 

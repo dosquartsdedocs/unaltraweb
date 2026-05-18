@@ -13,6 +13,7 @@ footer:
   made_with: Hecho con
   using_profile: con el perfil
   profile_word: ""
+  based_on: basado en
   project_by: Un proyecto de dosquartsdedocs para webs académicas.
   powered_by: Funciona con
   and: y
@@ -96,6 +97,8 @@ pagination:
 
 blog:
   empty: Todavía no hay entradas del blog.
+  archive_range_from: Entradas del
+  archive_range_to: al
 
 projects:
   code_repository: Repositorio de código

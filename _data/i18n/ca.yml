@@ -13,6 +13,7 @@ footer:
   made_with: Fet amb
   using_profile: amb el perfil
   profile_word: ""
+  based_on: basat en
   project_by: Un projecte de dosquartsdedocs per a webs acadèmiques.
   powered_by: Funciona amb
   and: i
@@ -96,6 +97,8 @@ pagination:
 
 blog:
   empty: Encara no hi ha entrades al blog.
+  archive_range_from: Entrades del
+  archive_range_to: al
 
 projects:
   code_repository: Repositori de codi
