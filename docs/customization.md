@@ -187,6 +187,19 @@ For multi-panel teaching figures, use a compact subfigure block. The layout stri
 
 This renders one numbered figure with panel labels `a`, `b`, `c`; the contained images remain ordinary Markdown image declarations.
 
+Manual chapters can also number teaching tables with the same localized counter style. Wrap a regular Markdown table in a table block and put the caption in the opening line:
+
+```markdown
+::: table "Weekly work rhythm"
+| Week | Focus | Output |
+| --- | --- | --- |
+| 1 | Orientation | Reading notes |
+| 2 | Data setup | Working project folder |
+:::
+```
+
+This renders a numbered table with localized labels such as `Table 1.`, `Taula 1.` or `Tabla 1.`. Tables and figures keep separate counters.
+
 The manual profile also writes `assets/js/manual-search-index.json` during the build so the sidebar search can find terms anywhere in the localized manual.
 
 Mermaid source references ending in `.mmd` are rewritten to `.mmd.edited.svg` when that file exists, or `.mmd.svg` otherwise. Manual Mermaid figures also receive diagram surfaces tuned for light, dark and sepia themes. This keeps generated diagrams and hand-edited diagrams readable in the same Markdown:
