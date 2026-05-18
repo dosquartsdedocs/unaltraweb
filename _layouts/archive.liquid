@@ -27,7 +27,7 @@ layout: default
       <table class="table table-sm table-borderless">
         {% for document in page.documents %}
           <tr>
-            <th scope="row">{{ document.date | date: '%Y-%m-%d' }}</th>
+            <th scope="row">{% include localized-date.liquid date=document.date format_key='date.formats.short' default_format='%Y-%m-%d' %}</th>
             <td>
               {% if document.redirect == blank %}
                 <a class="post-link" href="{{ document.url | relative_url }}">{{ document.title }}</a>

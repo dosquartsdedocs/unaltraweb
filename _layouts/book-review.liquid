@@ -142,7 +142,7 @@ layout: default
           {% if localized_isbn %}<li><strong>{{ isbn_text | strip }}:</strong> {{ localized_isbn }}</li>{% endif %}
           {% if localized_doi %}<li><strong>{{ doi_text | strip }}:</strong> {{ localized_doi }}</li>{% endif %}
           {% if localized_book_language %}<li><strong>{{ language_text | strip }}:</strong> {{ localized_book_language }}</li>{% endif %}
-          {% if localized_review_date %}<li><strong>{{ reviewed_on_text | strip }}:</strong> {{ localized_review_date | date: "%Y-%m-%d" }}</li>{% endif %}
+          {% if localized_review_date %}<li><strong>{{ reviewed_on_text | strip }}:</strong> {% include localized-date.liquid date=localized_review_date format_key='date.formats.medium' default_format='%b %-d, %Y' %}</li>{% endif %}
           {% if localized_status_raw %}<li><strong>{{ status_text | strip }}:</strong> {{ localized_status | strip }}</li>{% endif %}
           {% if localized_tags and localized_tags.size > 0 %}<li><strong>{{ topics_text | strip }}:</strong> {{ localized_tags | join: ", " }}</li>{% endif %}
         </ul>

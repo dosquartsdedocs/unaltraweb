@@ -1,0 +1,5 @@
+{%- assign date_value = include.date -%}
+{%- assign format_key = include.format_key | default: 'date.formats.default' -%}
+{%- assign default_format = include.default_format | default: '%Y-%m-%d' -%}
+{%- capture localized_date_format -%}{%- include t.liquid key=format_key default=default_format -%}{%- endcapture -%}
+{{- date_value | date: localized_date_format | strip -}}

@@ -10,11 +10,26 @@ footer:
   impressum: Impressum
   last_updated: Last updated
   copyright: Copyright
-  text: >
-    Powered by <a href="https://jekyllrb.com/" target="_blank">Jekyll</a>, based on <a href="https://github.com/alshedivat/al-folio">al-folio</a>.
-    Hosted by <a href="https://pages.github.com/" target="_blank">GitHub Pages</a>.
-    Photos from <a href="https://unsplash.com" target="_blank">Unsplash</a>.
-  last_updated_format: "%Y-%m-%d"
+  made_with: Made with
+  using_profile: using the
+  profile_word: profile
+  project_by: A dosquartsdedocs project for academic websites.
+  powered_by: Powered by
+  and: and
+  last_updated_format: "%B %-d, %Y"
+
+date:
+  formats:
+    short: "%-d %b %Y"
+    medium: "%b %-d, %Y"
+    long: "%B %-d, %Y"
+
+profiles:
+  personal: personal
+  project: project
+  software: software
+  manual: manual
+  course: course
 
 search:
   placeholder: Type to start searching

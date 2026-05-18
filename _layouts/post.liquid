@@ -9,6 +9,10 @@ layout: default
 {% capture by_text %}{% include t.liquid key='post.by' default='by' %}{% endcapture %}
 {% capture updated_on_text %}{% include t.liquid key='post.last_updated_on' default='last updated on' %}{% endcapture %}
 {% capture references_text %}{% include t.liquid key='post.references' default='References' %}{% endcapture %}
+{% capture published_date %}{% include localized-date.liquid date=page.date format_key='date.formats.long' default_format='%B %-d, %Y' %}{% endcapture %}
+{% if page.last_updated %}
+  {% capture updated_date %}{% include localized-date.liquid date=page.last_updated format_key='date.formats.long' default_format='%B %-d, %Y' %}{% endcapture %}
+{% endif %}
 
 {% if page._styles %}
   <style type="text/css">
@@ -20,9 +24,9 @@ layout: default
   <header class="post-header">
     <h1 class="post-title">{{ page.title }}</h1>
     <p class="post-meta">
-      {{ created_on_text | strip }} {{ page.date | date: '%Y-%m-%d' }}
+      {{ created_on_text | strip }} {{ published_date | strip }}
       {% if page.author %}{{ by_text | strip }} {{ page.author }}{% endif %}
-      {% if page.last_updated %}, {{ updated_on_text | strip }} {{ page.last_updated | date: '%Y-%m-%d' }}{% endif %}
+      {% if page.last_updated %}, {{ updated_on_text | strip }} {{ updated_date | strip }}{% endif %}
       {% if page.meta %}• {{ page.meta }}{% endif %}
     </p>
     <p class="post-tags">

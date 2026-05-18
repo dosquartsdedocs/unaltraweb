@@ -1,14 +1,31 @@
 {% capture impressum_text %}{% include t.liquid key='footer.impressum' default='Impressum' %}{% endcapture %}
 {% capture last_updated_text %}{% include t.liquid key='footer.last_updated' default='Last updated' %}{% endcapture %}
 {% capture copyright_text %}{% include t.liquid key='footer.copyright' default='Copyright' %}{% endcapture %}
-{% capture footer_text %}{% include t.liquid key='footer.text' default=site.footer_text %}{% endcapture %}
-{% capture last_updated_format %}{% include t.liquid key='footer.last_updated_format' default='%Y-%m-%d' %}{% endcapture %}
+{% capture last_updated_format %}{% include t.liquid key='footer.last_updated_format' default='%B %-d, %Y' %}{% endcapture %}
+{% capture made_with_text %}{% include t.liquid key='footer.made_with' default='Made with' %}{% endcapture %}
+{% capture using_profile_text %}{% include t.liquid key='footer.using_profile' default='using the' %}{% endcapture %}
+{% capture profile_word_text %}{% include t.liquid key='footer.profile_word' default='profile' %}{% endcapture %}
+{% capture project_by_text %}{% include t.liquid key='footer.project_by' default='A dosquartsdedocs project for academic websites.' %}{% endcapture %}
+{% capture powered_by_text %}{% include t.liquid key='footer.powered_by' default='Powered by' %}{% endcapture %}
+{% capture and_text %}{% include t.liquid key='footer.and' default='and' %}{% endcapture %}
+{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign profile_key = 'profiles.' | append: current_profile %}
+{% capture profile_label %}{% include t.liquid key=profile_key default=current_profile %}{% endcapture %}
+{% assign profile_word = profile_word_text | strip %}
+{% assign copyright_holder = site.copyright_holder | default: site.author.name | default: site.title %}
 
 {% capture footer_contents %}
   &copy; {{ copyright_text | strip }} {{ site.time | date: '%Y' }}
-  {{ site.first_name }}
-  {{ site.middle_name }}
-  {{ site.last_name }}. {{ footer_text | strip }}
+  {{ copyright_holder }}.
+  {% if site.footer_text %}
+    {{ site.footer_text }}
+  {% else %}
+    {{ made_with_text | strip }} <a href="https://github.com/dosquartsdedocs/unaltraweb">unaltraweb</a>
+    {{ using_profile_text | strip }} {{ profile_label | strip }}{% if profile_word != '' %} {{ profile_word }}{% endif %}.
+    {{ project_by_text | strip }}
+    {{ powered_by_text | strip }} <a href="https://jekyllrb.com/" target="_blank" rel="external nofollow noopener">Jekyll</a>
+    {{ and_text | strip }} <a href="https://pages.github.com/" target="_blank" rel="external nofollow noopener">GitHub Pages</a>.
+  {% endif %}
   {% if site.impressum_path %}
     <a href="{{ site.url }}{{ site.baseurl }}{{ site.impressum_path }}">{{ impressum_text | strip }}</a>.
   {% endif %}

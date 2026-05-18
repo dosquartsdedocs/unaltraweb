@@ -14,7 +14,16 @@
 {% assign projects_page = site.pages | where: 'ref', 'projects' | where: 'lang', current_lang | first %}
 {% assign blog_page = site.pages | where: 'ref', 'blog' | where: 'lang', current_lang | first %}
 
-{% assign visible_projects = site.projects | where_exp: 'project', 'project.lang == current_lang or project.lang == nil' | sort: 'importance' %}
+{% assign sorted_projects = site.projects | sort: 'importance' %}
+{% assign localized_projects = sorted_projects | where: 'lang', current_lang %}
+{% assign neutral_projects = sorted_projects | where_exp: 'item', 'item.lang == nil or item.lang == ""' %}
+{% assign visible_projects = localized_projects | concat: neutral_projects %}
+{% if current_lang != default_lang and visible_projects.size == neutral_projects.size %}
+  {% assign default_projects = sorted_projects | where: 'lang', default_lang %}
+  {% assign visible_projects = default_projects | concat: neutral_projects %}
+{% endif %}
+{% assign visible_projects = visible_projects | sort: 'importance' %}
+{% assign visible_project_count = visible_projects | size %}
 {% assign localized_posts = site.posts | where: 'lang', current_lang %}
 {% assign fallback_posts = site.posts | where_exp: 'post', 'post.lang == nil' %}
 {% assign localized_posts = localized_posts | concat: fallback_posts %}
@@ -36,15 +45,19 @@
   {% endunless %}
 
   {% unless site.unaltraweb.features.projects == false %}
-    {% if visible_projects.size > 0 %}
+    {% if visible_project_count > 0 %}
       <section class="profile-highlight-section profile-highlight-projects">
         <div class="profile-highlight-heading">
           <h2>{{ active_projects_text | strip }}</h2>
           {% if projects_page %}<a href="{{ projects_page.url | relative_url }}">{{ view_all_projects_text | strip }}</a>{% endif %}
         </div>
         <div class="projects row row-cols-1 row-cols-lg-2 g-4">
-          {% for project in visible_projects limit: projects_limit %}
-            {% include projects.liquid %}
+          {% assign rendered_projects = 0 %}
+          {% for highlight_project in visible_projects %}
+            {% if rendered_projects < projects_limit %}
+              {% include projects.liquid project=highlight_project %}
+              {% assign rendered_projects = rendered_projects | plus: 1 %}
+            {% endif %}
           {% endfor %}
         </div>
       </section>
@@ -61,7 +74,7 @@
         <ul class="profile-post-list">
           {% for item in latest_posts limit: posts_limit %}
             <li>
-              <time datetime="{{ item.date | date_to_xmlschema }}">{{ item.date | date: '%Y-%m-%d' }}</time>
+              <time datetime="{{ item.date | date_to_xmlschema }}">{% include localized-date.liquid date=item.date format_key='date.formats.short' default_format='%Y-%m-%d' %}</time>
               <a href="{{ item.url | relative_url }}">{{ item.title }}</a>
             </li>
           {% endfor %}

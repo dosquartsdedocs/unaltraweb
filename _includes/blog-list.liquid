@@ -19,7 +19,7 @@
     {% for item in archive_posts %}
       <article class="blog-archive-item">
         <p class="blog-archive-meta">
-          <time datetime="{{ item.date | date_to_xmlschema }}">{{ item.date | date: '%Y-%m-%d' }}</time>
+          <time datetime="{{ item.date | date_to_xmlschema }}">{% include localized-date.liquid date=item.date format_key='date.formats.medium' default_format='%b %-d, %Y' %}</time>
           {% if item.categories and item.categories.size > 0 %}<span>{{ item.categories | join: ', ' }}</span>{% endif %}
         </p>
         <h2 class="blog-archive-title">

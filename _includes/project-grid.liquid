@@ -1,0 +1,26 @@
+{% assign current_lang = include.lang | default: page.lang | default: site.default_lang | default: site.lang %}
+{% assign default_lang = site.default_lang | default: site.lang | default: 'en' %}
+{% assign has_project_limit = false %}
+{% if include.limit %}
+  {% assign has_project_limit = true %}
+  {% assign project_limit = include.limit | plus: 0 %}
+{% endif %}
+{% assign sorted_projects = site.projects | sort: 'importance' %}
+{% assign localized_projects = sorted_projects | where: 'lang', current_lang %}
+{% assign neutral_projects = sorted_projects | where_exp: 'item', 'item.lang == nil or item.lang == ""' %}
+{% assign display_projects = localized_projects | concat: neutral_projects %}
+{% if current_lang != default_lang and display_projects.size == neutral_projects.size %}
+  {% assign default_projects = sorted_projects | where: 'lang', default_lang %}
+  {% assign display_projects = default_projects | concat: neutral_projects %}
+{% endif %}
+{% assign display_projects = display_projects | sort: 'importance' %}
+{% assign rendered_projects = 0 %}
+
+<div class="projects row row-cols-1 row-cols-md-2 g-4">
+  {% for grid_project in display_projects %}
+    {% if has_project_limit == false or rendered_projects < project_limit %}
+      {% include projects.liquid project=grid_project %}
+      {% assign rendered_projects = rendered_projects | plus: 1 %}
+    {% endif %}
+  {% endfor %}
+</div>

@@ -29,7 +29,7 @@
 
         {% for item in latest_posts limit: latest_posts_limit %}
           <tr>
-            <th scope="row" style="width: 20%">{{ item.date | date: '%Y-%m-%d' }}</th>
+            <th scope="row" style="width: 20%">{% include localized-date.liquid date=item.date format_key='date.formats.short' default_format='%Y-%m-%d' %}</th>
             <td>
               {% if item.redirect == blank %}
                 <a class="news-title" href="{{ item.url | relative_url }}">{{ item.title }}</a>

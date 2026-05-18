@@ -10,11 +10,26 @@ footer:
   impressum: Avís legal
   last_updated: Darrera actualització
   copyright: Drets d'autor
-  text: >
-    Funciona amb <a href="https://jekyllrb.com/" target="_blank">Jekyll</a>, basat en <a href="https://github.com/alshedivat/al-folio">al-folio</a>.
-    Allotjat a <a href="https://pages.github.com/" target="_blank">GitHub Pages</a>.
-    Fotos d'<a href="https://unsplash.com" target="_blank">Unsplash</a>.
+  made_with: Fet amb
+  using_profile: amb el perfil
+  profile_word: ""
+  project_by: Un projecte de dosquartsdedocs per a webs acadèmiques.
+  powered_by: Funciona amb
+  and: i
   last_updated_format: "%d/%m/%Y"
+
+date:
+  formats:
+    short: "%d/%m/%Y"
+    medium: "%d/%m/%Y"
+    long: "%d/%m/%Y"
+
+profiles:
+  personal: personal
+  project: projecte
+  software: programari
+  manual: manual
+  course: curs
 
 search:
   placeholder: Escriu per cercar
