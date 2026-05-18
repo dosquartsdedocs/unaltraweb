@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "cgi"
-require "fileutils"
 require "json"
 
 module Unaltraweb
@@ -19,12 +18,14 @@ module Unaltraweb
       (manual["collection"] || "chapters").to_s
     end
 
-    def write(site)
+    def add_page(site)
       return unless active_profile(site) == "manual"
 
-      target = site.in_dest_dir("assets/js/manual-search-index.json")
-      FileUtils.mkdir_p(File.dirname(target))
-      File.write(target, JSON.pretty_generate(entries(site)))
+      page = Jekyll::PageWithoutAFile.new(site, site.source, "assets/js", "manual-search-index.json")
+      page.content = JSON.pretty_generate(entries(site))
+      page.data["layout"] = nil
+      page.data["sitemap"] = false
+      site.pages << page
     end
 
     def entries(site)
@@ -65,6 +66,11 @@ module Unaltraweb
   end
 end
 
-Jekyll::Hooks.register :site, :post_write do |site|
-  Unaltraweb::ManualSearchIndex.write(site)
+class UnaltrawebManualSearchIndexGenerator < Jekyll::Generator
+  safe true
+  priority :low
+
+  def generate(site)
+    Unaltraweb::ManualSearchIndex.add_page(site)
+  end
 end

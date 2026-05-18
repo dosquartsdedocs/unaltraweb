@@ -9,17 +9,22 @@
 
 {% if home_page %}
   {% assign home_title = home_page.title %}
+  {% assign home_nav_title = home_page.nav_title | default: home_page.nav_label %}
   {% assign home_url = home_page.url %}
 {% else %}
   {% assign home_title = site.title %}
   {% assign home_url = '/' | append: current_lang | append: '/' %}
 {% endif %}
 
+{% capture home_default_text %}{% include t.liquid key='header.home' default='Home' %}{% endcapture %}
 {% capture toggle_navigation_text %}{% include t.liquid key='header.toggle_navigation' default='Toggle navigation' %}{% endcapture %}
 {% capture current_text %}{% include t.liquid key='header.current' default='current' %}{% endcapture %}
 {% capture search_text %}{% include t.liquid key='header.search' default='Search' %}{% endcapture %}
 {% capture change_theme_text %}{% include t.liquid key='header.change_theme' default='Change theme' %}{% endcapture %}
 {% capture language_text %}{% include t.liquid key='header.language' default='Language' %}{% endcapture %}
+{% if home_nav_title == nil or home_nav_title == '' %}
+  {% assign home_nav_title = home_default_text | strip %}
+{% endif %}
 
 <header>
   <nav id="navbar" class="navbar navbar-light navbar-expand-sm {% if site.navbar_fixed %}fixed-top{% else %}sticky-top{% endif %}" role="navigation">
@@ -79,7 +84,7 @@
           {% unless current_profile == 'manual' %}
             <li class="nav-item {% if page.ref == 'home' %}active{% endif %}">
               <a class="nav-link" href="{{ home_url | relative_url }}">
-                {{- home_title -}}
+                {{- home_nav_title -}}
                 {% if page.ref == 'home' %}
                   <span class="sr-only">({{ current_text | strip }})</span>
                 {% endif %}

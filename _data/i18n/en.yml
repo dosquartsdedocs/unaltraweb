@@ -1,4 +1,5 @@
 header:
+  home: Home
   toggle_navigation: Toggle navigation
   current: current
   search: Search
