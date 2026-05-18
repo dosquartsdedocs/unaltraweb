@@ -200,6 +200,29 @@ Manual chapters can also number teaching tables with the same localized counter 
 
 This renders a numbered table with localized labels such as `Table 1.`, `Taula 1.` or `Tabla 1.`. Tables and figures keep separate counters.
 
+Use fenced code blocks for programming examples. The theme uses Rouge, so common TIG languages such as SQL/PostGIS, Python, R and Haskell get syntax highlighting when the fence includes the language name:
+
+````markdown
+Inline code like `ST_Transform` stays inside the paragraph.
+
+```sql
+SELECT ST_Area(geom::geography) AS area_m2
+FROM protected_areas;
+```
+
+```python
+import geopandas as gpd
+```
+
+```r
+library(sf)
+```
+
+```haskell
+manhattan :: Int -> Int -> Int
+```
+````
+
 The manual profile also writes `assets/js/manual-search-index.json` during the build so the sidebar search can find terms anywhere in the localized manual.
 
 Mermaid source references ending in `.mmd` are rewritten to `.mmd.edited.svg` when that file exists, or `.mmd.svg` otherwise. Manual Mermaid figures also receive diagram surfaces tuned for light, dark and sepia themes. This keeps generated diagrams and hand-edited diagrams readable in the same Markdown:
