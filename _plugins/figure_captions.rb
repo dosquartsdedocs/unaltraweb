@@ -44,6 +44,15 @@ module Unaltraweb
       label.to_s
     end
 
+    def table_label_for(site, lang)
+      i18n = site.data["i18n"] || {}
+      lang_data = i18n[lang] || i18n[site.config["default_lang"]] || {}
+      label = lang_data.dig("tables", "label") if lang_data.respond_to?(:dig)
+      label ||= lang_data["table"]
+      label ||= "Table"
+      label.to_s
+    end
+
     def transform_markdown_images(text, lang, label)
       out = +""
       source = text.to_s
@@ -97,6 +106,27 @@ module Unaltraweb
       out
     end
 
+    def transform_markdown_tables(text, lang, label)
+      out = +""
+      source = text.to_s
+      index = 0
+      count = 0
+
+      while index < source.length
+        if (block = parse_table_block(source, index))
+          html, count = table_html(block, lang, label, count)
+          out << "\n\n" << html << "\n\n"
+          index = block[:end_idx]
+          next
+        end
+
+        out << source[index]
+        index += 1
+      end
+
+      out
+    end
+
     def parse_subfigures_block(source, start_index)
       return nil unless line_start?(source, start_index) && source[start_index, 3] == ":::"
 
@@ -112,6 +142,26 @@ module Unaltraweb
       {
         layout: match[1].to_s,
         caption: match[2].to_s,
+        body: source[body_start...closing.begin(0)],
+        raw: source[start_index...closing.end(0)],
+        end_idx: closing.end(0)
+      }
+    end
+
+    def parse_table_block(source, start_index)
+      return nil unless line_start?(source, start_index) && source[start_index, 3] == ":::"
+
+      line_end = source.index("\n", start_index) || source.length
+      opening = source[start_index...line_end]
+      match = opening.match(/\A:::\s*table(?:\s+"([^"]+)")?\s*\z/)
+      return nil unless match
+
+      body_start = line_end == source.length ? line_end : line_end + 1
+      closing = source.match(/^:::\s*$/m, body_start)
+      return nil unless closing
+
+      {
+        caption: match[1].to_s,
         body: source[body_start...closing.begin(0)],
         raw: source[start_index...closing.end(0)],
         end_idx: closing.end(0)
@@ -158,6 +208,108 @@ module Unaltraweb
       HTML
 
       [html, count]
+    end
+
+    def table_html(block, lang, label, count)
+      parsed_table = parse_markdown_table(block[:body])
+      return [block[:raw], count] unless parsed_table
+
+      count += 1
+      caption = render_inline_markdown(block[:caption]).to_s.strip
+      caption_html = caption.empty? ? "" : %(<figcaption class="md-table-caption"><span class="figlabel">#{h(label)} #{count}.</span> #{caption}</figcaption>)
+      thead = table_row_html(parsed_table[:headers], "th", parsed_table[:alignments])
+      tbody = parsed_table[:rows].map { |row| table_row_html(row, "td", parsed_table[:alignments]) }.join("\n")
+
+      html = <<~HTML.strip
+        <figure id="tbl-#{h(lang)}-#{count}" class="md-table">
+          #{caption_html}
+          <div class="md-table-inner">
+            <table class="md-table-element">
+              <thead>
+                #{thead}
+              </thead>
+              <tbody>
+                #{tbody}
+              </tbody>
+            </table>
+          </div>
+        </figure>
+      HTML
+
+      [html, count]
+    end
+
+    def parse_markdown_table(body)
+      lines = body.to_s.lines.map(&:rstrip)
+      lines.shift while lines.first&.strip&.empty?
+      lines.pop while lines.last&.strip&.empty?
+      return nil if lines.length < 2
+
+      headers = split_table_row(lines[0])
+      alignments = parse_table_alignment(lines[1], headers.length)
+      return nil unless alignments
+
+      rows = lines[2..].to_a.reject { |line| line.strip.empty? }.map { |line| normalize_table_row(split_table_row(line), headers.length) }
+      {
+        headers: normalize_table_row(headers, headers.length),
+        alignments: alignments,
+        rows: rows
+      }
+    end
+
+    def split_table_row(line)
+      source = line.to_s.strip
+      source = source[1..] if source.start_with?("|")
+      source = source[0...-1] if source.end_with?("|") && !source.end_with?("\\|")
+
+      cells = []
+      current = +""
+      escaped = false
+      source.each_char do |char|
+        if char == "|" && !escaped
+          cells << current.strip
+          current = +""
+        else
+          current << char
+        end
+        escaped = char == "\\" && !escaped
+      end
+      cells << current.strip
+      cells.map { |cell| cell.gsub("\\|", "|") }
+    end
+
+    def parse_table_alignment(line, column_count)
+      cells = normalize_table_row(split_table_row(line), column_count)
+      return nil if cells.empty?
+
+      cells.map do |cell|
+        marker = cell.strip
+        return nil unless marker.match?(/\A:?-{3,}:?\z/)
+
+        if marker.start_with?(":") && marker.end_with?(":")
+          "center"
+        elsif marker.end_with?(":")
+          "right"
+        elsif marker.start_with?(":")
+          "left"
+        end
+      end
+    end
+
+    def normalize_table_row(cells, column_count)
+      row = cells.first(column_count)
+      row << "" while row.length < column_count
+      row
+    end
+
+    def table_row_html(cells, tag, alignments)
+      content = cells.each_with_index.map do |cell, index|
+        align = alignments[index]
+        align_attr = align.to_s.empty? ? "" : %( style="text-align: #{h(align)}")
+        %(<#{tag}#{align_attr}>#{render_inline_markdown(cell.to_s.strip)}</#{tag}>)
+      end.join
+
+      "<tr>#{content}</tr>"
     end
 
     def parse_subfigure_images(body)
@@ -324,7 +476,7 @@ module Unaltraweb
     def wrap_html_images(output, lang, label)
       return output unless output.to_s.include?("<img")
 
-      count = output.scan(/<figure\b/i).size
+      count = output.scan(/<figure\b[^>]*\bclass=["'][^"']*\bmd-figure\b/i).size
       output.gsub(%r{<p>\s*(<img\b[^>]*>)\s*</p>}mi) do
         img_tag = Regexp.last_match(1)
         next Regexp.last_match(0) if img_tag =~ /\bdata-no-figure\s*=\s*["']true["']/i
@@ -440,8 +592,10 @@ class UnaltrawebFigureCaptionGenerator < Jekyll::Generator
 
       collection.docs.each do |doc|
         lang = Unaltraweb::FigureCaptions.detect_lang(doc)
-        label = Unaltraweb::FigureCaptions.label_for(site, lang)
-        doc.content = Unaltraweb::FigureCaptions.transform_markdown_images(doc.content, lang, label)
+        figure_label = Unaltraweb::FigureCaptions.label_for(site, lang)
+        table_label = Unaltraweb::FigureCaptions.table_label_for(site, lang)
+        doc.content = Unaltraweb::FigureCaptions.transform_markdown_images(doc.content, lang, figure_label)
+        doc.content = Unaltraweb::FigureCaptions.transform_markdown_tables(doc.content, lang, table_label)
       end
     end
   end

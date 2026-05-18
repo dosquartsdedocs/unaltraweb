@@ -204,3 +204,6 @@ manual:
   chapter: Capítulo
 figures:
   label: Figura
+
+tables:
+  label: Tabla

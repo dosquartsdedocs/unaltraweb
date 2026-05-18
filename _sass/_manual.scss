@@ -367,6 +367,37 @@
   overflow-x: auto;
 }
 
+.md-table {
+  margin: 1.8rem 0;
+}
+
+.md-table-caption {
+  margin-bottom: 0.55rem;
+  color: var(--global-text-color-light);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.md-table-inner {
+  overflow-x: auto;
+  border: 1px solid var(--global-divider-color);
+  border-radius: 6px;
+  background: var(--global-card-bg-color);
+}
+
+.manual-content .md-table table {
+  display: table;
+  width: 100%;
+  margin: 0;
+  overflow: visible;
+}
+
+.manual-content .md-table th,
+.manual-content .md-table td {
+  padding: 0.65rem 0.75rem;
+  vertical-align: top;
+}
+
 .manual-chapter-header {
   margin-bottom: 1.4rem;
   padding-bottom: 1rem;

@@ -204,3 +204,6 @@ manual:
   chapter: Capítol
 figures:
   label: Figura
+
+tables:
+  label: Taula
