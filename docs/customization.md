@@ -200,7 +200,7 @@ Manual chapters can also number teaching tables with the same localized counter 
 
 This renders a numbered table with localized labels such as `Table 1.`, `Taula 1.` or `Tabla 1.`. Tables and figures keep separate counters.
 
-Use fenced code blocks for programming examples. The theme uses Rouge, so common TIG languages such as SQL/PostGIS, Python, R and Haskell get syntax highlighting when the fence includes the language name:
+Use fenced code blocks for programming examples. The theme uses Rouge, so common TIG languages such as Bash/Linux shell, Windows PowerShell, SQL/PostGIS, Python, R and Haskell get syntax highlighting when the fence includes the language name:
 
 ````markdown
 Inline code like `ST_Transform` stays inside the paragraph.
@@ -208,6 +208,14 @@ Inline code like `ST_Transform` stays inside the paragraph.
 ```sql
 SELECT ST_Area(geom::geography) AS area_m2
 FROM protected_areas;
+```
+
+```bash
+ogrinfo data/raw/roads.gpkg -so roads
+```
+
+```powershell
+ogrinfo data\raw\roads.gpkg -so roads
 ```
 
 ```python
