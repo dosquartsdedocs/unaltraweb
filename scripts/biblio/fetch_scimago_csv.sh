@@ -5,6 +5,7 @@ set -euo pipefail
 OUT_PATH=".cache/scimago/scimagojr.csv"
 URL="https://raw.githubusercontent.com/ikashnitsky/sjrdata/master/data/sjr_journals.rda"
 INPUT_PATH=""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -96,7 +97,9 @@ else
   TMP_EXT="${URL##*.}"
   echo "Downloading Scimago source from: $URL"
   if ! curl -fsSL "$URL" -A "Mozilla/5.0" -o "$TMP_FILE"; then
-    echo "Download failed. Use --input path/to/local.(csv|rda)" >&2
+    echo "Scimago download failed from: $URL" >&2
+    echo "The upstream URL may be unavailable, moved, or blocked by the network." >&2
+    echo "Retry later or use --input path/to/local.(csv|rda)." >&2
     rm -f "$TMP_FILE"
     exit 1
   fi
@@ -119,5 +122,5 @@ else
   esac
 fi
 
-python3 scripts/biblio/metrics_update.py --validate-scimago "$OUT_PATH"
+python3 "$SCRIPT_DIR/metrics_update.py" --validate-scimago "$OUT_PATH"
 echo "Scimago CSV ready: $OUT_PATH"

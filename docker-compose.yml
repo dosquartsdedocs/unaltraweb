@@ -1,4 +1,4 @@
-# this file uses prebuilt image in dockerhub
+# Uses the inherited al-folio Docker image until an unaltraweb image exists.
 name: unaltraweb
 
 services:

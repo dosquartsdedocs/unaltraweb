@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if page.title %}{{ page.title }} | {% endif %}{{ site.title }}</title>
+    <meta name="description" content="{{ page.description | default: site.description | escape }}">
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbfaf7;
+        --panel: #ffffff;
+        --text: #1f2933;
+        --muted: #5b6673;
+        --accent: #2f6f5e;
+        --border: #d9ded8;
+        --code: #f2f5f3;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111827;
+          --panel: #1f2937;
+          --text: #f3f4f6;
+          --muted: #c2c8d0;
+          --accent: #8fd0b6;
+          --border: #374151;
+          --code: #172033;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        background: radial-gradient(circle at top left, rgba(47, 111, 94, 0.13), transparent 30rem), var(--bg);
+        font: 16px/1.65 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .site-shell {
+        width: min(1080px, calc(100% - 2rem));
+        margin: 0 auto;
+      }
+
+      header {
+        padding: 2rem 0 1rem;
+      }
+
+      .brand {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .brand a {
+        color: var(--text);
+        font-weight: 750;
+        text-decoration: none;
+      }
+
+      nav {
+        display: flex;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+      }
+
+      nav a {
+        padding: 0.35rem 0.65rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--panel) 80%, transparent);
+        text-decoration: none;
+      }
+
+      main {
+        margin: 1.25rem 0 4rem;
+        padding: clamp(1.25rem, 4vw, 3rem);
+        border: 1px solid var(--border);
+        border-radius: 1.25rem;
+        background: color-mix(in srgb, var(--panel) 92%, transparent);
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+      }
+
+      h1 {
+        max-width: 12ch;
+        margin-top: 0;
+        font-size: clamp(2.5rem, 9vw, 5.75rem);
+        line-height: 0.92;
+        letter-spacing: -0.06em;
+      }
+
+      h2 {
+        margin-top: 2rem;
+      }
+
+      p,
+      li {
+        max-width: 72ch;
+      }
+
+      .lede {
+        max-width: 64ch;
+        color: var(--muted);
+        font-size: 1.2rem;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin: 1.5rem 0;
+      }
+
+      .card {
+        padding: 1rem;
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        background: var(--panel);
+      }
+
+      .card h3 {
+        margin-top: 0;
+      }
+
+      code,
+      pre {
+        background: var(--code);
+        border-radius: 0.35rem;
+      }
+
+      code {
+        padding: 0.1rem 0.25rem;
+      }
+
+      pre {
+        overflow: auto;
+        padding: 1rem;
+      }
+
+      footer {
+        margin: 2rem 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="site-shell">
+      <header>
+        <div class="brand">
+          <a href="{{ '/' | relative_url }}">unaltraweb</a>
+          <span>Reusable Jekyll core</span>
+        </div>
+        <nav aria-label="Documentation navigation">
+          <a href="{{ '/' | relative_url }}">Overview</a>
+          <a href="{{ '/profiles/' | relative_url }}">Profiles</a>
+          <a href="{{ '/template/' | relative_url }}">Template</a>
+          <a href="{{ '/development/' | relative_url }}">Development</a>
+        </nav>
+      </header>
+
+      <main>
+        {{ content }}
+      </main>
+
+      <footer>
+        <p><code>unaltraweb</code> started from <code>al-folio</code> and is being refactored into a self-owned core for <code>dosquartsdedocs</code> sites.</p>
+      </footer>
+    </div>
+  </body>
+</html>

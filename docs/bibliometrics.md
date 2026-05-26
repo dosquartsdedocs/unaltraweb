@@ -1,3 +1,9 @@
+---
+title: Bibliometric Metrics Pipeline
+description: Static bibliometric metrics workflow for unaltraweb sites.
+permalink: /bibliometrics/
+---
+
 # Bibliometric metrics pipeline
 
 This project uses a data-first bibliometrics workflow:
@@ -12,7 +18,7 @@ This project uses a data-first bibliometrics workflow:
 - `scripts/biblio/metrics_merge_meta.py`
 - `scripts/biblio/fetch_scimago_csv.sh`
 - `_data/metrics-overrides.yml`
-- `_data/metrics.yml` (generated)
+- `_data/metrics.yml` (generated summary; useful for metrics summary components)
 
 ## Local data cache (not versioned)
 
@@ -43,6 +49,14 @@ make metrics-update-all
 make metrics-check
 ```
 
+Local commands accept extra script arguments:
+
+```bash
+make metrics-update METRICS_ARGS="--strict-external --require-scimago"
+make metrics-check METRICS_ARGS="--require-scimago"
+make metrics-scimago-fetch SCIMAGO_INPUT=path/to/scimagojr.csv
+```
+
 Equivalent direct commands:
 
 ```bash
@@ -50,6 +64,45 @@ Equivalent direct commands:
 python3 scripts/biblio/metrics_update.py
 python3 scripts/biblio/metrics_update.py --offline --dry-run
 ```
+
+## GitHub workflow
+
+Publication metrics are not part of automatic CI. Use the manual/reusable `.github/workflows/metrics-update.yml` workflow when you want GitHub to update or check metrics.
+
+The workflow keeps generated Scimago files and diagnostics out of pull requests. When PR creation is enabled, PRs include only versionable generated data: BibTeX changes under `_bibliography/` and the aggregate `_data/metrics.yml` summary.
+
+Child repositories can add a thin manual wrapper:
+
+```yaml
+name: Update publication metrics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  metrics:
+    uses: dosquartsdedocs/unaltraweb/.github/workflows/metrics-update.yml@main
+    with:
+      fetch_scimago: true
+      create_pull_request: true
+```
+
+Useful workflow inputs:
+
+- `fetch_scimago`: downloads and validates the local Scimago CSV cache before updating metrics.
+- `offline`: skips OpenAlex and Crossref calls.
+- `dry_run`: avoids rewriting BibTeX entries while still writing diagnostics.
+- `strict_external`: fails the workflow if OpenAlex or Crossref requests fail.
+- `require_scimago`: fails when the Scimago CSV is unavailable.
+- `create_pull_request`: opens a PR with generated versionable changes.
+
+If `create_pull_request` is `false`, the workflow uploads `_data/metrics.yml` and diagnostics as artifacts but does not persist generated changes.
+
+## Failure modes
+
+- Missing Scimago cache: entries are marked with `scimago-missing` unless `--require-scimago` is set.
+- Broken Scimago URL or blocked network: `fetch_scimago` fails with a message suggesting a local `--input` file.
+- OpenAlex/Crossref outage: entries are marked with `api-error`, diagnostics include request errors, and `--strict-external` makes the command fail non-zero.
 
 ## Overrides
 

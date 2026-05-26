@@ -1,0 +1,14 @@
+title: unaltraweb
+description: Reusable Jekyll core for academic, research project and documentation websites.
+url: https://dosquartsdedocs.github.io
+baseurl: /unaltraweb
+markdown: kramdown
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+
+exclude:
+  - README.md

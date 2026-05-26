@@ -86,6 +86,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-year-gap", type=int, default=2, help="Max gap between publication year and Scimago year")
     parser.add_argument("--offline", action="store_true", help="Do not call OpenAlex/Crossref")
     parser.add_argument("--dry-run", action="store_true", help="Do not rewrite BibTeX files")
+    parser.add_argument("--strict-external", action="store_true", help="Exit non-zero if OpenAlex/Crossref requests fail")
+    parser.add_argument("--require-scimago", action="store_true", help="Exit non-zero when the Scimago CSV is unavailable")
     parser.add_argument(
         "--validate-scimago",
         default="",
@@ -320,17 +322,37 @@ class MetricsClient:
         self.oa_work_cache: dict[str, dict[str, Any] | None] = {}
         self.oa_source_cache: dict[str, dict[str, Any] | None] = {}
         self.crossref_cache: dict[str, dict[str, Any] | None] = {}
+        self.api_errors: list[dict[str, str]] = []
+        self.last_error_by_service: dict[str, bool] = {}
 
-    def _get_json(self, url: str) -> dict[str, Any] | None:
+    def _record_api_error(self, service: str, url: str, exc: Exception) -> None:
+        message = f"{type(exc).__name__}: {exc}"
+        self.api_errors.append({"service": service, "url": url, "error": message})
+        print(f"{service} request failed: {url} ({message})", file=sys.stderr)
+
+    def last_service_error(self, service: str) -> bool:
+        return self.last_error_by_service.get(service, False)
+
+    def api_error_summary(self) -> dict[str, int]:
+        summary: dict[str, int] = {}
+        for item in self.api_errors:
+            service = item.get("service", "unknown")
+            summary[service] = summary.get(service, 0) + 1
+        return summary
+
+    def _get_json(self, url: str, service: str) -> dict[str, Any] | None:
         if self.offline:
             return None
+        self.last_error_by_service[service] = False
         try:
             response = self.session.get(url, timeout=30)
             if response.status_code == 404:
                 return None
             response.raise_for_status()
             return response.json()
-        except requests.RequestException:
+        except (requests.RequestException, ValueError) as exc:
+            self.last_error_by_service[service] = True
+            self._record_api_error(service, url, exc)
             return None
 
     def get_openalex_work(self, doi: str | None = None, openalex_id: str | None = None) -> dict[str, Any] | None:
@@ -338,13 +360,13 @@ class MetricsClient:
             key = f"id:{openalex_id}"
             if key not in self.oa_work_cache:
                 api_id = openalex_id.split("/")[-1] if openalex_id.startswith("http") else openalex_id
-                self.oa_work_cache[key] = self._get_json(f"https://api.openalex.org/works/{api_id}")
+                self.oa_work_cache[key] = self._get_json(f"https://api.openalex.org/works/{api_id}", "openalex")
             return self.oa_work_cache[key]
 
         if doi:
             key = f"doi:{doi}"
             if key not in self.oa_work_cache:
-                self.oa_work_cache[key] = self._get_json(f"https://api.openalex.org/works/https://doi.org/{doi}")
+                self.oa_work_cache[key] = self._get_json(f"https://api.openalex.org/works/https://doi.org/{doi}", "openalex")
             return self.oa_work_cache[key]
         return None
 
@@ -353,14 +375,14 @@ class MetricsClient:
             return None
         sid = source_id.split("/")[-1]
         if sid not in self.oa_source_cache:
-            self.oa_source_cache[sid] = self._get_json(f"https://api.openalex.org/sources/{sid}")
+            self.oa_source_cache[sid] = self._get_json(f"https://api.openalex.org/sources/{sid}", "openalex")
         return self.oa_source_cache[sid]
 
     def get_crossref_work(self, doi: str | None) -> dict[str, Any] | None:
         if not doi:
             return None
         if doi not in self.crossref_cache:
-            payload = self._get_json(f"https://api.crossref.org/works/{doi}")
+            payload = self._get_json(f"https://api.crossref.org/works/{doi}", "crossref")
             self.crossref_cache[doi] = payload.get("message") if payload and "message" in payload else payload
         return self.crossref_cache[doi]
 
@@ -511,6 +533,12 @@ def main() -> None:
     scholar_map = citations_data.get("papers", {}) if isinstance(citations_data, dict) else {}
 
     scimago_index, scimago_meta = load_scimago(Path(args.scimago_csv))
+    if not scimago_meta.get("available"):
+        message = scimago_meta.get("message", f"missing: {args.scimago_csv}")
+        print(f"Scimago data unavailable: {message}", file=sys.stderr)
+        if args.require_scimago:
+            print("Use fetch_scimago/metrics-scimago-fetch or pass --scimago-csv/--input with a local file.", file=sys.stderr)
+            sys.exit(1)
 
     client = MetricsClient(offline=args.offline, email=contact_email)
 
@@ -639,7 +667,10 @@ def main() -> None:
                 set_field(entry, "x_openalex_source_i10_index", as_int(summary_stats.get("i10_index")))
                 set_field(entry, "x_openalex_source_2yr_mean_citedness", as_float(summary_stats.get("2yr_mean_citedness")))
             else:
-                status["openalex"] = "not-found" if doi or oa_override_id else "no-doi"
+                if doi or oa_override_id:
+                    status["openalex"] = "api-error" if client.last_service_error("openalex") else "not-found"
+                else:
+                    status["openalex"] = "no-doi"
 
             # Crossref
             cr_override = override.get("x_crossref_cited_by") or override.get("crossref_cited_by")
@@ -652,7 +683,10 @@ def main() -> None:
                     set_field(entry, "x_crossref_cited_by", as_int(crossref_work.get("is-referenced-by-count")))
                     status["crossref"] = "matched"
                 else:
-                    status["crossref"] = "not-found" if doi else "no-doi"
+                    if doi:
+                        status["crossref"] = "api-error" if client.last_service_error("crossref") else "not-found"
+                    else:
+                        status["crossref"] = "no-doi"
 
             # Scimago (articles only)
             if str(entry_type).lower() == "article":
@@ -732,6 +766,7 @@ def main() -> None:
                 "google_scholar": "bibtex + _data/citations.yml",
                 "scimago": str(scimago_meta.get("path", args.scimago_csv)) if scimago_meta.get("available") else "missing",
             },
+            "api_errors": client.api_error_summary(),
             "summary": summary,
         }
     }
@@ -747,6 +782,8 @@ def main() -> None:
             {
                 "generated_on": updated_on,
                 "scimago": scimago_meta,
+                "api_errors": client.api_errors,
+                "api_error_summary": client.api_error_summary(),
                 "max_year_gap": max_year_gap,
                 "entries": report_entries,
                 "summary": summary,
@@ -778,6 +815,11 @@ def main() -> None:
     print(f"- Metrics summary: {metrics_out}")
     print(f"- Diagnostics JSON: {report_out}")
     print(f"- Unmatched TSV: {unmatched_out}")
+    if client.api_errors:
+        print(f"External API request errors: {client.api_error_summary()}", file=sys.stderr)
+        if args.strict_external:
+            print("Failing because --strict-external is enabled.", file=sys.stderr)
+            sys.exit(2)
 
 
 if __name__ == "__main__":

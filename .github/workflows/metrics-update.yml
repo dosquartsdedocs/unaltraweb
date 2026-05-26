@@ -1,0 +1,172 @@
+name: Update publication metrics
+
+on:
+  workflow_call:
+    inputs:
+      python_version:
+        description: Python version used by unaltraweb metrics tooling.
+        required: false
+        type: string
+        default: "3.13"
+      ruby_version:
+        description: Ruby version used to locate the unaltraweb gem in child sites.
+        required: false
+        type: string
+        default: "3.3.5"
+      fetch_scimago:
+        description: Download/update the local Scimago CSV cache before updating metrics.
+        required: false
+        type: boolean
+        default: false
+      offline:
+        description: Do not call OpenAlex or Crossref; use local data only.
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: Avoid rewriting BibTeX entries. Summary and diagnostics are still written.
+        required: false
+        type: boolean
+        default: false
+      strict_external:
+        description: Fail the workflow when OpenAlex or Crossref requests fail.
+        required: false
+        type: boolean
+        default: true
+      require_scimago:
+        description: Fail when the local Scimago CSV is unavailable.
+        required: false
+        type: boolean
+        default: false
+      create_pull_request:
+        description: Open a pull request with generated metrics changes.
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      fetch_scimago:
+        description: Download/update the local Scimago CSV cache before updating metrics.
+        required: false
+        type: boolean
+        default: false
+      offline:
+        description: Do not call OpenAlex or Crossref; use local data only.
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: Avoid rewriting BibTeX entries. Summary and diagnostics are still written.
+        required: false
+        type: boolean
+        default: false
+      strict_external:
+        description: Fail the workflow when OpenAlex or Crossref requests fail.
+        required: false
+        type: boolean
+        default: true
+      require_scimago:
+        description: Fail when the local Scimago CSV is unavailable.
+        required: false
+        type: boolean
+        default: false
+      create_pull_request:
+        description: Open a pull request with generated metrics changes.
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby_version || '3.3.5' }}
+          bundler-cache: true
+
+      - name: Locate unaltraweb core
+        id: core
+        run: |
+          if test -f scripts/biblio/metrics_update.py; then
+            core_dir="$PWD"
+          else
+            core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
+          fi
+          printf 'core_dir=%s\n' "$core_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version || '3.13' }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          requirements="requirements.txt"
+          if ! test -f "$requirements"; then
+            requirements="${{ steps.core.outputs.core_dir }}/requirements.txt"
+          fi
+          python -m pip install -r "$requirements"
+
+      - name: Fetch Scimago data
+        if: ${{ inputs.fetch_scimago }}
+        run: "${{ steps.core.outputs.core_dir }}/scripts/biblio/fetch_scimago_csv.sh"
+
+      - name: Update metrics
+        run: |
+          args=()
+          if test "${{ inputs.offline }}" = "true"; then
+            args+=(--offline)
+          fi
+          if test "${{ inputs.dry_run }}" = "true"; then
+            args+=(--dry-run)
+          fi
+          if test "${{ inputs.strict_external }}" = "true"; then
+            args+=(--strict-external)
+          fi
+          if test "${{ inputs.require_scimago }}" = "true"; then
+            args+=(--require-scimago)
+          fi
+          python "${{ steps.core.outputs.core_dir }}/scripts/biblio/metrics_update.py" "${args[@]}"
+
+      - name: Show generated changes
+        if: ${{ always() }}
+        run: |
+          git status --short
+          git diff --stat
+
+      - name: Upload diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: publication-metrics-diagnostics
+          if-no-files-found: ignore
+          path: |
+            _data/metrics.yml
+            tmp/metrics-report.json
+            tmp/metrics-unmatched.tsv
+
+      - name: Create pull request
+        if: ${{ inputs.create_pull_request }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          add-paths: |
+            _bibliography/*.bib
+            _bibliography/**/*.bib
+            _data/metrics.yml
+          branch: automation/publication-metrics
+          title: Update publication metrics
+          commit-message: Update publication metrics
+          body: |
+            Updates generated publication metrics using the manual `Update publication metrics` workflow.
+
+            Review `_bibliography/`, `_data/metrics.yml`, and diagnostics artifacts before merging. Scimago caches and temporary reports are not included in the pull request.
