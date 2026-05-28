@@ -39,6 +39,7 @@ unaltraweb:
     logo:
     logo_inverse:
     bibliography: true
+    bibliography_file: manual.bib
   documentation:
     collection: documentation
     logo:
@@ -420,6 +421,11 @@ filtered_bibtex_keywords:
     manual_rating,
     manual_section,
     manual_selected,
+    manual_url,
+    manual_url_label,
+    manual_url_label_ca,
+    manual_url_label_en,
+    manual_url_label_es,
     pdf,
     pmid,
     poster,

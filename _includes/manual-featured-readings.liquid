@@ -1,12 +1,12 @@
 {% capture manual_selected_text %}{% include t.liquid key='manual.selected_readings' default='Selected readings' %}{% endcapture %}
-{% capture manual_selected_count_raw %}{% bibliography_count -f papers --query @*[manual=true && manual_selected=true] %}{% endcapture %}
+{% capture manual_selected_count_raw %}{% bibliography_count -f manual --query @*[manual=true && manual_selected=true] %}{% endcapture %}
 {% assign manual_selected_count = manual_selected_count_raw | strip | plus: 0 %}
 
 {% if manual_selected_count > 0 %}
 <section class="manual-bibliography-section manual-featured-bibliography" aria-labelledby="manual-selected-readings-title">
   <h2 id="manual-selected-readings-title">{{ manual_selected_text | strip }}</h2>
   <div class="manual-bibliography publications manual-featured-bibliography-list">
-    {% bibliography -f papers --query @*[manual=true && manual_selected=true] --template manual-featured-bib --group_by none --sort_by manual_order,year --order ascending,descending %}
+    {% bibliography -f manual --query @*[manual=true && manual_selected=true] --template manual-featured-bib --group_by none --sort_by manual_order,year --order ascending,descending %}
   </div>
 </section>
 {% endif %}

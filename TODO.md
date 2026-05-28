@@ -85,6 +85,10 @@ Important current template behaviour:
 
 ## Next Work
 
+- Next-session focus for `unaltremanual`: make the manual content usable as a student-facing downloadable/printable PDF, likely through LaTeX/Pandoc. Treat PDF output as a first-class target, and mark web-only enhancements so they degrade cleanly or are omitted in PDF builds.
+- Next-session focus for richer teaching sites: support per-topic slides and downloadable resources, probably surfaced as compact top-left toolbar icons; add configurable hero images for main navigation pages, excluding collection/content pages; confirm or add a stable public downloads folder; explore GeoJSON syntactic sugar for loading a file from a folder and rendering it with styles; define how executable R/Python content coexists with static builds; confirm math notation support for formulas.
+- Fix responsive behaviour for the three featured manual/book covers: at some viewport sizes the images are not fully responsive and can overlap the text.
+- Revisit manual bibliography detail boxes: `How to cite (APA)` is redundant on the bibliography page when it repeats the visible CSL reference. Add a sample chapter-level bibliography to show the useful distinction: no preview figures, just CSL-rendered references and optional abstract/BibTeX blocks.
 - Enable GitHub Pages in repository settings with GitHub Actions as the source, so `.github/workflows/deploy.yml` can publish `docs/`.
 - Continue replacing remaining `al-folio` labels, comments, demo data and Docker image assumptions with `unaltraweb` identity.
 - Regenerate `package-lock.json` with `npm install` on a machine with Node/npm available; do not hand-edit dependency integrity data.

@@ -1,12 +1,12 @@
 {% capture manual_more_text %}{% include t.liquid key='manual.more_readings' default='More readings' %}{% endcapture %}
-{% capture manual_more_count_raw %}{% bibliography_count -f papers --query @*[manual=true && manual_selected=false] %}{% endcapture %}
+{% capture manual_more_count_raw %}{% bibliography_count -f manual --query @*[manual=true && manual_selected=false] %}{% endcapture %}
 {% assign manual_more_count = manual_more_count_raw | strip | plus: 0 %}
 
 {% if manual_more_count > 0 %}
 <section class="manual-bibliography-section manual-more-bibliography" aria-labelledby="manual-more-readings-title">
   <h2 id="manual-more-readings-title">{{ manual_more_text | strip }}</h2>
   <div class="manual-bibliography publications manual-other-bibliography">
-    {% bibliography -f papers --query @*[manual=true && manual_selected=false] --template manual-bib --group_by none --sort_by year --order descending %}
+    {% bibliography -f manual --query @*[manual=true && manual_selected=false] --template manual-bib --group_by none --sort_by year --order descending %}
   </div>
 </section>
 {% endif %}

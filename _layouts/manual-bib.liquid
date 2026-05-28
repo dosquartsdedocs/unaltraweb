@@ -10,21 +10,9 @@
 {% assign reference_url = entry.manual_url | default: entry.website | default: entry.url %}
 {% assign reference_url_label_key = 'manual_url_label_' | append: current_lang %}
 {% assign reference_url_label = entry[reference_url_label_key] | default: entry.manual_url_label %}
-{% capture reference_authors %}
-  {%- for author in entry.author_array -%}
-    {{- author.first }} {{ author.last -}}{% unless forloop.last %}, {% endunless %}
-  {%- endfor -%}
-{% endcapture %}
-{% assign reference_authors = reference_authors | strip | default: entry.author %}
-{% capture metadata_text %}{% include t.liquid key='manual.metadata' default='Metadata' %}{% endcapture %}
-{% capture authors_text %}{% include t.liquid key='manual.authors' default='Authors' %}{% endcapture %}
-{% capture abstract_text %}{% include t.liquid key='manual.abstract' default='Abstract' %}{% endcapture %}
+{% capture abstract_button_text %}{% include t.liquid key='bib.buttons.abstract' default='Abs' %}{% endcapture %}
+{% capture bib_button_text %}{% include t.liquid key='bib.buttons.bib' default='Bib' %}{% endcapture %}
 {% capture how_to_cite_text %}{% include t.liquid key='manual.how_to_cite_apa' default='How to cite (APA)' %}{% endcapture %}
-{% capture year_text %}{% include t.liquid key='reading.year' default='Year' %}{% endcapture %}
-{% capture doi_text %}{% include t.liquid key='reading.doi' default='DOI' %}{% endcapture %}
-{% capture isbn_text %}{% include t.liquid key='reading.isbn' default='ISBN' %}{% endcapture %}
-{% capture publisher_text %}{% include t.liquid key='reading.publisher' default='Publisher' %}{% endcapture %}
-{% capture links_text %}{% include t.liquid key='reading.links' default='Links' %}{% endcapture %}
 <div id="{{ entry.key }}" class="manual-reference{% if reference_preview %} manual-reference--with-preview{% endif %}">
   {% if reference_preview %}
     <div class="manual-reference-preview">
@@ -57,18 +45,21 @@
     {% endif %}
     <div class="manual-reference-text">{{ reference | replace: "\Textperiodcentered", "·" }}</div>
     {% if reference_comment %}<div class="manual-reference-comment">{{ reference_comment | markdownify }}</div>{% endif %}
-    <details class="manual-reference-details">
-      <summary>{{ metadata_text | strip }}</summary>
-      <dl class="manual-reference-details-list">
-        {% if reference_authors %}<dt>{{ authors_text | strip }}</dt><dd>{{ reference_authors }}</dd>{% endif %}
-        {% if entry.year %}<dt>{{ year_text | strip }}</dt><dd>{{ entry.year }}</dd>{% endif %}
-        {% if entry.publisher %}<dt>{{ publisher_text | strip }}</dt><dd>{{ entry.publisher }}</dd>{% endif %}
-        {% if entry.isbn %}<dt>{{ isbn_text | strip }}</dt><dd>{{ entry.isbn }}</dd>{% endif %}
-        {% if entry.doi %}<dt>{{ doi_text | strip }}</dt><dd><a href="https://doi.org/{{ entry.doi }}">{{ entry.doi }}</a></dd>{% endif %}
-        {% if reference_url %}<dt>{{ links_text | strip }}</dt><dd><a href="{{ reference_url }}">{{ reference_url_label | default: reference_url }}</a></dd>{% endif %}
-      </dl>
-      {% if entry.abstract %}<div class="manual-reference-abstract"><h4>{{ abstract_text | strip }}</h4><p>{{ entry.abstract }}</p></div>{% endif %}
-      <div class="manual-reference-citation"><h4>{{ how_to_cite_text | strip }}</h4><p>{{ reference | replace: "\Textperiodcentered", "·" }}</p></div>
-    </details>
+    <div class="links manual-reference-links">
+      {% if entry.doi %}<a href="https://doi.org/{{ entry.doi }}" class="btn btn-sm z-depth-0" role="button">DOI</a>{% endif %}
+      {% if reference_url %}<a href="{{ reference_url }}" class="btn btn-sm z-depth-0" role="button">{{ reference_url_label | default: 'LINK' }}</a>{% endif %}
+      {% if entry.abstract %}<a class="abstract btn btn-sm z-depth-0" role="button">{{ abstract_button_text | strip }}</a>{% endif %}
+      <a class="cite btn btn-sm z-depth-0" role="button">{{ how_to_cite_text | strip }}</a>
+      {% if entry.bibtex %}<a class="bibtex btn btn-sm z-depth-0" role="button">{{ bib_button_text | strip }}</a>{% endif %}
+    </div>
+    {% if entry.abstract %}<div class="abstract hidden manual-reference-panel"><p>{{ entry.abstract }}</p></div>{% endif %}
+    <div class="cite hidden manual-reference-panel"><p>{{ reference | replace: "\Textperiodcentered", "·" }}</p></div>
+    {% if entry.bibtex %}
+      <div class="bibtex hidden manual-reference-panel">
+        {% highlight bibtex %}
+        {{- entry.bibtex | hideCustomBibtex -}}
+        {% endhighlight %}
+      </div>
+    {% endif %}
   </div>
 </div>

@@ -125,17 +125,24 @@ module Unaltraweb
     end
 
     def manual_bib_entries(site)
-      bibliography_paths(site).flat_map do |path|
+      manual_bibliography_paths(site).flat_map do |path|
         next [] unless File.file?(path)
 
         parse_bib_entries(File.read(path, encoding: "UTF-8"))
       end.select { |fields| truthy?(fields["manual"]) }
     end
 
-    def bibliography_paths(site)
+    def manual_bibliography_paths(site)
+      manual = site.config.dig("unaltraweb", "manual") || {}
+      bibliography = manual["bibliography_file"].to_s
+      bibliography = "manual.bib" if bibliography.empty?
+      bibliography_paths(site, bibliography)
+    end
+
+    def bibliography_paths(site, bibliography = nil)
       scholar = site.config["scholar"] || {}
       source = scholar.fetch("source", "_bibliography").to_s.sub(%r{\A/+}, "")
-      bibliography = scholar.fetch("bibliography", "references.bib").to_s
+      bibliography ||= scholar.fetch("bibliography", "references.bib").to_s
       pattern = File.join(site.source, source, bibliography)
       paths = bibliography.include?("*") ? Dir.glob(pattern) : [pattern]
       paths.select { |path| File.extname(path).match?(/\.bib(?:tex)?\z/) }
