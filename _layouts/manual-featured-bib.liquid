@@ -10,6 +10,24 @@
 {% assign featured_preview = entry.preview | default: entry.image | default: entry.thumbnail %}
 {% assign featured_rating = entry.manual_rating | default: entry.rating %}
 {% assign featured_badge_slug = featured_badge | default: featured_kind | slugify %}
+{% assign featured_url = entry.manual_url | default: entry.website | default: entry.url %}
+{% assign featured_url_label_key = 'manual_url_label_' | append: current_lang %}
+{% assign featured_url_label = entry[featured_url_label_key] | default: entry.manual_url_label %}
+{% capture featured_authors %}
+  {%- for author in entry.author_array -%}
+    {{- author.first }} {{ author.last -}}{% unless forloop.last %}, {% endunless %}
+  {%- endfor -%}
+{% endcapture %}
+{% assign featured_authors = featured_authors | strip | default: entry.author %}
+{% capture metadata_text %}{% include t.liquid key='manual.metadata' default='Metadata' %}{% endcapture %}
+{% capture authors_text %}{% include t.liquid key='manual.authors' default='Authors' %}{% endcapture %}
+{% capture abstract_text %}{% include t.liquid key='manual.abstract' default='Abstract' %}{% endcapture %}
+{% capture how_to_cite_text %}{% include t.liquid key='manual.how_to_cite_apa' default='How to cite (APA)' %}{% endcapture %}
+{% capture year_text %}{% include t.liquid key='reading.year' default='Year' %}{% endcapture %}
+{% capture doi_text %}{% include t.liquid key='reading.doi' default='DOI' %}{% endcapture %}
+{% capture isbn_text %}{% include t.liquid key='reading.isbn' default='ISBN' %}{% endcapture %}
+{% capture publisher_text %}{% include t.liquid key='reading.publisher' default='Publisher' %}{% endcapture %}
+{% capture links_text %}{% include t.liquid key='reading.links' default='Links' %}{% endcapture %}
 <article id="{{ entry.key }}" class="manual-featured-reference{% if featured_preview %} manual-featured-reference--with-preview{% endif %}">
   {% if featured_preview %}
     <figure class="cover reading-cover manual-featured-cover">
@@ -30,17 +48,24 @@
   <div class="manual-featured-reference-body">
     <p class="manual-featured-kind">{{ featured_kind }}</p>
     <h3>{{ entry.title }}</h3>
+    {% if featured_authors %}<p class="manual-featured-authors">{{ featured_authors }}</p>{% endif %}
     <p class="manual-featured-meta">
       {% if entry.year %}<span>{{ entry.year }}</span>{% endif %}
       {% if featured_rating %}<span class="reading-rating"><i class="fa-solid fa-star" aria-hidden="true"></i>{{ featured_rating }}/5</span>{% endif %}
     </p>
     {% if featured_comment %}<div class="manual-featured-comment">{{ featured_comment | markdownify }}</div>{% endif %}
-    <div class="manual-featured-citation">{{ reference | replace: "\Textperiodcentered", "·" }}</div>
-    {% if entry.abstract %}
-      <details class="manual-featured-abstract">
-        <summary>Abstract</summary>
-        <p>{{ entry.abstract }}</p>
-      </details>
-    {% endif %}
+    <details class="manual-reference-details manual-featured-details">
+      <summary>{{ metadata_text | strip }}</summary>
+      <dl class="manual-reference-details-list">
+        {% if featured_authors %}<dt>{{ authors_text | strip }}</dt><dd>{{ featured_authors }}</dd>{% endif %}
+        {% if entry.year %}<dt>{{ year_text | strip }}</dt><dd>{{ entry.year }}</dd>{% endif %}
+        {% if entry.publisher %}<dt>{{ publisher_text | strip }}</dt><dd>{{ entry.publisher }}</dd>{% endif %}
+        {% if entry.isbn %}<dt>{{ isbn_text | strip }}</dt><dd>{{ entry.isbn }}</dd>{% endif %}
+        {% if entry.doi %}<dt>{{ doi_text | strip }}</dt><dd><a href="https://doi.org/{{ entry.doi }}">{{ entry.doi }}</a></dd>{% endif %}
+        {% if featured_url %}<dt>{{ links_text | strip }}</dt><dd><a href="{{ featured_url }}">{{ featured_url_label | default: featured_url }}</a></dd>{% endif %}
+      </dl>
+      {% if entry.abstract %}<div class="manual-reference-abstract"><h4>{{ abstract_text | strip }}</h4><p>{{ entry.abstract }}</p></div>{% endif %}
+      <div class="manual-featured-citation"><h4>{{ how_to_cite_text | strip }}</h4><p>{{ reference | replace: "\Textperiodcentered", "·" }}</p></div>
+    </details>
   </div>
 </article>

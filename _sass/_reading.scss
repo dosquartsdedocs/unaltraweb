@@ -234,10 +234,40 @@
 }
 
 .reading-cover .cover-link figcaption.custom {
-  background: color-mix(in srgb, var(--global-theme-color) 82%, #fff);
-  color: #23212d;
+  background: var(--reading-ribbon-bg, color-mix(in srgb, var(--global-theme-color) 82%, #fff));
+  color: var(--reading-ribbon-color, #23212d);
   font-family: monospace;
   text-transform: none;
+}
+
+.reading-shelf .reading-cover:nth-child(6n + 1),
+.manual-featured-bibliography-list li:nth-child(6n + 1) {
+  --reading-ribbon-bg: #72d6a2;
+}
+
+.reading-shelf .reading-cover:nth-child(6n + 2),
+.manual-featured-bibliography-list li:nth-child(6n + 2) {
+  --reading-ribbon-bg: #79b7ff;
+}
+
+.reading-shelf .reading-cover:nth-child(6n + 3),
+.manual-featured-bibliography-list li:nth-child(6n + 3) {
+  --reading-ribbon-bg: #ffd166;
+}
+
+.reading-shelf .reading-cover:nth-child(6n + 4),
+.manual-featured-bibliography-list li:nth-child(6n + 4) {
+  --reading-ribbon-bg: #f79ac0;
+}
+
+.reading-shelf .reading-cover:nth-child(6n + 5),
+.manual-featured-bibliography-list li:nth-child(6n + 5) {
+  --reading-ribbon-bg: #b8a3ff;
+}
+
+.reading-shelf .reading-cover:nth-child(6n),
+.manual-featured-bibliography-list li:nth-child(6n) {
+  --reading-ribbon-bg: #8bd3dd;
 }
 
 .reading-cover-meta {

@@ -72,6 +72,11 @@ module Unaltraweb
     end
 
     def entry(site, item)
+      body = item.content.to_s
+      if manual_bibliography_page?(item)
+        body = "#{body}\n\n#{manual_bibliography_text(site, item.data["lang"].to_s)}"
+      end
+
       {
         title: item.data["title"].to_s,
         description: item.data["description"].to_s,
@@ -80,8 +85,136 @@ module Unaltraweb
         section: item.data["section"].to_s,
         subsection: item.data["subsection"].to_s,
         keywords: Array(item.data["keywords"] || item.data["tags"]).join(" "),
-        body: normalize_text(item.content),
+        body: normalize_text(body),
       }
+    end
+
+    def manual_bibliography_page?(item)
+      item.data["ref"].to_s == "manual-bibliography" || item.content.to_s.include?("manual-bibliography.liquid")
+    end
+
+    def manual_bibliography_text(site, lang)
+      manual_bib_entries(site).map do |fields|
+        localized_values(fields, lang).join(" ")
+      end.join("\n")
+    end
+
+    def localized_values(fields, lang)
+      keys = [
+        "title",
+        "author",
+        "editor",
+        "year",
+        "journal",
+        "booktitle",
+        "publisher",
+        "doi",
+        "url",
+        "website",
+        "abstract",
+        "manual_kind",
+        "manual_kind_#{lang}",
+        "manual_badge",
+        "manual_badge_#{lang}",
+        "manual_comment",
+        "manual_comment_#{lang}",
+        "manual_collection_ref",
+        "manual_collection_#{lang}",
+      ]
+      keys.map { |key| fields[key].to_s }.reject(&:empty?)
+    end
+
+    def manual_bib_entries(site)
+      bibliography_paths(site).flat_map do |path|
+        next [] unless File.file?(path)
+
+        parse_bib_entries(File.read(path, encoding: "UTF-8"))
+      end.select { |fields| truthy?(fields["manual"]) }
+    end
+
+    def bibliography_paths(site)
+      scholar = site.config["scholar"] || {}
+      source = scholar.fetch("source", "_bibliography").to_s.sub(%r{\A/+}, "")
+      bibliography = scholar.fetch("bibliography", "references.bib").to_s
+      pattern = File.join(site.source, source, bibliography)
+      paths = bibliography.include?("*") ? Dir.glob(pattern) : [pattern]
+      paths.select { |path| File.extname(path).match?(/\.bib(?:tex)?\z/) }
+    end
+
+    def parse_bib_entries(text)
+      entries = []
+      index = 0
+      while (at_index = text.index("@", index))
+        brace_index = text.index("{", at_index)
+        break unless brace_index
+
+        end_index = matching_brace_index(text, brace_index)
+        break unless end_index
+
+        raw_entry = text[at_index..end_index]
+        if raw_entry =~ /\A@(\w+)\s*\{\s*([^,]+)\s*,(.*)\}\s*\z/m
+          fields = parse_bib_fields(Regexp.last_match(3))
+          fields["type"] = Regexp.last_match(1)
+          fields["key"] = Regexp.last_match(2).strip
+          entries << fields
+        end
+        index = end_index + 1
+      end
+      entries
+    end
+
+    def matching_brace_index(text, open_index)
+      depth = 0
+      index = open_index
+      while index < text.length
+        case text[index]
+        when "{"
+          depth += 1
+        when "}"
+          depth -= 1
+          return index if depth.zero?
+        end
+        index += 1
+      end
+      nil
+    end
+
+    def parse_bib_fields(body)
+      fields = {}
+      index = 0
+      while index < body.length
+        index += 1 while index < body.length && body[index].match?(/[\s,]/)
+        match = body[index..]&.match(/\A([A-Za-z0-9_:-]+)\s*=\s*/)
+        break unless match
+
+        key = match[1].downcase
+        index += match[0].length
+        value, index = parse_bib_value(body, index)
+        fields[key] = clean_bib_value(value)
+      end
+      fields
+    end
+
+    def parse_bib_value(body, index)
+      case body[index]
+      when "{"
+        close_index = matching_brace_index(body, index)
+        return [body[(index + 1)...close_index].to_s, close_index.to_i + 1]
+      when '"'
+        close_index = body.index('"', index + 1) || body.length
+        return [body[(index + 1)...close_index].to_s, close_index + 1]
+      else
+        close_index = body.index(",", index) || body.length
+        return [body[index...close_index].to_s, close_index]
+      end
+    end
+
+    def clean_bib_value(value)
+      value.to_s.gsub(/[{}]/, "").gsub(/\s+/, " ").strip
+    end
+
+    def truthy?(value)
+      %w[true yes 1 selected].include?(value.to_s.strip.downcase)
     end
 
     def profile_match?(item, profiles)
