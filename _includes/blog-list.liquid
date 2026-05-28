@@ -32,9 +32,12 @@
       <p class="blog-archive-range">{{ range_from_text | strip }} {{ oldest_date | strip }} {{ range_to_text | strip }} {{ newest_date | strip }}.</p>
     {% endif %}
     {% for item in archive_posts %}
+      {% capture item_reading_time_html %}{% include post-reading-time.liquid item=item content=item.content %}{% endcapture %}
+      {% assign item_reading_time_html = item_reading_time_html | strip %}
       <article class="blog-archive-item">
         <p class="blog-archive-meta">
           <time datetime="{{ item.date | date_to_xmlschema }}">{% include localized-date.liquid date=item.date format_key='date.formats.medium' default_format='%b %-d, %Y' %}</time>
+          {% if item_reading_time_html != '' %}{{ item_reading_time_html }}{% endif %}
           {% if item.categories and item.categories.size > 0 %}<span>{{ item.categories | join: ', ' }}</span>{% endif %}
         </p>
         <h2 class="blog-archive-title">

@@ -1,0 +1,39 @@
+---
+layout: default
+---
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+{% assign documentation_config = site.unaltraweb.documentation %}
+{% assign documentation_collection_name = documentation_config.collection | default: 'documentation' %}
+{% assign documentation_collection = site[documentation_collection_name] %}
+{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign documentation_docs = documentation_collection | where: 'lang', current_lang | where_exp: 'doc', 'doc.profiles == nil or doc.profiles contains current_profile' | sort: 'weight' %}
+{% if documentation_docs.size == 0 and current_lang != site.default_lang %}
+  {% assign documentation_docs = documentation_collection | where: 'lang', site.default_lang | where_exp: 'doc', 'doc.profiles == nil or doc.profiles contains current_profile' | sort: 'weight' %}
+{% endif %}
+<script>
+  window.unaltrawebContentSearchUrl = {{ '/assets/js/documentation-search-index.json' | relative_url | jsonify }};
+  window.unaltrawebContentSearchTarget = ".documentation-content";
+</script>
+
+<div class="documentation-layout">
+  {% include documentation-sidebar.liquid docs=documentation_docs %}
+
+  <article class="documentation-main documentation-page">
+    <header class="documentation-page-header">
+      {% if page.section %}
+        <nav class="documentation-breadcrumb" aria-label="Documentation location">
+          <span class="documentation-breadcrumb-item">{{ page.section }}</span>
+          {% if page.subsection %}<span class="documentation-breadcrumb-item">{{ page.subsection }}</span>{% endif %}
+        </nav>
+      {% endif %}
+      <h1>{{ page.title }}</h1>
+      {% if page.description %}<p class="documentation-subtitle">{{ page.description }}</p>{% endif %}
+    </header>
+
+    <div class="documentation-content">
+      {{ content }}
+    </div>
+
+    {% include previous-next.liquid items=documentation_docs class='documentation-page-nav' aria_label='Documentation navigation' %}
+  </article>
+</div>

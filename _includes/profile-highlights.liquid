@@ -34,6 +34,25 @@
 {% assign latest_posts = localized_posts | sort: 'date' | reverse %}
 
 <div class="profile-highlights">
+  {% unless site.unaltraweb.features.blog == false %}
+    {% if latest_posts.size > 0 %}
+      <section class="profile-highlight-section profile-highlight-posts">
+        <div class="profile-highlight-heading">
+          <h2>{{ recent_posts_text | strip }}</h2>
+          {% if blog_page %}<a href="{{ blog_page.url | relative_url }}">{{ view_all_posts_text | strip }}</a>{% endif %}
+        </div>
+        <ul class="profile-post-list">
+          {% for item in latest_posts limit: posts_limit %}
+            <li>
+              <time datetime="{{ item.date | date_to_xmlschema }}">{% include localized-date.liquid date=item.date format_key='date.formats.short' default_format='%Y-%m-%d' %}</time>
+              <a href="{{ item.url | relative_url }}">{{ item.title }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  {% endunless %}
+
   {% unless site.unaltraweb.features.publications == false %}
     <section class="profile-highlight-section profile-highlight-publications">
       <div class="profile-highlight-heading">
@@ -60,25 +79,6 @@
             {% endif %}
           {% endfor %}
         </div>
-      </section>
-    {% endif %}
-  {% endunless %}
-
-  {% unless site.unaltraweb.features.blog == false %}
-    {% if latest_posts.size > 0 %}
-      <section class="profile-highlight-section profile-highlight-posts">
-        <div class="profile-highlight-heading">
-          <h2>{{ recent_posts_text | strip }}</h2>
-          {% if blog_page %}<a href="{{ blog_page.url | relative_url }}">{{ view_all_posts_text | strip }}</a>{% endif %}
-        </div>
-        <ul class="profile-post-list">
-          {% for item in latest_posts limit: posts_limit %}
-            <li>
-              <time datetime="{{ item.date | date_to_xmlschema }}">{% include localized-date.liquid date=item.date format_key='date.formats.short' default_format='%Y-%m-%d' %}</time>
-              <a href="{{ item.url | relative_url }}">{{ item.title }}</a>
-            </li>
-          {% endfor %}
-        </ul>
       </section>
     {% endif %}
   {% endunless %}

@@ -1,0 +1,69 @@
+---
+layout: default
+---
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+{% assign documentation_config = site.unaltraweb.documentation %}
+{% assign documentation_collection_name = documentation_config.collection | default: 'documentation' %}
+{% assign documentation_collection = site[documentation_collection_name] %}
+{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign documentation_docs = documentation_collection | where: 'lang', current_lang | where_exp: 'doc', 'doc.profiles == nil or doc.profiles contains current_profile' | sort: 'weight' %}
+{% if documentation_docs.size == 0 and current_lang != site.default_lang %}
+  {% assign documentation_docs = documentation_collection | where: 'lang', site.default_lang | where_exp: 'doc', 'doc.profiles == nil or doc.profiles contains current_profile' | sort: 'weight' %}
+{% endif %}
+{% capture documentation_label_text %}{% include t.liquid key='documentation.title' default='Documentation' %}{% endcapture %}
+{% capture documentation_contents_text %}{% include t.liquid key='documentation.contents' default='Documentation' %}{% endcapture %}
+<script>
+  window.unaltrawebContentSearchUrl = {{ '/assets/js/documentation-search-index.json' | relative_url | jsonify }};
+  window.unaltrawebContentSearchTarget = ".documentation-content";
+</script>
+
+<div class="documentation-layout documentation-home-layout">
+  {% include documentation-sidebar.liquid docs=documentation_docs %}
+
+  <article class="documentation-main documentation-home">
+    <header class="documentation-hero">
+      <div>
+        <p class="documentation-kicker">{{ documentation_label_text | strip }}</p>
+        <h1>{{ page.title }}</h1>
+        {% if page.description %}<p class="documentation-subtitle">{{ page.description }}</p>{% endif %}
+      </div>
+      {% assign documentation_hero_image = page.hero.image | default: page.hero_image %}
+      {% if documentation_hero_image %}
+        <img src="{{ documentation_hero_image | relative_url }}" alt="{{ page.hero.alt | default: page.title | escape }}">
+      {% endif %}
+    </header>
+
+    <div class="documentation-content">
+      {{ content }}
+    </div>
+
+    {% if documentation_docs.size > 0 %}
+      <section class="documentation-index" aria-labelledby="documentation-index-title">
+        <h2 id="documentation-index-title">{{ documentation_contents_text | strip }}</h2>
+        <div class="documentation-index-sections">
+          {% assign current_index_section = '' %}
+          {% for doc in documentation_docs %}
+            {% assign doc_section = doc.section | default: documentation_contents_text | strip %}
+            {% if doc_section != current_index_section %}
+              {% unless forloop.first %}
+                  </div>
+                </section>
+              {% endunless %}
+              {% assign current_index_section = doc_section %}
+              <section class="documentation-index-section">
+                <h3>{{ doc_section }}</h3>
+                <div class="documentation-card-grid">
+            {% endif %}
+                  <a class="documentation-card" href="{{ doc.url | relative_url }}">
+                    {% if doc.subsection %}<span>{{ doc.subsection }}</span>{% endif %}
+                    <strong>{{ doc.title }}</strong>
+                    {% if doc.description %}<small>{{ doc.description }}</small>{% endif %}
+                  </a>
+          {% endfor %}
+              </div>
+            </section>
+        </div>
+      </section>
+    {% endif %}
+  </article>
+</div>

@@ -39,4 +39,14 @@ layout: default
   {% if site.giscus and page.giscus_comments %}
     {% include giscus.liquid %}
   {% endif %}
+
+  {% if page.previous_next or page.prev_next %}
+    {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+    {% assign previous_next_items = site.pages | where: 'lang', current_lang | where_exp: 'candidate', 'candidate.previous_next or candidate.prev_next' | sort: 'nav_order' %}
+    {% if page.previous_next_group or page.prev_next_group %}
+      {% assign previous_next_group = page.previous_next_group | default: page.prev_next_group %}
+      {% assign previous_next_items = previous_next_items | where_exp: 'candidate', 'candidate.previous_next_group == previous_next_group or candidate.prev_next_group == previous_next_group' %}
+    {% endif %}
+    {% include previous-next.liquid items=previous_next_items class='post-page-nav' %}
+  {% endif %}
 </div>

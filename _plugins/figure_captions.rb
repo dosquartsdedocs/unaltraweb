@@ -7,6 +7,7 @@ module Unaltraweb
     module_function
 
     PANEL_SEQUENCE = ("a".."z").to_a.freeze
+    FENCED_CODE_BLOCK = /^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$/m.freeze
 
     def enabled?(site)
       config = config_for(site)
@@ -125,6 +126,29 @@ module Unaltraweb
       end
 
       out
+    end
+
+    def transform_markdown_sugar(text, lang, figure_label, table_label)
+      transform_outside_code_fences(text) do |chunk|
+        transform_markdown_tables(transform_markdown_images(chunk, lang, figure_label), lang, table_label)
+      end
+    end
+
+    def transform_outside_code_fences(text)
+      source = text.to_s
+      fences = []
+      protected_source = source.gsub(FENCED_CODE_BLOCK) do
+        token = "UNALTRAWEBFENCEDCODEBLOCK#{fences.length}"
+        fences << Regexp.last_match(0)
+        token
+      end
+
+      transformed = yield(protected_source)
+      fences.each_with_index do |fence, index|
+        transformed.gsub!("UNALTRAWEBFENCEDCODEBLOCK#{index}", fence)
+      end
+
+      transformed
     end
 
     def parse_subfigures_block(source, start_index)
@@ -594,8 +618,7 @@ class UnaltrawebFigureCaptionGenerator < Jekyll::Generator
         lang = Unaltraweb::FigureCaptions.detect_lang(doc)
         figure_label = Unaltraweb::FigureCaptions.label_for(site, lang)
         table_label = Unaltraweb::FigureCaptions.table_label_for(site, lang)
-        doc.content = Unaltraweb::FigureCaptions.transform_markdown_images(doc.content, lang, figure_label)
-        doc.content = Unaltraweb::FigureCaptions.transform_markdown_tables(doc.content, lang, table_label)
+        doc.content = Unaltraweb::FigureCaptions.transform_markdown_sugar(doc.content, lang, figure_label, table_label)
       end
     end
   end

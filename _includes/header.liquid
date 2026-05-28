@@ -1,6 +1,12 @@
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 {% assign default_lang = site.default_lang | default: site.lang %}
 {% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign documentation_profile = false %}
+{% if current_profile == 'techdocs' or current_profile == 'software' %}
+  {% assign documentation_profile = true %}
+{% endif %}
+{% assign documentation_config = site.unaltraweb.documentation %}
+{% assign documentation_logo = documentation_config.logo %}
 {% assign home_candidates = site.pages | where: 'ref', 'home' | where: 'lang', current_lang %}
 {% assign home_page = home_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
 {% if home_page == nil %}
@@ -25,7 +31,12 @@
 {% if home_nav_title == nil or home_nav_title == '' %}
   {% assign home_nav_title = home_default_text | strip %}
 {% endif %}
+{% assign home_in_sorted_nav = false %}
+{% if home_page and home_page.nav == true %}
+  {% assign home_in_sorted_nav = true %}
+{% endif %}
 
+{% unless documentation_profile %}
 <header>
   <nav id="navbar" class="navbar navbar-light navbar-expand-sm {% if site.navbar_fixed %}fixed-top{% else %}sticky-top{% endif %}" role="navigation">
     <div class="container">
@@ -38,7 +49,8 @@
           aria-controls="manual-sidebar manual-page-toc"
           title="{% include t.liquid key='manual.toggle_sidebar' default='Toggle contents' %}"
         >
-          <span aria-hidden="true">☰</span>
+          <i class="ti ti-layout-sidebar-left-collapse manual-navbar-sidebar-toggle-icon manual-sidebar-icon-expanded" aria-hidden="true"></i>
+          <i class="ti ti-layout-sidebar-left-expand manual-navbar-sidebar-toggle-icon manual-sidebar-icon-collapsed" aria-hidden="true"></i>
           <span class="sr-only">{% include t.liquid key='manual.toggle_sidebar' default='Toggle contents' %}</span>
         </button>
       {% endif %}
@@ -46,7 +58,9 @@
         <div class="navbar-brand social">{% social_links %}</div>
       {% else %}
         <a class="navbar-brand title font-weight-lighter" href="{{ home_url | relative_url }}">
-          {% if site.title == 'blank' %}
+          {% if documentation_profile and documentation_logo %}
+            <img class="navbar-brand-logo documentation-navbar-logo" src="{{ documentation_logo | relative_url }}" alt="{{ site.title | escape }}">
+          {% elsif site.title == 'blank' %}
             {% if site.first_name %}
               <span class="font-weight-bold">
                 {{- site.first_name -}}
@@ -81,102 +95,105 @@
 
       <div class="collapse navbar-collapse text-right" id="navbarNav">
         <ul class="navbar-nav ml-auto flex-nowrap">
-          {% unless current_profile == 'manual' %}
-            <li class="nav-item {% if page.ref == 'home' %}active{% endif %}">
-              <a class="nav-link" href="{{ home_url | relative_url }}">
-                {{- home_nav_title -}}
-                {% if page.ref == 'home' %}
-                  <span class="sr-only">({{ current_text | strip }})</span>
-                {% endif %}
-              </a>
-            </li>
-          {% endunless %}
+          {% unless documentation_profile %}
+            {% unless current_profile == 'manual' or home_in_sorted_nav %}
+              <li class="nav-item {% if page.ref == 'home' %}active{% endif %}">
+                <a class="nav-link" href="{{ home_url | relative_url }}">
+                  {{- home_nav_title -}}
+                  {% if page.ref == 'home' %}
+                    <span class="sr-only">({{ current_text | strip }})</span>
+                  {% endif %}
+                </a>
+              </li>
+            {% endunless %}
 
-          {% assign sorted_pages = site.pages | where: 'lang', current_lang | sort: 'nav_order' %}
-          {% for p in sorted_pages %}
-            {% assign nav_feature = p.feature | default: p.ref %}
-            {% assign show_nav_item = true %}
-            {% assign nav_profiles = p.profiles | default: p.site_profiles %}
-            {% if nav_profiles %}
-              {% assign show_nav_item = false %}
-              {% if nav_profiles contains current_profile %}
-                {% assign show_nav_item = true %}
-              {% endif %}
-            {% endif %}
-            {% if site.unaltraweb and site.unaltraweb.features and nav_feature %}
-              {% assign feature_setting = site.unaltraweb.features[nav_feature] %}
-              {% if feature_setting == false %}
+            {% assign sorted_pages = site.pages | where: 'lang', current_lang | sort: 'nav_order' %}
+            {% for p in sorted_pages %}
+              {% assign nav_feature = p.feature | default: p.ref %}
+              {% assign show_nav_item = true %}
+              {% assign nav_profiles = p.profiles | default: p.site_profiles %}
+              {% if nav_profiles %}
                 {% assign show_nav_item = false %}
-              {% endif %}
-            {% endif %}
-            {% if p.nav and show_nav_item and p.autogen == null and p.ref != 'home' %}
-              {% if p.dropdown %}
-                {% assign has_active_child = false %}
-                {% for child in p.children %}
-                  {% if page.title == child.title or page.url == child.permalink %}
-                    {% assign has_active_child = true %}
-                  {% endif %}
-                {% endfor %}
-                <li class="nav-item dropdown {% if page.title == p.title or has_active_child %}active{% endif %}">
-                  <a
-                    class="nav-link dropdown-toggle"
-                    href="#"
-                    id="navbarDropdown"
-                    role="button"
-                    data-toggle="dropdown"
-                    aria-haspopup="true"
-                    aria-expanded="false"
-                  >
-                    {{- p.title -}}
-                    {% if page.title == p.title or has_active_child %}
-                      <span class="sr-only">({{ current_text | strip }})</span>
-                    {% endif %}
-                  </a>
-                  <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
-                    {% for child in p.children %}
-                      {% if child.title == 'divider' %}
-                        {% unless forloop.first or forloop.last %}
-                          <div class="dropdown-divider"></div>
-                        {% endunless %}
-                      {% else %}
-                        <a
-                          class="dropdown-item {% if page.title == child.title or page.url == child.permalink %}active{% endif %}"
-                          href="{% if child.permalink contains '://' %}{{ child.permalink }}{% else %}{{ child.permalink | relative_url }}{% endif %}"
-                        >
-                          {{- child.title -}}
-                        </a>
-                      {% endif %}
-                    {% endfor %}
-                  </div>
-                </li>
-              {% else %}
-                {% assign parent_link = p.url | remove: 'index.html' %}
-                {% assign is_active = false %}
-                {% if page.url == p.url %}
-                  {% assign is_active = true %}
-                {% elsif parent_link != '/' and page.url contains parent_link %}
-                  {% assign is_active = true %}
-                {% elsif p.ref == 'blog' and page.url contains '/blog/' %}
-                  {% assign is_active = true %}
+                {% if nav_profiles contains current_profile %}
+                  {% assign show_nav_item = true %}
                 {% endif %}
-
-                <li class="nav-item {% if is_active %}active{% endif %}">
-                  {% if p.permalink contains '://' %}
-                    {% assign url = p.permalink %}
-                  {% else %}
-                    {% assign url = p.url | remove: 'index.html' %}
+              {% endif %}
+              {% if site.unaltraweb and site.unaltraweb.features and nav_feature %}
+                {% assign feature_setting = site.unaltraweb.features[nav_feature] %}
+                {% if feature_setting == false %}
+                  {% assign show_nav_item = false %}
+                {% endif %}
+              {% endif %}
+              {% if p.nav and show_nav_item and p.autogen == null %}
+                {% assign nav_label = p.nav_title | default: p.nav_label | default: p.title %}
+                {% if p.dropdown %}
+                  {% assign has_active_child = false %}
+                  {% for child in p.children %}
+                    {% if page.title == child.title or page.url == child.permalink %}
+                      {% assign has_active_child = true %}
+                    {% endif %}
+                  {% endfor %}
+                  <li class="nav-item dropdown {% if page.title == p.title or has_active_child %}active{% endif %}">
+                    <a
+                      class="nav-link dropdown-toggle"
+                      href="#"
+                      id="navbarDropdown"
+                      role="button"
+                      data-toggle="dropdown"
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                    >
+                      {{- nav_label -}}
+                      {% if page.title == p.title or has_active_child %}
+                        <span class="sr-only">({{ current_text | strip }})</span>
+                      {% endif %}
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarDropdown">
+                      {% for child in p.children %}
+                        {% if child.title == 'divider' %}
+                          {% unless forloop.first or forloop.last %}
+                            <div class="dropdown-divider"></div>
+                          {% endunless %}
+                        {% else %}
+                          <a
+                            class="dropdown-item {% if page.title == child.title or page.url == child.permalink %}active{% endif %}"
+                            href="{% if child.permalink contains '://' %}{{ child.permalink }}{% else %}{{ child.permalink | relative_url }}{% endif %}"
+                          >
+                            {{- child.title -}}
+                          </a>
+                        {% endif %}
+                      {% endfor %}
+                    </div>
+                  </li>
+                {% else %}
+                  {% assign parent_link = p.url | remove: 'index.html' %}
+                  {% assign is_active = false %}
+                  {% if page.url == p.url %}
+                    {% assign is_active = true %}
+                  {% elsif parent_link != '/' and page.url contains parent_link %}
+                    {% assign is_active = true %}
+                  {% elsif p.ref == 'blog' and page.url contains '/blog/' %}
+                    {% assign is_active = true %}
                   {% endif %}
 
-                  <a class="nav-link" href="{{ url | relative_url }}">
-                    {{- p.title -}}
-                    {% if is_active %}
-                      <span class="sr-only">({{ current_text | strip }})</span>
+                  <li class="nav-item {% if is_active %}active{% endif %}">
+                    {% if p.permalink contains '://' %}
+                      {% assign url = p.permalink %}
+                    {% else %}
+                      {% assign url = p.url | remove: 'index.html' %}
                     {% endif %}
-                  </a>
-                </li>
+
+                    <a class="nav-link" href="{{ url | relative_url }}">
+                      {{- nav_label -}}
+                      {% if is_active %}
+                        <span class="sr-only">({{ current_text | strip }})</span>
+                      {% endif %}
+                    </a>
+                  </li>
+                {% endif %}
               {% endif %}
-            {% endif %}
-          {% endfor %}
+            {% endfor %}
+          {% endunless %}
 
           {% if site.search_enabled %}
             <li class="nav-item">
@@ -311,3 +328,4 @@
     </progress>
   {% endif %}
 </header>
+{% endunless %}

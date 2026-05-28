@@ -14,7 +14,7 @@
   {% assign footer_people = nil %}
   {% if current_profile == 'manual' or current_profile == 'course' %}
     {% assign footer_people = site.data.teachers %}
-  {% elsif current_profile == 'software' %}
+  {% elsif current_profile == 'software' or current_profile == 'techdocs' %}
     {% assign footer_people = site.data.creators | default: site.data.team %}
   {% endif %}
   {% assign footer_people_size = footer_people | size %}

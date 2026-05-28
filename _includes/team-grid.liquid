@@ -1,12 +1,25 @@
 {%- comment -%}
-CUSTOM: Team grid (Bootstrap cards), fed by _data/team.yml
+CUSTOM: Team grid (Bootstrap cards), fed by _data/team.yml or include.members
 {%- endcomment -%}
 
-<div class="team-grid row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
-  {%- for member in site.data.team -%}
-    {%- assign pic = member.pic | default: 'user-placeholder.png' -%}
-    {%- assign img_path = 'assets/img/team/' | append: pic -%}
-    {%- assign full_name = member.name | append: ' ' | append: member.lastname -%}
+{%- assign team_members = include.members | default: site.data.team -%}
+
+<div class="team-grid row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4{% if include.class %} {{ include.class }}{% endif %}">
+  {%- for member in team_members -%}
+    {%- assign member_name = member.name | default: member -%}
+    {%- assign full_name = member_name -%}
+    {%- if member.lastname -%}
+      {%- assign full_name = member.name | append: ' ' | append: member.lastname -%}
+    {%- endif -%}
+    {%- assign pic = member.photo | default: member.pic | default: 'user-placeholder.png' -%}
+    {%- if pic contains '/' or pic contains '://' -%}
+      {%- assign img_path = pic -%}
+    {%- else -%}
+      {%- assign img_path = 'assets/img/team/' | append: pic -%}
+    {%- endif -%}
+    {%- assign member_position = member.position | default: member.role -%}
+    {%- assign member_organization = member.organization | default: member.affiliation -%}
+    {%- assign member_department = member.department -%}
 
     <div class="col">
       <div class="card hoverable">
@@ -23,16 +36,16 @@ CUSTOM: Team grid (Bootstrap cards), fed by _data/team.yml
 
           <h5 class="card-title mt-3 mb-1">{{ full_name }}</h5>
 
-          {%- if member.position -%}
-            <div class="team-position">{{ member.position }}</div>
+          {%- if member_position -%}
+            <div class="team-position">{{ member_position }}</div>
           {%- endif -%}
 
-          {%- if member.organization -%}
-            <div class="team-org mt-2"><strong>{{ member.organization }}</strong></div>
+          {%- if member_organization -%}
+            <div class="team-org mt-2"><strong>{{ member_organization }}</strong></div>
           {%- endif -%}
 
-          {%- if member.department -%}
-            <div class="team-dept"><em>{{ member.department }}</em></div>
+          {%- if member_department -%}
+            <div class="team-dept"><em>{{ member_department }}</em></div>
           {%- endif -%}
 
           {%- comment -%}
@@ -47,19 +60,28 @@ CUSTOM: Team grid (Bootstrap cards), fed by _data/team.yml
           {%- endcomment -%}
 
 
-          {%- assign has_email = member.email and member.email.size > 0 -%}
+          {%- assign has_email = member.email -%}
           {%- assign has_social = member.social and member.social.size > 0 -%}
+          {%- assign has_url = member.url -%}
 
-          {%- if has_email or has_social -%}
+          {%- if has_email or has_social or has_url -%}
             <ul class="team-icons mt-3">
               {%- if has_email -%}
-                {%- for item in member.email -%}
+                {%- if member.email.first.url -%}
+                  {%- for item in member.email -%}
+                    <li>
+                      <a href="mailto:{{ item.url }}" title="{{ item.title | default: 'E-mail' }}" aria-label="{{ item.title | default: 'E-mail' }}">
+                        <i class="{{ item.class | default: 'fa-solid fa-envelope fa-2x' }}"></i>
+                      </a>
+                    </li>
+                  {%- endfor -%}
+                {%- else -%}
                   <li>
-                    <a href="mailto:{{ item.url }}" title="{{ item.title }}" aria-label="{{ item.title }}">
-                      <i class="{{ item.class }}"></i>
+                    <a href="mailto:{{ member.email }}" title="E-mail" aria-label="E-mail">
+                      <i class="fa-solid fa-envelope fa-2x"></i>
                     </a>
                   </li>
-                {%- endfor -%}
+                {%- endif -%}
               {%- endif -%}
 
               {%- if has_social -%}
@@ -70,6 +92,14 @@ CUSTOM: Team grid (Bootstrap cards), fed by _data/team.yml
                     </a>
                   </li>
                 {%- endfor -%}
+              {%- endif -%}
+
+              {%- if has_url -%}
+                <li>
+                  <a href="{{ member.url }}" target="_blank" rel="noopener" title="{{ member.url_label | default: 'Web' }}" aria-label="{{ member.url_label | default: 'Web' }}">
+                    <i class="fa-solid fa-globe fa-2x"></i>
+                  </a>
+                </li>
               {%- endif -%}
             </ul>
           {%- endif -%}

@@ -2,7 +2,7 @@
   var MIN_SCALE = 0.85;
   var MAX_SCALE = 1.25;
   var STEP = 0.1;
-  var searchIndexPromise;
+  var pageTocCleanup = null;
 
   function normalize(text) {
     return (text || "")
@@ -40,6 +40,13 @@
 
   function setupFontControls() {
     applyStoredFontScale();
+    document.querySelectorAll(".manual-font-menu").forEach(function (menu) {
+      if (menu.dataset.manualFontMenuReady) return;
+      menu.dataset.manualFontMenuReady = "true";
+      menu.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+    });
     document.querySelectorAll("[data-manual-font]").forEach(function (button) {
       if (button.dataset.manualFontReady) return;
       button.dataset.manualFontReady = "true";
@@ -60,6 +67,7 @@
     var root = document.querySelector(".manual-chapter");
     if (!root) return;
     root.querySelectorAll(".hd-num").forEach(function (node) { node.remove(); });
+    if (root.getAttribute("data-manual-numbered") === "false") return;
 
     var chapter = parseInt(root.getAttribute("data-chapter"), 10);
     if (!Number.isFinite(chapter) || chapter < 1) chapter = 1;
@@ -154,112 +162,64 @@
     });
 
     container.hidden = false;
+    setupPageTocActiveState(target, headings);
   }
 
-  function loadSearchIndex() {
-    if (!searchIndexPromise) {
-      var url = window.unaltrawebManualSearchUrl || (document.querySelector("base") ? document.querySelector("base").href : "") + "/assets/js/manual-search-index.json";
-      searchIndexPromise = fetch(url, { credentials: "same-origin" }).then(function (response) {
-        if (!response.ok) throw new Error("Manual search index unavailable");
-        return response.json();
-      }).catch(function () { return []; });
-    }
-    return searchIndexPromise;
-  }
-
-  function excerpt(body, query) {
-    var source = body || "";
-    var low = normalize(source);
-    var needle = normalize(query);
-    var idx = low.indexOf(needle);
-    if (idx < 0) return source.slice(0, 180);
-    var start = Math.max(0, idx - 70);
-    var end = Math.min(source.length, idx + 170);
-    return (start > 0 ? "..." : "") + source.slice(start, end) + (end < source.length ? "..." : "");
-  }
-
-  function highlight(text, query) {
-    var escaped = (query || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (!escaped) return text;
-    return text.replace(new RegExp("(" + escaped + ")", "ig"), "<mark>$1</mark>");
-  }
-
-  function renderSearchResults(input, entries, query) {
-    var box = input.closest(".manual-search");
-    if (!box) return;
-    var panel = box.querySelector("[data-manual-search-results]");
-    var list = box.querySelector("[data-manual-search-list]");
-    if (!panel || !list) return;
-
-    list.innerHTML = "";
-    if (!query || query.trim().length < 2) {
-      panel.hidden = true;
-      return;
+  function setupPageTocActiveState(target, headings) {
+    if (pageTocCleanup) {
+      pageTocCleanup();
+      pageTocCleanup = null;
     }
 
-    var lang = (document.documentElement.getAttribute("lang") || "").toLowerCase();
-    var needle = normalize(query);
-    var matches = entries.filter(function (entry) {
-      if (entry.lang && lang && entry.lang.toLowerCase() !== lang) return false;
-      return normalize([entry.title, entry.description, entry.keywords, entry.body].join(" ")).indexOf(needle) !== -1;
-    }).slice(0, 12);
+    var links = Array.prototype.slice.call(target.querySelectorAll("a[href^='#']"));
+    if (!headings.length || !links.length) return;
 
-    matches.forEach(function (entry) {
-      var item = document.createElement("li");
-      var link = document.createElement("a");
-      link.href = entry.url + "?h=" + encodeURIComponent(query);
-      link.innerHTML = highlight(entry.title, query);
-      var text = document.createElement("p");
-      text.innerHTML = highlight(excerpt(entry.body || entry.description || "", query), query);
-      item.appendChild(link);
-      item.appendChild(text);
-      list.appendChild(item);
+    var linkById = {};
+    links.forEach(function (link) {
+      var id = decodeURIComponent(link.getAttribute("href").slice(1));
+      linkById[id] = link;
     });
 
-    if (!matches.length) {
-      var empty = document.createElement("li");
-      empty.className = "manual-search-empty";
-      empty.textContent = "No results";
-      list.appendChild(empty);
+    function activate(id) {
+      links.forEach(function (link) {
+        link.classList.remove("active");
+        link.removeAttribute("aria-current");
+      });
+      var activeLink = linkById[id];
+      if (!activeLink) return;
+      activeLink.classList.add("active");
+      activeLink.setAttribute("aria-current", "location");
+      var parentSection = activeLink.closest("details");
+      if (parentSection) parentSection.open = true;
     }
-    panel.hidden = false;
-  }
 
-  function setupSearch() {
-    document.querySelectorAll("[data-manual-search]").forEach(function (input) {
-      if (input.dataset.manualSearchReady) return;
-      input.dataset.manualSearchReady = "true";
-      var run = function () {
-        var query = input.value;
-        loadSearchIndex().then(function (entries) { renderSearchResults(input, entries, query); });
-      };
-      input.addEventListener("input", run);
-      input.addEventListener("focus", run);
-    });
-  }
-
-  function highlightQuery() {
-    var params = new URLSearchParams(window.location.search);
-    var query = params.get("h");
-    if (!query || query.length < 2) return;
-    var content = document.querySelector(".manual-content");
-    if (!content || content.dataset.manualHighlighted) return;
-    content.dataset.manualHighlighted = "true";
-
-    var needle = normalize(query);
-    var walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
-      acceptNode: function (node) {
-        return normalize(node.nodeValue).indexOf(needle) >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-      }
-    });
-    var node = walker.nextNode();
-    if (node && node.parentNode) {
-      var mark = document.createElement("mark");
-      mark.className = "manual-search-hit";
-      mark.textContent = node.nodeValue;
-      node.parentNode.replaceChild(mark, node);
-      mark.scrollIntoView({ block: "center" });
+    function currentHeadingId() {
+      var offset = Math.min(window.innerHeight * 0.28, 180);
+      var current = headings[0];
+      headings.forEach(function (heading) {
+        if (heading.getBoundingClientRect().top <= offset) current = heading;
+      });
+      return current.id;
     }
+
+    var ticking = false;
+    function updateActive() {
+      ticking = false;
+      activate(currentHeadingId());
+    }
+    function scheduleUpdate() {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(updateActive);
+    }
+
+    updateActive();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+    pageTocCleanup = function () {
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+    };
   }
 
   function setupSidebarToggle() {
@@ -269,12 +229,16 @@
       var layout = button.closest(".manual-layout") || document.querySelector(".manual-layout");
       if (!layout) return;
       var collapsed = localStorage.getItem("unaltrawebManualSidebarCollapsed") === "true";
-      layout.classList.toggle("manual-sidebar-collapsed", collapsed);
-      button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      function updateToggleState(isCollapsed) {
+        layout.classList.toggle("manual-sidebar-collapsed", isCollapsed);
+        button.classList.toggle("is-collapsed", isCollapsed);
+        button.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+      }
+      updateToggleState(collapsed);
       button.addEventListener("click", function () {
         var nowCollapsed = layout.classList.toggle("manual-sidebar-collapsed");
         localStorage.setItem("unaltrawebManualSidebarCollapsed", nowCollapsed ? "true" : "false");
-        button.setAttribute("aria-expanded", nowCollapsed ? "false" : "true");
+        updateToggleState(nowCollapsed);
       });
     });
   }
@@ -284,8 +248,6 @@
     setupFontControls();
     addNumbering();
     buildPageToc();
-    setupSearch();
-    highlightQuery();
   }
 
   if (document.readyState === "loading") {

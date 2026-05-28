@@ -86,8 +86,11 @@
 }
 
 .profile-card-links i {
-  width: 1.05rem;
+  width: 1.35rem;
   color: var(--global-text-color);
+  flex: 0 0 1.35rem;
+  font-size: 1.18rem;
+  line-height: 1;
   text-align: center;
 }
 
@@ -189,6 +192,30 @@ html[data-theme="dark"] .profile-card-links a[aria-label="X"] i {
 
 .profile-highlight-publications .bibliography {
   margin-bottom: 0;
+}
+
+.profile-highlight-publications .bibliography > li > .row {
+  display: grid;
+  grid-template-columns: minmax(4.9rem, 5.5rem) minmax(0, 1fr);
+  gap: 0.8rem 1rem;
+  margin-right: 0;
+  margin-left: 0;
+}
+
+.profile-highlight-publications .bibliography > li > .row > .abbr,
+.profile-highlight-publications .bibliography > li > .row > [id] {
+  width: auto;
+  max-width: none;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.profile-highlight-publications .bibliography > li > .row > [id] {
+  min-width: 0;
+}
+
+.profile-highlight-publications .bibliography .preview {
+  max-width: 100%;
 }
 
 .profile-highlight-projects .project-card {

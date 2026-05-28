@@ -13,6 +13,8 @@ layout: default
 {% if page.last_updated %}
   {% capture updated_date %}{% include localized-date.liquid date=page.last_updated format_key='date.formats.long' default_format='%B %-d, %Y' %}{% endcapture %}
 {% endif %}
+{% capture reading_time_html %}{% include post-reading-time.liquid item=page content=content %}{% endcapture %}
+{% assign reading_time_html = reading_time_html | strip %}
 
 {% if page._styles %}
   <style type="text/css">
@@ -27,6 +29,7 @@ layout: default
       {{ created_on_text | strip }} {{ published_date | strip }}
       {% if page.author %}{{ by_text | strip }} {{ page.author }}{% endif %}
       {% if page.last_updated %}, {{ updated_on_text | strip }} {{ updated_date | strip }}{% endif %}
+      {% if reading_time_html != '' %} • {{ reading_time_html }}{% endif %}
       {% if page.meta %}• {{ page.meta }}{% endif %}
     </p>
     <p class="post-tags">

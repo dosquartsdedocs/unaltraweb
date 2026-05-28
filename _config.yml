@@ -24,7 +24,7 @@ impressum_path: # set to path to include impressum link in the footer, use the s
 back_to_top: true # set to false to disable the back to top button
 
 unaltraweb:
-  site_profile: project # project, personal, software, manual, or course
+  site_profile: project # project, personal, techdocs, software, manual, or course
   features:
     blog: true
     cv: true
@@ -39,9 +39,14 @@ unaltraweb:
     logo:
     logo_inverse:
     bibliography: true
+  documentation:
+    collection: documentation
+    logo:
+    logo_inverse:
+    logo_sepia:
   figure_captions:
     enabled: true
-    collections: [chapters]
+    collections: [chapters, documentation]
 
 # -----------------------------------------------------------------------------
 # Theme
@@ -170,6 +175,9 @@ collections:
   chapters:
     output: true
     sort_by: weight
+  documentation:
+    output: true
+    sort_by: weight
   news:
     defaults:
       layout: post
@@ -269,6 +277,12 @@ defaults:
       layout: manual-chapter
   - scope:
       path: ""
+      type: documentation
+    values:
+      lang: en
+      layout: documentation-page
+  - scope:
+      path: ""
       type: news
     values:
       lang: en
@@ -344,7 +358,9 @@ scholar:
   details_dir: bibliography
   details_link: Details
 
-  query: "@*"
+  query: "@*[manual_only!=true]"
+  sort_by: year
+  order: descending
   group_by: year
   group_order: descending
 
@@ -376,10 +392,42 @@ filtered_bibtex_keywords:
     hal,
     html,
     inspirehep_id,
+    calibre_id,
+    calibre_source,
+    collection_ca,
+    collection_en,
+    collection_es,
+    collection_ref,
+    manual,
+    manual_badge,
+    manual_badge_ca,
+    manual_badge_en,
+    manual_badge_es,
+    manual_collection_ca,
+    manual_collection_en,
+    manual_collection_es,
+    manual_collection_ref,
+    manual_comment,
+    manual_comment_ca,
+    manual_comment_en,
+    manual_comment_es,
+    manual_kind,
+    manual_kind_ca,
+    manual_kind_en,
+    manual_kind_es,
+    manual_order,
+    manual_only,
+    manual_rating,
+    manual_section,
+    manual_selected,
     pdf,
     pmid,
     poster,
     preview,
+    ribbon_label,
+    ribbon_label_ca,
+    ribbon_label_en,
+    ribbon_label_es,
     selected,
     slides,
     supp,

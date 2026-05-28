@@ -70,7 +70,7 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 Important current template behaviour:
 
-- Personal demo profile uses Roger Tomlinson placeholder content.
+- Personal demo profile uses fictional John Doe/Juan Nadie/Joan Ningu placeholder content.
 - Localized home pages `/en/`, `/es/`, `/ca/` use `layout: profile`.
 - Optional localized `blog`, `CV`, `projects`, `publications`, `outputs`, `repositories`, `readings`, `team` and manual pages exercise feature/profile routing.
 - Demo project entries live in `_projects/`.

@@ -1,12 +1,54 @@
 ---
 ---
-<div id="{{ entry.key }}" class="manual-reference">
-  <div class="manual-reference-text">{{ reference | replace: "\Textperiodcentered", "·" }}</div>
-  <div class="manual-reference-links">
-    {% if entry.doi %}
-      DOI: <a href="https://doi.org/{{ entry.doi }}">{{ entry.doi }}</a>
-    {% elsif entry.url %}
-      URL: <a href="{{ entry.url }}">{{ entry.url }}</a>
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+{% assign comment_key = 'manual_comment_' | append: current_lang %}
+{% assign kind_key = 'manual_kind_' | append: current_lang %}
+{% assign reference_comment = entry[comment_key] | default: entry.manual_comment | default: entry.comment %}
+{% assign reference_kind = entry[kind_key] | default: entry.manual_kind | default: entry.type %}
+{% assign reference_rating = entry.manual_rating | default: entry.rating %}
+{% assign reference_preview = entry.preview | default: entry.image | default: entry.thumbnail %}
+<div id="{{ entry.key }}" class="manual-reference{% if reference_preview %} manual-reference--with-preview{% endif %}">
+  {% if reference_preview %}
+    <div class="manual-reference-preview">
+      {% if reference_preview contains '://' %}
+        <img src="{{ reference_preview }}" alt="" data-zoomable>
+      {% else %}
+        {% assign reference_preview_path = reference_preview %}
+        {% unless reference_preview_path contains '/' %}
+          {% assign reference_preview_path = reference_preview_path | prepend: '/assets/img/publication_preview/' %}
+        {% endunless %}
+        {%
+          include figure.liquid
+          loading="eager"
+          path=reference_preview_path
+          sizes="160px"
+          class="manual-reference-preview-image"
+          zoomable=true
+          avoid_scaling=true
+          alt=reference_preview
+        %}
+      {% endif %}
+    </div>
+  {% endif %}
+  <div class="manual-reference-body">
+    {% if reference_kind or reference_rating %}
+      <div class="manual-reference-meta">
+        {% if reference_kind %}<span>{{ reference_kind }}</span>{% endif %}
+        {% if reference_rating %}<span class="reading-rating"><i class="fa-solid fa-star" aria-hidden="true"></i>{{ reference_rating }}/5</span>{% endif %}
+      </div>
+    {% endif %}
+    <div class="manual-reference-text">{{ reference | replace: "\Textperiodcentered", "·" }}</div>
+    {% if reference_comment %}<div class="manual-reference-comment">{{ reference_comment | markdownify }}</div>{% endif %}
+    {% if entry.doi or entry.website or entry.url %}
+      <div class="manual-reference-links">
+        {% if entry.doi %}
+          DOI: <a href="https://doi.org/{{ entry.doi }}">{{ entry.doi }}</a>
+        {% elsif entry.website %}
+          URL: <a href="{{ entry.website }}">{{ entry.website }}</a>
+        {% elsif entry.url %}
+          URL: <a href="{{ entry.url }}">{{ entry.url }}</a>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
 </div>

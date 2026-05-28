@@ -26,10 +26,11 @@ date:
     long: "%d/%m/%Y"
 
 profiles:
-  personal: personal
-  project: projecte
-  software: programari
-  manual: manual
+  personal: unaltreselfie
+  project: unaltreprojecte
+  software: unaltredocs
+  techdocs: unaltredocs
+  manual: unaltremanual
   course: curs
 
 search:
@@ -78,6 +79,8 @@ post:
   by: per
   last_updated_on: darrera actualització el
   references: Referències
+  reading_time: Temps de lectura
+  reading_time_minutes: min de lectura
 
 archive:
   category_prefix: Arxiu de
@@ -140,14 +143,19 @@ reading:
   reviewed_on: Ressenyat el
   status: Estat
   topics: Temes
+  rating: Valoració
   links: Enllaços
   external_resource: Recurs
   doi_link: Registre DOI
   openlibrary: Open Library
+  cite: Cita
+  how_to_cite: Com citar
+  bibtex: BibTeX
   cover_caption: Coberta
   no_review: Encara no hi ha text de ressenya.
   empty_shelf: Encara no hi ha lectures disponibles.
   uncategorized: Sense categoria
+  collections: Col·leccions
   not_dated: s. d.
   status_values:
     abandoned: Abandonada
@@ -186,20 +194,47 @@ languages:
   es: Castellà
   ca: Català
 
+navigation:
+  previous: Anterior
+  next: Següent
+
+documentation:
+  title: Documentació
+  contents: Taula de continguts
+  site_navigation: Lloc
+  theme: Tema
+  theme_system: Sistema
+  theme_light: Clar
+  theme_dark: Fosc
+  theme_sepia: Café
+  font_decrease: Redueix el text
+  font_increase: Augmenta el text
+  font_reset: Restableix el text
+  search_placeholder: Cerca en la documentació
+  search_results: Resultats de cerca
+  search_no_results: Sense resultats
+
 manual:
   contents: Continguts
   on_this_page: En aquesta pàgina
+  on_this_chapter: En aquest capítol
   previous: Anterior
   next: Següent
   start_reading: Comença a llegir
   teachers: Professorat
   references: Bibliografia
+  bibliography: Bibliografia
+  books: Llibres i manuals
+  articles: Articles i altres publicacions
+  selected_readings: Lectures destacades
+  more_readings: Més lectures
   no_chapters: Encara no hi ha capítols disponibles.
   filter: Filtra capítols
   cover: Portada
 
   search_placeholder: Escriu per cercar
   search_results: Resultats de cerca
+  search_no_results: Sense resultats
   toggle_sidebar: Mostra o amaga els continguts
   font_decrease: Redueix el text
   font_increase: Augmenta el text

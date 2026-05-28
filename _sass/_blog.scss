@@ -31,6 +31,13 @@
   font-size: 0.82rem;
 }
 
+.blog-archive-meta .post-reading-time {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
 .blog-archive-title {
   margin: 0;
   font-size: 1.18rem;

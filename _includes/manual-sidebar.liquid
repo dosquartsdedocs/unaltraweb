@@ -8,9 +8,11 @@
   {% assign manual_home = home_candidates | where_exp: 'candidate', 'candidate.profiles == nil' | first %}
 {% endif %}
 {% assign chapters = include.chapters %}
+{% assign reference_pages = include.reference_pages %}
 {% capture manual_contents_text %}{% include t.liquid key='manual.contents' default='Contents' %}{% endcapture %}
 {% capture manual_search_text %}{% include t.liquid key='manual.search_placeholder' default='Type to search' %}{% endcapture %}
 {% capture manual_search_results_text %}{% include t.liquid key='manual.search_results' default='Search results' %}{% endcapture %}
+{% capture manual_search_empty_text %}{% include t.liquid key='manual.search_no_results' default='No results' %}{% endcapture %}
 {% capture manual_cover_text %}{% include t.liquid key='manual.cover' default='Cover' %}{% endcapture %}
 
 <aside id="manual-sidebar" class="manual-sidebar" aria-label="{{ manual_contents_text | strip }}">
@@ -27,26 +29,36 @@
       </a>
     {% endif %}
 
-    <div class="manual-search" role="search">
+    <div class="manual-search" role="search" data-content-search-box>
       <label class="sr-only" for="manual-search-input">{{ manual_search_text | strip }}</label>
-      <input id="manual-search-input" class="manual-search-input" type="search" data-manual-search placeholder="{{ manual_search_text | strip }}" autocomplete="off">
-      <div class="manual-search-results" data-manual-search-results hidden>
+      <input id="manual-search-input" class="manual-search-input" type="search" data-content-search data-content-search-url="{{ '/assets/js/manual-search-index.json' | relative_url }}" data-content-search-target=".manual-content" data-content-search-empty="{{ manual_search_empty_text | strip | escape }}" placeholder="{{ manual_search_text | strip }}" autocomplete="off">
+      <div class="manual-search-results" data-content-search-results data-content-search-empty="{{ manual_search_empty_text | strip | escape }}" hidden>
         <h2>{{ manual_search_results_text | strip }}</h2>
-        <ol data-manual-search-list></ol>
+        <ol data-content-search-list></ol>
       </div>
     </div>
 
     <nav class="manual-nav" aria-label="{{ manual_contents_text | strip }}">
-      <p class="manual-sidebar-heading">{{ manual_contents_text | strip }}</p>
-      <ol class="manual-chapter-tree">
+      <ol class="manual-chapter-tree manual-cover-tree">
         <li class="manual-sidebar-item manual-home-link{% if page.ref == 'home' %} active{% endif %}">
           <a href="{{ manual_home.url | default: default_manual_home_url | relative_url }}">{{ manual_cover_text | strip }}</a>
         </li>
+      </ol>
+      <p class="manual-sidebar-heading manual-sidebar-heading--contents">{{ manual_contents_text | strip }}</p>
+      <ol class="manual-chapter-tree">
         {% for chapter in chapters %}
           <li class="manual-sidebar-item{% if page.url == chapter.url %} active{% endif %}" data-manual-title="{{ chapter.title | downcase | escape }}">
             <a href="{{ chapter.url | relative_url }}">
               <span class="manual-chapter-number">{{ forloop.index }}</span>
               <span class="manual-chapter-title">{{ chapter.title }}</span>
+            </a>
+          </li>
+        {% endfor %}
+        {% for reference_page in reference_pages %}
+          <li class="manual-sidebar-item manual-reference-link{% if page.url == reference_page.url %} active{% endif %}" data-manual-title="{{ reference_page.title | downcase | escape }}">
+            <a href="{{ reference_page.url | relative_url }}">
+              <span class="manual-chapter-number manual-chapter-number--blank" aria-hidden="true"></span>
+              <span class="manual-chapter-title">{{ reference_page.title }}</span>
             </a>
           </li>
         {% endfor %}

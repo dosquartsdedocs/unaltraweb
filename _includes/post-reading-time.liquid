@@ -1,0 +1,29 @@
+{% assign reading_time_item = include.item | default: page %}
+{% if reading_time_item.reading_time != false %}
+  {% assign configured_minutes = reading_time_item.reading_time_minutes | default: reading_time_item.reading_minutes %}
+  {% if configured_minutes %}
+    {% assign reading_minutes = configured_minutes | plus: 0 %}
+  {% else %}
+    {% assign reading_time_source = include.content | default: reading_time_item.content | default: content %}
+    {% assign reading_words = reading_time_source | strip_html | strip_newlines | number_of_words %}
+    {% assign words_per_minute = site.reading_time.words_per_minute | default: site.words_per_minute | default: 200 | plus: 0 %}
+    {% if words_per_minute <= 0 %}
+      {% assign words_per_minute = 200 %}
+    {% endif %}
+    {% assign reading_minutes = reading_words | divided_by: words_per_minute %}
+    {% assign reading_remainder = reading_words | modulo: words_per_minute %}
+    {% if reading_remainder > 0 %}
+      {% assign reading_minutes = reading_minutes | plus: 1 %}
+    {% endif %}
+  {% endif %}
+  {% if reading_minutes < 1 %}
+    {% assign reading_minutes = 1 %}
+  {% endif %}
+  {% capture reading_time_label %}{% include t.liquid key='post.reading_time' default='Reading time' %}{% endcapture %}
+  {% capture reading_time_unit %}{% include t.liquid key='post.reading_time_minutes' default='min read' %}{% endcapture %}
+  <span class="post-reading-time" title="{{ reading_time_label | strip }}">
+    <i class="fa-regular fa-clock fa-sm" aria-hidden="true"></i>
+    <span class="sr-only">{{ reading_time_label | strip }}:</span>
+    {{ reading_minutes }} {{ reading_time_unit | strip }}
+  </span>
+{% endif %}

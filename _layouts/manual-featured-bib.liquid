@@ -1,0 +1,46 @@
+---
+---
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+{% assign comment_key = 'manual_comment_' | append: current_lang %}
+{% assign badge_key = 'manual_badge_' | append: current_lang %}
+{% assign kind_key = 'manual_kind_' | append: current_lang %}
+{% assign featured_comment = entry[comment_key] | default: entry.manual_comment | default: entry.comment %}
+{% assign featured_badge = entry[badge_key] | default: entry.manual_badge | default: entry.ribbon_label | default: entry.badge_label %}
+{% assign featured_kind = entry[kind_key] | default: entry.manual_kind | default: entry.type %}
+{% assign featured_preview = entry.preview | default: entry.image | default: entry.thumbnail %}
+{% assign featured_rating = entry.manual_rating | default: entry.rating %}
+{% assign featured_badge_slug = featured_badge | default: featured_kind | slugify %}
+<article id="{{ entry.key }}" class="manual-featured-reference{% if featured_preview %} manual-featured-reference--with-preview{% endif %}">
+  {% if featured_preview %}
+    <figure class="cover reading-cover manual-featured-cover">
+      <div class="cover-link reading-cover-static" aria-label="{{ entry.title | escape }}">
+        {% if featured_preview contains '://' %}
+          <img src="{{ featured_preview }}" alt="{{ entry.title | escape }}" data-zoomable>
+        {% else %}
+          {% assign featured_preview_path = featured_preview %}
+          {% unless featured_preview_path contains '/' %}
+            {% assign featured_preview_path = featured_preview_path | prepend: '/assets/img/publication_preview/' %}
+          {% endunless %}
+          <img src="{{ featured_preview_path | relative_url }}" alt="{{ entry.title | escape }}" data-zoomable>
+        {% endif %}
+        {% if featured_badge %}<figcaption class="reading-ribbon custom {{ featured_badge_slug }}">{{ featured_badge }}</figcaption>{% endif %}
+      </div>
+    </figure>
+  {% endif %}
+  <div class="manual-featured-reference-body">
+    <p class="manual-featured-kind">{{ featured_kind }}</p>
+    <h3>{{ entry.title }}</h3>
+    <p class="manual-featured-meta">
+      {% if entry.year %}<span>{{ entry.year }}</span>{% endif %}
+      {% if featured_rating %}<span class="reading-rating"><i class="fa-solid fa-star" aria-hidden="true"></i>{{ featured_rating }}/5</span>{% endif %}
+    </p>
+    {% if featured_comment %}<div class="manual-featured-comment">{{ featured_comment | markdownify }}</div>{% endif %}
+    <div class="manual-featured-citation">{{ reference | replace: "\Textperiodcentered", "·" }}</div>
+    {% if entry.abstract %}
+      <details class="manual-featured-abstract">
+        <summary>Abstract</summary>
+        <p>{{ entry.abstract }}</p>
+      </details>
+    {% endif %}
+  </div>
+</article>

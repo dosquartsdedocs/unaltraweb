@@ -38,7 +38,98 @@ body.sticky-bottom-footer {
   }
 }
 
+.content-search-hit {
+  background: color-mix(in srgb, var(--global-theme-color) 24%, transparent);
+  color: var(--global-text-color);
+  padding: 0 0.12rem;
+}
+
 // TODO: redefine content layout.
+
+.previous-next-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--global-divider-color);
+  padding-top: 1rem;
+}
+
+.previous-next-link {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--global-divider-color);
+  border-radius: 0.7rem;
+  background: var(--global-card-bg-color);
+  color: var(--global-text-color);
+  padding: 0.85rem;
+  text-decoration: none;
+}
+
+.previous-next-link::before {
+  position: absolute;
+  top: 0.9rem;
+  bottom: 0.9rem;
+  width: 1.65rem;
+  background: color-mix(in srgb, var(--global-theme-color) 13%, transparent);
+  content: "";
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.previous-next-link.previous {
+  padding-left: 2.35rem;
+}
+
+.previous-next-link.previous::before {
+  left: 0;
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
+}
+
+.previous-next-link.next {
+  padding-right: 2.35rem;
+  text-align: right;
+}
+
+.previous-next-link.next::before {
+  right: 0;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.previous-next-link span {
+  color: var(--global-text-color-light);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.previous-next-link:hover {
+  border-color: var(--global-theme-color);
+  background: color-mix(in srgb, var(--global-theme-color) 8%, var(--global-card-bg-color));
+  color: var(--global-theme-color);
+  text-decoration: none;
+}
+
+.previous-next-link:hover::before {
+  background: color-mix(in srgb, var(--global-theme-color) 22%, transparent);
+}
+
+.previous-next-link.previous:hover::before {
+  transform: translateX(-0.18rem);
+}
+
+.previous-next-link.next:hover::before {
+  transform: translateX(0.18rem);
+}
+
+@media (max-width: 640px) {
+  .previous-next-nav {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .previous-next-link.next {
+    text-align: left;
+  }
+}
 
 /******************************************************************************
  * Publications

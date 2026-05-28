@@ -49,11 +49,17 @@
 {% if page.ref and site.languages %}
   {% for lang_code in site.languages %}
     {% assign localized_page = site.pages | where: 'ref', page.ref | where: 'lang', lang_code | first %}
+    {% if localized_page == nil %}
+      {% assign localized_page = site.documents | where: 'ref', page.ref | where: 'lang', lang_code | first %}
+    {% endif %}
     {% if localized_page %}
       <link rel="alternate" hreflang="{{ lang_code }}" href="{{ localized_page.url | replace: 'index.html', '' | absolute_url }}">
     {% endif %}
   {% endfor %}
   {% assign default_page = site.pages | where: 'ref', page.ref | where: 'lang', site.default_lang | first %}
+  {% if default_page == nil %}
+    {% assign default_page = site.documents | where: 'ref', page.ref | where: 'lang', site.default_lang | first %}
+  {% endif %}
   {% if default_page %}
     <link rel="alternate" hreflang="x-default" href="{{ default_page.url | replace: 'index.html', '' | absolute_url }}">
   {% endif %}

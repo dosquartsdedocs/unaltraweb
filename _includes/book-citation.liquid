@@ -1,0 +1,33 @@
+{% assign citation_item = include.item | default: page %}
+{% assign citation_title = include.title | default: citation_item.title %}
+{% assign citation_author = include.author | default: citation_item.author %}
+{% assign citation_publisher = include.publisher | default: citation_item.publisher %}
+{% assign citation_year = include.year | default: citation_item.year | default: citation_item.released %}
+{% assign citation_isbn = include.isbn | default: citation_item.isbn %}
+{% assign citation_doi = include.doi | default: citation_item.doi %}
+{% assign citation_url = citation_item.url | absolute_url %}
+{% assign citation_key_author = citation_author | default: citation_title | split: '&' | first | split: ',' | first | split: ' ' | last | slugify %}
+{% assign citation_key_year = citation_year | default: 'nd' %}
+{% assign citation_key = citation_item.citation_key | default: citation_key_author | append: citation_key_year | append: citation_title | slugify %}
+{% assign bibtex_author = citation_author | replace: ' & ', ' and ' %}
+
+{% capture how_to_cite_text %}{% include t.liquid key='reading.how_to_cite' default='How to cite' %}{% endcapture %}
+{% capture bibtex_text %}{% include t.liquid key='reading.bibtex' default='BibTeX' %}{% endcapture %}
+
+<div class="reading-citation">
+  <h3>{{ how_to_cite_text | strip }}</h3>
+  <p>
+    {% if citation_author %}{{ citation_author }}{% endif %}{% if citation_year %} ({{ citation_year }}){% endif %}.
+    <em>{{ citation_title }}</em>{% if citation_publisher %}. {{ citation_publisher }}{% endif %}{% if citation_doi %}. https://doi.org/{{ citation_doi }}{% elsif citation_isbn %}. ISBN {{ citation_isbn }}{% endif %}.
+  </p>
+  <h3>{{ bibtex_text | strip }}</h3>
+  <pre><code class="language-bibtex">@book{ {{- citation_key -}},
+  title     = { {{- citation_title -}} }{% if bibtex_author %},
+  author    = { {{- bibtex_author -}} }{% endif %}{% if citation_year %},
+  year      = { {{- citation_year -}} }{% endif %}{% if citation_publisher %},
+  publisher = { {{- citation_publisher -}} }{% endif %}{% if citation_isbn %},
+  isbn      = { {{- citation_isbn -}} }{% endif %}{% if citation_doi %},
+  doi       = { {{- citation_doi -}} }{% endif %},
+  url       = { {{- citation_url -}} }
+}</code></pre>
+</div>

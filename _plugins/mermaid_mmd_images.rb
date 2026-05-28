@@ -8,10 +8,15 @@ module Unaltraweb
 
     BASEURL_PREFIX = /\A\{\{\s*site\.baseurl\s*\}\}/.freeze
     REMOTE_PATH_PREFIX = %r{\A(?:[a-z]+:)?//}i.freeze
+    FENCED_CODE_BLOCK = /^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$/m.freeze
 
     def rewrite(content, site_source:)
       return content if content.nil? || content.empty?
 
+      rewrite_outside_code_fences(content) { |chunk| rewrite_chunk(chunk, site_source: site_source) }
+    end
+
+    def rewrite_chunk(content, site_source:)
       out = content.dup
 
       out.gsub!(/!\[([^\]]*)\]\(([^)]*?\.mmd)(\s+"[^"]*")?\)/i) do
@@ -29,6 +34,23 @@ module Unaltraweb
       end
 
       out
+    end
+
+    def rewrite_outside_code_fences(content)
+      source = content.to_s
+      fences = []
+      protected_source = source.gsub(FENCED_CODE_BLOCK) do
+        token = "UNALTRAWEBFENCEDCODEBLOCK#{fences.length}"
+        fences << Regexp.last_match(0)
+        token
+      end
+
+      transformed = yield(protected_source)
+      fences.each_with_index do |fence, index|
+        transformed.gsub!("UNALTRAWEBFENCEDCODEBLOCK#{index}", fence)
+      end
+
+      transformed
     end
 
     def svg_path_for(mmd_path, site_source)

@@ -1,0 +1,75 @@
+{% assign matrix = include.matrix | default: page.profile_feature_matrix %}
+{% assign profiles = matrix.profiles %}
+{% assign rows = matrix.rows %}
+{% if matrix and profiles and rows %}
+<div class="profile-feature-matrix-legend">
+  {% if matrix.legend %}
+    <p>{{ matrix.legend }}</p>
+  {% endif %}
+  {% assign legend_statuses = 'yes,config,no' | split: ',' %}
+  <ul class="profile-feature-matrix-key" aria-label="{{ matrix.legend_label | default: 'Legend' }}">
+    {% for status in legend_statuses %}
+      {% assign status_label = matrix.labels[status] | default: status %}
+      <li class="profile-feature-matrix-key-item">
+        <span class="profile-feature-status profile-feature-status-{{ status | slugify }}">
+          {% case status %}
+            {% when 'yes' %}
+              <span aria-hidden="true">&#10003;</span>
+            {% when 'config' %}
+              <span aria-hidden="true">&ndash;</span>
+            {% else %}
+              <span aria-hidden="true">&times;</span>
+          {% endcase %}
+        </span>
+        <span class="profile-feature-matrix-key-label">{{ status_label }}</span>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+<div class="profile-feature-matrix-wrapper">
+    <table class="profile-feature-matrix">
+      <thead>
+        <tr>
+          <th scope="col">{{ matrix.feature_label | default: 'Feature' }}</th>
+          {% for profile in profiles %}
+            <th scope="col">{{ profile.label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <th scope="row">
+              {% if row.url %}
+                <a href="{{ row.url | relative_url }}">{{ row.label }}</a>
+              {% else %}
+                {{ row.label }}
+              {% endif %}
+            </th>
+            {% for profile in profiles %}
+              {% assign raw_status = row[profile.key] | default: 'no' %}
+              {% if raw_status == true %}
+                {% assign status = 'yes' %}
+              {% elsif raw_status == false %}
+                {% assign status = 'no' %}
+              {% else %}
+                {% assign status = raw_status %}
+              {% endif %}
+              {% assign status_label = matrix.labels[status] | default: status %}
+              <td class="profile-feature-status profile-feature-status-{{ status | slugify }}">
+                {% case status %}
+                  {% when 'yes' %}
+                    <span aria-label="{{ status_label }}" title="{{ status_label }}">&#10003;</span>
+                  {% when 'config' %}
+                    <span aria-label="{{ status_label }}" title="{{ status_label }}">&ndash;</span>
+                  {% else %}
+                    <span aria-label="{{ status_label }}" title="{{ status_label }}">&times;</span>
+                {% endcase %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+</div>
+{% endif %}

@@ -26,10 +26,11 @@ date:
     long: "%B %-d, %Y"
 
 profiles:
-  personal: personal
-  project: project
-  software: software
-  manual: manual
+  personal: unaltreselfie
+  project: unaltreprojecte
+  software: unaltredocs
+  techdocs: unaltredocs
+  manual: unaltremanual
   course: course
 
 search:
@@ -78,6 +79,8 @@ post:
   by: by
   last_updated_on: last updated on
   references: References
+  reading_time: Reading time
+  reading_time_minutes: min read
 
 archive:
   category_prefix: Archive of
@@ -140,14 +143,19 @@ reading:
   reviewed_on: Reviewed on
   status: Status
   topics: Topics
+  rating: Rating
   links: Links
   external_resource: Resource
   doi_link: DOI record
   openlibrary: Open Library
+  cite: Cite
+  how_to_cite: How to cite
+  bibtex: BibTeX
   cover_caption: Cover
   no_review: No review text yet.
   empty_shelf: No reading notes available yet.
   uncategorized: Uncategorized
+  collections: Collections
   not_dated: n.d.
   status_values:
     abandoned: Abandoned
@@ -186,20 +194,47 @@ languages:
   es: Spanish
   ca: Catalan
 
+navigation:
+  previous: Previous
+  next: Next
+
+documentation:
+  title: Documentation
+  contents: Table of contents
+  site_navigation: Site
+  theme: Theme
+  theme_system: System
+  theme_light: Light
+  theme_dark: Dark
+  theme_sepia: Coffee
+  font_decrease: Decrease text size
+  font_increase: Increase text size
+  font_reset: Reset text size
+  search_placeholder: Search documentation
+  search_results: Search results
+  search_no_results: No results
+
 manual:
   contents: Contents
   on_this_page: On this page
+  on_this_chapter: On this chapter
   previous: Previous
   next: Next
   start_reading: Start reading
   teachers: Teaching team
   references: References
+  bibliography: Bibliography
+  books: Books and manuals
+  articles: Articles and other publications
+  selected_readings: Selected readings
+  more_readings: More readings
   no_chapters: No chapters available yet.
   filter: Filter chapters
   cover: Cover
 
   search_placeholder: Type to search
   search_results: Search results
+  search_no_results: No results
   toggle_sidebar: Toggle contents
   font_decrease: Decrease text size
   font_increase: Increase text size

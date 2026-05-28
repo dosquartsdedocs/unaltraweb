@@ -200,8 +200,18 @@
 </script>
 <script defer src="{{ '/assets/js/callouts.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% assign unaltraweb_current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign unaltraweb_developer_mode = site.developer_mode | default: site.unaltraweb.developer_mode %}
+{% if unaltraweb_developer_mode and jekyll.environment != 'production' %}
+  <script defer src="{{ '/assets/js/developer-mode.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
+{% endif %}
+{% if page.layout == 'manual-home' or page.layout == 'manual-chapter' or page.layout == 'documentation-home' or page.layout == 'documentation-page' %}
+  <script defer src="{{ '/assets/js/content-search.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
+{% endif %}
 {% if unaltraweb_current_profile == 'manual' or page.layout == 'manual-home' or page.layout == 'manual-chapter' %}
   <script defer src="{{ '/assets/js/manual.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
+{% endif %}
+{% if page.layout == 'documentation-home' or page.layout == 'documentation-page' %}
+  <script defer src="{{ '/assets/js/documentation.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% endif %}
 
 

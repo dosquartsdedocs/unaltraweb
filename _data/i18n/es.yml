@@ -26,10 +26,11 @@ date:
     long: "%d/%m/%Y"
 
 profiles:
-  personal: personal
-  project: proyecto
-  software: software
-  manual: manual
+  personal: unaltreselfie
+  project: unaltreprojecte
+  software: unaltredocs
+  techdocs: unaltredocs
+  manual: unaltremanual
   course: curso
 
 search:
@@ -78,6 +79,8 @@ post:
   by: por
   last_updated_on: última actualización el
   references: Referencias
+  reading_time: Tiempo de lectura
+  reading_time_minutes: min de lectura
 
 archive:
   category_prefix: Archivo de
@@ -140,14 +143,19 @@ reading:
   reviewed_on: Reseñado el
   status: Estado
   topics: Temas
+  rating: Valoración
   links: Enlaces
   external_resource: Recurso
   doi_link: Registro DOI
   openlibrary: Open Library
+  cite: Citar
+  how_to_cite: Cómo citar
+  bibtex: BibTeX
   cover_caption: Cubierta
   no_review: Todavía no hay texto de reseña.
   empty_shelf: Todavía no hay lecturas disponibles.
   uncategorized: Sin categoría
+  collections: Colecciones
   not_dated: s. f.
   status_values:
     abandoned: Abandonada
@@ -186,20 +194,47 @@ languages:
   es: Español
   ca: Catalán
 
+navigation:
+  previous: Anterior
+  next: Siguiente
+
+documentation:
+  title: Documentación
+  contents: Tabla de contenidos
+  site_navigation: Sitio
+  theme: Tema
+  theme_system: Sistema
+  theme_light: Claro
+  theme_dark: Oscuro
+  theme_sepia: Café
+  font_decrease: Reducir el texto
+  font_increase: Aumentar el texto
+  font_reset: Restablecer el texto
+  search_placeholder: Buscar en la documentación
+  search_results: Resultados de búsqueda
+  search_no_results: Sin resultados
+
 manual:
   contents: Contenidos
   on_this_page: En esta página
+  on_this_chapter: En este capítulo
   previous: Anterior
   next: Siguiente
   start_reading: Empezar a leer
   teachers: Profesorado
   references: Bibliografía
+  bibliography: Bibliografía
+  books: Libros y manuales
+  articles: Artículos y otras publicaciones
+  selected_readings: Lecturas destacadas
+  more_readings: Más lecturas
   no_chapters: Todavía no hay capítulos disponibles.
   filter: Filtrar capítulos
   cover: Portada
 
   search_placeholder: Escribe para buscar
   search_results: Resultados de búsqueda
+  search_no_results: Sin resultados
   toggle_sidebar: Mostrar u ocultar contenidos
   font_decrease: Reducir el texto
   font_increase: Aumentar el texto

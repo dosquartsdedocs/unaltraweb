@@ -958,6 +958,13 @@ html.transition *:after {
     margin-bottom: 0;
   }
 
+  .post-reading-time {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    white-space: nowrap;
+  }
+
   .post-tags {
     color: var(--global-text-color-light);
     font-size: 0.875rem;
