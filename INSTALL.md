@@ -26,7 +26,7 @@ While developing the core locally:
 cd ../unaltraweb-template
 make serve LOCAL_CORE=../unaltraweb
 make build LOCAL_CORE=../unaltraweb
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=manual
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltremanual
 ```
 
 ## Core Development Workflow

@@ -11,6 +11,17 @@
 {% assign featured_rating = entry.manual_rating | default: entry.rating %}
 {% assign featured_badge_slug = featured_badge | default: featured_kind | slugify %}
 {% assign featured_url = entry.manual_url | default: entry.website | default: entry.url %}
+{% assign featured_review_ref = entry.review_ref | default: entry.book_ref | default: entry.reading_ref %}
+{% assign featured_review_url = entry.review_url %}
+{% if featured_review_url == nil and featured_review_ref %}
+  {% assign review_candidates = site.books | where: 'ref', featured_review_ref | where: 'lang', current_lang %}
+  {% assign review_doc = review_candidates | first %}
+  {% if review_doc == nil and current_lang != site.default_lang %}
+    {% assign default_review_candidates = site.books | where: 'ref', featured_review_ref | where: 'lang', site.default_lang %}
+    {% assign review_doc = default_review_candidates | first %}
+  {% endif %}
+  {% if review_doc %}{% assign featured_review_url = review_doc.url %}{% endif %}
+{% endif %}
 {% assign featured_url_label_key = 'manual_url_label_' | append: current_lang %}
 {% assign featured_url_label = entry[featured_url_label_key] | default: entry.manual_url_label %}
 {% capture featured_authors %}
@@ -24,23 +35,31 @@
 <article id="{{ entry.key }}" class="manual-featured-reference{% if featured_preview %} manual-featured-reference--with-preview{% endif %}">
   {% if featured_preview %}
     <figure class="cover reading-cover manual-featured-cover">
-      <div class="cover-link reading-cover-static" aria-label="{{ entry.title | escape }}">
+      {% if featured_review_url %}
+        <a class="cover-link" href="{{ featured_review_url | relative_url }}">
+      {% else %}
+        <div class="cover-link reading-cover-static" aria-label="{{ entry.title | escape }}">
+      {% endif %}
         {% if featured_preview contains '://' %}
-          <img src="{{ featured_preview }}" alt="{{ entry.title | escape }}" data-zoomable>
+          <img src="{{ featured_preview }}" alt="{{ entry.title | escape }}"{% unless featured_review_url %} data-zoomable{% endunless %}>
         {% else %}
           {% assign featured_preview_path = featured_preview %}
           {% unless featured_preview_path contains '/' %}
             {% assign featured_preview_path = featured_preview_path | prepend: '/assets/img/publication_preview/' %}
           {% endunless %}
-          <img src="{{ featured_preview_path | relative_url }}" alt="{{ entry.title | escape }}" data-zoomable>
+          <img src="{{ featured_preview_path | relative_url }}" alt="{{ entry.title | escape }}"{% unless featured_review_url %} data-zoomable{% endunless %}>
         {% endif %}
         {% if featured_badge %}<figcaption class="reading-ribbon custom {{ featured_badge_slug }}">{{ featured_badge }}</figcaption>{% endif %}
-      </div>
+      {% if featured_review_url %}
+        </a>
+      {% else %}
+        </div>
+      {% endif %}
     </figure>
   {% endif %}
   <div class="manual-featured-reference-body">
     <p class="manual-featured-kind">{{ featured_kind }}</p>
-    <h3>{{ entry.title }}</h3>
+    <h3>{% if featured_review_url %}<a href="{{ featured_review_url | relative_url }}">{{ entry.title }}</a>{% else %}{{ entry.title }}{% endif %}</h3>
     {% if featured_authors %}<p class="manual-featured-authors">{{ featured_authors }}</p>{% endif %}
     <p class="manual-featured-meta">
       {% if entry.year %}<span>{{ entry.year }}</span>{% endif %}

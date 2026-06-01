@@ -199,7 +199,7 @@
   };
 </script>
 <script defer src="{{ '/assets/js/callouts.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
-{% assign unaltraweb_current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign unaltraweb_current_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
 {% assign unaltraweb_developer_mode = site.developer_mode | default: site.unaltraweb.developer_mode %}
 {% if unaltraweb_developer_mode and jekyll.environment != 'production' %}
   <script defer src="{{ '/assets/js/developer-mode.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
@@ -207,7 +207,7 @@
 {% if page.layout == 'manual-home' or page.layout == 'manual-chapter' or page.layout == 'documentation-home' or page.layout == 'documentation-page' %}
   <script defer src="{{ '/assets/js/content-search.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% endif %}
-{% if unaltraweb_current_profile == 'manual' or page.layout == 'manual-home' or page.layout == 'manual-chapter' %}
+{% if unaltraweb_current_profile == 'unaltremanual' or page.layout == 'manual-home' or page.layout == 'manual-chapter' %}
   <script defer src="{{ '/assets/js/manual.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% endif %}
 {% if page.layout == 'documentation-home' or page.layout == 'documentation-page' %}
@@ -219,7 +219,7 @@
 <script defer src="{{ '/assets/js/jupyter_new_tab.js' | relative_url | bust_file_cache }}"></script>
 
 <!-- Badges -->
-{% unless unaltraweb_current_profile == 'manual' %}
+{% unless unaltraweb_current_profile == 'unaltremanual' %}
   {% if site.enable_publication_badges.altmetric %}
     <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script>
   {% endif %}

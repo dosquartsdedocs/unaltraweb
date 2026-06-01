@@ -46,7 +46,7 @@ Use `site.unaltraweb.site_profile` to select the prepared website profile and `s
 
 ```yaml
 unaltraweb:
-  site_profile: personal
+  site_profile: unaltreselfie
   features:
     blog: true
     cv: true
@@ -131,11 +131,11 @@ The labels are localized through `_data/i18n/*.yml` under `callouts`, and the co
 
 ## Manual Profile
 
-Use the `manual` site profile for academic handbooks, course manuals and book-like teaching material. The core profile provides a cover page, a sticky contents sidebar, a right-hand chapter table of contents, multilingual chapter routing, teacher blocks, automatic figure captions for chapters, a full-text manual search index, navbar reader font-size controls and a bibliography section without bibliometric badges.
+Use the `unaltremanual` site profile for academic handbooks, course manuals and book-like teaching material. The core profile provides a cover page, a sticky contents sidebar, a right-hand chapter table of contents, multilingual chapter routing, teacher blocks, automatic figure captions for chapters, a full-text manual search index, navbar reader font-size controls and a bibliography section without bibliometric badges.
 
 ```yaml
 unaltraweb:
-  site_profile: manual
+  site_profile: unaltremanual
   manual:
     collection: chapters
     cover_image: /assets/img/manual-cover.svg
@@ -331,7 +331,7 @@ resources:
 ---
 ```
 
-Supported built-in icon types include `zenodo`, `doi`, `dataset`, `data`, `code`, `github`, `repository`, `documentation`, `docs`, `manual`, `map`, `publication`, `paper`, `report`, `website`, and `link`. A resource can override the icon with an explicit class, for example `icon: fa-solid fa-chart-line`.
+Supported built-in icon types include `zenodo`, `doi`, `dataset`, `data`, `code`, `github`, `repository`, `documentation`, `docs`, `unaltremanual`, `map`, `publication`, `paper`, `report`, `website`, and `link`. A resource can override the icon with an explicit class, for example `icon: fa-solid fa-chart-line`.
 
 ## CV Preview Cards
 
@@ -379,4 +379,4 @@ unaltraweb:
 
 Keep this setting out of production builds. The template `Makefile` writes it to `tmp/_config.development.yml` for `make serve`, while `make build` uses the normal production config.
 
-Do not rely on client-side preview shells for alternate profiles. Jekyll renders one real configuration per build, so profiles should be tested by rebuilding with a config overlay, for example `make serve SITE_PROFILE=project` in the template. Pages can declare `profiles: [personal]` or `profiles: [project]`; the core filters non-matching pages before writing the site.
+Do not rely on client-side preview shells for alternate profiles. Jekyll renders one real configuration per build, so profiles should be tested by rebuilding with a config overlay, for example `make serve SITE_PROFILE=unaltreprojecte` in the template. Pages can declare `profiles: [unaltreselfie]` or `profiles: [unaltreprojecte]`; the core filters non-matching pages before writing the site.

@@ -4,7 +4,7 @@
 
 `unaltraweb` is the reusable Jekyll core/platform for `dosquartsdedocs` websites. It provides shared layouts, includes, styles, plugins, bibliography tooling, multilingual behaviour, theme modes, documentation and reusable workflows for thin child repositories such as `../unaltraweb-template`.
 
-Use the term **site profile** for prepared website families such as `personal`, `project`, `software`, `manual` and `course`. Avoid calling these layouts or includes, because those words already have precise Jekyll meanings.
+Use the term **site profile** for prepared website families such as `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs`. Avoid calling these layouts or includes, because those words already have precise Jekyll meanings.
 
 The goal is not to maintain one personal site here. The goal is to make a self-owned alternative to the inherited `al-folio` base, supporting academic personal sites, research project sites and documentation/course sites.
 
@@ -44,7 +44,7 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 - Disabled inherited `external_sources` by default so builds do not fetch Medium/Google posts.
 - Added `profile` layout, `profile-card` include and `profile-highlights.liquid` for personal-site home pages.
 - Added profile i18n keys in English, Spanish and Catalan.
-- Added `site.unaltraweb.site_profile` DOM markers: `data-site-profile` on `<html>` and `site-profile-*` on `<body>`. `data-site-type`/`site-type-*` remain as temporary compatibility aliases.
+- Added `site.unaltraweb.site_profile` DOM markers: `data-site-profile` on `<html>` and `site-profile-*` on `<body>`.
 - Added config-driven feature navigation through `site.unaltraweb.features`.
 - Added theme mode rotation: `system -> light -> sepia -> dark -> system`.
 - Added `data-theme-setting`, `data-theme`, `data-theme-integration` and `unaltraweb:themechange` for tests and local scripts.
@@ -78,8 +78,8 @@ Important current template behaviour:
 - Demo manual chapters live in `_chapters/` for English, Spanish and Catalan.
 - Blog pagination is enabled in the template demo.
 - Demo CV PDF and generated first-page preview live in `assets/pdf/cv.pdf` and `assets/img/cv-preview.jpg`.
-- The template Makefile supports `LOCAL_CORE=../unaltraweb` and `SITE_PROFILE=personal|project|manual`.
-- Playwright render smoke tests verify personal, project and manual profiles, desktop/mobile rendering, theme modes and screenshots.
+- The template Makefile supports `LOCAL_CORE=../unaltraweb` and `SITE_PROFILE=unaltreselfie|unaltreprojecte|unaltremanual|unaltredocs`.
+- Playwright render smoke tests verify `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs` profiles, desktop/mobile rendering, theme modes and screenshots.
 - The template deploy workflow calls `.github/workflows/site-deploy.yml` from this core.
 - The template manual `Update publication metrics` workflow calls `.github/workflows/metrics-update.yml` from this core.
 
@@ -91,9 +91,9 @@ Important current template behaviour:
 - Continue replacing remaining `al-folio` labels, comments, demo data and Docker image assumptions with `unaltraweb` identity.
 - Regenerate `package-lock.json` with `npm install` on a machine with Node/npm available; do not hand-edit dependency integrity data.
 - If Node/npm work becomes routine, add a separate lightweight Node tooling path instead of putting npm into every Jekyll runtime image.
-- Add clearer docs for `site_profile: personal`, `site_profile: project`, `site_profile: software`, `site_profile: manual` and future `course` mode.
+- Add clearer docs for `site_profile: unaltreselfie`, `site_profile: unaltreprojecte`, `site_profile: unaltredocs` and `site_profile: unaltremanual`.
 - Rework general site search as a generated core feature before enabling it by default again.
-- Continue refining config-driven behaviour for personal, project, software and manual/course sites.
+- Continue refining config-driven behaviour for the four named site profiles.
 - Later, integrate GitBook/docs mode using `/home/benizar/git/tig` as reference: sidebar collections, previous/next navigation, search and course/slides affordances.
 - Address broader Sass deprecation warnings eventually; they are non-blocking.
 
@@ -110,9 +110,9 @@ Template repo:
 
 ```bash
 make build LOCAL_CORE=../unaltraweb
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=personal PORT=4018
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=project PORT=4019
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=manual PORT=4020
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreselfie PORT=4018
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreprojecte PORT=4019
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltremanual PORT=4020
 make down
 ```
 

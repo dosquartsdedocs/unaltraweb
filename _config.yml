@@ -24,8 +24,9 @@ impressum_path: # set to path to include impressum link in the footer, use the s
 back_to_top: true # set to false to disable the back to top button
 
 unaltraweb:
-  site_profile: project # project, personal, techdocs, software, manual, or course
+  site_profile: unaltreprojecte # unaltreselfie, unaltreprojecte, unaltremanual, or unaltredocs
   features:
+    news: true
     blog: true
     cv: true
     projects: true

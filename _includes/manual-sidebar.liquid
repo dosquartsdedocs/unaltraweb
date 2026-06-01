@@ -1,5 +1,5 @@
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
-{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign current_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
 {% assign manual_config = site.unaltraweb.manual %}
 {% assign default_manual_home_url = '/' | append: current_lang | append: '/' %}
 {% assign home_candidates = site.pages | where: 'ref', 'home' | where: 'lang', current_lang %}

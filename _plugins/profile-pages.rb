@@ -6,7 +6,7 @@ module Unaltraweb
 
     def active_profile(site)
       unaltraweb_config = site.config["unaltraweb"] || {}
-      (unaltraweb_config["site_profile"] || unaltraweb_config["site_type"] || "project").to_s
+      (unaltraweb_config["site_profile"] || "unaltreprojecte").to_s
     end
 
     def keep_item?(item, profile)

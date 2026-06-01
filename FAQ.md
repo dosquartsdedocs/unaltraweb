@@ -14,7 +14,7 @@ Use `dosquartsdedocs/unaltraweb-template` as the starter repository, then edit `
 
 ## How are site types selected?
 
-Use `unaltraweb.site_profile` in `_config.yml`. Supported profiles are currently `personal`, `project`, `software`, `manual` and `course`.
+Use `unaltraweb.site_profile` in `_config.yml`. Supported profiles are currently `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs`.
 
 ## Why is search disabled by default?
 

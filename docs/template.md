@@ -11,7 +11,7 @@ permalink: /template/
 ## Why The Template Matters
 
 - It consumes `unaltraweb` as an external dependency.
-- It contains realistic demo content for `personal`, `project` and `manual` profiles.
+- It contains realistic demo content for `unaltreselfie`, `unaltreprojecte` and `unaltremanual` profiles.
 - It owns the local Docker workflow for child sites.
 - It runs Playwright smoke tests and screenshots across profiles, themes and responsive layouts.
 - It keeps starter-site content out of the reusable core.
@@ -38,7 +38,7 @@ permalink: /template/
 ```bash
 cd ../unaltraweb-template
 make build LOCAL_CORE=../unaltraweb
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=project
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreprojecte
 ```
 
 On constrained machines, prefer `make build` first and run only the profile-specific browser test needed for the change.

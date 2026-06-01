@@ -5,7 +5,7 @@ layout: default
 {% assign documentation_config = site.unaltraweb.documentation %}
 {% assign documentation_collection_name = documentation_config.collection | default: 'documentation' %}
 {% assign documentation_collection = site[documentation_collection_name] %}
-{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign current_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
 {% assign documentation_docs = documentation_collection | where: 'lang', current_lang | where_exp: 'doc', 'doc.profiles == nil or doc.profiles contains current_profile' | sort: 'weight' %}
 {% if documentation_docs.size == 0 and current_lang != site.default_lang %}
   {% assign documentation_docs = documentation_collection | where: 'lang', site.default_lang | where_exp: 'doc', 'doc.profiles == nil or doc.profiles contains current_profile' | sort: 'weight' %}

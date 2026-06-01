@@ -26,12 +26,10 @@ date:
     long: "%d/%m/%Y"
 
 profiles:
-  personal: unaltreselfie
-  project: unaltreprojecte
-  software: unaltredocs
-  techdocs: unaltredocs
-  manual: unaltremanual
-  course: curs
+  unaltreselfie: unaltreselfie
+  unaltreprojecte: unaltreprojecte
+  unaltremanual: unaltremanual
+  unaltredocs: unaltredocs
 
 search:
   placeholder: Escriu per cercar

@@ -1,6 +1,6 @@
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 {% assign default_lang = site.default_lang | default: site.lang %}
-{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign current_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
 {% assign docs = include.docs %}
 {% assign documentation_config = site.unaltraweb.documentation %}
 {% assign docs_logo = documentation_config.logo %}

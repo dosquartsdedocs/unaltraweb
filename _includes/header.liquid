@@ -1,8 +1,8 @@
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 {% assign default_lang = site.default_lang | default: site.lang %}
-{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign current_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
 {% assign documentation_profile = false %}
-{% if current_profile == 'techdocs' or current_profile == 'software' %}
+{% if current_profile == 'unaltredocs' %}
   {% assign documentation_profile = true %}
 {% endif %}
 {% assign documentation_config = site.unaltraweb.documentation %}
@@ -40,7 +40,7 @@
 <header>
   <nav id="navbar" class="navbar navbar-light navbar-expand-sm {% if site.navbar_fixed %}fixed-top{% else %}sticky-top{% endif %}" role="navigation">
     <div class="container">
-      {% if current_profile == 'manual' %}
+      {% if current_profile == 'unaltremanual' %}
         <button
           class="manual-navbar-sidebar-toggle"
           type="button"
@@ -96,7 +96,7 @@
       <div class="collapse navbar-collapse text-right" id="navbarNav">
         <ul class="navbar-nav ml-auto flex-nowrap">
           {% unless documentation_profile %}
-            {% unless current_profile == 'manual' or home_in_sorted_nav %}
+            {% unless current_profile == 'unaltremanual' or home_in_sorted_nav %}
               <li class="nav-item {% if page.ref == 'home' %}active{% endif %}">
                 <a class="nav-link" href="{{ home_url | relative_url }}">
                   {{- home_nav_title -}}
@@ -203,7 +203,7 @@
             </li>
           {% endif %}
 
-          {% if current_profile == 'manual' %}
+          {% if current_profile == 'unaltremanual' %}
             {% capture manual_font_decrease_text %}{% include t.liquid key='manual.font_decrease' default='Decrease text size' %}{% endcapture %}
             {% capture manual_font_increase_text %}{% include t.liquid key='manual.font_increase' default='Increase text size' %}{% endcapture %}
             {% capture manual_font_reset_text %}{% include t.liquid key='manual.font_reset' default='Reset text size' %}{% endcapture %}

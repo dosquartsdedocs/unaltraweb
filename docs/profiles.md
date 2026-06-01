@@ -10,7 +10,7 @@ permalink: /profiles/
 
 ```yaml
 unaltraweb:
-  site_profile: personal
+  site_profile: unaltreselfie
   features:
     blog: true
     cv: true
@@ -23,24 +23,20 @@ unaltraweb:
 
 <div class="cards">
   <section class="card">
-    <h3>personal</h3>
+    <h3>unaltreselfie</h3>
     <p>Academic or professional personal sites with profile home, optional blog, CV, projects, publications and social links.</p>
   </section>
   <section class="card">
-    <h3>project</h3>
+    <h3>unaltreprojecte</h3>
     <p>Research project sites with home pages, team, outputs, publications, resources, repositories and news.</p>
   </section>
   <section class="card">
-    <h3>manual</h3>
+    <h3>unaltremanual</h3>
     <p>Book-like manuals with localized chapters, sidebar navigation, right-hand table of contents, manual search and teaching blocks.</p>
   </section>
   <section class="card">
-    <h3>software</h3>
-    <p>Planned profile for software/project documentation, releases, repositories and usage pages.</p>
-  </section>
-  <section class="card">
-    <h3>course</h3>
-    <p>Planned teaching profile extending manual behaviour with course, slides and exercise affordances.</p>
+    <h3>unaltredocs</h3>
+    <p>Technical documentation sites with left-hand index, search, reusable examples and operational pages.</p>
   </section>
 </div>
 
@@ -49,7 +45,7 @@ unaltraweb:
 Pages and documents can opt into profiles:
 
 ```yaml
-profiles: [personal, project]
+profiles: [unaltreselfie, unaltreprojecte]
 ```
 
 The core filters non-matching pages before writing the site. Alternate profiles should be tested by rebuilding with a config overlay, not by client-side preview switches.

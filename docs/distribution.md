@@ -39,12 +39,12 @@ Theme development can happen side by side by pointing the template at a local co
 ```bash
 make serve LOCAL_CORE=../unaltraweb
 make build LOCAL_CORE=../unaltraweb
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=project
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreprojecte
 ```
 
 ## Demo Strategy
 
-- Template demo: realistic starter content for personal, project and manual profiles, used to validate the gem consumer path.
+- Template demo: realistic starter content for `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs`, used to validate the gem consumer path.
 - Core docs demo: concise documentation site for `unaltraweb` itself, focused on concepts, profile capabilities, customization points and links to the template.
 - Avoid duplicating full demo content between the two repositories.
 

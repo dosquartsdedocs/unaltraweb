@@ -24,7 +24,7 @@ Child sites can override or extend the core with local files:
 theme: unaltraweb
 
 unaltraweb:
-  site_profile: personal
+  site_profile: unaltreselfie
   features:
     blog: true
     cv: true
@@ -41,7 +41,7 @@ When developing the core and template side by side, point the template to the lo
 cd ../unaltraweb-template
 make serve LOCAL_CORE=../unaltraweb
 make build LOCAL_CORE=../unaltraweb
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=project
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreprojecte
 ```
 
 Use only the relevant profile tests on constrained machines.

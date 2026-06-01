@@ -9,7 +9,7 @@ module Unaltraweb
 
     def active_profile(site)
       config = site.config["unaltraweb"] || {}
-      (config["site_profile"] || config["site_type"] || "project").to_s
+      (config["site_profile"] || "unaltreprojecte").to_s
     end
 
     def manual_collection(site)
@@ -26,8 +26,8 @@ module Unaltraweb
 
     def add_page(site)
       profile = active_profile(site)
-      add_manual_page(site) if profile == "manual"
-      add_documentation_page(site) if %w[techdocs software].include?(profile)
+      add_manual_page(site) if profile == "unaltremanual"
+      add_documentation_page(site) if profile == "unaltredocs"
     end
 
     def add_manual_page(site)
@@ -50,7 +50,7 @@ module Unaltraweb
       collection_name = manual_collection(site)
       docs = site.collections[collection_name]&.docs || []
       pages = site.pages.select do |page|
-        page.data["layout"].to_s == "manual-home" && profile_match?(page, ["manual"])
+        page.data["layout"].to_s == "manual-home" && profile_match?(page, ["unaltremanual"])
       end
       items = (pages + docs).select { |item| item.data["title"].to_s.strip != "" }
 
@@ -59,12 +59,11 @@ module Unaltraweb
 
     def documentation_entries(site)
       profile = active_profile(site)
-      profile_aliases = profile == "software" ? %w[software techdocs] : %w[techdocs software]
       collection_name = documentation_collection(site)
       docs = site.collections[collection_name]&.docs || []
-      docs = docs.select { |doc| profile_match?(doc, profile_aliases) }
+      docs = docs.select { |doc| profile_match?(doc, [profile]) }
       pages = site.pages.select do |page|
-        page.data["layout"].to_s == "documentation-home" && profile_match?(page, profile_aliases)
+        page.data["layout"].to_s == "documentation-home" && profile_match?(page, [profile])
       end
       items = (pages + docs).select { |item| item.data["title"].to_s.strip != "" }
 

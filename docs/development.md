@@ -39,9 +39,9 @@ The root core build excludes `docs/`. The compact docs/demo site is intended to 
 ```bash
 cd ../unaltraweb-template
 make build LOCAL_CORE=../unaltraweb
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=personal PORT=4018
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=project PORT=4019
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=manual PORT=4020
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreselfie PORT=4018
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreprojecte PORT=4019
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltremanual PORT=4020
 make down
 ```
 

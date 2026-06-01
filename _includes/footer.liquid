@@ -5,16 +5,16 @@
 {% capture using_profile_text %}{% include t.liquid key='footer.using_profile' default='using the' %}{% endcapture %}
 {% capture profile_word_text %}{% include t.liquid key='footer.profile_word' default='profile' %}{% endcapture %}
 {% capture based_on_text %}{% include t.liquid key='footer.based_on' default='based on' %}{% endcapture %}
-{% assign current_profile = site.unaltraweb.site_profile | default: site.unaltraweb.site_type | default: 'project' | slugify %}
+{% assign current_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
 {% assign profile_key = 'profiles.' | append: current_profile %}
 {% capture profile_label %}{% include t.liquid key=profile_key default=current_profile %}{% endcapture %}
 {% assign profile_word = profile_word_text | strip %}
 {% assign copyright_holder = site.copyright_holder %}
 {% unless copyright_holder %}
   {% assign footer_people = nil %}
-  {% if current_profile == 'manual' or current_profile == 'course' %}
+  {% if current_profile == 'unaltremanual' %}
     {% assign footer_people = site.data.teachers %}
-  {% elsif current_profile == 'software' or current_profile == 'techdocs' %}
+  {% elsif current_profile == 'unaltredocs' %}
     {% assign footer_people = site.data.creators | default: site.data.team %}
   {% endif %}
   {% assign footer_people_size = footer_people | size %}

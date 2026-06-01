@@ -23,17 +23,16 @@ The template is the better place to validate gem consumption, centralized styles
 
 Prepared site families are called site profiles:
 
-- `personal`
-- `project`
-- `software`
-- `manual`
-- `course`
+- `unaltreselfie`
+- `unaltreprojecte`
+- `unaltremanual`
+- `unaltredocs`
 
 Select a profile in a child site's `_config.yml`:
 
 ```yaml
 unaltraweb:
-  site_profile: personal
+  site_profile: unaltreselfie
   features:
     blog: true
     cv: true
@@ -69,9 +68,9 @@ Use the template when validating the gem consumer path:
 ```bash
 cd ../unaltraweb-template
 make build LOCAL_CORE=../unaltraweb
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=personal PORT=4018
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=project PORT=4019
-make test LOCAL_CORE=../unaltraweb SITE_PROFILE=manual PORT=4020
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreselfie PORT=4018
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreprojecte PORT=4019
+make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltremanual PORT=4020
 make down
 ```
 
