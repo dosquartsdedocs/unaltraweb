@@ -201,12 +201,14 @@ navigation:
 documentation:
   title: Documentació
   contents: Taula de continguts
+  toggle_contents: Mostra o amaga la taula de continguts
   site_navigation: Lloc
   theme: Tema
   theme_system: Sistema
   theme_light: Clar
   theme_dark: Fosc
   theme_sepia: Café
+  font_size: Mida del text
   font_decrease: Redueix el text
   font_increase: Augmenta el text
   font_reset: Restableix el text

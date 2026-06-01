@@ -16,10 +16,17 @@
 {% assign status_slug = item_status_raw | downcase | replace: ' ', '_' %}
 {% assign status_i18n_key = 'reading.status_values.' | append: status_slug %}
 {% capture status_label %}{% include t.liquid key=status_i18n_key default=item_status_raw %}{% endcapture %}
-{% assign ribbon_label_raw = item[ribbon_label_key] | default: item.ribbon_label | default: item.shelf_label | default: item.badge_label %}
+{% assign ribbon_key = item.ribbon_key | default: item.badge_key | default: item.ribbon_class | default: item.ribbon_slug | default: status_slug %}
+{% assign configured_badge = nil %}
+{% if site.unaltraweb.readings and site.unaltraweb.readings.badges %}
+{% assign configured_badge = site.unaltraweb.readings.badges[ribbon_key] | default: site.unaltraweb.readings.badges[status_slug] %}
+{% endif %}
+{% assign configured_badge_label_key = 'label_' | append: current_lang %}
+{% assign configured_badge_label = configured_badge[configured_badge_label_key] | default: configured_badge.label %}
+{% assign ribbon_label_raw = item[ribbon_label_key] | default: item.ribbon_label | default: item.shelf_label | default: item.badge_label | default: configured_badge_label %}
 {% if ribbon_label_raw %}
 {% assign ribbon_label = ribbon_label_raw | strip %}
-{% assign ribbon_slug = item.ribbon_class | default: item.ribbon_slug | default: ribbon_label | slugify %}
+{% assign ribbon_slug = item.ribbon_class | default: item.ribbon_slug | default: ribbon_key | default: ribbon_label | slugify %}
 {% elsif item_status_raw %}
 {% assign ribbon_label = status_label | strip | upcase %}
 {% assign ribbon_slug = status_slug %}
@@ -27,6 +34,12 @@
 {% assign ribbon_label = uncategorized_text | strip | upcase %}
 {% assign ribbon_slug = 'uncategorized' %}
 {% endif %}
+{% assign ribbon_color = item.ribbon_color | default: item.badge_color | default: configured_badge.color %}
+{% assign ribbon_text_color = item.ribbon_text_color | default: item.badge_text_color | default: configured_badge.text_color %}
+{% capture ribbon_style %}{% if ribbon_color %}--reading-ribbon-bg: {{ ribbon_color }};{% endif %}{% if ribbon_text_color %} --reading-ribbon-color: {{ ribbon_text_color }};{% endif %}{% endcapture %}
+{% assign ribbon_style = ribbon_style | strip %}
+{% assign ribbon_is_custom = false %}
+{% if ribbon_label_raw or configured_badge or ribbon_style != '' %}{% assign ribbon_is_custom = true %}{% endif %}
 {% capture item_rating_html %}{% include reading-rating.liquid item=item %}{% endcapture %}
 {% assign item_rating_html = item_rating_html | strip %}
 {% assign item_year = item.review_year | default: item.year %}
@@ -58,10 +71,8 @@
 {% else %}
 <img alt="{{ item_title | escape }}" src="{{ '/assets/img/11.jpg' | relative_url }}" style="height: 220px">
 {% endif %}
-{% if ribbon_label_raw %}
-<figcaption class="reading-ribbon custom {{ ribbon_slug }}">{{ ribbon_label }}</figcaption>
-{% elsif ribbon_label %}
-<figcaption class="reading-ribbon {{ ribbon_slug }}">{{ ribbon_label }}</figcaption>
+{% if ribbon_label %}
+<figcaption class="reading-ribbon{% if ribbon_is_custom %} custom{% endif %} {{ ribbon_slug }}"{% if ribbon_style != '' %} style="{{ ribbon_style }}"{% endif %}>{{ ribbon_label }}</figcaption>
 {% endif %}
 {% if linked %}
 </a>

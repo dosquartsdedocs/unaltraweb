@@ -12,6 +12,7 @@
   {% assign docs_home = home_candidates | where_exp: 'candidate', 'candidate.profiles == nil' | first %}
 {% endif %}
 {% capture docs_contents_text %}{% include t.liquid key='documentation.contents' default='Table of contents' %}{% endcapture %}
+{% capture docs_toggle_contents_text %}{% include t.liquid key='documentation.toggle_contents' default='Show or hide table of contents' %}{% endcapture %}
 {% capture docs_search_text %}{% include t.liquid key='documentation.search_placeholder' default='Search documentation' %}{% endcapture %}
 {% capture docs_search_results_text %}{% include t.liquid key='documentation.search_results' default='Search results' %}{% endcapture %}
 {% capture docs_search_empty_text %}{% include t.liquid key='documentation.search_no_results' default='No results' %}{% endcapture %}
@@ -21,6 +22,7 @@
 {% capture theme_dark_text %}{% include t.liquid key='documentation.theme_dark' default='Dark' %}{% endcapture %}
 {% capture theme_sepia_text %}{% include t.liquid key='documentation.theme_sepia' default='Coffee' %}{% endcapture %}
 {% capture language_text %}{% include t.liquid key='header.language' default='Language' %}{% endcapture %}
+{% capture font_size_text %}{% include t.liquid key='documentation.font_size' default='Text size' %}{% endcapture %}
 {% capture font_decrease_text %}{% include t.liquid key='documentation.font_decrease' default='Decrease text size' %}{% endcapture %}
 {% capture font_increase_text %}{% include t.liquid key='documentation.font_increase' default='Increase text size' %}{% endcapture %}
 {% capture font_reset_text %}{% include t.liquid key='documentation.font_reset' default='Reset text size' %}{% endcapture %}
@@ -38,6 +40,12 @@
 <aside class="documentation-sidebar" aria-label="{{ docs_contents_text | strip }}">
   <div class="documentation-sidebar-inner">
     <div class="documentation-tools documentation-utility-bar" aria-label="{{ docs_contents_text | strip }} controls">
+      <button class="documentation-tool-button documentation-toc-toggle" type="button" data-documentation-sidebar-toggle aria-controls="documentation-nav" aria-expanded="true" title="{{ docs_toggle_contents_text | strip }}">
+        <i class="ti ti-layout-sidebar-left-collapse" aria-hidden="true"></i>
+        <span class="documentation-tool-label">{{ docs_contents_text | strip }}</span>
+        <span class="sr-only">{{ docs_toggle_contents_text | strip }}</span>
+      </button>
+
       {% if site.languages and site.languages.size > 1 %}
         {% assign current_ref = page.ref | default: 'home' %}
         <div class="dropdown documentation-tool-dropdown">
@@ -109,10 +117,26 @@
         </button>
       {% endif %}
 
-      <div class="documentation-font-controls" aria-label="{{ font_increase_text | strip }}">
-        <button class="documentation-font-button documentation-font-button-decrease" type="button" data-documentation-font="decrease" title="{{ font_decrease_text | strip }}">A<span class="documentation-font-modifier">-</span><span class="sr-only">{{ font_decrease_text | strip }}</span></button>
-        <button class="documentation-font-button documentation-font-button-reset" type="button" data-documentation-font="reset" title="{{ font_reset_text | strip }}">A<span class="sr-only">{{ font_reset_text | strip }}</span></button>
-        <button class="documentation-font-button documentation-font-button-increase" type="button" data-documentation-font="increase" title="{{ font_increase_text | strip }}">A<span class="documentation-font-modifier">+</span><span class="sr-only">{{ font_increase_text | strip }}</span></button>
+      <div class="dropdown documentation-tool-dropdown documentation-font-dropdown">
+        <button class="documentation-tool-button dropdown-toggle" type="button" id="documentationFontDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="{{ font_size_text | strip }}">
+          <span aria-hidden="true">A</span>
+          <span class="documentation-tool-label">{{ font_size_text | strip }}</span>
+          <span class="sr-only">{{ font_size_text | strip }}</span>
+        </button>
+        <div class="dropdown-menu documentation-font-menu" aria-labelledby="documentationFontDropdown">
+          <button class="dropdown-item documentation-font-menu-item" type="button" data-documentation-font="decrease">
+            <span aria-hidden="true">A<span class="documentation-font-modifier">-</span></span>
+            <span>{{ font_decrease_text | strip }}</span>
+          </button>
+          <button class="dropdown-item documentation-font-menu-item" type="button" data-documentation-font="reset">
+            <span aria-hidden="true">A</span>
+            <span>{{ font_reset_text | strip }}</span>
+          </button>
+          <button class="dropdown-item documentation-font-menu-item" type="button" data-documentation-font="increase">
+            <span aria-hidden="true">A<span class="documentation-font-modifier">+</span></span>
+            <span>{{ font_increase_text | strip }}</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -138,7 +162,7 @@
       </div>
     </div>
 
-    <nav class="documentation-nav" aria-label="{{ docs_contents_text | strip }}">
+    <nav id="documentation-nav" class="documentation-nav" aria-label="{{ docs_contents_text | strip }}">
       <div class="documentation-nav-block documentation-toc-heading-block">
         <p class="documentation-nav-block-title">{{ docs_contents_text | strip }}</p>
       </div>

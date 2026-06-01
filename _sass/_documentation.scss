@@ -50,6 +50,10 @@
   min-height: 0;
 }
 
+.documentation-toc-collapsed .documentation-nav {
+  display: none;
+}
+
 .documentation-brand {
   display: inline-flex;
   gap: 0.6rem;
@@ -323,45 +327,12 @@ html[data-theme="sepia"] .documentation-brand-logo-sepia {
   text-align: left;
 }
 
-.documentation-font-controls {
-  display: inline-flex;
-  width: max-content;
-  overflow: hidden;
-  border: 1px solid var(--global-divider-color);
-  border-radius: 0.5rem;
-}
-
-.documentation-font-controls .documentation-font-button {
-  min-width: 2.15rem;
-  border: 0;
-  border-right: 1px solid var(--global-divider-color);
-  background: var(--global-card-bg-color);
+.documentation-font-menu .documentation-font-menu-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
   color: var(--global-text-color);
-  padding: 0.34rem 0.48rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.documentation-font-controls .documentation-font-button:last-child {
-  border-right: 0;
-}
-
-.documentation-font-controls .documentation-font-button:hover,
-.documentation-font-controls .documentation-font-button:focus-visible {
-  background: color-mix(in srgb, var(--global-theme-color) 8%, var(--global-card-bg-color));
-  color: var(--global-theme-color);
-}
-
-.documentation-font-button-decrease {
-  font-size: 0.82rem;
-}
-
-.documentation-font-button-reset {
-  font-size: 0.95rem;
-}
-
-.documentation-font-button-increase {
-  font-size: 1.08rem;
+  font-size: 0.88rem;
 }
 
 .documentation-font-modifier {
@@ -911,14 +882,42 @@ html[data-theme="sepia"] .documentation-brand-logo-sepia {
   }
 
   .documentation-sidebar {
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 10;
     height: auto;
-    max-height: min(62vh, 520px);
-    overflow: hidden;
+    max-height: none;
+    overflow: visible;
     border: 1px solid var(--global-divider-color);
     border-radius: 0.85rem;
     margin-bottom: 1.2rem;
     padding: 0.9rem;
+    background: var(--global-bg-color);
+  }
+
+  .documentation-utility-bar {
+    order: 1;
+  }
+
+  .documentation-search {
+    order: 2;
+  }
+
+  .documentation-brand {
+    order: 3;
+  }
+
+  .documentation-nav {
+    order: 4;
+  }
+
+  .documentation-layout:not(.documentation-toc-collapsed) .documentation-sidebar {
+    max-height: min(78vh, 640px);
+    overflow: hidden;
+  }
+
+  .documentation-layout.documentation-toc-collapsed .documentation-brand {
+    display: none;
   }
 }
 

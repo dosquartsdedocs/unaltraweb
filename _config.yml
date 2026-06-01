@@ -45,6 +45,8 @@ unaltraweb:
     logo:
     logo_inverse:
     logo_sepia:
+  readings:
+    badges: {}
   figure_captions:
     enabled: true
     collections: [chapters, documentation]

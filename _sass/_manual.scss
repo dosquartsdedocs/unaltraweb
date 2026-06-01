@@ -598,7 +598,7 @@
 .manual-featured-reference {
   display: grid;
   grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
-  gap: 1rem;
+  gap: 1rem 1.75rem;
   align-items: start;
   border: 1px solid var(--global-divider-color);
   background: var(--global-card-bg-color);
@@ -611,7 +611,22 @@
   margin: 0;
 }
 
+.manual-featured-reference .manual-featured-cover {
+  width: min(100%, 220px);
+  max-width: 100%;
+  margin: 0;
+}
+
+.manual-featured-reference-body {
+  min-width: 0;
+}
+
 .manual-featured-cover .cover-link {
+  display: block;
+  width: 100%;
+}
+
+.manual-featured-reference .manual-featured-cover .cover-link {
   display: block;
   width: 100%;
 }
@@ -768,6 +783,7 @@
 @media (max-width: 960px) {
   .manual-featured-reference {
     grid-template-columns: minmax(120px, 160px) minmax(0, 1fr);
+    column-gap: 1.75rem;
   }
 
   .manual-reference--with-preview {

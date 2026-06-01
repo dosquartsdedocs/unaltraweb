@@ -201,12 +201,14 @@ navigation:
 documentation:
   title: Documentation
   contents: Table of contents
+  toggle_contents: Show or hide table of contents
   site_navigation: Site
   theme: Theme
   theme_system: System
   theme_light: Light
   theme_dark: Dark
   theme_sepia: Coffee
+  font_size: Text size
   font_decrease: Decrease text size
   font_increase: Increase text size
   font_reset: Reset text size

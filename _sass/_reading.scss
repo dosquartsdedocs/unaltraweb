@@ -214,23 +214,26 @@
 
 .reading-cover .cover-link figcaption {
   position: absolute;
-  top: 1.45rem;
-  right: -4.25rem;
+  top: 1.05rem;
+  right: -6.35rem;
   left: auto;
   bottom: auto;
-  display: block;
-  width: 13rem;
+  display: flex;
+  width: 20rem;
+  min-height: 2.15rem;
   margin: 0;
+  align-items: center;
+  justify-content: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
-  font-size: 0.62rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.03em;
-  line-height: 1;
-  padding: 0.25rem 0.45rem;
+  line-height: 1.08;
+  padding: 0.32rem 3rem;
   text-align: center;
   transform: rotate(43deg);
   transform-origin: center;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .reading-cover .cover-link figcaption.custom {

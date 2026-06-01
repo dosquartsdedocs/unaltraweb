@@ -19,6 +19,13 @@
 
   function setupFontControls() {
     applyStoredFontScale();
+    document.querySelectorAll(".documentation-font-menu").forEach(function (menu) {
+      if (menu.dataset.documentationFontMenuReady) return;
+      menu.dataset.documentationFontMenuReady = "true";
+      menu.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+    });
     document.querySelectorAll("[data-documentation-font]").forEach(function (button) {
       if (button.dataset.documentationFontReady) return;
       button.dataset.documentationFontReady = "true";
@@ -30,6 +37,30 @@
         scale = Math.round(scale * 100) / 100;
         localStorage.setItem(STORAGE_KEY, String(scale));
         applyStoredFontScale();
+      });
+    });
+  }
+
+  function setupSidebarToggle() {
+    document.querySelectorAll("[data-documentation-sidebar-toggle]").forEach(function (button) {
+      if (button.dataset.documentationToggleReady) return;
+      button.dataset.documentationToggleReady = "true";
+      var layout = button.closest(".documentation-layout") || document.querySelector(".documentation-layout");
+      if (!layout) return;
+      var stored = localStorage.getItem("unaltrawebDocumentationTocCollapsed");
+      var collapsed = stored === null ? window.matchMedia("(max-width: 960px)").matches : stored === "true";
+
+      function updateToggleState(isCollapsed) {
+        layout.classList.toggle("documentation-toc-collapsed", isCollapsed);
+        button.classList.toggle("is-collapsed", isCollapsed);
+        button.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+      }
+
+      updateToggleState(collapsed);
+      button.addEventListener("click", function () {
+        var nowCollapsed = !layout.classList.contains("documentation-toc-collapsed");
+        localStorage.setItem("unaltrawebDocumentationTocCollapsed", nowCollapsed ? "true" : "false");
+        updateToggleState(nowCollapsed);
       });
     });
   }
@@ -76,6 +107,7 @@
   }
 
   function enhanceDocumentation() {
+    setupSidebarToggle();
     setupFontControls();
     updateThemeLabels();
     setupDocumentationTree();
