@@ -3,16 +3,25 @@
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 {% assign comment_key = 'manual_comment_' | append: current_lang %}
 {% assign kind_key = 'manual_kind_' | append: current_lang %}
+{% assign show_manual_reference_extras = false %}
+{% if page.ref == 'manual-bibliography' %}
+  {% assign show_manual_reference_extras = true %}
+{% endif %}
 {% assign reference_comment = entry[comment_key] | default: entry.manual_comment | default: entry.comment %}
 {% assign reference_kind = entry[kind_key] | default: entry.manual_kind | default: entry.type %}
 {% assign reference_rating = entry.manual_rating | default: entry.rating %}
 {% assign reference_preview = entry.preview | default: entry.image | default: entry.thumbnail %}
+{% unless show_manual_reference_extras %}
+  {% assign reference_comment = nil %}
+  {% assign reference_kind = nil %}
+  {% assign reference_rating = nil %}
+  {% assign reference_preview = nil %}
+{% endunless %}
 {% assign reference_url = entry.manual_url | default: entry.website | default: entry.url %}
 {% assign reference_url_label_key = 'manual_url_label_' | append: current_lang %}
 {% assign reference_url_label = entry[reference_url_label_key] | default: entry.manual_url_label %}
 {% capture abstract_button_text %}{% include t.liquid key='bib.buttons.abstract' default='Abs' %}{% endcapture %}
 {% capture bib_button_text %}{% include t.liquid key='bib.buttons.bib' default='Bib' %}{% endcapture %}
-{% capture how_to_cite_text %}{% include t.liquid key='manual.how_to_cite_apa' default='How to cite (APA)' %}{% endcapture %}
 <div id="{{ entry.key }}" class="manual-reference{% if reference_preview %} manual-reference--with-preview{% endif %}">
   {% if reference_preview %}
     <div class="manual-reference-preview">
@@ -49,11 +58,9 @@
       {% if entry.doi %}<a href="https://doi.org/{{ entry.doi }}" class="btn btn-sm z-depth-0" role="button">DOI</a>{% endif %}
       {% if reference_url %}<a href="{{ reference_url }}" class="btn btn-sm z-depth-0" role="button">{{ reference_url_label | default: 'LINK' }}</a>{% endif %}
       {% if entry.abstract %}<a class="abstract btn btn-sm z-depth-0" role="button">{{ abstract_button_text | strip }}</a>{% endif %}
-      <a class="cite btn btn-sm z-depth-0" role="button">{{ how_to_cite_text | strip }}</a>
       {% if entry.bibtex %}<a class="bibtex btn btn-sm z-depth-0" role="button">{{ bib_button_text | strip }}</a>{% endif %}
     </div>
     {% if entry.abstract %}<div class="abstract hidden manual-reference-panel"><p>{{ entry.abstract }}</p></div>{% endif %}
-    <div class="cite hidden manual-reference-panel"><p>{{ reference | replace: "\Textperiodcentered", "·" }}</p></div>
     {% if entry.bibtex %}
       <div class="bibtex hidden manual-reference-panel">
         {% highlight bibtex %}
