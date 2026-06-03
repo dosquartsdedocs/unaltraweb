@@ -63,8 +63,11 @@ CUSTOM: Team grid (Bootstrap cards), fed by _data/team.yml or include.members
           {%- assign has_email = member.email -%}
           {%- assign has_social = member.social and member.social.size > 0 -%}
           {%- assign has_url = member.url -%}
+          {%- assign has_orcid = member.orcid -%}
+          {%- assign has_google_scholar = member.google_scholar | default: member.scholar_userid -%}
+          {%- assign has_linkedin = member.linkedin -%}
 
-          {%- if has_email or has_social or has_url -%}
+          {%- if has_email or has_url or has_orcid or has_google_scholar or has_linkedin or has_social -%}
             <ul class="team-icons mt-3">
               {%- if has_email -%}
                 {%- if member.email.first.url -%}
@@ -84,22 +87,80 @@ CUSTOM: Team grid (Bootstrap cards), fed by _data/team.yml or include.members
                 {%- endif -%}
               {%- endif -%}
 
-              {%- if has_social -%}
-                {%- for item in member.social -%}
-                  <li>
-                    <a href="{{ item.url }}" target="_blank" rel="noopener" title="{{ item.title }}" aria-label="{{ item.title }}">
-                      <i class="{{ item.class }}"></i>
-                    </a>
-                  </li>
-                {%- endfor -%}
-              {%- endif -%}
-
               {%- if has_url -%}
                 <li>
                   <a href="{{ member.url }}" target="_blank" rel="noopener" title="{{ member.url_label | default: 'Web' }}" aria-label="{{ member.url_label | default: 'Web' }}">
                     <i class="fa-solid fa-globe fa-2x"></i>
                   </a>
                 </li>
+              {%- endif -%}
+
+              {%- if has_orcid -%}
+                {%- if has_orcid contains '://' -%}
+                  {%- assign orcid_url = has_orcid -%}
+                {%- else -%}
+                  {%- assign orcid_url = 'https://orcid.org/' | append: has_orcid -%}
+                {%- endif -%}
+                <li>
+                  <a href="{{ orcid_url }}" target="_blank" rel="noopener" title="ORCID" aria-label="ORCID">
+                    <i class="ai ai-orcid ai-2x"></i>
+                  </a>
+                </li>
+              {%- endif -%}
+
+              {%- if has_google_scholar -%}
+                {%- if has_google_scholar contains '://' -%}
+                  {%- assign google_scholar_url = has_google_scholar -%}
+                {%- else -%}
+                  {%- assign google_scholar_url = 'https://scholar.google.com/citations?user=' | append: has_google_scholar -%}
+                {%- endif -%}
+                <li>
+                  <a href="{{ google_scholar_url }}" target="_blank" rel="noopener" title="Google Scholar" aria-label="Google Scholar">
+                    <i class="ai ai-google-scholar ai-2x"></i>
+                  </a>
+                </li>
+              {%- endif -%}
+
+              {%- if has_linkedin -%}
+                {%- if has_linkedin contains '://' -%}
+                  {%- assign linkedin_url = has_linkedin -%}
+                {%- else -%}
+                  {%- assign linkedin_url = 'https://www.linkedin.com/in/' | append: has_linkedin -%}
+                {%- endif -%}
+                <li>
+                  <a href="{{ linkedin_url }}" target="_blank" rel="noopener" title="LinkedIn" aria-label="LinkedIn">
+                    <i class="fa-brands fa-linkedin fa-2x"></i>
+                  </a>
+                </li>
+              {%- endif -%}
+
+              {%- if has_social -%}
+                {%- unless has_orcid -%}
+                  {%- for item in member.social -%}
+                    {%- assign social_title = item.title | default: '' | downcase -%}
+                    {%- if social_title contains 'orcid' -%}
+                      <li>
+                        <a href="{{ item.url }}" target="_blank" rel="noopener" title="{{ item.title }}" aria-label="{{ item.title }}">
+                          <i class="{{ item.class }}"></i>
+                        </a>
+                      </li>
+                    {%- endif -%}
+                  {%- endfor -%}
+                {%- endunless -%}
+                {%- for item in member.social -%}
+                  {%- assign social_title = item.title | default: '' | downcase -%}
+                  {%- assign skip_social = false -%}
+                  {%- if social_title contains 'orcid' -%}{%- assign skip_social = true -%}{%- endif -%}
+                  {%- if has_google_scholar and social_title contains 'google scholar' -%}{%- assign skip_social = true -%}{%- endif -%}
+                  {%- if has_linkedin and social_title contains 'linkedin' -%}{%- assign skip_social = true -%}{%- endif -%}
+                  {%- unless skip_social -%}
+                    <li>
+                      <a href="{{ item.url }}" target="_blank" rel="noopener" title="{{ item.title }}" aria-label="{{ item.title }}">
+                        <i class="{{ item.class }}"></i>
+                      </a>
+                    </li>
+                  {%- endunless -%}
+                {%- endfor -%}
               {%- endif -%}
             </ul>
           {%- endif -%}

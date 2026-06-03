@@ -1,6 +1,15 @@
 {% assign author = include.author | default: site.author %}
+{% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 
 {% if author %}
+  {% assign name_key = 'name_' | append: current_lang %}
+  {% assign bio_key = 'bio_' | append: current_lang %}
+  {% assign affiliation_key = 'affiliation_' | append: current_lang %}
+  {% assign location_key = 'location_' | append: current_lang %}
+  {% assign author_name = author[name_key] | default: author.name %}
+  {% assign author_bio = author[bio_key] | default: author.bio %}
+  {% assign author_affiliation = author[affiliation_key] | default: author.affiliation %}
+  {% assign author_location = author[location_key] | default: author.location %}
   {% capture profile_email_text %}{% include t.liquid key='profile.email' default='Email' %}{% endcapture %}
   {% capture profile_website_text %}{% include t.liquid key='profile.website' default='Website' %}{% endcapture %}
   {% capture profile_location_text %}{% include t.liquid key='profile.location' default='Location' %}{% endcapture %}
@@ -14,13 +23,13 @@
     {% else %}
       {% assign avatar_src = profile_avatar | prepend: '/assets/img/' | relative_url %}
     {% endif %}
-    <img class="profile-card-avatar" src="{{ avatar_src }}" alt="{{ author.name | default: site.title | escape }}" itemprop="image">
+    <img class="profile-card-avatar" src="{{ avatar_src }}" alt="{{ author_name | default: site.title | escape }}" itemprop="image">
 
     <div class="profile-card-body">
-      {% if author.name %}<h2 class="profile-card-name" itemprop="name">{{ author.name }}</h2>{% endif %}
-      {% if author.bio %}<p class="profile-card-bio" itemprop="description">{{ author.bio }}</p>{% endif %}
-      {% if author.affiliation %}<p class="profile-card-affiliation">{{ author.affiliation }}</p>{% endif %}
-      {% if author.location %}<p class="profile-card-meta"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span class="sr-only">{{ profile_location_text | strip }}:</span> {{ author.location }}</p>{% endif %}
+      {% if author_name %}<h2 class="profile-card-name" itemprop="name">{{ author_name }}</h2>{% endif %}
+      {% if author_bio %}<p class="profile-card-bio" itemprop="description">{{ author_bio }}</p>{% endif %}
+      {% if author_affiliation %}<p class="profile-card-affiliation">{{ author_affiliation }}</p>{% endif %}
+      {% if author_location %}<p class="profile-card-meta"><i class="fa-solid fa-location-dot" aria-hidden="true"></i><span class="sr-only">{{ profile_location_text | strip }}:</span> {{ author_location }}</p>{% endif %}
     </div>
 
     <ul class="profile-card-links" aria-label="Profile links">

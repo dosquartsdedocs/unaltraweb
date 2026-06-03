@@ -12,6 +12,7 @@ layout: default
 {% endif %}
 {% capture documentation_label_text %}{% include t.liquid key='documentation.title' default='Documentation' %}{% endcapture %}
 {% capture documentation_contents_text %}{% include t.liquid key='documentation.contents' default='Documentation' %}{% endcapture %}
+{% capture documentation_read_more_text %}{% include t.liquid key='documentation.read_more' default='Read more' %}{% endcapture %}
 <script>
   window.unaltrawebContentSearchUrl = {{ '/assets/js/documentation-search-index.json' | relative_url | jsonify }};
   window.unaltrawebContentSearchTarget = ".documentation-content";
@@ -22,14 +23,24 @@ layout: default
 
   <article class="documentation-main documentation-home">
     <header class="documentation-hero">
-      <div>
+      <div class="documentation-hero-copy">
         <p class="documentation-kicker">{{ documentation_label_text | strip }}</p>
         <h1>{{ page.title }}</h1>
         {% if page.description %}<p class="documentation-subtitle">{{ page.description }}</p>{% endif %}
+        {% assign documentation_hero_cta_label = page.hero.cta_label | default: page.hero_cta_label %}
+        {% assign documentation_hero_cta_url = page.hero.cta_url | default: page.hero_cta_url %}
+        {% if documentation_hero_cta_label and documentation_hero_cta_url %}
+          <a class="documentation-hero-cta" href="{% if documentation_hero_cta_url contains '://' %}{{ documentation_hero_cta_url }}{% else %}{{ documentation_hero_cta_url | relative_url }}{% endif %}">
+            {{ documentation_hero_cta_label }}
+            <i class="ti ti-arrow-right" aria-hidden="true"></i>
+          </a>
+        {% endif %}
       </div>
       {% assign documentation_hero_image = page.hero.image | default: page.hero_image %}
       {% if documentation_hero_image %}
-        <img src="{{ documentation_hero_image | relative_url }}" alt="{{ page.hero.alt | default: page.title | escape }}">
+        <div class="documentation-hero-visual">
+          <img src="{{ documentation_hero_image | relative_url }}" alt="{{ page.hero.alt | default: page.title | escape }}">
+        </div>
       {% endif %}
     </header>
 
@@ -39,7 +50,10 @@ layout: default
 
     {% if documentation_docs.size > 0 %}
       <section class="documentation-index" aria-labelledby="documentation-index-title">
-        <h2 id="documentation-index-title">{{ documentation_contents_text | strip }}</h2>
+        <div class="documentation-index-header">
+          <p class="documentation-kicker">{{ documentation_contents_text | strip }}</p>
+          <h2 id="documentation-index-title">{{ documentation_contents_text | strip }}</h2>
+        </div>
         <div class="documentation-index-sections">
           {% assign current_index_section = '' %}
           {% for doc in documentation_docs %}
@@ -50,14 +64,19 @@ layout: default
                 </section>
               {% endunless %}
               {% assign current_index_section = doc_section %}
+              {% assign section_slug = doc_section | slugify %}
               <section class="documentation-index-section">
-                <h3>{{ doc_section }}</h3>
+                <header class="documentation-index-section-header">
+                  <span class="documentation-index-section-mark" aria-hidden="true"></span>
+                  <h3>{{ doc_section }}</h3>
+                </header>
                 <div class="documentation-card-grid">
             {% endif %}
-                  <a class="documentation-card" href="{{ doc.url | relative_url }}">
+                  <a class="documentation-card documentation-card--{{ section_slug }}" href="{{ doc.url | relative_url }}">
                     {% if doc.subsection %}<span>{{ doc.subsection }}</span>{% endif %}
                     <strong>{{ doc.title }}</strong>
                     {% if doc.description %}<small>{{ doc.description }}</small>{% endif %}
+                    <em>{{ documentation_read_more_text | strip }} <i class="ti ti-arrow-right" aria-hidden="true"></i></em>
                   </a>
           {% endfor %}
               </div>

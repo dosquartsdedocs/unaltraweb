@@ -23,7 +23,9 @@ layout: default
 </script>
 
 <div class="manual-layout manual-home-layout">
-  {% include manual-sidebar.liquid chapters=manual_chapters reference_pages=manual_reference_pages %}
+  <div class="manual-toc-panel">
+    {% include manual-sidebar.liquid chapters=manual_chapters reference_pages=manual_reference_pages %}
+  </div>
 
   <article class="manual-main manual-home">
     <header class="manual-cover">

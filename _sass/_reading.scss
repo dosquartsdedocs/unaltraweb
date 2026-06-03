@@ -33,6 +33,30 @@
   align-items: start;
 }
 
+.reading-review-nav {
+  margin-bottom: 0.8rem;
+}
+
+.reading-review-nav a {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  border: 1px solid var(--global-divider-color);
+  background: color-mix(in srgb, var(--global-theme-color) 6%, var(--global-bg-color));
+  color: var(--global-text-color);
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 0.28rem 0.62rem;
+  text-decoration: none;
+}
+
+.reading-review-nav a:hover,
+.reading-review-nav a:focus-visible {
+  border-color: var(--global-theme-color);
+  color: var(--global-theme-color);
+  text-decoration: none;
+}
+
 .reading-top-grid--single {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -111,14 +135,46 @@
 }
 
 .reading-biblio-panel.hidden.open {
-  max-height: 100em;
-  border-color: var(--global-text-color);
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 1085;
+  width: min(92vw, 38rem);
+  max-height: min(78vh, 42rem);
+  overflow: auto;
+  border: 1px solid var(--global-divider-color);
+  background: var(--global-bg-color);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.36), 0 24px 80px rgba(0, 0, 0, 0.28);
+  padding: 1rem 1.1rem 1.1rem;
+  text-align: left;
+  transform: translate(-50%, -50%);
 }
 
 .reading-biblio-panel.hidden .reading-record-list {
   margin: 0.5rem 1rem 0.65rem;
   padding-left: 1.05rem;
   font-size: 0.92rem;
+}
+
+.reading-biblio-panel-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--global-divider-color);
+  background: var(--global-card-bg-color);
+  color: var(--global-text-color);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+  margin: -0.45rem -0.55rem 0.4rem 0.8rem;
+}
+
+.reading-biblio-panel-close:hover,
+.reading-biblio-panel-close:focus-visible {
+  border-color: var(--global-theme-color);
+  color: var(--global-theme-color);
 }
 
 .reading-citation {
@@ -309,6 +365,53 @@
 
 .reading-rating i {
   color: #b7791f;
+}
+
+@media (max-width: 575px) {
+  .reading-shelf {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+    gap: 0.95rem;
+  }
+
+  .reading-shelf .reading-cover {
+    display: grid;
+    grid-template-columns: minmax(6.3rem, min(32vw, 7.8rem)) minmax(0, 1fr);
+    gap: 0.75rem;
+    width: calc(100% + 1.5rem);
+    max-width: none;
+    align-items: start;
+    margin: 0.35rem -0.75rem 0.65rem;
+  }
+
+  .reading-shelf .reading-cover .cover-link {
+    justify-self: start;
+    width: auto;
+    max-width: 7.8rem;
+  }
+
+  .reading-shelf .reading-cover .cover-link img {
+    width: auto;
+    max-width: 100%;
+    height: auto !important;
+    max-height: 10.5rem;
+    object-fit: contain;
+  }
+
+  .reading-shelf .reading-cover .cover-link figcaption {
+    top: 0.75rem;
+    right: -5.1rem;
+    width: 16rem;
+    min-height: 1.8rem;
+    font-size: 0.58rem;
+    padding: 0.25rem 2.45rem;
+  }
+
+  .reading-shelf .reading-cover-meta {
+    max-width: 100%;
+    margin-top: 0;
+  }
 }
 
 @media (max-width: 720px) {

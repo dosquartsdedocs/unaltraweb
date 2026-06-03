@@ -1,11 +1,6 @@
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
-{% assign default_lang = site.default_lang | default: site.lang %}
 {% assign current_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
 {% assign docs = include.docs %}
-{% assign documentation_config = site.unaltraweb.documentation %}
-{% assign docs_logo = documentation_config.logo %}
-{% assign docs_logo_inverse = documentation_config.logo_inverse | default: docs_logo %}
-{% assign docs_logo_sepia = documentation_config.logo_sepia | default: docs_logo %}
 {% assign home_candidates = site.pages | where: 'ref', 'home' | where: 'lang', current_lang %}
 {% assign docs_home = home_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
 {% if docs_home == nil %}
@@ -13,154 +8,15 @@
 {% endif %}
 {% capture docs_contents_text %}{% include t.liquid key='documentation.contents' default='Table of contents' %}{% endcapture %}
 {% capture docs_toggle_contents_text %}{% include t.liquid key='documentation.toggle_contents' default='Show or hide table of contents' %}{% endcapture %}
-{% capture docs_search_text %}{% include t.liquid key='documentation.search_placeholder' default='Search documentation' %}{% endcapture %}
-{% capture docs_search_results_text %}{% include t.liquid key='documentation.search_results' default='Search results' %}{% endcapture %}
-{% capture docs_search_empty_text %}{% include t.liquid key='documentation.search_no_results' default='No results' %}{% endcapture %}
-{% capture change_theme_text %}{% include t.liquid key='header.change_theme' default='Change theme' %}{% endcapture %}
-{% capture theme_system_text %}{% include t.liquid key='documentation.theme_system' default='System' %}{% endcapture %}
-{% capture theme_light_text %}{% include t.liquid key='documentation.theme_light' default='Light' %}{% endcapture %}
-{% capture theme_dark_text %}{% include t.liquid key='documentation.theme_dark' default='Dark' %}{% endcapture %}
-{% capture theme_sepia_text %}{% include t.liquid key='documentation.theme_sepia' default='Coffee' %}{% endcapture %}
-{% capture language_text %}{% include t.liquid key='header.language' default='Language' %}{% endcapture %}
-{% capture font_size_text %}{% include t.liquid key='documentation.font_size' default='Text size' %}{% endcapture %}
-{% capture font_decrease_text %}{% include t.liquid key='documentation.font_decrease' default='Decrease text size' %}{% endcapture %}
-{% capture font_increase_text %}{% include t.liquid key='documentation.font_increase' default='Increase text size' %}{% endcapture %}
-{% capture font_reset_text %}{% include t.liquid key='documentation.font_reset' default='Reset text size' %}{% endcapture %}
-
-{% assign current_lang_flag = '🏳️' %}
-{% case current_lang %}
-  {% when 'en' %}
-    {% assign current_lang_flag = '🇬🇧' %}
-  {% when 'es' %}
-    {% assign current_lang_flag = '🇪🇸' %}
-  {% when 'ca' %}
-    {% assign current_lang_flag = '🇦🇩' %}
-{% endcase %}
 
 <aside class="documentation-sidebar" aria-label="{{ docs_contents_text | strip }}">
+  <button class="documentation-tool-button documentation-toc-toggle" type="button" data-documentation-sidebar-toggle aria-controls="documentation-nav" aria-expanded="true" title="{{ docs_toggle_contents_text | strip }}">
+    <i class="ti ti-chevrons-left" aria-hidden="true"></i>
+    <span class="documentation-tool-label">{{ docs_contents_text | strip }}</span>
+    <span class="sr-only">{{ docs_toggle_contents_text | strip }}</span>
+  </button>
+
   <div class="documentation-sidebar-inner">
-    <div class="documentation-tools documentation-utility-bar" aria-label="{{ docs_contents_text | strip }} controls">
-      <button class="documentation-tool-button documentation-toc-toggle" type="button" data-documentation-sidebar-toggle aria-controls="documentation-nav" aria-expanded="true" title="{{ docs_toggle_contents_text | strip }}">
-        <i class="ti ti-layout-sidebar-left-collapse" aria-hidden="true"></i>
-        <span class="documentation-tool-label">{{ docs_contents_text | strip }}</span>
-        <span class="sr-only">{{ docs_toggle_contents_text | strip }}</span>
-      </button>
-
-      {% if site.languages and site.languages.size > 1 %}
-        {% assign current_ref = page.ref | default: 'home' %}
-        <div class="dropdown documentation-tool-dropdown">
-          <button class="documentation-tool-button dropdown-toggle" type="button" id="documentationLangDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="{{ language_text | strip }}">
-            <span aria-hidden="true">{{ current_lang_flag }}</span>
-            <span class="documentation-tool-label">{{ current_lang | upcase }}</span>
-            <span class="sr-only">{{ language_text | strip }}: {{ current_lang | upcase }}</span>
-          </button>
-          <div class="dropdown-menu" aria-labelledby="documentationLangDropdown">
-            {% for lang_code in site.languages %}
-              {% assign localized_candidates = site.pages | where: 'ref', current_ref | where: 'lang', lang_code %}
-              {% assign localized_page = localized_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
-              {% if localized_page == nil %}
-                {% assign localized_page = localized_candidates | where_exp: 'candidate', 'candidate.profiles == nil' | first %}
-              {% endif %}
-              {% if localized_page == nil %}
-                {% assign localized_page = site.documents | where: 'ref', current_ref | where: 'lang', lang_code | first %}
-              {% endif %}
-              {% if localized_page %}
-                {% assign lang_url = localized_page.url | remove: 'index.html' %}
-              {% else %}
-                {% assign fallback_home_candidates = site.pages | where: 'ref', 'home' | where: 'lang', lang_code %}
-                {% assign fallback_home = fallback_home_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
-                {% if fallback_home %}
-                  {% assign lang_url = fallback_home.url %}
-                {% else %}
-                  {% assign lang_url = '/' | append: lang_code | append: '/' %}
-                {% endif %}
-              {% endif %}
-
-              {% assign lang_label = nil %}
-              {% if site.data.i18n[current_lang] and site.data.i18n[current_lang].languages %}
-                {% assign lang_label = site.data.i18n[current_lang].languages[lang_code] %}
-              {% endif %}
-              {% if lang_label == nil and site.data.i18n[default_lang] and site.data.i18n[default_lang].languages %}
-                {% assign lang_label = site.data.i18n[default_lang].languages[lang_code] %}
-              {% endif %}
-              {% if lang_label == nil %}
-                {% assign lang_label = lang_code | upcase %}
-              {% endif %}
-
-              {% assign lang_flag = '🏳️' %}
-              {% case lang_code %}
-                {% when 'en' %}
-                  {% assign lang_flag = '🇬🇧' %}
-                {% when 'es' %}
-                  {% assign lang_flag = '🇪🇸' %}
-                {% when 'ca' %}
-                  {% assign lang_flag = '🇦🇩' %}
-              {% endcase %}
-
-              <a class="dropdown-item {% if current_lang == lang_code %}active{% endif %}" href="{{ lang_url | relative_url }}">
-                <span aria-hidden="true">{{ lang_flag }}</span>
-                <span>{{ lang_label }}</span>
-              </a>
-            {% endfor %}
-          </div>
-        </div>
-      {% endif %}
-
-      {% if site.enable_darkmode %}
-        <button class="documentation-tool-button documentation-theme-button" id="light-toggle" type="button" title="{{ change_theme_text | strip }}" data-theme-label-system="{{ theme_system_text | strip | escape }}" data-theme-label-light="{{ theme_light_text | strip | escape }}" data-theme-label-dark="{{ theme_dark_text | strip | escape }}" data-theme-label-sepia="{{ theme_sepia_text | strip | escape }}">
-          <i class="ti ti-sun-moon" id="light-toggle-system" aria-hidden="true"></i>
-          <i class="ti ti-moon-filled" id="light-toggle-dark" aria-hidden="true"></i>
-          <i class="ti ti-sun-filled" id="light-toggle-light" aria-hidden="true"></i>
-          <i class="ti ti-coffee" id="light-toggle-sepia" aria-hidden="true"></i>
-          <span class="documentation-tool-label" data-documentation-theme-label>{{ theme_system_text | strip }}</span>
-          <span class="sr-only">{{ change_theme_text | strip }}</span>
-        </button>
-      {% endif %}
-
-      <div class="dropdown documentation-tool-dropdown documentation-font-dropdown">
-        <button class="documentation-tool-button dropdown-toggle" type="button" id="documentationFontDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="{{ font_size_text | strip }}">
-          <span aria-hidden="true">A</span>
-          <span class="documentation-tool-label">{{ font_size_text | strip }}</span>
-          <span class="sr-only">{{ font_size_text | strip }}</span>
-        </button>
-        <div class="dropdown-menu documentation-font-menu" aria-labelledby="documentationFontDropdown">
-          <button class="dropdown-item documentation-font-menu-item" type="button" data-documentation-font="decrease">
-            <span aria-hidden="true">A<span class="documentation-font-modifier">-</span></span>
-            <span>{{ font_decrease_text | strip }}</span>
-          </button>
-          <button class="dropdown-item documentation-font-menu-item" type="button" data-documentation-font="reset">
-            <span aria-hidden="true">A</span>
-            <span>{{ font_reset_text | strip }}</span>
-          </button>
-          <button class="dropdown-item documentation-font-menu-item" type="button" data-documentation-font="increase">
-            <span aria-hidden="true">A<span class="documentation-font-modifier">+</span></span>
-            <span>{{ font_increase_text | strip }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <a class="documentation-brand" href="{{ docs_home.url | default: '/' | relative_url }}">
-      {% if docs_logo %}
-        <span class="documentation-brand-logo-stack" aria-hidden="true">
-          <img class="documentation-brand-logo documentation-brand-logo-light" src="{{ docs_logo | relative_url }}" alt="">
-          <img class="documentation-brand-logo documentation-brand-logo-dark" src="{{ docs_logo_inverse | relative_url }}" alt="">
-          <img class="documentation-brand-logo documentation-brand-logo-sepia" src="{{ docs_logo_sepia | relative_url }}" alt="">
-        </span>
-      {% else %}
-        <span class="documentation-brand-icon"><i class="ti ti-book-2" aria-hidden="true"></i></span>
-      {% endif %}
-      <span class="documentation-brand-text">{{ site.title }}</span>
-    </a>
-
-    <div class="documentation-search" role="search" data-content-search-box>
-      <label class="sr-only" for="documentation-search-input">{{ docs_search_text | strip }}</label>
-      <input id="documentation-search-input" class="documentation-search-input" type="search" data-content-search data-content-search-url="{{ '/assets/js/documentation-search-index.json' | relative_url }}" data-content-search-target=".documentation-content" data-content-search-empty="{{ docs_search_empty_text | strip | escape }}" placeholder="{{ docs_search_text | strip }}" autocomplete="off">
-      <div class="documentation-search-results" data-content-search-results data-content-search-empty="{{ docs_search_empty_text | strip | escape }}" hidden>
-        <h2>{{ docs_search_results_text | strip }}</h2>
-        <ol data-content-search-list></ol>
-      </div>
-    </div>
 
     <nav id="documentation-nav" class="documentation-nav" aria-label="{{ docs_contents_text | strip }}">
       <div class="documentation-nav-block documentation-toc-heading-block">
@@ -168,75 +24,45 @@
       </div>
 
       <div class="documentation-nav-scroll">
-        <div class="documentation-tree-node documentation-overview-section">
-          <a class="documentation-section-title documentation-overview-title{% if page.url == docs_home.url %} active{% endif %}" href="{{ docs_home.url | default: '/' | relative_url }}"{% if page.url == docs_home.url %} aria-current="page"{% endif %}>
+        <div class="documentation-overview-section">
+          <a class="documentation-overview-link{% if page.url == docs_home.url %} active{% endif %}" href="{{ docs_home.url | default: '/' | relative_url }}"{% if page.url == docs_home.url %} aria-current="page"{% endif %}>
+            <span class="documentation-overview-icon" aria-hidden="true"><i class="ti ti-home"></i></span>
             {{ docs_home.nav_title | default: docs_home.title | default: 'Overview' }}
           </a>
         </div>
 
-        <div class="documentation-tree documentation-docs-block" data-documentation-tree>
-          {% assign current_section = '' %}
-          {% assign current_subsection = '' %}
-          {% for doc in docs %}
-            {% assign doc_section = doc.section | default: docs_contents_text | strip %}
-            {% assign doc_subsection = doc.subsection | default: '' %}
-            {% if doc_section != current_section %}
-              {% unless forloop.first %}
-                  {% if current_subsection != '' %}
-                    </div>
-                  </details>
+        <div class="documentation-accordion documentation-docs-block" data-documentation-tree>
+          {% assign doc_sections = docs | map: 'section' | uniq %}
+          {% for doc_section in doc_sections %}
+            {% assign section_docs = docs | where: 'section', doc_section %}
+            {% assign doc_section = doc_section | default: docs_contents_text | strip %}
+            {% assign section_open = false %}
+            {% if page.section == doc_section %}
+              {% assign section_open = true %}
+            {% endif %}
+            <details class="documentation-accordion-section" data-documentation-tree-id="section-{{ doc_section | slugify }}"{% if section_open %} data-documentation-active-section="true" open{% endif %}>
+              <summary class="documentation-accordion-summary{% if page.section == doc_section %} active{% endif %}">
+                <span class="documentation-accordion-mark" aria-hidden="true"></span>
+                <span class="documentation-accordion-title">{{ doc_section }}</span>
+                <span class="documentation-accordion-caret" aria-hidden="true"><i class="ti ti-chevron-down"></i></span>
+              </summary>
+              <div class="documentation-accordion-items">
+                {% assign current_subsection = '' %}
+                {% for doc in section_docs %}
+                  {% assign doc_subsection = doc.subsection | default: '' %}
+                  {% if doc_subsection != '' and doc_subsection != current_subsection %}
+                    {% assign current_subsection = doc_subsection %}
+                    <p class="documentation-subsection-title{% if page.subsection == doc_subsection %} active{% endif %}">{{ doc_subsection }}</p>
+                  {% elsif doc_subsection == '' %}
+                    {% assign current_subsection = '' %}
                   {% endif %}
-                </div>
-              </details>
-              {% endunless %}
-              {% assign current_section = doc_section %}
-              {% assign current_subsection = '' %}
-              {% assign section_open = false %}
-              {% if page.section == doc_section %}
-                {% assign section_open = true %}
-              {% endif %}
-              <details class="documentation-tree-node documentation-tree-section" data-documentation-tree-id="section-{{ doc_section | slugify }}"{% if section_open %} open{% endif %}>
-                <summary class="documentation-tree-summary">
-                  <span class="documentation-tree-toggle" aria-hidden="true"></span>
-                  <a class="documentation-section-title{% if page.section == doc_section %} active{% endif %}" href="{{ doc.url | relative_url }}">{{ doc_section }}</a>
-                </summary>
-                <div class="documentation-tree-children">
-            {% endif %}
-            {% if doc_subsection != '' and doc_subsection != current_subsection %}
-              {% if current_subsection != '' %}
-                </div>
-              </details>
-              {% endif %}
-              {% assign current_subsection = doc_subsection %}
-              {% assign subsection_open = false %}
-              {% if page.section == doc_section and page.subsection == doc_subsection %}
-                {% assign subsection_open = true %}
-              {% endif %}
-              <details class="documentation-tree-node documentation-tree-subsection" data-documentation-tree-id="section-{{ doc_section | slugify }}-subsection-{{ doc_subsection | slugify }}"{% if subsection_open %} open{% endif %}>
-                <summary class="documentation-tree-summary">
-                  <span class="documentation-tree-toggle" aria-hidden="true"></span>
-                  <a class="documentation-subsection-title{% if page.section == doc_section and page.subsection == doc_subsection %} active{% endif %}" href="{{ doc.url | relative_url }}">{{ doc_subsection }}</a>
-                </summary>
-                <div class="documentation-tree-children">
-            {% elsif doc_subsection == '' %}
-              {% if current_subsection != '' %}
-                </div>
-              </details>
-              {% endif %}
-              {% assign current_subsection = '' %}
-            {% endif %}
-            <a class="documentation-nav-link documentation-tree-leaf {% if doc_subsection != '' %}level-3{% else %}level-2{% endif %}{% if page.url == doc.url %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.url == doc.url %} aria-current="page"{% endif %}>
-              {{ doc.nav_title | default: doc.title }}
-            </a>
+                  <a class="documentation-nav-link documentation-accordion-link{% if doc_subsection != '' %} level-3{% else %} level-2{% endif %}{% if page.url == doc.url %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.url == doc.url %} aria-current="page"{% endif %}>
+                    {{ doc.nav_title | default: doc.title }}
+                  </a>
+                {% endfor %}
+              </div>
+            </details>
           {% endfor %}
-          {% if docs.size > 0 %}
-              {% if current_subsection != '' %}
-                </div>
-              </details>
-              {% endif %}
-            </div>
-          </details>
-          {% endif %}
         </div>
       </div>
     </nav>

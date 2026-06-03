@@ -204,7 +204,7 @@
 {% if unaltraweb_developer_mode and jekyll.environment != 'production' %}
   <script defer src="{{ '/assets/js/developer-mode.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% endif %}
-{% if page.layout == 'manual-home' or page.layout == 'manual-chapter' or page.layout == 'documentation-home' or page.layout == 'documentation-page' %}
+{% if unaltraweb_current_profile == 'unaltremanual' or page.layout == 'manual-home' or page.layout == 'manual-chapter' or page.layout == 'documentation-home' or page.layout == 'documentation-page' %}
   <script defer src="{{ '/assets/js/content-search.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% endif %}
 {% if unaltraweb_current_profile == 'unaltremanual' or page.layout == 'manual-home' or page.layout == 'manual-chapter' %}
@@ -212,6 +212,9 @@
 {% endif %}
 {% if page.layout == 'documentation-home' or page.layout == 'documentation-page' %}
   <script defer src="{{ '/assets/js/documentation.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
+{% endif %}
+{% if unaltraweb_current_profile == 'unaltreprojecte' or unaltraweb_current_profile == 'unaltreselfie' %}
+  <script defer src="{{ '/assets/js/profile-nav.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% endif %}
 
 

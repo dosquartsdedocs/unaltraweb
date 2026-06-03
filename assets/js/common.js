@@ -35,6 +35,25 @@ $(document).ready(function () {
     $(this).parent().parent().find(".openalex.hidden.open").toggleClass("open");
     $(this).parent().parent().find(".scimago.hidden").toggleClass("open");
   });
+
+  function closeReadingBiblioPanels() {
+    $(".reading-biblio-panel.hidden.open").removeClass("open");
+  }
+
+  $(document).on("click", "[data-reading-biblio-close]", function () {
+    $(this).closest(".reading-biblio-panel").removeClass("open");
+  });
+
+  $(document).on("click", function (event) {
+    if (!$(".reading-biblio-panel.hidden.open").length) return;
+    if ($(event.target).closest(".reading-biblio-panel, .reading-biblio-actions").length) return;
+    closeReadingBiblioPanels();
+  });
+
+  $(document).on("keydown", function (event) {
+    if (event.key === "Escape") closeReadingBiblioPanels();
+  });
+
   $("a").removeClass("waves-effect waves-light");
 
   // bootstrap-toc

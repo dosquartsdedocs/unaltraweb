@@ -16,7 +16,8 @@ document.addEventListener("readystatechange", () => {
       backup.after(mermaid);
     });
 
-    mermaid.initialize({ theme: mermaidTheme });
+    const mermaidConfig = typeof unaltrawebMermaidConfig === "function" ? unaltrawebMermaidConfig(mermaidTheme) : { theme: mermaidTheme };
+    mermaid.initialize(mermaidConfig);
 
     /* Zoomable mermaid diagrams */
     if (typeof d3 !== "undefined") {

@@ -151,6 +151,9 @@ reading:
   bibtex: BibTeX
   cover_caption: Cubierta
   no_review: Todavía no hay texto de reseña.
+  back_to_readings: Volver a las lecturas
+  back_to_bibliography: Volver a la bibliografía
+  close_panel: Cerrar el panel
   empty_shelf: Todavía no hay lecturas disponibles.
   uncategorized: Sin categoría
   collections: Colecciones
@@ -180,9 +183,11 @@ profile:
   email: Correo
   website: Web
   location: Ubicación
+  recent_news: Últimas noticias
   selected_publications: Publicaciones seleccionadas
   active_projects: Proyectos activos
   recent_posts: Últimas entradas
+  view_all_news: Todas las noticias
   view_all_publications: Todas las publicaciones
   view_all_projects: Todos los proyectos
   view_all_posts: Todas las entradas
@@ -213,6 +218,7 @@ documentation:
   search_placeholder: Buscar en la documentación
   search_results: Resultados de búsqueda
   search_no_results: Sin resultados
+  read_more: Leer más
 
 manual:
   contents: Contenidos
@@ -230,7 +236,7 @@ manual:
   more_readings: Más lecturas
   no_chapters: Todavía no hay capítulos disponibles.
   filter: Filtrar capítulos
-  cover: Portada
+  cover: Portada y prólogo
 
   search_placeholder: Escribe para buscar
   search_results: Resultados de búsqueda

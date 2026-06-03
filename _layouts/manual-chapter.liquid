@@ -15,6 +15,10 @@ layout: default
 {% if page.manual_numbered == false %}
   {% assign current_is_numbered = false %}
 {% endif %}
+{% assign show_manual_page_toc = true %}
+{% if page.manual_toc == false or page.manual_page_toc == false %}
+  {% assign show_manual_page_toc = false %}
+{% endif %}
 {% assign previous_chapter = nil %}
 {% assign next_chapter = nil %}
 {% assign current_seen = false %}
@@ -46,8 +50,13 @@ layout: default
   window.unaltrawebContentSearchTarget = ".manual-content";
 </script>
 
-<div class="manual-layout manual-chapter-layout">
-  {% include manual-sidebar.liquid chapters=manual_chapters reference_pages=manual_reference_pages %}
+<div class="manual-layout manual-chapter-layout{% unless show_manual_page_toc %} manual-layout--without-page-toc{% endunless %}">
+  <div class="manual-toc-panel">
+    {% include manual-sidebar.liquid chapters=manual_chapters reference_pages=manual_reference_pages %}
+    {% if show_manual_page_toc %}
+      {% include manual-page-toc.liquid %}
+    {% endif %}
+  </div>
 
   <article class="manual-main manual-chapter{% unless current_is_numbered %} manual-reference-page{% endunless %}" data-chapter="{% if current_is_numbered %}{{ current_chapter_number | default: page.weight | default: 0 }}{% endif %}" data-manual-numbered="{{ current_is_numbered }}" data-lang="{{ current_lang }}">
     <header class="manual-chapter-header">
@@ -87,6 +96,4 @@ layout: default
       </nav>
     {% endif %}
   </article>
-
-  {% include manual-page-toc.liquid %}
 </div>

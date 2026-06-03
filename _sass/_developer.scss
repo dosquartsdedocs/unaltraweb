@@ -12,7 +12,7 @@
   gap: 0.5rem;
   padding: 0.65rem;
   border: 1px solid var(--global-divider-color);
-  border-radius: 0.75rem;
+  border-radius: 0;
   background: var(--global-bg-color);
   box-shadow: 0 0.65rem 2rem rgba(0, 0, 0, 0.16);
   color: var(--global-text-color);
@@ -64,7 +64,7 @@
   align-items: center;
   justify-content: center;
   border: 1px solid color-mix(in srgb, var(--global-theme-color) 34%, var(--global-divider-color));
-  border-radius: 999px;
+  border-radius: 0;
   background: color-mix(in srgb, var(--global-theme-color) 10%, var(--global-card-bg-color));
   color: var(--global-theme-color);
   font-size: 0.76rem;

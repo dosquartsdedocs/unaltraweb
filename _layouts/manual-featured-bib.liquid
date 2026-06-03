@@ -2,14 +2,27 @@
 ---
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 {% assign comment_key = 'manual_comment_' | append: current_lang %}
-{% assign badge_key = 'manual_badge_' | append: current_lang %}
+{% assign manual_badge_key = 'manual_badge_' | append: current_lang %}
+{% assign badge_label_key = 'badge_label_' | append: current_lang %}
+{% assign ribbon_label_key = 'ribbon_label_' | append: current_lang %}
 {% assign kind_key = 'manual_kind_' | append: current_lang %}
 {% assign featured_comment = entry[comment_key] | default: entry.manual_comment | default: entry.comment %}
-{% assign featured_badge = entry[badge_key] | default: entry.manual_badge | default: entry.ribbon_label | default: entry.badge_label %}
+{% assign featured_badge_key = entry.badge | default: entry.badge_key | default: entry.ribbon_key | default: entry.ribbon_slug %}
+{% assign configured_badge = nil %}
+{% if featured_badge_key and site.unaltraweb.readings and site.unaltraweb.readings.badges %}
+  {% assign configured_badge = site.unaltraweb.readings.badges[featured_badge_key] %}
+{% endif %}
+{% assign configured_badge_label_key = 'label_' | append: current_lang %}
+{% assign configured_badge_label = configured_badge[configured_badge_label_key] | default: configured_badge.label %}
+{% assign featured_badge = entry[manual_badge_key] | default: entry[badge_label_key] | default: entry[ribbon_label_key] | default: entry.manual_badge | default: entry.badge_label | default: entry.ribbon_label | default: configured_badge_label | default: featured_badge_key %}
 {% assign featured_kind = entry[kind_key] | default: entry.manual_kind | default: entry.type %}
 {% assign featured_preview = entry.preview | default: entry.image | default: entry.thumbnail %}
 {% assign featured_rating = entry.manual_rating | default: entry.rating %}
-{% assign featured_badge_slug = featured_badge | default: featured_kind | slugify %}
+{% assign featured_badge_slug = entry.ribbon_class | default: featured_badge_key | default: featured_badge | default: featured_kind | slugify %}
+{% assign featured_badge_color = entry.badge_color | default: entry.ribbon_color | default: configured_badge.color %}
+{% assign featured_badge_text_color = entry.badge_text_color | default: entry.ribbon_text_color | default: configured_badge.text_color %}
+{% capture featured_badge_style %}{% if featured_badge_color %}--reading-ribbon-bg: {{ featured_badge_color }};{% endif %}{% if featured_badge_text_color %} --reading-ribbon-color: {{ featured_badge_text_color }};{% endif %}{% endcapture %}
+{% assign featured_badge_style = featured_badge_style | strip %}
 {% assign featured_url = entry.manual_url | default: entry.website | default: entry.url %}
 {% assign featured_review_ref = entry.review_ref | default: entry.book_ref | default: entry.reading_ref %}
 {% assign featured_review_url = entry.review_url %}
@@ -41,15 +54,15 @@
         <div class="cover-link reading-cover-static" aria-label="{{ entry.title | escape }}">
       {% endif %}
         {% if featured_preview contains '://' %}
-          <img src="{{ featured_preview }}" alt="{{ entry.title | escape }}"{% unless featured_review_url %} data-zoomable{% endunless %}>
+          <img src="{{ featured_preview }}" alt="{{ entry.title | escape }}"{% if featured_review_url %} data-no-zoom{% else %} data-zoomable{% endif %}>
         {% else %}
           {% assign featured_preview_path = featured_preview %}
           {% unless featured_preview_path contains '/' %}
             {% assign featured_preview_path = featured_preview_path | prepend: '/assets/img/publication_preview/' %}
           {% endunless %}
-          <img src="{{ featured_preview_path | relative_url }}" alt="{{ entry.title | escape }}"{% unless featured_review_url %} data-zoomable{% endunless %}>
+          <img src="{{ featured_preview_path | relative_url }}" alt="{{ entry.title | escape }}"{% if featured_review_url %} data-no-zoom{% else %} data-zoomable{% endif %}>
         {% endif %}
-        {% if featured_badge %}<figcaption class="reading-ribbon custom {{ featured_badge_slug }}">{{ featured_badge }}</figcaption>{% endif %}
+        {% if featured_badge %}<figcaption class="reading-ribbon custom {{ featured_badge_slug }}"{% if featured_badge_style != '' %} style="{{ featured_badge_style }}"{% endif %}>{{ featured_badge }}</figcaption>{% endif %}
       {% if featured_review_url %}
         </a>
       {% else %}
@@ -58,14 +71,16 @@
     </figure>
   {% endif %}
   <div class="manual-featured-reference-body">
-    <p class="manual-featured-kind">{{ featured_kind }}</p>
+    {% if featured_kind or featured_rating %}
+      <p class="manual-featured-kind">
+        {% if featured_kind %}<span>{{ featured_kind }}</span>{% endif %}
+        {% if featured_rating %}<span class="reading-rating"><i class="fa-solid fa-star" aria-hidden="true"></i>{{ featured_rating }}/5</span>{% endif %}
+      </p>
+    {% endif %}
     <h3>{% if featured_review_url %}<a href="{{ featured_review_url | relative_url }}">{{ entry.title }}</a>{% else %}{{ entry.title }}{% endif %}</h3>
     {% if featured_authors %}<p class="manual-featured-authors">{{ featured_authors }}</p>{% endif %}
-    <p class="manual-featured-meta">
-      {% if entry.year %}<span>{{ entry.year }}</span>{% endif %}
-      {% if featured_rating %}<span class="reading-rating"><i class="fa-solid fa-star" aria-hidden="true"></i>{{ featured_rating }}/5</span>{% endif %}
-    </p>
-    {% if featured_comment %}<div class="manual-featured-comment">{{ featured_comment | markdownify }}</div>{% endif %}
+    {% if entry.year %}<p class="manual-featured-meta"><span>{{ entry.year }}</span></p>{% endif %}
+    {% if featured_comment and featured_review_url == nil %}<div class="manual-featured-comment">{{ featured_comment | markdownify }}</div>{% endif %}
     <div class="links manual-reference-links">
       {% if entry.doi %}<a href="https://doi.org/{{ entry.doi }}" class="btn btn-sm z-depth-0" role="button">DOI</a>{% endif %}
       {% if featured_url %}<a href="{{ featured_url }}" class="btn btn-sm z-depth-0" role="button">{{ featured_url_label | default: 'LINK' }}</a>{% endif %}

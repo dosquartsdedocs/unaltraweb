@@ -223,23 +223,49 @@
   }
 
   function setupSidebarToggle() {
-    document.querySelectorAll("[data-manual-sidebar-toggle]").forEach(function (button) {
+    var layout = document.querySelector(".manual-layout");
+    if (!layout) return;
+    var storageKey = "unaltrawebManualSidebarCollapsed";
+    var mobileQuery = window.matchMedia("(max-width: 960px)");
+    var stored = localStorage.getItem(storageKey);
+    var collapsed = stored === null ? mobileQuery.matches : stored === "true";
+
+    function toggleButtons() {
+      return Array.prototype.slice.call(document.querySelectorAll("[data-manual-sidebar-toggle]"));
+    }
+
+    function updateToggleState(isCollapsed) {
+      layout.classList.toggle("manual-sidebar-collapsed", isCollapsed);
+      toggleButtons().forEach(function (button) {
+        button.classList.toggle("is-collapsed", isCollapsed);
+        button.classList.toggle("collapsed", isCollapsed && button.classList.contains("navbar-toggler"));
+        button.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+      });
+    }
+
+    updateToggleState(collapsed);
+    toggleButtons().forEach(function (button) {
       if (button.dataset.manualToggleReady) return;
       button.dataset.manualToggleReady = "true";
-      var layout = button.closest(".manual-layout") || document.querySelector(".manual-layout");
-      if (!layout) return;
-      var collapsed = localStorage.getItem("unaltrawebManualSidebarCollapsed") === "true";
-      function updateToggleState(isCollapsed) {
-        layout.classList.toggle("manual-sidebar-collapsed", isCollapsed);
-        button.classList.toggle("is-collapsed", isCollapsed);
-        button.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
-      }
-      updateToggleState(collapsed);
-      button.addEventListener("click", function () {
-        var nowCollapsed = layout.classList.toggle("manual-sidebar-collapsed");
-        localStorage.setItem("unaltrawebManualSidebarCollapsed", nowCollapsed ? "true" : "false");
+      button.addEventListener("click", function (event) {
+        event.preventDefault();
+        var nowCollapsed = !layout.classList.contains("manual-sidebar-collapsed");
+        localStorage.setItem(storageKey, nowCollapsed ? "true" : "false");
         updateToggleState(nowCollapsed);
       });
+    });
+
+    if (layout.dataset.manualOutsideClickReady) return;
+    layout.dataset.manualOutsideClickReady = "true";
+    document.addEventListener("click", function (event) {
+      if (!mobileQuery.matches || layout.classList.contains("manual-sidebar-collapsed")) return;
+      var panel = layout.querySelector(".manual-toc-panel") || layout.querySelector(".manual-sidebar");
+      var clickedToggle = toggleButtons().some(function (button) {
+        return button.contains(event.target);
+      });
+      if ((panel && panel.contains(event.target)) || clickedToggle) return;
+      localStorage.setItem(storageKey, "true");
+      updateToggleState(true);
     });
   }
 

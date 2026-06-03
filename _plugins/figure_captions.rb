@@ -28,6 +28,13 @@ module Unaltraweb
       enabled?(site) && collections(site).include?(label.to_s)
     end
 
+    def process_page?(page)
+      return false unless enabled?(page.site)
+
+      value = page.data["figure_captions"]
+      value == true || value.to_s == "true" || (value.respond_to?(:fetch) && value.fetch("enabled", true) != false)
+    end
+
     def detect_lang(doc)
       return doc.data["lang"].to_s unless doc.data["lang"].to_s.empty?
 
@@ -212,7 +219,8 @@ module Unaltraweb
           attrs = kramdown_attrs_to_html(image[:attrs])
           caption = render_inline_markdown(image[:caption])
           panel = h(slot[:label])
-          %Q{<div class="md-subfigure" data-panel="#{panel}"><img src="#{h(image[:url].strip)}" alt="#{h(strip_liquid(image[:alt]))}"#{attrs.empty? ? "" : " #{attrs}"}>#{caption.to_s.strip.empty? ? "" : %Q{<p class="md-subfigure-caption"><span class="md-subfigure-label">#{panel}.</span> #{caption}</p>}}</div>}
+          caption_html = caption.to_s.strip.empty? ? "" : %Q{<p class="md-subfigure-caption"><span class="md-subfigure-label">#{panel}</span> #{caption}</p>}
+          %Q{<div class="md-subfigure" data-panel="#{panel}">#{caption_html}<img src="#{h(image[:url].strip)}" alt="#{h(strip_liquid(image[:alt]))}"#{attrs.empty? ? "" : " #{attrs}"}></div>}
         end.join("\n")
         %Q{<div class="md-subfigure-row" data-count="#{row.length}">\n#{cells}\n</div>}
       end.join("\n")
@@ -222,12 +230,12 @@ module Unaltraweb
 
       html = <<~HTML.strip
         <figure id="fig-#{h(lang)}-#{count}" class="#{outer_classes.join(' ')}" data-layout="#{h(block[:layout])}">
+          #{figcaption}
           <div class="md-figure-inner">
             <div class="md-subfigure-grid">
               #{row_html}
             </div>
           </div>
-          #{figcaption}
         </figure>
       HTML
 
@@ -365,7 +373,7 @@ module Unaltraweb
     def subfigure_rows(layout, image_count)
       used = []
       rows = []
-      parsed_rows = layout.to_s.split("/").map { |row| row.split("+").map(&:strip).reject(&:empty?) }.reject(&:empty?)
+      parsed_rows = layout.to_s.split("/").map { |row| subfigure_row_tokens(row) }.reject(&:empty?)
 
       parsed_rows.each do |tokens|
         row = []
@@ -393,6 +401,17 @@ module Unaltraweb
       end
 
       rows
+    end
+
+    def subfigure_row_tokens(row)
+      row.to_s.split("+").flat_map do |token|
+        value = token.strip
+        if value.match?(/\A[a-zA-Z]{2,}\z/)
+          value.each_char.map(&:downcase)
+        else
+          [value]
+        end
+      end.reject(&:empty?)
     end
 
     def panel_index(token)
@@ -532,8 +551,8 @@ module Unaltraweb
 
       <<~HTML.strip
         <figure id="fig-#{h(lang)}-#{count}" class="#{classes.map { |klass| h(klass) }.join(' ')}">
-          <div class="md-figure-inner">#{img}</div>
           #{figcaption}
+          <div class="md-figure-inner">#{img}</div>
         </figure>
       HTML
     end
@@ -630,4 +649,13 @@ Jekyll::Hooks.register :documents, :post_render do |doc|
   lang = Unaltraweb::FigureCaptions.detect_lang(doc)
   label = Unaltraweb::FigureCaptions.label_for(doc.site, lang)
   doc.output = Unaltraweb::FigureCaptions.wrap_html_images(doc.output, lang, label)
+end
+
+Jekyll::Hooks.register :pages, :pre_render do |page|
+  next unless Unaltraweb::FigureCaptions.process_page?(page)
+
+  lang = Unaltraweb::FigureCaptions.detect_lang(page)
+  figure_label = Unaltraweb::FigureCaptions.label_for(page.site, lang)
+  table_label = Unaltraweb::FigureCaptions.table_label_for(page.site, lang)
+  page.content = Unaltraweb::FigureCaptions.transform_markdown_sugar(page.content, lang, figure_label, table_label)
 end

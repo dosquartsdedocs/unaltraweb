@@ -151,6 +151,9 @@ reading:
   bibtex: BibTeX
   cover_caption: Cover
   no_review: No review text yet.
+  back_to_readings: Back to readings
+  back_to_bibliography: Back to bibliography
+  close_panel: Close panel
   empty_shelf: No reading notes available yet.
   uncategorized: Uncategorized
   collections: Collections
@@ -180,9 +183,11 @@ profile:
   email: Email
   website: Website
   location: Location
+  recent_news: Recent News
   selected_publications: Selected publications
   active_projects: Active projects
   recent_posts: Recent posts
+  view_all_news: All news
   view_all_publications: All publications
   view_all_projects: All projects
   view_all_posts: All posts
@@ -213,6 +218,7 @@ documentation:
   search_placeholder: Search documentation
   search_results: Search results
   search_no_results: No results
+  read_more: Read more
 
 manual:
   contents: Contents
@@ -230,7 +236,7 @@ manual:
   more_readings: More readings
   no_chapters: No chapters available yet.
   filter: Filter chapters
-  cover: Cover
+  cover: Cover and preamble
 
   search_placeholder: Type to search
   search_results: Search results

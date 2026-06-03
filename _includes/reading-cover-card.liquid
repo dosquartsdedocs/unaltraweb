@@ -9,6 +9,7 @@
 {% assign title_key = 'title_' | append: current_lang %}
 {% assign author_key = 'author_' | append: current_lang %}
 {% assign status_key = 'status_' | append: current_lang %}
+{% assign badge_label_key = 'badge_label_' | append: current_lang %}
 {% assign ribbon_label_key = 'ribbon_label_' | append: current_lang %}
 {% assign item_title = item[title_key] | default: item.title %}
 {% assign item_author = item[author_key] | default: item.author %}
@@ -16,14 +17,14 @@
 {% assign status_slug = item_status_raw | downcase | replace: ' ', '_' %}
 {% assign status_i18n_key = 'reading.status_values.' | append: status_slug %}
 {% capture status_label %}{% include t.liquid key=status_i18n_key default=item_status_raw %}{% endcapture %}
-{% assign ribbon_key = item.ribbon_key | default: item.badge_key | default: item.ribbon_class | default: item.ribbon_slug | default: status_slug %}
+{% assign ribbon_key = item.badge | default: item.ribbon_key | default: item.badge_key | default: item.ribbon_class | default: item.ribbon_slug | default: status_slug %}
 {% assign configured_badge = nil %}
 {% if site.unaltraweb.readings and site.unaltraweb.readings.badges %}
 {% assign configured_badge = site.unaltraweb.readings.badges[ribbon_key] | default: site.unaltraweb.readings.badges[status_slug] %}
 {% endif %}
 {% assign configured_badge_label_key = 'label_' | append: current_lang %}
 {% assign configured_badge_label = configured_badge[configured_badge_label_key] | default: configured_badge.label %}
-{% assign ribbon_label_raw = item[ribbon_label_key] | default: item.ribbon_label | default: item.shelf_label | default: item.badge_label | default: configured_badge_label %}
+{% assign ribbon_label_raw = item[badge_label_key] | default: item[ribbon_label_key] | default: item.ribbon_label | default: item.shelf_label | default: item.badge_label | default: configured_badge_label %}
 {% if ribbon_label_raw %}
 {% assign ribbon_label = ribbon_label_raw | strip %}
 {% assign ribbon_slug = item.ribbon_class | default: item.ribbon_slug | default: ribbon_key | default: ribbon_label | slugify %}

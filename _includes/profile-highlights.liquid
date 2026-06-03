@@ -1,18 +1,32 @@
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 {% assign default_lang = site.default_lang | default: site.lang %}
+{% assign news_limit = include.news_limit | default: 3 %}
 {% assign posts_limit = include.posts_limit | default: 3 %}
 {% assign projects_limit = include.projects_limit | default: 2 %}
 
+{% capture recent_news_text %}{% include t.liquid key='profile.recent_news' default='Recent news' %}{% endcapture %}
 {% capture selected_publications_text %}{% include t.liquid key='profile.selected_publications' default='Selected publications' %}{% endcapture %}
 {% capture active_projects_text %}{% include t.liquid key='profile.active_projects' default='Active projects' %}{% endcapture %}
 {% capture recent_posts_text %}{% include t.liquid key='profile.recent_posts' default='Recent posts' %}{% endcapture %}
+{% capture view_all_news_text %}{% include t.liquid key='profile.view_all_news' default='All news' %}{% endcapture %}
 {% capture view_all_publications_text %}{% include t.liquid key='profile.view_all_publications' default='All publications' %}{% endcapture %}
 {% capture view_all_projects_text %}{% include t.liquid key='profile.view_all_projects' default='All projects' %}{% endcapture %}
 {% capture view_all_posts_text %}{% include t.liquid key='profile.view_all_posts' default='All posts' %}{% endcapture %}
 
+{% assign news_page = site.pages | where: 'ref', 'news' | where: 'lang', current_lang | first %}
 {% assign publications_page = site.pages | where: 'ref', 'publications' | where: 'lang', current_lang | first %}
 {% assign projects_page = site.pages | where: 'ref', 'projects' | where: 'lang', current_lang | first %}
 {% assign blog_page = site.pages | where: 'ref', 'blog' | where: 'lang', current_lang | first %}
+
+{% assign localized_news = site.news | where: 'lang', current_lang %}
+{% if localized_news.size == 0 and current_lang != default_lang %}
+  {% assign localized_news = site.news | where: 'lang', default_lang %}
+{% endif %}
+{% if current_lang == default_lang %}
+  {% assign fallback_news = site.news | where_exp: 'item', 'item.lang == nil' %}
+  {% assign localized_news = localized_news | concat: fallback_news %}
+{% endif %}
+{% assign latest_news = localized_news | sort: 'date' | reverse %}
 
 {% assign sorted_projects = site.projects | sort: 'importance' %}
 {% assign localized_projects = sorted_projects | where: 'lang', current_lang %}
@@ -34,6 +48,29 @@
 {% assign latest_posts = localized_posts | sort: 'date' | reverse %}
 
 <div class="profile-highlights">
+  {% unless site.unaltraweb.features.news == false %}
+    {% if latest_news.size > 0 %}
+      <section class="profile-highlight-section profile-highlight-news">
+        <div class="profile-highlight-heading">
+          <h2>{{ recent_news_text | strip }}</h2>
+          {% if news_page %}<a href="{{ news_page.url | relative_url }}">{{ view_all_news_text | strip }}</a>{% endif %}
+        </div>
+        <ul class="profile-post-list">
+          {% for item in latest_news limit: news_limit %}
+            <li>
+              <time datetime="{{ item.date | date_to_xmlschema }}">{% include localized-date.liquid date=item.date format_key='date.formats.short' default_format='%Y-%m-%d' %}</time>
+              {% if item.inline %}
+                <span>{{ item.content | remove: '<p>' | remove: '</p>' | emojify }}</span>
+              {% else %}
+                <a href="{{ item.url | relative_url }}">{{ item.title }}</a>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  {% endunless %}
+
   {% unless site.unaltraweb.features.blog == false %}
     {% if latest_posts.size > 0 %}
       <section class="profile-highlight-section profile-highlight-posts">

@@ -4,7 +4,9 @@ layout: default
 
 <div class="post profile-page">
   {% assign profile_author = page.author | default: site.author %}
-  {% assign profile_author_name = profile_author.name | default: '' %}
+  {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
+  {% assign profile_author_name_key = 'name_' | append: current_lang %}
+  {% assign profile_author_name = profile_author[profile_author_name_key] | default: profile_author.name | default: '' %}
   {% assign show_profile_title = true %}
   {% if page.hide_title or page.title == profile_author_name %}
     {% assign show_profile_title = false %}

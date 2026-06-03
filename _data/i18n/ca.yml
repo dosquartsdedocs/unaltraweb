@@ -151,6 +151,9 @@ reading:
   bibtex: BibTeX
   cover_caption: Coberta
   no_review: Encara no hi ha text de ressenya.
+  back_to_readings: Torna a les lectures
+  back_to_bibliography: Torna a la bibliografia
+  close_panel: Tanca el panell
   empty_shelf: Encara no hi ha lectures disponibles.
   uncategorized: Sense categoria
   collections: Col·leccions
@@ -180,9 +183,11 @@ profile:
   email: Correu
   website: Web
   location: Ubicació
+  recent_news: Últimes notícies
   selected_publications: Publicacions seleccionades
   active_projects: Projectes actius
   recent_posts: Últimes entrades
+  view_all_news: Totes les notícies
   view_all_publications: Totes les publicacions
   view_all_projects: Tots els projectes
   view_all_posts: Totes les entrades
@@ -213,6 +218,7 @@ documentation:
   search_placeholder: Cerca en la documentació
   search_results: Resultats de cerca
   search_no_results: Sense resultats
+  read_more: Llegeix més
 
 manual:
   contents: Continguts
@@ -230,7 +236,7 @@ manual:
   more_readings: Més lectures
   no_chapters: Encara no hi ha capítols disponibles.
   filter: Filtra capítols
-  cover: Portada
+  cover: Portada i pròleg
 
   search_placeholder: Escriu per cercar
   search_results: Resultats de cerca

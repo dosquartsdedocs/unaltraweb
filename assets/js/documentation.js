@@ -42,26 +42,49 @@
   }
 
   function setupSidebarToggle() {
-    document.querySelectorAll("[data-documentation-sidebar-toggle]").forEach(function (button) {
+    var layout = document.querySelector(".documentation-layout");
+    if (!layout) return;
+    var storageKey = "unaltrawebDocumentationTocCollapsed";
+    var mobileQuery = window.matchMedia("(max-width: 960px)");
+    var stored = localStorage.getItem(storageKey);
+    var collapsed = stored === null ? mobileQuery.matches : stored === "true";
+
+    function toggleButtons() {
+      return Array.prototype.slice.call(document.querySelectorAll("[data-documentation-sidebar-toggle]"));
+    }
+
+    function updateToggleState(isCollapsed) {
+      layout.classList.toggle("documentation-toc-collapsed", isCollapsed);
+      toggleButtons().forEach(function (button) {
+        button.classList.toggle("is-collapsed", isCollapsed);
+        button.classList.toggle("collapsed", isCollapsed && button.classList.contains("navbar-toggler"));
+        button.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+      });
+    }
+
+    updateToggleState(collapsed);
+    toggleButtons().forEach(function (button) {
       if (button.dataset.documentationToggleReady) return;
       button.dataset.documentationToggleReady = "true";
-      var layout = button.closest(".documentation-layout") || document.querySelector(".documentation-layout");
-      if (!layout) return;
-      var stored = localStorage.getItem("unaltrawebDocumentationTocCollapsed");
-      var collapsed = stored === null ? window.matchMedia("(max-width: 960px)").matches : stored === "true";
-
-      function updateToggleState(isCollapsed) {
-        layout.classList.toggle("documentation-toc-collapsed", isCollapsed);
-        button.classList.toggle("is-collapsed", isCollapsed);
-        button.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
-      }
-
-      updateToggleState(collapsed);
-      button.addEventListener("click", function () {
+      button.addEventListener("click", function (event) {
+        event.preventDefault();
         var nowCollapsed = !layout.classList.contains("documentation-toc-collapsed");
-        localStorage.setItem("unaltrawebDocumentationTocCollapsed", nowCollapsed ? "true" : "false");
+        localStorage.setItem(storageKey, nowCollapsed ? "true" : "false");
         updateToggleState(nowCollapsed);
       });
+    });
+
+    if (layout.dataset.documentationOutsideClickReady) return;
+    layout.dataset.documentationOutsideClickReady = "true";
+    document.addEventListener("click", function (event) {
+      if (!mobileQuery.matches || layout.classList.contains("documentation-toc-collapsed")) return;
+      var sidebar = layout.querySelector(".documentation-sidebar");
+      var clickedToggle = toggleButtons().some(function (button) {
+        return button.contains(event.target);
+      });
+      if ((sidebar && sidebar.contains(event.target)) || clickedToggle) return;
+      localStorage.setItem(storageKey, "true");
+      updateToggleState(true);
     });
   }
 
@@ -83,7 +106,18 @@
     document.querySelectorAll("[data-documentation-tree]").forEach(function (tree) {
       if (tree.dataset.documentationTreeReady) return;
       tree.dataset.documentationTreeReady = "true";
-      var storageKey = "unaltrawebDocumentationTree:" + window.location.pathname.split("/").slice(0, -1).join("/");
+      var docsPath = window.location.pathname;
+      var docsLink = tree.querySelector("a[href*='/docs/']");
+      if (docsLink) {
+        try {
+          docsPath = new URL(docsLink.href, window.location.href).pathname;
+        } catch (error) {
+          docsPath = window.location.pathname;
+        }
+      }
+      var docsIndex = docsPath.indexOf("/docs/");
+      var docsRoot = docsIndex === -1 ? docsPath.split("/").slice(0, -1).join("/") : docsPath.slice(0, docsIndex + "/docs".length);
+      var storageKey = "unaltrawebDocumentationTree:" + docsRoot;
       var stored = {};
       try {
         stored = JSON.parse(localStorage.getItem(storageKey) || "{}");
@@ -96,8 +130,10 @@
         var hasActive = details.querySelector(".active") !== null;
         if (Object.prototype.hasOwnProperty.call(stored, id)) {
           details.open = stored[id];
+        } else if (hasActive) {
+          details.open = true;
         }
-        if (hasActive) details.open = true;
+        if (hasActive) details.dataset.documentationActiveSection = "true";
         details.addEventListener("toggle", function () {
           stored[id] = details.open;
           localStorage.setItem(storageKey, JSON.stringify(stored));
