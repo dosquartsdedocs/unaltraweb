@@ -35,7 +35,7 @@ let applyTheme = () => {
 
   // if mermaid is not defined, do nothing
   if (typeof mermaid !== "undefined") {
-    setMermaidTheme(theme);
+    setMermaidTheme(integrationTheme);
   }
 
   // if diff2html is not defined, do nothing
@@ -140,112 +140,13 @@ let addMermaidZoom = (records, observer) => {
   observer.disconnect();
 };
 
-let unaltrawebMermaidThemeVariables = (theme) => {
-  let variables = {
-    fontFamily: "Latin Modern Sans, DejaVu Sans, Arial, sans-serif",
-    fontSize: "18px",
-    primaryColor: "#DCEAF8",
-    primaryBorderColor: "#2A5DB0",
-    primaryTextColor: "#0F223A",
-    secondaryColor: "#EAF3FF",
-    tertiaryColor: "#F5FAFF",
-    mainBkg: "#DCEAF8",
-    nodeBorder: "#2A5DB0",
-    nodeTextColor: "#0F223A",
-    labelTextColor: "#0F223A",
-    lineColor: "#2A5DB0",
-    clusterBkg: "#F2F7FD",
-    clusterBorder: "#6F9DCE",
-    edgeLabelBackground: "#F2F7FD",
-    taskBkgColor: "#DCEAF8",
-    taskBorderColor: "#1D4E89",
-    activeTaskBkgColor: "#BFD8F3",
-    activeTaskBorderColor: "#1D4E89",
-    doneTaskBkgColor: "#0B3A6E",
-    doneTaskBorderColor: "#072A4F",
-    taskTextColor: "#0F223A",
-    taskTextDarkColor: "#FFFFFF",
-    sectionBkgColor: "#F2F7FD",
-    sectionBkgColor2: "#EAF3FF",
-    gridColor: "#6F9DCE",
-    sequenceNumberColor: "#FFFFFF",
-  };
-
-  if (theme == "sepia") {
-    variables = {
-      ...variables,
-      primaryColor: "#F4DFB8",
-      primaryBorderColor: "#7A591B",
-      primaryTextColor: "#3A2A07",
-      secondaryColor: "#FBF2DC",
-      tertiaryColor: "#FFF8E8",
-      mainBkg: "#F4DFB8",
-      nodeBorder: "#7A591B",
-      nodeTextColor: "#3A2A07",
-      labelTextColor: "#3A2A07",
-      lineColor: "#7A591B",
-      clusterBkg: "#FBF2DC",
-      clusterBorder: "#CFB986",
-      edgeLabelBackground: "#FBF2DC",
-      taskBkgColor: "#F4DFB8",
-      taskBorderColor: "#7A591B",
-      activeTaskBkgColor: "#E4C783",
-      activeTaskBorderColor: "#7A591B",
-      gridColor: "#CFB986",
-    };
-  } else if (theme == "dark") {
-    variables = {
-      ...variables,
-      primaryColor: "#1F3652",
-      primaryBorderColor: "#79B7FF",
-      primaryTextColor: "#F8FBFF",
-      secondaryColor: "#172638",
-      tertiaryColor: "#101923",
-      mainBkg: "#1F3652",
-      nodeBorder: "#79B7FF",
-      nodeTextColor: "#F8FBFF",
-      labelTextColor: "#F8FBFF",
-      lineColor: "#79B7FF",
-      clusterBkg: "#111827",
-      clusterBorder: "#31435A",
-      edgeLabelBackground: "#111827",
-      taskBkgColor: "#1F3652",
-      taskBorderColor: "#79B7FF",
-      activeTaskBkgColor: "#2A5DB0",
-      activeTaskBorderColor: "#79B7FF",
-      doneTaskBkgColor: "#79B7FF",
-      doneTaskBorderColor: "#BFD8F3",
-      taskTextColor: "#F8FBFF",
-      taskTextDarkColor: "#0F223A",
-      sectionBkgColor: "#111827",
-      sectionBkgColor2: "#172638",
-      gridColor: "#31435A",
-    };
+let setMermaidTheme = (theme) => {
+  if (theme == "light") {
+    // light theme name in mermaid is 'default'
+    // https://mermaid.js.org/config/theming.html#available-themes
+    theme = "default";
   }
 
-  return variables;
-};
-
-let unaltrawebMermaidConfig = (theme) => ({
-  theme: "base",
-  themeVariables: unaltrawebMermaidThemeVariables(theme),
-  themeCSS:
-    ".node rect,.node circle,.node ellipse,.node polygon,.node path{stroke-width:1.5px!important;} .edgeLabel{border-radius:0!important;} .cluster rect{rx:0!important;ry:0!important;} .actor,.note{stroke-width:1.5px!important;} .taskWrapper tspan{font-weight:700!important;font-size:1.15em!important;}",
-  flowchart: {
-    curve: "basis",
-    htmlLabels: false,
-    padding: 18,
-  },
-  sequence: {
-    mirrorActors: false,
-    showSequenceNumbers: true,
-    messageAlign: "center",
-    actorMargin: 70,
-    boxMargin: 10,
-  },
-});
-
-let setMermaidTheme = (theme) => {
   /* Re-render the SVG, based on https://github.com/cotes2020/jekyll-theme-chirpy/blob/master/_includes/mermaid.html */
   document.querySelectorAll(".mermaid").forEach((elem) => {
     // Get the code block content from previous element, since it is the mermaid code itself as defined in Markdown, but it is hidden
@@ -254,7 +155,7 @@ let setMermaidTheme = (theme) => {
     elem.innerHTML = svgCode;
   });
 
-  mermaid.initialize(unaltrawebMermaidConfig(theme));
+  mermaid.initialize({ theme: theme });
   window.mermaid.init(undefined, document.querySelectorAll(".mermaid"));
 
   const observable = document.querySelector(".mermaid svg");

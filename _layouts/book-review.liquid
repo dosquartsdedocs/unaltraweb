@@ -117,46 +117,39 @@ layout: default
   {% endif %}
 {% endcapture %}
 
+{% assign citation_key_author = localized_author | default: localized_title | split: '&' | first | split: ',' | first | split: ' ' | last | slugify %}
+{% assign citation_key_year = localized_year | default: 'nd' %}
+{% assign citation_key = page.citation_key | default: citation_key_author | append: citation_key_year | append: localized_title | slugify %}
+{% assign bibtex_author = localized_author | replace: ' & ', ' and ' %}
+{% capture reading_citation_text %}
+  {% if localized_author %}{{ localized_author }}{% endif %}{% if localized_year %} ({{ localized_year }}){% endif %}.
+  <em>{{ localized_title }}</em>{% if localized_publisher %}. {{ localized_publisher }}{% endif %}{% if localized_doi %}. <a href="{{ doi_url }}" target="_blank" rel="noopener noreferrer">https://doi.org/{{ localized_doi }}</a>{% elsif localized_isbn %}. ISBN {{ localized_isbn }}{% endif %}.
+{% endcapture %}
+{% capture reading_bibtex_source %}@book{ {{- citation_key -}},
+  title     = { {{- localized_title -}} }{% if bibtex_author %},
+  author    = { {{- bibtex_author -}} }{% endif %}{% if localized_year %},
+  year      = { {{- localized_year -}} }{% endif %}{% if localized_publisher %},
+  publisher = { {{- localized_publisher -}} }{% endif %}{% if localized_isbn %},
+  isbn      = { {{- localized_isbn -}} }{% endif %}{% if localized_doi %},
+  doi       = { {{- localized_doi -}} }{% endif %},
+  url       = { {{- page.url | absolute_url -}} }
+}{% endcapture %}
+
 {% capture reading_biblio_controls %}
-  <div class="reading-biblio-wrap">
-    <div class="links reading-biblio-actions">
-      <a class="abstract btn btn-sm z-depth-0" role="button">{{ bibliographic_record_text | strip }}</a>
-      <a class="bibtex btn btn-sm z-depth-0" role="button">{{ cite_text | strip }}</a>
-      {% if resource_url %}
-        <a href="{{ resource_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">{{ external_resource_text | strip }}</a>
-      {% endif %}
-      {% if doi_url %}
-        <a href="{{ doi_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">{{ doi_link_text | strip }}</a>
-      {% endif %}
-      {% if openlibrary_url %}
-        <a href="{{ openlibrary_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">{{ openlibrary_text | strip }}</a>
-      {% endif %}
-    </div>
-
-    <div class="abstract hidden reading-biblio-panel" role="dialog" aria-modal="true" aria-label="{{ bibliographic_record_text | strip | escape }}">
-      <button class="reading-biblio-panel-close" type="button" data-reading-biblio-close aria-label="{{ close_panel_text | strip | escape }}">×</button>
-      <ul class="reading-record-list">
-        {% if localized_type %}<li><strong>{{ type_text | strip }}:</strong> {{ localized_type }}</li>{% endif %}
-        {% if localized_publisher %}<li><strong>{{ publisher_text | strip }}:</strong> {{ localized_publisher }}</li>{% endif %}
-        {% if localized_collection %}<li><strong>{{ collection_text | strip }}:</strong> {{ localized_collection }}</li>{% endif %}
-        {% if localized_edition %}<li><strong>{{ edition_text | strip }}:</strong> {{ localized_edition }}</li>{% endif %}
-        {% if localized_year %}<li><strong>{{ year_text | strip }}:</strong> {{ localized_year }}</li>{% endif %}
-        {% if localized_pages %}<li><strong>{{ pages_text | strip }}:</strong> {{ localized_pages }}</li>{% endif %}
-        {% if localized_isbn %}<li><strong>{{ isbn_text | strip }}:</strong> {{ localized_isbn }}</li>{% endif %}
-        {% if localized_doi %}<li><strong>{{ doi_text | strip }}:</strong> {{ localized_doi }}</li>{% endif %}
-        {% if localized_book_language %}<li><strong>{{ language_text | strip }}:</strong> {{ localized_book_language }}</li>{% endif %}
-        {% if localized_review_date %}<li><strong>{{ reviewed_on_text | strip }}:</strong> {% include localized-date.liquid date=localized_review_date format_key='date.formats.medium' default_format='%b %-d, %Y' %}</li>{% endif %}
-        {% if localized_status_raw %}<li><strong>{{ status_text | strip }}:</strong> {{ localized_status | strip }}</li>{% endif %}
-        {% if localized_rating_html != '' %}<li><strong>{{ rating_text | strip }}:</strong> {{ localized_rating_html }}</li>{% endif %}
-        {% if localized_tags and localized_tags.size > 0 %}<li><strong>{{ topics_text | strip }}:</strong> {{ localized_tags | join: ", " }}</li>{% endif %}
-      </ul>
-    </div>
-
-    <div class="bibtex hidden reading-biblio-panel" role="dialog" aria-modal="true" aria-label="{{ cite_text | strip | escape }}">
-      <button class="reading-biblio-panel-close" type="button" data-reading-biblio-close aria-label="{{ close_panel_text | strip | escape }}">×</button>
-      {% include book-citation.liquid item=page title=localized_title author=localized_author publisher=localized_publisher year=localized_year isbn=localized_isbn doi=localized_doi %}
-    </div>
-  </div>
+  {%
+    include reading-biblio-controls.liquid
+    item=page
+    citation=reading_citation_text
+    bibtex=reading_bibtex_source
+    abstract=page.abstract
+    doi=localized_doi
+    doi_url=doi_url
+    url=resource_url
+    url_label='LINK'
+    wrap_class='reading-biblio-wrap'
+    actions_class='reading-biblio-actions'
+    panel_class='reading-biblio-panel'
+  %}
 {% endcapture %}
 
 {% if use_manual_reading_chrome %}

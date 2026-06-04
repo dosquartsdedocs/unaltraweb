@@ -1047,8 +1047,19 @@ html[data-theme="dark"] .md-table {
 }
 
 .figlabel {
-  color: var(--global-text-color);
+  display: inline-flex;
+  min-height: 1.45rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--global-theme-color) 72%, var(--global-divider-color));
+  background: color-mix(in srgb, var(--global-theme-color) 88%, var(--global-card-bg-color));
+  color: var(--global-hover-text-color);
+  font-size: 0.78rem;
   font-weight: 700;
+  line-height: 1;
+  margin-right: 0.35rem;
+  padding: 0 0.45rem;
+  vertical-align: middle;
 }
 
 @media (max-width: 960px) {
@@ -1515,6 +1526,7 @@ html[data-theme="sepia"] .manual-brand-logo-default {
 .md-subfigure-row {
   display: grid;
   gap: 0.75rem;
+  align-items: start;
 }
 
 .md-subfigure-row[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
@@ -1523,7 +1535,10 @@ html[data-theme="sepia"] .manual-brand-logo-default {
 .md-subfigure-row[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 .md-subfigure {
+  width: var(--md-subfigure-width, 100%);
+  max-width: 100%;
   min-width: 0;
+  justify-self: center;
   border: 1px solid var(--global-divider-color);
   border-radius: 0;
   background: var(--manual-subfigure-bg, var(--global-card-bg-color));
@@ -1532,9 +1547,11 @@ html[data-theme="sepia"] .manual-brand-logo-default {
 
 .md-subfigure img {
   display: block;
-  width: 100%;
-  height: auto;
+  width: var(--md-subfigure-image-width, 100%);
+  max-width: 100%;
+  height: var(--md-subfigure-image-height, auto);
   border-radius: 0;
+  object-fit: contain;
 }
 
 .md-subfigure-caption {
@@ -2471,4 +2488,19 @@ html[data-theme="sepia"] .manual-brand-logo-default {
   .site-profile-unaltremanual .manual-layout--without-page-toc.manual-sidebar-collapsed .manual-sidebar .manual-sidebar-toggle i {
     transform: translate(-50%, -50%);
   }
+}
+
+.manual-sidebar .manual-sidebar-toggle::before {
+  border-color: color-mix(in srgb, var(--global-theme-color) 34%, var(--global-divider-color)) !important;
+  background: color-mix(in srgb, var(--global-theme-color) 16%, var(--global-card-bg-color)) !important;
+}
+
+.manual-sidebar .manual-sidebar-toggle i {
+  color: color-mix(in srgb, var(--global-theme-color) 68%, var(--global-text-color)) !important;
+}
+
+.manual-sidebar .manual-sidebar-toggle:hover::before,
+.manual-sidebar .manual-sidebar-toggle:focus-visible::before {
+  border-color: color-mix(in srgb, var(--global-theme-color) 44%, var(--global-divider-color)) !important;
+  background: color-mix(in srgb, var(--global-theme-color) 24%, var(--global-card-bg-color)) !important;
 }

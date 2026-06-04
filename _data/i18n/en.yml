@@ -154,6 +154,8 @@ reading:
   back_to_readings: Back to readings
   back_to_bibliography: Back to bibliography
   close_panel: Close panel
+  copy: Copy
+  copied: Copied
   empty_shelf: No reading notes available yet.
   uncategorized: Uncategorized
   collections: Collections

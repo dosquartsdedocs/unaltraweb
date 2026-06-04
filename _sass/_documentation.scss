@@ -1536,3 +1536,18 @@ html[data-theme="sepia"] .site-profile-unaltredocs .documentation-navbar-logo-se
     transform: translate(-50%, -50%);
   }
 }
+
+.documentation-toc-toggle::before {
+  border-color: color-mix(in srgb, var(--global-theme-color) 34%, var(--global-divider-color)) !important;
+  background: color-mix(in srgb, var(--global-theme-color) 16%, var(--global-card-bg-color)) !important;
+}
+
+.documentation-toc-toggle i {
+  color: color-mix(in srgb, var(--global-theme-color) 68%, var(--global-text-color)) !important;
+}
+
+.documentation-toc-toggle:hover::before,
+.documentation-toc-toggle:focus-visible::before {
+  border-color: color-mix(in srgb, var(--global-theme-color) 44%, var(--global-divider-color)) !important;
+  background: color-mix(in srgb, var(--global-theme-color) 24%, var(--global-card-bg-color)) !important;
+}

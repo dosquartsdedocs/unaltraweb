@@ -66,7 +66,7 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Companion Template State
 
-`../unaltraweb-template` is currently clean and aligned with `origin/main`. It is the integration fixture for this core.
+`../unaltraweb-template` is the integration fixture for this core and currently exercises all four site profiles plus generated diagram assets.
 
 Important current template behaviour:
 
@@ -84,6 +84,21 @@ Important current template behaviour:
 - The template manual `Update publication metrics` workflow calls `.github/workflows/metrics-update.yml` from this core.
 
 ## Next Work
+
+### Next Session Priority: Docker-First Distribution And Child-Site Contract
+
+- Decide and document the recommended new-site workflow. Current direction: users clone or fork `unaltraweb-template`, then run `make keep PROFILE=unaltremanual` or a profile-specific shortcut such as `make keep-unaltremanual` so the starter removes unused profile content for them instead of asking users to delete demo material manually.
+- Treat `unaltraweb-template` as a multi-profile starter/demo and integration fixture, not as the product itself. Real child sites should keep content, configuration and local assets; reusable layouts, includes, plugins, Sass, JS and build scripts should stay centralized in `unaltraweb`.
+- Define the stable child-site contract: profile config, collections, front matter keys, local data files, bibliography/books/projects/content assets, `site-custom` extension points and generated diagram sources. Also define what remains explicitly non-contractual and can change inside the core.
+- Audit which JS/CSS/assets currently live in child repos versus the gem/core. Any copied core code in child sites should either move into `unaltraweb` or be marked as a deliberate local override.
+- Make Docker the primary user-facing runtime. Target command shape: child `Makefile` calls a central image such as `ghcr.io/dosquartsdedocs/unaltraweb:<version>`, and users only need Docker plus Git.
+- Plan the core Docker image contents: Ruby, Bundler, Jekyll, the `unaltraweb` gem, Python tooling for bibliography/metrics, diagram rendering support and the central CLI/Make targets needed by child sites.
+- Use Docker as the initial gem distribution path while the gem is not published to RubyGems. The image can install the gem from the core repo at build time; child sites update by changing or pulling the image tag.
+- Keep a developer path for local core work: `LOCAL_CORE=../unaltraweb` and possibly a Git-based gem dependency remain useful for testing, but should not be the normal user setup.
+- Decide how `diavisuals` is distributed for users. Preferred direction: `unaltraweb diagrams` works without cloning `diavisuals`, either by packaging the style/render tooling into the core image or by invoking a versioned render image.
+- Add update commands with clear semantics: `make update-core` or `unaltraweb update` pulls the Docker image/tag and runs `doctor`; optional git-upstream updates should be limited to starter/template migrations, not core code.
+- Add `make doctor` or `unaltraweb doctor` to validate the contract in child repos: no copied `_layouts/_includes/_sass/assets/js` core files unless declared, required collections/data exist for the selected profile and generated assets are in sync.
+- Revisit documentation pages for creating a new site after the above is implemented. The docs should say: choose profile, run keep target, edit content/config, serve/build through Docker.
 
 - Next-session focus for `unaltremanual`: make the manual content usable as a student-facing downloadable/printable PDF, likely through LaTeX/Pandoc. Treat PDF output as a first-class target, and mark web-only enhancements so they degrade cleanly or are omitted in PDF builds.
 - Next-session focus for richer teaching sites: support per-topic slides and downloadable resources, probably surfaced as compact top-left toolbar icons; add configurable hero images for main navigation pages, excluding collection/content pages; confirm or add a stable public downloads folder; explore GeoJSON syntactic sugar for loading a file from a folder and rendering it with styles; define how executable R/Python content coexists with static builds; confirm math notation support for formulas.

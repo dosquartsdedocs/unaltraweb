@@ -217,10 +217,11 @@ module Unaltraweb
         cells = row.map do |slot|
           image = images[slot[:index]]
           attrs = kramdown_attrs_to_html(image[:attrs])
+          panel_attrs = subfigure_panel_attrs(image[:attrs])
           caption = render_inline_markdown(image[:caption])
           panel = h(slot[:label])
           caption_html = caption.to_s.strip.empty? ? "" : %Q{<p class="md-subfigure-caption"><span class="md-subfigure-label">#{panel}</span> #{caption}</p>}
-          %Q{<div class="md-subfigure" data-panel="#{panel}">#{caption_html}<img src="#{h(image[:url].strip)}" alt="#{h(strip_liquid(image[:alt]))}"#{attrs.empty? ? "" : " #{attrs}"}></div>}
+          %Q{<div class="md-subfigure" data-panel="#{panel}"#{panel_attrs}>#{caption_html}<img src="#{h(image[:url].strip)}" alt="#{h(strip_liquid(image[:alt]))}"#{attrs.empty? ? "" : " #{attrs}"}></div>}
         end.join("\n")
         %Q{<div class="md-subfigure-row" data-count="#{row.length}">\n#{cells}\n</div>}
       end.join("\n")
@@ -497,8 +498,31 @@ module Unaltraweb
     end
 
     def skip_spaces(source, index)
-      index += 1 while index < source.length && source[index] =~ /\s/
+      index += 1 while index < source.length && source[index] =~ /[ \t]/
       index
+    end
+
+    def subfigure_panel_attrs(raw)
+      styles = []
+      width = kramdown_attr_value(raw, "data-subfigure-width") || kramdown_attr_value(raw, "width")
+      height = kramdown_attr_value(raw, "data-subfigure-height") || kramdown_attr_value(raw, "height")
+      inline_style = kramdown_attr_value(raw, "style")
+
+      styles << "--md-subfigure-width: #{width};" unless width.to_s.strip.empty?
+      styles << "--md-subfigure-image-height: #{height};" unless height.to_s.strip.empty?
+      inline_style.to_s.scan(/--md-subfigure-[\w-]+\s*:\s*[^;]+/) do |declaration|
+        styles << "#{declaration.strip};"
+      end
+
+      styles.empty? ? "" : %( style="#{h(styles.join(' '))}")
+    end
+
+    def kramdown_attr_value(raw, name)
+      source = raw.to_s.strip.sub(/\A\{:\s*/, "").sub(/\A\{\s*/, "").sub(/\s*\}\z/, "")
+      match = source.match(/(?:\A|\s)#{Regexp.escape(name)}\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s}]+))/)
+      return nil unless match
+
+      match[1] || match[2] || match[3]
     end
 
     def split_url_and_title(value)

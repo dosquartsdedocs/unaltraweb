@@ -43,8 +43,6 @@
   {%- endfor -%}
 {% endcapture %}
 {% assign featured_authors = featured_authors | strip | default: entry.author %}
-{% capture abstract_button_text %}{% include t.liquid key='bib.buttons.abstract' default='Abs' %}{% endcapture %}
-{% capture bib_button_text %}{% include t.liquid key='bib.buttons.bib' default='Bib' %}{% endcapture %}
 <article id="{{ entry.key }}" class="manual-featured-reference{% if featured_preview %} manual-featured-reference--with-preview{% endif %}">
   {% if featured_preview %}
     <figure class="cover reading-cover manual-featured-cover">
@@ -81,19 +79,19 @@
     {% if featured_authors %}<p class="manual-featured-authors">{{ featured_authors }}</p>{% endif %}
     {% if entry.year %}<p class="manual-featured-meta"><span>{{ entry.year }}</span></p>{% endif %}
     {% if featured_comment and featured_review_url == nil %}<div class="manual-featured-comment">{{ featured_comment | markdownify }}</div>{% endif %}
-    <div class="links manual-reference-links">
-      {% if entry.doi %}<a href="https://doi.org/{{ entry.doi }}" class="btn btn-sm z-depth-0" role="button">DOI</a>{% endif %}
-      {% if featured_url %}<a href="{{ featured_url }}" class="btn btn-sm z-depth-0" role="button">{{ featured_url_label | default: 'LINK' }}</a>{% endif %}
-      {% if entry.abstract %}<a class="abstract btn btn-sm z-depth-0" role="button">{{ abstract_button_text | strip }}</a>{% endif %}
-      {% if entry.bibtex %}<a class="bibtex btn btn-sm z-depth-0" role="button">{{ bib_button_text | strip }}</a>{% endif %}
-    </div>
-    {% if entry.abstract %}<div class="abstract hidden manual-reference-panel"><p>{{ entry.abstract }}</p></div>{% endif %}
-    {% if entry.bibtex %}
-      <div class="bibtex hidden manual-reference-panel">
-        {% highlight bibtex %}
-        {{- entry.bibtex | hideCustomBibtex -}}
-        {% endhighlight %}
-      </div>
-    {% endif %}
+    {%
+      include reading-biblio-controls.liquid
+      item=entry
+      id=entry.key
+      citation=reference
+      bibtex=entry.bibtex
+      abstract=entry.abstract
+      doi=entry.doi
+      url=featured_url
+      url_label=featured_url_label
+      wrap_class='manual-reference-citation-wrap'
+      actions_class='manual-reference-links'
+      panel_class='manual-reference-panel'
+    %}
   </div>
 </article>
