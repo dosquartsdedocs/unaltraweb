@@ -1,5 +1,6 @@
 {% assign unaltraweb_site_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
 {% assign unaltraweb_developer_mode = site.developer_mode | default: site.unaltraweb.developer_mode %}
+{% assign unaltraweb_navbar_fixed = site.navbar_fixed %}
 <!doctype html>
 <html lang="{{ page.lang | default: site.default_lang | default: site.lang }}" data-site-profile="{{ unaltraweb_site_profile }}">
   <!-- Head -->
@@ -12,13 +13,13 @@
       {% else %}
         {% assign redirect = page.redirect | relative_url %}
       {% endif %}
-      <meta http-equiv="refresh" content="3; url={{ redirect }}">
+      <meta http-equiv="refresh" content="{{ page.redirect_delay | default: 0 }}; url={{ redirect }}">
     {% endif %}
     {% include head.liquid %}
   </head>
 
   <!-- Body -->
-  <body class="site-profile-{{ unaltraweb_site_profile }} {% if site.navbar_fixed %}fixed-top-nav{% endif %} {% unless site.footer_fixed %}sticky-bottom-footer{% endunless %}">
+  <body class="site-profile-{{ unaltraweb_site_profile }} {% if unaltraweb_navbar_fixed %}fixed-top-nav{% endif %} {% unless site.footer_fixed %}sticky-bottom-footer{% endunless %}">
     <!-- Header -->
     {% include header.liquid %}
 

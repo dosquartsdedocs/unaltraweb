@@ -2,13 +2,71 @@ title: unaltraweb
 description: Reusable Jekyll core for academic, research project and documentation websites.
 url: https://dosquartsdedocs.github.io
 baseurl: /unaltraweb
-markdown: kramdown
+lang: en
+default_lang: en
+languages: [en, es, ca]
+icon: "brand/dosquartsdedocs-logo-white.svg"
+theme: unaltraweb
+
+plugins:
+  - unaltraweb
+  - jekyll-3rd-party-libraries
+  - jekyll-archives-v2
+  - jekyll-cache-bust
+  - jekyll-email-protect
+  - jekyll-feed
+  - jekyll-get-json
+  - jekyll-imagemagick
+  - jekyll-link-attributes
+  - jekyll-minifier
+  - jekyll-paginate-v2
+  - jekyll-regex-replace
+  - jekyll/scholar
+  - jekyll-sitemap
+  - jekyll-socials
+  - jekyll-tabs
+  - jekyll-toc
+  - jekyll-twitter-plugin
+  - jemoji
+
+include: ["_pages"]
+third_party_libraries: {}
+search_enabled: true
+footer_fixed: true
+
+collections:
+  documentation:
+    output: true
+    sort_by: weight
+
+unaltraweb:
+  site_profile: unaltredocs
+  features:
+    docs: true
+    blog: false
+    cv: false
+    projects: false
+    publications: false
+    metrics: false
+    manual: false
+  documentation:
+    collection: documentation
+    logo: /assets/img/brand/dosquartsdedocs-logo.svg
+    logo_inverse: /assets/img/brand/dosquartsdedocs-logo-white.svg
+    logo_cafe: /assets/img/brand/dosquartsdedocs-logo.svg
+  figure_captions:
+    enabled: true
+    collections: [documentation]
 
 defaults:
   - scope:
       path: ""
+      type: documentation
     values:
-      layout: default
+      lang: en
+      layout: documentation-page
 
 exclude:
+  - Gemfile
+  - Gemfile.lock
   - README.md

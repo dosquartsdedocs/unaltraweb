@@ -42,7 +42,7 @@
   }
 
   .manual-navbar-logo-dark,
-  .manual-navbar-logo-sepia {
+  .manual-navbar-logo-cafe {
     display: none;
   }
 
@@ -107,7 +107,7 @@
   #light-toggle-system,
   #light-toggle-dark,
   #light-toggle-light,
-  #light-toggle-sepia {
+  #light-toggle-cafe {
     width: 1rem;
     height: 1rem;
     margin: 0 !important;
@@ -117,14 +117,14 @@
 }
 
 html[data-theme="dark"] .site-profile-unaltremanual .manual-navbar-logo-light,
-html[data-theme="dark"] .site-profile-unaltremanual .manual-navbar-logo-sepia,
-html[data-theme="sepia"] .site-profile-unaltremanual .manual-navbar-logo-light,
-html[data-theme="sepia"] .site-profile-unaltremanual .manual-navbar-logo-dark {
+html[data-theme="dark"] .site-profile-unaltremanual .manual-navbar-logo-cafe,
+html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-light,
+html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-dark {
   display: none;
 }
 
 html[data-theme="dark"] .site-profile-unaltremanual .manual-navbar-logo-dark,
-html[data-theme="sepia"] .site-profile-unaltremanual .manual-navbar-logo-sepia {
+html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   display: block;
 }
 
@@ -942,6 +942,16 @@ html[data-theme="dark"] .manual-teacher-links a[aria-label="X"] i {
   margin-top: 0.5rem;
 }
 
+.manual-reference-panel.cite.hidden,
+.manual-reference-panel.abstract.hidden {
+  border: dashed 1px var(--global-bg-color);
+}
+
+.manual-reference-panel.cite.hidden.open,
+.manual-reference-panel.abstract.hidden.open {
+  border-color: var(--global-text-color);
+}
+
 .manual-reference-panel p {
   text-align: left;
 }
@@ -1010,8 +1020,8 @@ html[data-theme="dark"] .manual-teacher-links a[aria-label="X"] i {
   --unaltraweb-diagram-canvas: #ffffff;
 }
 
-html[data-theme="sepia"] .md-figure,
-html[data-theme="sepia"] .md-table {
+html[data-theme="cafe"] .md-figure,
+html[data-theme="cafe"] .md-table {
   --unaltraweb-diagram-bg: #efe1c4;
   --unaltraweb-diagram-border: #cfb986;
   --unaltraweb-diagram-canvas: #fbf2dc;
@@ -1290,7 +1300,7 @@ html[data-theme="dark"] .md-table {
   --manual-subfigure-bg: var(--global-card-bg-color);
 }
 
-html[data-theme="sepia"] .site-profile-unaltremanual {
+html[data-theme="cafe"] .site-profile-unaltremanual {
   --manual-diagram-bg: #efe1c4;
   --manual-diagram-border: #cfb986;
   --manual-diagram-canvas: #fbf2dc;
@@ -1415,7 +1425,7 @@ html[data-theme="dark"] .manual-brand-logo-inverse {
   display: block;
 }
 
-html[data-theme="sepia"] .manual-brand-logo-default {
+html[data-theme="cafe"] .manual-brand-logo-default {
   filter: brightness(0) saturate(100%) invert(19%) sepia(26%) saturate(812%) hue-rotate(348deg) brightness(92%) contrast(89%);
 }
 

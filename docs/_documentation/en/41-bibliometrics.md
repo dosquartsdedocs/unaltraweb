@@ -1,10 +1,13 @@
 ---
 title: Bibliometric Metrics Pipeline
 description: Static bibliometric metrics workflow for unaltraweb sites.
+lang: en
+ref: bibliometrics
+profiles: [unaltredocs]
+section: Operations
+weight: 410
 permalink: /bibliometrics/
 ---
-
-# Bibliometric metrics pipeline
 
 This project uses a data-first bibliometrics workflow:
 

@@ -7,11 +7,19 @@
     max-width: 1360px;
   }
 
+  #navbar.navbar {
+    min-height: 3.65rem;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+  }
+
   .navbar-brand.title {
     display: inline-flex;
     min-width: 0;
     align-items: center;
     gap: 0.7rem;
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   .documentation-navbar-logo-stack {
@@ -32,7 +40,7 @@
   }
 
   .documentation-navbar-logo-dark,
-  .documentation-navbar-logo-sepia {
+  .documentation-navbar-logo-cafe {
     display: none;
   }
 
@@ -97,7 +105,7 @@
   #light-toggle-system,
   #light-toggle-dark,
   #light-toggle-light,
-  #light-toggle-sepia {
+  #light-toggle-cafe {
     width: 1rem;
     height: 1rem;
     margin: 0 !important;
@@ -107,14 +115,14 @@
 }
 
 html[data-theme="dark"] .site-profile-unaltredocs .documentation-navbar-logo-light,
-html[data-theme="dark"] .site-profile-unaltredocs .documentation-navbar-logo-sepia,
-html[data-theme="sepia"] .site-profile-unaltredocs .documentation-navbar-logo-light,
-html[data-theme="sepia"] .site-profile-unaltredocs .documentation-navbar-logo-dark {
+html[data-theme="dark"] .site-profile-unaltredocs .documentation-navbar-logo-cafe,
+html[data-theme="cafe"] .site-profile-unaltredocs .documentation-navbar-logo-light,
+html[data-theme="cafe"] .site-profile-unaltredocs .documentation-navbar-logo-dark {
   display: none;
 }
 
 html[data-theme="dark"] .site-profile-unaltredocs .documentation-navbar-logo-dark,
-html[data-theme="sepia"] .site-profile-unaltredocs .documentation-navbar-logo-sepia {
+html[data-theme="cafe"] .site-profile-unaltredocs .documentation-navbar-logo-cafe {
   display: block;
 }
 
@@ -250,6 +258,7 @@ html[data-theme="sepia"] .site-profile-unaltredocs .documentation-navbar-logo-se
 .documentation-nav-scroll {
   --documentation-toc-axis: 0.95rem;
   --documentation-toc-page-axis: 1.72rem;
+  --documentation-toc-page-connector: 0.77rem;
   --documentation-toc-line: color-mix(in srgb, var(--global-theme-color) 30%, var(--global-divider-color));
   display: grid;
   position: relative;
@@ -674,7 +683,7 @@ html[data-theme="sepia"] .site-profile-unaltredocs .documentation-navbar-logo-se
   top: 50%;
   left: var(--documentation-toc-axis);
   z-index: 1;
-  width: calc(var(--documentation-toc-page-axis) - var(--documentation-toc-axis));
+  width: var(--documentation-toc-page-connector);
   height: 1px;
   background: var(--documentation-toc-line);
   content: "";

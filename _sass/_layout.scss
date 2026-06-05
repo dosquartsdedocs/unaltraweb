@@ -31,6 +31,38 @@ body.sticky-bottom-footer {
   max-width: $max-content-width;
 }
 
+.container[role="main"] {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.container[role="main"] pre,
+.container[role="main"] code,
+.container[role="main"] kbd,
+.container[role="main"] samp,
+.container[role="main"] math,
+.container[role="main"] mjx-container,
+.container[role="main"] input,
+.container[role="main"] textarea,
+.container[role="main"] select,
+.container[role="main"] button,
+.container[role="main"] .highlight,
+.container[role="main"] .no-hyphenate {
+  -webkit-hyphens: none;
+  hyphens: none;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.hyphenate {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
 // Profile
 .profile {
   img {

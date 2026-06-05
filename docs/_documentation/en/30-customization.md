@@ -1,4 +1,13 @@
-# Customization
+---
+title: Customization
+description: Local customization points for unaltraweb child sites.
+lang: en
+ref: customization
+profiles: [unaltredocs]
+section: Developers
+weight: 300
+permalink: /customization/
+---
 
 `unaltraweb` is intended to be customized from the site repository, not by editing the core theme files.
 
@@ -12,10 +21,38 @@ Create `_sass/_site-custom.scss` in your site repository. It is imported after t
   --global-hover-color: #2f6f5e;
 }
 
-html[data-theme="sepia"] {
+html[data-theme="cafe"] {
   --global-theme-color: #6f4e1f;
 }
 ```
+
+The built-in coffee mode uses `data-theme="cafe"`. Override CSS custom properties in that selector when you want a different brown palette without changing light or dark mode.
+
+For larger local style changes, keep selectors scoped by profile or theme:
+
+```scss
+html[data-site-profile="unaltredocs"] .documentation-sidebar {
+  --documentation-toc-line: color-mix(in srgb, var(--global-theme-color) 42%, var(--global-divider-color));
+}
+
+html[data-theme="dark"] .my-local-card {
+  background: #1f2935;
+}
+```
+
+Do not copy `_sass/` files from `unaltraweb` into a child site. Override tokens and small selectors locally so future gem updates still apply.
+
+## Multilingual Hyphenation
+
+Text hyphenation is enabled globally in the main content area. Browsers use the page language from `lang` (`en`, `es`, `ca`, or another configured language) to choose the hyphenation dictionary.
+
+Use `.no-hyphenate` when a specific word, brand, code-like label or compact block should not be split:
+
+```html
+<span class="no-hyphenate">dosquartsdedocs</span>
+```
+
+For mixed-language passages, set the appropriate `lang` attribute on the local element so the browser can switch dictionaries.
 
 ## Local Layouts
 
@@ -127,7 +164,7 @@ Use nested Markdown blockquotes for lightweight teaching callouts. A single `>` 
 >>>>>> A caution or danger note.
 ```
 
-The labels are localized through `_data/i18n/*.yml` under `callouts`, and the colors follow the active light, sepia, or dark theme.
+The labels are localized through `_data/i18n/*.yml` under `callouts`, and the colors follow the active light, coffee, or dark theme.
 
 ## Manual Profile
 
@@ -233,7 +270,7 @@ manhattan :: Int -> Int -> Int
 
 The manual profile also writes `assets/js/manual-search-index.json` during the build so the sidebar search can find terms anywhere in the localized manual.
 
-Mermaid source references ending in `.mmd` are rewritten to `.mmd.edited.svg` when that file exists, or `.mmd.svg` otherwise. Manual Mermaid figures also receive diagram surfaces tuned for light, dark and sepia themes. This keeps generated diagrams and hand-edited diagrams readable in the same Markdown:
+Mermaid source references ending in `.mmd` are rewritten to `.mmd.edited.svg` when that file exists, or `.mmd.svg` otherwise. Manual Mermaid figures also receive diagram surfaces tuned for light, dark and coffee themes. This keeps generated diagrams and hand-edited diagrams readable in the same Markdown:
 
 ```markdown
 ![Vector workflow]({{ site.baseurl }}/assets/diagrams/vector-workflow.mmd "Vector workflow")
@@ -345,7 +382,7 @@ cv_preview: /assets/img/cv-preview.jpg
 ```
 
 ```liquid
-{% include cv-download-card.liquid pdf=page.cv_pdf preview=page.cv_preview title="CV" %}
+{% raw %}{% include cv-download-card.liquid pdf=page.cv_pdf preview=page.cv_preview title="CV" %}{% endraw %}
 ```
 
 Child sites can generate the preview with their template `Makefile` target:
@@ -356,7 +393,7 @@ make cv-preview CV_PDF=assets/pdf/cv.pdf CV_PREVIEW=assets/img/cv-preview.jpg
 
 ## Theme Modes
 
-The built-in theme switch supports `system`, `light`, `sepia`, and `dark` settings. `system` follows the browser preference and resolves to light or dark; `sepia` is an explicit reading mode inspired by GitBook's sepia palette.
+The built-in theme switch supports `system`, `light`, `cafe`, and `dark` settings. `system` follows the browser preference and resolves to light or dark; `cafe` is an explicit coffee reading mode for warm long-form pages.
 
 Theme changes are observable from JavaScript through the `unaltraweb:themechange` event:
 

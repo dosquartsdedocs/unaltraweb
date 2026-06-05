@@ -7,15 +7,15 @@ It packages shared layouts, includes, Sass, assets, Jekyll plugins, bibliometric
 ## Current Status
 
 - The core builds successfully as a standalone Jekyll site through Docker.
-- The repository is packaged as the `unaltraweb` gem.
+- The repository is packaged as the `unaltraweb` gem and publishes the shared Docker runtime image as `ghcr.io/dosquartsdedocs/unaltraweb`.
 - The companion `../unaltraweb-template` repository is the primary integration fixture and starter scaffold.
 - The project is still pre-release. Some inherited `al-folio` implementation details remain while the core is being generalized.
 
 ## Repository Roles
 
-- `unaltraweb`: reusable code, theme defaults, plugins, styles, scripts, documentation and reusable workflows.
+- `unaltraweb`: reusable code, theme defaults, plugins, styles, scripts, documentation, reusable workflows and the Docker runtime image.
 - `unaltraweb-template`: thin starter site, demo content, local Docker workflow and Playwright smoke tests for the gem consumer path.
-- `docs/`: a compact documentation/demo site for the core itself.
+- `docs/`: the public reference site for `unaltraweb`.
 
 The template is the better place to validate gem consumption, centralized styles and shared logic because it exercises `unaltraweb` as an external dependency instead of relying on the core checkout itself.
 
@@ -41,17 +41,23 @@ unaltraweb:
     metrics: true
 ```
 
+## Quick Start
+
+Use `dosquartsdedocs/unaltraweb-template` to create child sites. There are two supported user paths:
+
+- GitHub-only editing for small content changes, bibliography updates, page edits and simple configuration changes.
+- Local Docker editing for previews, larger edits, screenshots and tests.
+
+Local editing is intended to require only Git, Docker and GNU Make. On Windows, use WSL2 with Docker Desktop and run `make` commands inside the WSL Linux shell.
+
 ## Documentation
 
-- `docs/index.md`: compact public overview for the core docs/demo site.
-- `docs/profiles.md`: prepared site profile overview.
-- `docs/template.md`: role of `unaltraweb-template` as starter and integration fixture.
-- `docs/development.md`: safe local verification workflow.
-- `docs/customization.md`: detailed local customization reference.
-- `docs/distribution.md`: core/template split and update model.
-- `docs/bibliometrics.md`: static bibliometric metrics pipeline.
+- `docs/_pages/en/index.md`: public overview for the `unaltraweb` reference site.
+- `docs/_documentation/en/`: reference pages for quick start, tools, usage, profiles, syntax, themes, customization, distribution and development.
+- `docs/Gemfile`: local child-site Gemfile that consumes this checkout as the `unaltraweb` gem.
+- `docs/_config.yml`: docs site config using `theme: unaltraweb` and `site_profile: unaltredocs`.
 
-The core Jekyll build excludes `docs/`. Publish the docs/demo site separately from the `docs/` folder or through a dedicated workflow.
+The core Jekyll build excludes `docs/`. Publish the reference site separately from the `docs/` folder or through a dedicated workflow.
 - `TODO.md`: working state, decisions and next tasks.
 
 ## Development
@@ -62,6 +68,17 @@ Use the core Docker workflow when checking the core repository itself:
 docker compose -f docker-compose.yml run --rm --entrypoint "bash -lc '(bundle check || bundle install) && bundle exec jekyll build --trace'" jekyll
 docker compose -f docker-compose.yml down --remove-orphans
 ```
+
+Use the `unaltraweb` reference-site workflow when checking `docs/` through the real `unaltredocs` profile:
+
+```bash
+make docs-serve DOCKER_IMAGE=unaltraweb:local
+make docs-build DOCKER_IMAGE=unaltraweb:local
+```
+
+The published runtime image is `ghcr.io/dosquartsdedocs/unaltraweb:main`. It replaces the inherited `al-folio` image for local template workflows while the gem remains the source of the theme code.
+
+When running the core and the template profiles together, keep `unaltraweb` on port `4000` and the template profile servers on `4001` through `4004`.
 
 Use the template when validating the gem consumer path:
 
@@ -103,7 +120,7 @@ The manual metrics workflow keeps Scimago caches and temporary diagnostics out o
 
 ## Publishing Docs
 
-The core repository deploys the compact docs/demo site from `docs/` through `.github/workflows/deploy.yml`. Configure GitHub Pages for GitHub Actions deployments in the repository settings.
+The core repository deploys the `unaltraweb` reference site from `docs/` through `.github/workflows/deploy.yml`. Configure GitHub Pages for GitHub Actions deployments in the repository settings.
 
 ## CI Scope
 

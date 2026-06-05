@@ -49,6 +49,7 @@ bib:
     awarded: Premio
     abstract: Resumen
     bib: Bib
+    cite: Citar
     supp: Material
     video: Video
     blog: Blog
@@ -212,7 +213,7 @@ documentation:
   theme_system: Sistema
   theme_light: Claro
   theme_dark: Oscuro
-  theme_sepia: Café
+  theme_cafe: Café
   font_size: Tamaño del texto
   font_decrease: Reducir el texto
   font_increase: Aumentar el texto

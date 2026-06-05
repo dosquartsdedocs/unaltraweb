@@ -1,10 +1,13 @@
 ---
 title: Development
 description: Safe development and verification workflow for unaltraweb.
+lang: en
+ref: development_workflow
+profiles: [unaltredocs]
+section: Developers
+weight: 320
 permalink: /development/
 ---
-
-# Development
 
 <p class="lede">Validate core changes in layers. Use lightweight checks while editing, then run heavier Docker or Playwright checks only when the machine can handle them.</p>
 
@@ -19,11 +22,28 @@ Use these for documentation-only changes or before deciding whether a heavier bu
 
 ## Docs Deploy
 
-The core repository publishes the compact docs/demo site from `docs/` with `.github/workflows/deploy.yml` and GitHub Pages Actions. This workflow does not need Node/npm and does not build the full core demo site.
+The core repository publishes the `unaltraweb` reference site from `docs/` with `.github/workflows/deploy.yml` and GitHub Pages Actions. This workflow does not need Node/npm and does not build the full inherited core demo site.
+
+The reference site is a real child site of the local `unaltraweb` gem. It uses `theme: unaltraweb`, the shared layouts/includes/Sass, and `unaltraweb.site_profile: unaltredocs`.
+
+```bash
+make docs-serve DOCKER_IMAGE=unaltraweb:local
+make docs-build DOCKER_IMAGE=unaltraweb:local
+```
+
+After the published Docker image is available, omit `DOCKER_IMAGE=unaltraweb:local`.
 
 Automatic CI is intentionally scoped to docs/web publication and local link checking. CodeQL remains available as a manual workflow.
 
 ## Core Build
+
+The local port convention for working with both repositories is:
+
+- `unaltraweb` core/docs: `http://localhost:4000/unaltraweb/`.
+- `unaltreselfie`: `http://localhost:4001/unaltraweb-template/en/`.
+- `unaltreprojecte`: `http://localhost:4002/unaltraweb-template/en/`.
+- `unaltremanual`: `http://localhost:4003/unaltraweb-template/en/`.
+- `unaltredocs`: `http://localhost:4004/unaltraweb-template/en/`.
 
 ```bash
 docker compose -f docker-compose.yml run --rm --entrypoint "bash -lc '(bundle check || bundle install) && bundle exec jekyll build --trace'" jekyll
@@ -32,7 +52,9 @@ docker compose -f docker-compose.yml down --remove-orphans
 
 This can be resource-heavy because the inherited demo build minifies JavaScript and can generate many responsive WebP images.
 
-The root core build excludes `docs/`. The compact docs/demo site is intended to be published from the `docs/` folder or by a dedicated workflow so its root-relative permalinks do not collide with the core demo build.
+The same Dockerfile is published to GHCR as `ghcr.io/dosquartsdedocs/unaltraweb:main` by `.github/workflows/docker-image.yml`. Template repositories use that image as their default local runtime, while the `unaltraweb` gem remains the source of theme files and plugins.
+
+The root core build excludes `docs/`. The reference site is published from the `docs/` folder through a dedicated workflow so its root-relative permalinks do not collide with the inherited core demo build.
 
 ## Template Consumer Checks
 

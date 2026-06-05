@@ -1,13 +1,13 @@
 // Has to be in the head tag, otherwise a flicker effect will occur.
 
-// Toggle through light, coffee (stored as sepia), dark, and system theme settings.
+// Toggle through light, coffee, dark, and system theme settings.
 let toggleThemeSetting = () => {
   let themeSetting = determineThemeSetting();
   if (themeSetting == "system") {
     setThemeSetting("light");
   } else if (themeSetting == "light") {
-    setThemeSetting("sepia");
-  } else if (themeSetting == "sepia") {
+    setThemeSetting("cafe");
+  } else if (themeSetting == "cafe") {
     setThemeSetting("dark");
   } else {
     setThemeSetting("system");
@@ -265,11 +265,13 @@ let transTheme = () => {
   }, 500);
 };
 
-// Determine the expected state of the theme toggle. The coffee mode keeps the
-// historical "sepia" storage key for compatibility. Default is "system".
+// Determine the expected state of the theme toggle. Default is "system".
 let determineThemeSetting = () => {
   let themeSetting = localStorage.getItem("theme");
-  if (themeSetting != "dark" && themeSetting != "light" && themeSetting != "sepia" && themeSetting != "system") {
+  if (themeSetting == "sepia") {
+    themeSetting = "cafe";
+  }
+  if (themeSetting != "dark" && themeSetting != "light" && themeSetting != "cafe" && themeSetting != "system") {
     themeSetting = "system";
   }
   return themeSetting;

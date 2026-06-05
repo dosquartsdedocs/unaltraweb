@@ -1,11 +1,11 @@
-# Uses the inherited slim al-folio Docker image until an unaltraweb image exists.
+# Kept as a lightweight compatibility compose file; it now uses the unaltraweb image.
 services:
   jekyll:
-    image: amirpourmand/al-folio:slim
+    image: ghcr.io/dosquartsdedocs/unaltraweb:main
     #build: .
     ports:
-      - 4002:8080
-      - 35730:35729
+      - 4000:8080
+      - 35729:35729
     volumes:
       - .:/srv/jekyll
     environment:

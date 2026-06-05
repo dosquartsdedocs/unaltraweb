@@ -23,7 +23,7 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 - `unaltraweb` owns reusable code: layouts, includes, Sass, assets, Jekyll plugins, Python and shell tooling, reusable GitHub Actions workflows and core documentation.
 - `unaltraweb-template` owns the thin starter scaffold: `_config.yml`, editable demo content, local overrides, local workflow glue and Playwright smoke tests.
 - The template is the preferred place to prove gem consumption and centralized style/logic behaviour because it exercises `unaltraweb` as an external dependency.
-- `docs/` in this repo contains the compact public core documentation/demo site. It should explain the platform rather than duplicate the template's full starter demo.
+- `docs/` in this repo contains the public `unaltraweb` reference site. It should explain tools, requirements, usage, profiles, themes and syntax without duplicating the template's full starter demo.
 
 ## Design Decisions
 
@@ -46,7 +46,7 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 - Added profile i18n keys in English, Spanish and Catalan.
 - Added `site.unaltraweb.site_profile` DOM markers: `data-site-profile` on `<html>` and `site-profile-*` on `<body>`.
 - Added config-driven feature navigation through `site.unaltraweb.features`.
-- Added theme mode rotation: `system -> light -> sepia -> dark -> system`.
+- Added theme mode rotation: `system -> light -> coffee -> dark -> system`.
 - Added `data-theme-setting`, `data-theme`, `data-theme-integration` and `unaltraweb:themechange` for tests and local scripts.
 - Added `_sass/_site-custom.scss` as a local child-site style extension point and documented it in `docs/customization.md`.
 - Added reusable personal-site blog archives, direct-link project cards, project resource badges and CV PDF download/preview card components.
@@ -54,7 +54,7 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 - Added manual profile support: manual home/chapter layouts, sticky sidebar, right rail TOC, localized chapter routing, teacher blocks, figure/table numbering, manual bibliography mode, manual search index and reader font controls.
 - Added reusable deploy workflow at `.github/workflows/site-deploy.yml`.
 - Replaced inherited top-level user docs with short `unaltraweb`-specific `README.md`, `INSTALL.md`, `CUSTOMIZE.md`, `FAQ.md` and `CONTRIBUTING.md`.
-- Added a compact docs/demo site under `docs/` with overview, profiles, template role and development pages.
+- Added and expanded the `unaltraweb` reference site under `docs/` with overview, quick start, tools, usage, profiles, syntax, themes, customization, template role and development pages.
 - Replaced the core repo deploy workflow with a lightweight GitHub Pages Actions workflow that builds `docs/` only.
 - Replaced the post-deploy link checker with a docs-only offline link check.
 - Added a manual/reusable publication metrics workflow at `.github/workflows/metrics-update.yml`.
@@ -63,6 +63,11 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 - Fixed `scripts/biblio/fetch_scimago_csv.sh` so it validates Scimago data through its own script directory when called from child repositories.
 - Added clearer metrics failure reporting for missing Scimago data and OpenAlex/Crossref request errors.
 - Exposed local `METRICS_ARGS` and `SCIMAGO_INPUT` Makefile controls in both core and template repos.
+- Added a GHCR Docker image workflow for `ghcr.io/dosquartsdedocs/unaltraweb` and switched core/template local Docker defaults away from the inherited `al-folio` image.
+- Added quick-start documentation for GitHub-only editing, local Docker/Make work, Windows WSL2 usage, GHCR public-image requirements and the core/template/demo split.
+- Set the local port convention to `4000` for `unaltraweb` and `4001`-`4004` for the four template profile servers.
+- Added an initial feature/syntax coverage map for the `unaltraweb` reference site.
+- Expanded the `unaltraweb` reference site with tools/requirements, usage, profile screenshots, content syntax, theme modes and customization pages.
 
 ## Companion Template State
 
@@ -82,6 +87,8 @@ Important current template behaviour:
 - Playwright render smoke tests verify `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs` profiles, desktop/mobile rendering, theme modes and screenshots.
 - The template deploy workflow calls `.github/workflows/site-deploy.yml` from this core.
 - The template manual `Update publication metrics` workflow calls `.github/workflows/metrics-update.yml` from this core.
+- The template local runtime defaults to `ghcr.io/dosquartsdedocs/unaltraweb:main`, while `LOCAL_CORE=../unaltraweb` remains the side-by-side development path.
+- The template README explains the four profiles, the GitHub-only content workflow and the local Docker workflow.
 
 ## Next Work
 
@@ -91,14 +98,14 @@ Important current template behaviour:
 - Treat `unaltraweb-template` as a multi-profile starter/demo and integration fixture, not as the product itself. Real child sites should keep content, configuration and local assets; reusable layouts, includes, plugins, Sass, JS and build scripts should stay centralized in `unaltraweb`.
 - Define the stable child-site contract: profile config, collections, front matter keys, local data files, bibliography/books/projects/content assets, `site-custom` extension points and generated diagram sources. Also define what remains explicitly non-contractual and can change inside the core.
 - Audit which JS/CSS/assets currently live in child repos versus the gem/core. Any copied core code in child sites should either move into `unaltraweb` or be marked as a deliberate local override.
-- Make Docker the primary user-facing runtime. Target command shape: child `Makefile` calls a central image such as `ghcr.io/dosquartsdedocs/unaltraweb:<version>`, and users only need Docker plus Git.
-- Plan the core Docker image contents: Ruby, Bundler, Jekyll, the `unaltraweb` gem, Python tooling for bibliography/metrics, diagram rendering support and the central CLI/Make targets needed by child sites.
-- Use Docker as the initial gem distribution path while the gem is not published to RubyGems. The image can install the gem from the core repo at build time; child sites update by changing or pulling the image tag.
+- Continue hardening Docker as the primary user-facing runtime: users should only need Docker plus Git for normal local `make serve`, `make build` and `make test` flows.
+- Decide whether future images should preinstall the `unaltraweb` gem or keep the current split where the image owns runtime dependencies and the child `Gemfile` owns theme/plugin code.
+- Add versioning guidance for `ghcr.io/dosquartsdedocs/unaltraweb:main`, `latest`, release tags and the template's default `DOCKER_IMAGE` value before recommending this outside the pre-release workflow; ensure the GHCR package is public after the first publish.
 - Keep a developer path for local core work: `LOCAL_CORE=../unaltraweb` and possibly a Git-based gem dependency remain useful for testing, but should not be the normal user setup.
 - Decide how `diavisuals` is distributed for users. Preferred direction: `unaltraweb diagrams` works without cloning `diavisuals`, either by packaging the style/render tooling into the core image or by invoking a versioned render image.
 - Add update commands with clear semantics: `make update-core` or `unaltraweb update` pulls the Docker image/tag and runs `doctor`; optional git-upstream updates should be limited to starter/template migrations, not core code.
 - Add `make doctor` or `unaltraweb doctor` to validate the contract in child repos: no copied `_layouts/_includes/_sass/assets/js` core files unless declared, required collections/data exist for the selected profile and generated assets are in sync.
-- Revisit documentation pages for creating a new site after the above is implemented. The docs should say: choose profile, run keep target, edit content/config, serve/build through Docker.
+- Revisit documentation pages for creating a new site after the keep/sync commands exist. Current docs already cover: choose profile, edit content/config, and serve/build through Docker.
 
 - Next-session focus for `unaltremanual`: make the manual content usable as a student-facing downloadable/printable PDF, likely through LaTeX/Pandoc. Treat PDF output as a first-class target, and mark web-only enhancements so they degrade cleanly or are omitted in PDF builds.
 - Next-session focus for richer teaching sites: support per-topic slides and downloadable resources, probably surfaced as compact top-left toolbar icons; add configurable hero images for main navigation pages, excluding collection/content pages; confirm or add a stable public downloads folder; explore GeoJSON syntactic sugar for loading a file from a folder and rendering it with styles; define how executable R/Python content coexists with static builds; confirm math notation support for formulas.
@@ -107,6 +114,7 @@ Important current template behaviour:
 - Regenerate `package-lock.json` with `npm install` on a machine with Node/npm available; do not hand-edit dependency integrity data.
 - If Node/npm work becomes routine, add a separate lightweight Node tooling path instead of putting npm into every Jekyll runtime image.
 - Add clearer docs for `site_profile: unaltreselfie`, `site_profile: unaltreprojecte`, `site_profile: unaltredocs` and `site_profile: unaltremanual`.
+- Continue turning `docs/feature-reference.md`, `docs/syntax.md` and `docs/customization.md` into a complete rendered reference for every reusable feature and syntax rule.
 - Rework general site search as a generated core feature before enabling it by default again.
 - Continue refining config-driven behaviour for the four named site profiles.
 - Later, integrate GitBook/docs mode using `/home/benizar/git/tig` as reference: sidebar collections, previous/next navigation, search and course/slides affordances.

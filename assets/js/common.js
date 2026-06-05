@@ -1,70 +1,43 @@
 $(document).ready(function () {
   // add toggle functionality to publication detail buttons
-  $("a.abstract").click(function () {
-    $(this).parent().parent().find(".cite.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".abstract.hidden").toggleClass("open");
-    $(this).parent().parent().find(".award.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".bibtex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".openalex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".scimago.hidden.open").toggleClass("open");
-  });
-  $("a.cite").click(function () {
-    $(this).parent().parent().find(".abstract.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".award.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".bibtex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".openalex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".scimago.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".cite.hidden").toggleClass("open");
-  });
-  $("a.award").click(function () {
-    $(this).parent().parent().find(".cite.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".abstract.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".award.hidden").toggleClass("open");
-    $(this).parent().parent().find(".bibtex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".openalex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".scimago.hidden.open").toggleClass("open");
-  });
-  $("a.bibtex").click(function () {
-    $(this).parent().parent().find(".cite.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".abstract.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".award.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".openalex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".scimago.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".bibtex.hidden").toggleClass("open");
-  });
-  $("a.openalex").click(function () {
-    $(this).parent().parent().find(".cite.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".abstract.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".award.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".bibtex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".scimago.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".openalex.hidden").toggleClass("open");
-  });
-  $("a.scimago").click(function () {
-    $(this).parent().parent().find(".cite.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".abstract.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".award.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".bibtex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".openalex.hidden.open").toggleClass("open");
-    $(this).parent().parent().find(".scimago.hidden").toggleClass("open");
-  });
+  const biblioPanelClasses = ["cite", "abstract", "award", "bibtex", "openalex", "scimago"];
 
-  function closeReadingBiblioPanels() {
-    $(".reading-biblio-panel.hidden.open").removeClass("open");
+  function updateBiblioButtonState($entry) {
+    biblioPanelClasses.forEach(function (panelClass) {
+      const isOpen = $entry.find(`.${panelClass}.hidden.open`).length > 0;
+      $entry.find(`.links a.${panelClass}.btn`).toggleClass("biblio-active", isOpen).attr("aria-expanded", isOpen ? "true" : "false");
+    });
   }
 
-  $(document).on("click", "[data-reading-biblio-close]", function () {
-    $(this).closest(".reading-biblio-panel").removeClass("open");
-  });
+  function toggleBiblioPanel(link, panelClass) {
+    const $entry = $(link).parent().parent();
+    const panelSelector = `.${panelClass}.hidden`;
 
-  $(document).on("click", function (event) {
-    if (!$(".reading-biblio-panel.hidden.open").length) return;
-    if ($(event.target).closest(".reading-biblio-panel, .reading-biblio-actions").length) return;
-    closeReadingBiblioPanels();
-  });
+    biblioPanelClasses.forEach(function (otherPanelClass) {
+      if (otherPanelClass !== panelClass) $entry.find(`.${otherPanelClass}.hidden.open`).removeClass("open");
+    });
 
-  $(document).on("keydown", function (event) {
-    if (event.key === "Escape") closeReadingBiblioPanels();
+    $entry.find(panelSelector).toggleClass("open");
+    updateBiblioButtonState($entry);
+  }
+
+  $("a.abstract").click(function () {
+    toggleBiblioPanel(this, "abstract");
+  });
+  $("a.cite").click(function () {
+    toggleBiblioPanel(this, "cite");
+  });
+  $("a.award").click(function () {
+    toggleBiblioPanel(this, "award");
+  });
+  $("a.bibtex").click(function () {
+    toggleBiblioPanel(this, "bibtex");
+  });
+  $("a.openalex").click(function () {
+    toggleBiblioPanel(this, "openalex");
+  });
+  $("a.scimago").click(function () {
+    toggleBiblioPanel(this, "scimago");
   });
 
   $(document).on("click", "[data-copy-target]", function () {

@@ -19,21 +19,19 @@
 {% capture abstract_button_text %}{% include t.liquid key='bib.buttons.abstract' default='Abs' %}{% endcapture %}
 {% capture copy_text %}{% include t.liquid key='reading.copy' default='Copy' %}{% endcapture %}
 {% capture copied_text %}{% include t.liquid key='reading.copied' default='Copied' %}{% endcapture %}
-{% capture close_panel_text %}{% include t.liquid key='reading.close_panel' default='Close panel' %}{% endcapture %}
 {% capture doi_text %}{% include t.liquid key='reading.doi' default='DOI' %}{% endcapture %}
 
 <div class="{{ biblio_wrap_class }}">
   <div class="links {{ biblio_actions_class }}">
-    {% if biblio_citation != '' %}<a class="cite btn btn-sm z-depth-0" role="button">{{ cite_button_text | strip | upcase }}</a>{% endif %}
-    {% if biblio_bibtex != '' %}<a class="bibtex btn btn-sm z-depth-0" role="button">{{ bib_button_text | strip | upcase }}</a>{% endif %}
+    {% if biblio_citation != '' %}<a class="cite btn btn-sm z-depth-0" role="button" aria-expanded="false">{{ cite_button_text | strip | upcase }}</a>{% endif %}
+    {% if biblio_bibtex != '' %}<a class="bibtex btn btn-sm z-depth-0" role="button" aria-expanded="false">{{ bib_button_text | strip | upcase }}</a>{% endif %}
     {% if biblio_doi_url %}<a href="{{ biblio_doi_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">DOI</a>{% endif %}
     {% if biblio_url %}<a href="{{ biblio_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">{{ biblio_url_label | strip | default: 'LINK' | upcase }}</a>{% endif %}
-    {% if biblio_abstract != '' %}<a class="abstract btn btn-sm z-depth-0" role="button">{{ abstract_button_text | strip | upcase }}</a>{% endif %}
+    {% if biblio_abstract != '' %}<a class="abstract btn btn-sm z-depth-0" role="button" aria-expanded="false">{{ abstract_button_text | strip | upcase }}</a>{% endif %}
   </div>
 
   {% if biblio_citation != '' %}
-    <div class="cite hidden {{ biblio_panel_class }}"{% if biblio_panel_class contains 'reading-biblio-panel' %} role="dialog" aria-modal="true" aria-label="{{ cite_button_text | strip | escape }}"{% endif %}>
-      {% if biblio_panel_class contains 'reading-biblio-panel' %}<button class="reading-biblio-panel-close" type="button" data-reading-biblio-close aria-label="{{ close_panel_text | strip | escape }}">×</button>{% endif %}
+    <div class="cite hidden {{ biblio_panel_class }}">
       <div class="reading-citation-header">
         <h3>{{ cite_button_text | strip }}</h3>
         <button class="reading-copy-button" type="button" data-copy-target="#{{ biblio_id }}-cite-copy" data-copy-label="{{ copy_text | strip | escape }}" data-copy-done="{{ copied_text | strip | escape }}">{{ copy_text | strip }}</button>
@@ -46,8 +44,7 @@
   {% if biblio_abstract != '' %}<div class="abstract hidden {{ biblio_panel_class }}"><p>{{ biblio_abstract }}</p></div>{% endif %}
 
   {% if biblio_bibtex != '' %}
-    <div class="bibtex hidden {{ biblio_panel_class }}"{% if biblio_panel_class contains 'reading-biblio-panel' %} role="dialog" aria-modal="true" aria-label="{{ bib_button_text | strip | escape }}"{% endif %}>
-      {% if biblio_panel_class contains 'reading-biblio-panel' %}<button class="reading-biblio-panel-close" type="button" data-reading-biblio-close aria-label="{{ close_panel_text | strip | escape }}">×</button>{% endif %}
+    <div class="bibtex hidden {{ biblio_panel_class }}">
       <div class="reading-citation-header">
         <h3>{{ bib_button_text | strip }}</h3>
         <button class="reading-copy-button" type="button" data-copy-target="#{{ biblio_id }}-bib-copy" data-copy-label="{{ copy_text | strip | escape }}" data-copy-done="{{ copied_text | strip | escape }}">{{ copy_text | strip }}</button>

@@ -49,6 +49,7 @@ bib:
     awarded: Awarded
     abstract: Abs
     bib: Bib
+    cite: Cite
     supp: Supp
     video: Video
     blog: Blog
@@ -212,7 +213,7 @@ documentation:
   theme_system: System
   theme_light: Light
   theme_dark: Dark
-  theme_sepia: Coffee
+  theme_cafe: Coffee
   font_size: Text size
   font_decrease: Decrease text size
   font_increase: Increase text size

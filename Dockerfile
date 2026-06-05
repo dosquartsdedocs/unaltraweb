@@ -1,4 +1,4 @@
-FROM ruby:slim
+FROM ruby:3.3-slim
 
 # uncomment these if you are having this issue with the build:
 # /usr/local/bundle/gems/jekyll-4.3.4/lib/jekyll/site.rb:509:in `initialize': Permission denied @ rb_sysopen - /srv/jekyll/.jekyll-cache/.gitignore (Errno::EACCES)
@@ -7,11 +7,13 @@ FROM ruby:slim
 # ARG USERID=901
 # ARG USERNAME=jekyll
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 LABEL authors="dosquartsdedocs" \
-      description="Docker image for unaltraweb core development" \
-      maintainer="dosquartsdedocs"
+      description="Docker image for unaltraweb Jekyll sites" \
+      maintainer="dosquartsdedocs" \
+      org.opencontainers.image.source="https://github.com/dosquartsdedocs/unaltraweb" \
+      org.opencontainers.image.description="Runtime image for unaltraweb Jekyll sites"
 
 # uncomment these if you are having this issue with the build:
 # /usr/local/bundle/gems/jekyll-4.3.4/lib/jekyll/site.rb:509:in `initialize': Permission denied @ rb_sysopen - /srv/jekyll/.jekyll-cache/.gitignore (Errno::EACCES)
@@ -44,7 +46,9 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen
 
 # set environment variables
-ENV EXECJS_RUNTIME=Node \
+ENV BUNDLE_JOBS=4 \
+    BUNDLE_RETRY=3 \
+    EXECJS_RUNTIME=Node \
     JEKYLL_ENV=production \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
@@ -54,8 +58,8 @@ ENV EXECJS_RUNTIME=Node \
 RUN mkdir /srv/jekyll
 
 # copy the Gemfile and Gemfile.lock to the image
-ADD Gemfile.lock /srv/jekyll
-ADD Gemfile /srv/jekyll
+COPY Gemfile.lock /srv/jekyll
+COPY Gemfile /srv/jekyll
 
 # set the working directory
 WORKDIR /srv/jekyll

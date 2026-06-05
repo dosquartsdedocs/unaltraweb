@@ -46,8 +46,8 @@ module Unaltraweb
       end
 
       transformed = yield(protected_source)
-      fences.each_with_index do |fence, index|
-        transformed.gsub!("UNALTRAWEBFENCEDCODEBLOCK#{index}", fence)
+      fences.each_index.reverse_each do |index|
+        transformed.gsub!("UNALTRAWEBFENCEDCODEBLOCK#{index}", fences[index])
       end
 
       transformed

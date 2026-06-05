@@ -4,12 +4,26 @@ on:
   push:
     branches: [main]
     paths:
+      - "_includes/**"
+      - "_layouts/**"
+      - "_plugins/**"
+      - "_sass/**"
+      - "assets/**"
       - "docs/**"
+      - "lib/**"
+      - "unaltraweb.gemspec"
       - ".github/workflows/deploy.yml"
   pull_request:
     branches: [main]
     paths:
+      - "_includes/**"
+      - "_layouts/**"
+      - "_plugins/**"
+      - "_sass/**"
+      - "assets/**"
       - "docs/**"
+      - "lib/**"
+      - "unaltraweb.gemspec"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
@@ -32,11 +46,21 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Build docs
-        uses: actions/jekyll-build-pages@v1
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        env:
+          BUNDLE_GEMFILE: docs/Gemfile
         with:
-          source: ./docs
-          destination: ./_site
+          ruby-version: "3.3.5"
+          bundler-cache: true
+
+      - name: Build docs
+        env:
+          BUNDLE_GEMFILE: docs/Gemfile
+          JEKYLL_ENV: production
+        run: |
+          core_config="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print File.join(spec.full_gem_path, "_config.yml")')"
+          bundle exec jekyll build --source docs --destination ./_site --config "$core_config,docs/_config.yml"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

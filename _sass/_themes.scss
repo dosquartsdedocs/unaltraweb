@@ -57,7 +57,7 @@
     display: none;
   }
 
-  #light-toggle-sepia {
+  #light-toggle-cafe {
     display: none;
   }
 
@@ -127,7 +127,7 @@ html[data-theme="dark"] {
   }
 }
 
-html[data-theme="sepia"] {
+html[data-theme="cafe"] {
   color-scheme: light;
   --global-bg-color: #f3eacb;
   --global-code-bg-color: #ede0c2;
@@ -177,7 +177,7 @@ html[data-theme-setting="dark"] {
     display: none;
   }
 
-  #light-toggle-sepia {
+  #light-toggle-cafe {
     display: none;
   }
 
@@ -202,12 +202,12 @@ html[data-theme-setting="light"] {
     display: block;
   }
 
-  #light-toggle-sepia {
+  #light-toggle-cafe {
     display: none;
   }
 }
 
-html[data-theme-setting="sepia"] {
+html[data-theme-setting="cafe"] {
   #light-toggle-system {
     display: none;
   }
@@ -220,7 +220,7 @@ html[data-theme-setting="sepia"] {
     display: none;
   }
 
-  #light-toggle-sepia {
+  #light-toggle-cafe {
     padding-left: 10px;
     padding-top: 12px;
     display: block;
