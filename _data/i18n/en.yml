@@ -222,6 +222,8 @@ documentation:
   search_results: Search results
   search_no_results: No results
   read_more: Read more
+  in_this_section: In this section
+  in_this_subsection: In this subsection
 
 manual:
   contents: Contents

@@ -1,5 +1,9 @@
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
 {% assign current_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
+{% assign documentation_config = site.unaltraweb.documentation %}
+{% assign documentation_toc_logo = documentation_config.toc_logo %}
+{% assign documentation_toc_logo_inverse = documentation_config.toc_logo_inverse | default: documentation_toc_logo %}
+{% assign documentation_toc_logo_cafe = documentation_config.toc_logo_cafe | default: documentation_config.toc_logo_sepia | default: documentation_toc_logo %}
 {% assign docs = include.docs %}
 {% assign home_candidates = site.pages | where: 'ref', 'home' | where: 'lang', current_lang %}
 {% assign docs_home = home_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
@@ -18,7 +22,16 @@
 
   <div class="documentation-sidebar-inner">
 
-    <nav id="documentation-nav" class="documentation-nav" aria-label="{{ docs_contents_text | strip }}">
+    <nav id="documentation-nav" class="documentation-nav{% if documentation_toc_logo %} has-sidebar-logo{% endif %}" aria-label="{{ docs_contents_text | strip }}">
+      {% if documentation_toc_logo %}
+        <div class="documentation-sidebar-brand" aria-hidden="true">
+          <span class="documentation-sidebar-logo-stack">
+            <img class="documentation-sidebar-logo documentation-sidebar-logo-light" src="{{ documentation_toc_logo | relative_url }}" alt="">
+            <img class="documentation-sidebar-logo documentation-sidebar-logo-dark" src="{{ documentation_toc_logo_inverse | relative_url }}" alt="">
+            <img class="documentation-sidebar-logo documentation-sidebar-logo-cafe" src="{{ documentation_toc_logo_cafe | relative_url }}" alt="">
+          </span>
+        </div>
+      {% endif %}
       <div class="documentation-nav-block documentation-toc-heading-block">
         <p class="documentation-nav-block-title">{{ docs_contents_text | strip }}</p>
       </div>
@@ -50,15 +63,19 @@
                 {% assign current_subsection = '' %}
                 {% for doc in section_docs %}
                   {% assign doc_subsection = doc.subsection | default: '' %}
-                  {% if doc_subsection != '' and doc_subsection != current_subsection %}
-                    {% assign current_subsection = doc_subsection %}
-                    <p class="documentation-subsection-title{% if page.subsection == doc_subsection %} active{% endif %}">{{ doc_subsection }}</p>
-                  {% elsif doc_subsection == '' %}
+                  {% if doc_subsection != '' %}
+                    {% if doc_subsection != current_subsection %}
+                      {% assign current_subsection = doc_subsection %}
+                      <a class="documentation-nav-link documentation-subsection-link level-2{% if page.section == doc_section and page.subsection == doc_subsection %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.section == doc_section and page.subsection == doc_subsection %} aria-current="location"{% endif %}>
+                        {{ doc_subsection }}
+                      </a>
+                    {% endif %}
+                  {% else %}
                     {% assign current_subsection = '' %}
+                    <a class="documentation-nav-link documentation-accordion-link level-2{% if page.url == doc.url %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.url == doc.url %} aria-current="page"{% endif %}>
+                      {{ doc.nav_title | default: doc.title }}
+                    </a>
                   {% endif %}
-                  <a class="documentation-nav-link documentation-accordion-link{% if doc_subsection != '' %} level-3{% else %} level-2{% endif %}{% if page.url == doc.url %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.url == doc.url %} aria-current="page"{% endif %}>
-                    {{ doc.nav_title | default: doc.title }}
-                  </a>
                 {% endfor %}
               </div>
             </details>

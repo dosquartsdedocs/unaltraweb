@@ -204,7 +204,7 @@ make cv-preview CV_PDF=assets/pdf/cv.pdf CV_PREVIEW=assets/img/cv-preview.jpg
 
 ## Documentation Sections
 
-The `unaltredocs` profile uses `_documentation` pages with front matter that drives the left index:
+The `unaltredocs` profile uses `_documentation` documents with front matter that drives the left index:
 
 ```yaml
 ---

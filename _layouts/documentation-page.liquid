@@ -17,6 +17,7 @@ layout: default
 
 <div class="documentation-layout">
   {% include documentation-sidebar.liquid docs=documentation_docs %}
+  {% include documentation-section-toc.liquid docs=documentation_docs section=page.section %}
 
   <article class="documentation-main documentation-page">
     <header class="documentation-page-header">

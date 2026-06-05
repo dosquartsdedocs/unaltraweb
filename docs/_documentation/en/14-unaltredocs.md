@@ -20,9 +20,9 @@ unaltraweb:
 
 Typical content:
 
-- A documentation home page with `layout: documentation-home`.
+- A documentation home document with `layout: documentation-home`.
 - Documents under `_documentation/<lang>/`.
-- `section` and `weight` front matter to build the left sidebar.
+- `section`, `subsection` and `weight` front matter to build the documentation navigation.
 - Optional multilingual home pages and documents.
 
 This `unaltraweb` site is itself built with the `unaltredocs` profile.

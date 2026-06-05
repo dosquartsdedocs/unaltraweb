@@ -1,0 +1,37 @@
+{% assign docs = include.docs %}
+{% assign current_section = include.section | default: page.section %}
+{% assign current_subsection = page.subsection | default: '' %}
+{% capture docs_section_toc_text %}{% include t.liquid key='documentation.in_this_section' default='In this section' %}{% endcapture %}
+{% capture docs_subsection_toc_text %}{% include t.liquid key='documentation.in_this_subsection' default='In this subsection' %}{% endcapture %}
+{% if current_section %}
+  {% if current_subsection != '' %}
+    {% assign section_docs = docs | where: 'section', current_section | where: 'subsection', current_subsection %}
+    {% assign section_toc_heading = docs_subsection_toc_text | strip %}
+    {% assign section_toc_label = current_subsection %}
+  {% else %}
+    {% assign section_docs = docs | where: 'section', current_section | where_exp: 'doc', 'doc.subsection == nil or doc.subsection == ""' %}
+    {% assign section_toc_heading = docs_section_toc_text | strip %}
+    {% assign section_toc_label = current_section %}
+  {% endif %}
+{% else %}
+  {% assign section_docs = nil %}
+{% endif %}
+{% if section_docs and section_docs.size > 1 %}
+  <aside class="documentation-section-toc" aria-label="{{ section_toc_heading | escape }}">
+    <div class="documentation-section-toc-inner">
+      <p class="documentation-section-toc-heading">{{ section_toc_heading }}</p>
+      <p class="documentation-section-toc-section">{{ section_toc_label }}</p>
+      <nav class="documentation-section-toc-nav" aria-label="{{ section_toc_label | escape }}">
+        <ol class="documentation-section-toc-list">
+          {% for doc in section_docs %}
+            <li class="documentation-section-toc-item">
+              <a class="documentation-nav-link documentation-section-toc-link level-2{% if page.url == doc.url %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.url == doc.url %} aria-current="page"{% endif %}>
+                {{ doc.nav_title | default: doc.title }}
+              </a>
+            </li>
+          {% endfor %}
+        </ol>
+      </nav>
+    </div>
+  </aside>
+{% endif %}

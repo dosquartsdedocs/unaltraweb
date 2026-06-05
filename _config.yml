@@ -16,7 +16,7 @@ keywords: jekyll, jekyll-theme, academic-website, portfolio-website # add your o
 lang: en # fallback language of the site
 default_lang: en # default language used when no browser match is found
 languages: [en, es, ca] # enabled interface/content languages
-icon: "🧭" # the emoji used as the favicon (alternatively, provide image name in /assets/img/)
+icon: "brand/dosquartsdedocs-logo-white.svg" # favicon image in /assets/img/; projects can override it with their own asset
 
 url: "https://gratet.github.io" # the base hostname & protocol for your site
 baseurl: "/unaltraweb" # the subpath of your site, e.g. /blog/. Leave blank for root
@@ -26,6 +26,11 @@ back_to_top: true # set to false to disable the back to top button
 
 unaltraweb:
   site_profile: unaltreprojecte # unaltreselfie, unaltreprojecte, unaltremanual, or unaltredocs
+  site_icon: "brand/dosquartsdedocs-logo-white.svg"
+  logos:
+    default: /assets/img/brand/dosquartsdedocs-logo.svg
+    inverse: /assets/img/brand/dosquartsdedocs-logo-white.svg
+    cafe: /assets/img/brand/dosquartsdedocs-logo.svg
   features:
     news: true
     blog: true
@@ -44,9 +49,12 @@ unaltraweb:
     bibliography_file: manual.bib
   documentation:
     collection: documentation
-    logo:
-    logo_inverse:
-    logo_cafe:
+    logo: /assets/img/brand/dosquartsdedocs-logo.svg
+    logo_inverse: /assets/img/brand/dosquartsdedocs-logo-white.svg
+    logo_cafe: /assets/img/brand/dosquartsdedocs-logo.svg
+    toc_logo:
+    toc_logo_inverse:
+    toc_logo_cafe:
   readings:
     badges: {}
   figure_captions:
