@@ -142,11 +142,78 @@
     });
   }
 
+  function setupPageToc() {
+    var container = document.querySelector("[data-documentation-page-toc-container]");
+    var list = document.querySelector("[data-documentation-page-toc]");
+    var content = document.querySelector(".documentation-content");
+    if (!container || !list || !content) return;
+
+    var headings = Array.prototype.slice.call(content.querySelectorAll("h2[id], h3[id]"));
+    if (!headings.length) {
+      container.hidden = true;
+      list.innerHTML = "";
+      return;
+    }
+
+    list.innerHTML = "";
+    headings.forEach(function (heading) {
+      var item = document.createElement("li");
+      var link = document.createElement("a");
+      var level = heading.tagName && heading.tagName.toLowerCase() === "h3" ? "level-3" : "level-2";
+
+      item.className = "documentation-section-toc-item";
+      link.className = "documentation-nav-link documentation-section-toc-link " + level;
+      link.href = "#" + heading.id;
+      link.textContent = heading.textContent || heading.id;
+      item.appendChild(link);
+      list.appendChild(item);
+    });
+    container.hidden = false;
+
+    var links = Array.prototype.slice.call(list.querySelectorAll("a[href^='#']"));
+
+    function updateActivePageTocLink() {
+      var activeIndex = 0;
+      headings.forEach(function (heading, index) {
+        if (heading.getBoundingClientRect().top <= 120) activeIndex = index;
+      });
+      links.forEach(function (link, index) {
+        var active = index === activeIndex;
+        link.classList.toggle("active", active);
+        if (active) {
+          link.setAttribute("aria-current", "location");
+        } else {
+          link.removeAttribute("aria-current");
+        }
+      });
+    }
+
+    if (!container.dataset.documentationPageTocScrollReady) {
+      container.dataset.documentationPageTocScrollReady = "true";
+      var ticking = false;
+      window.addEventListener(
+        "scroll",
+        function () {
+          if (ticking) return;
+          ticking = true;
+          window.requestAnimationFrame(function () {
+            updateActivePageTocLink();
+            ticking = false;
+          });
+        },
+        { passive: true }
+      );
+      window.addEventListener("hashchange", updateActivePageTocLink);
+    }
+    updateActivePageTocLink();
+  }
+
   function enhanceDocumentation() {
     setupSidebarToggle();
     setupFontControls();
     updateThemeLabels();
     setupDocumentationTree();
+    setupPageToc();
   }
 
   if (document.readyState === "loading") {

@@ -327,18 +327,6 @@ html[data-theme="cafe"] .site-profile-unaltredocs .documentation-sidebar-logo-ca
   scrollbar-gutter: stable;
 }
 
-.documentation-nav-scroll::before {
-  position: absolute;
-  top: 1.28rem;
-  bottom: 2.45rem;
-  left: var(--documentation-toc-axis);
-  z-index: 1;
-  width: 1px;
-  background: var(--documentation-toc-line);
-  content: "";
-  pointer-events: none;
-}
-
 .documentation-nav-block {
   gap: 0.12rem;
 }
@@ -567,6 +555,18 @@ html[data-theme="cafe"] .site-profile-unaltredocs .documentation-sidebar-logo-ca
   gap: 0.34rem;
   align-content: start;
   grid-auto-rows: max-content;
+}
+
+.documentation-accordion::before {
+  position: absolute;
+  top: 1.05rem;
+  bottom: 1.05rem;
+  left: var(--documentation-toc-axis);
+  z-index: 1;
+  width: 1px;
+  background: var(--documentation-toc-line);
+  content: "";
+  pointer-events: none;
 }
 
 .documentation-accordion-section {
@@ -840,6 +840,11 @@ html[data-theme="cafe"] .site-profile-unaltredocs .documentation-sidebar-logo-ca
   line-height: 1.28;
   padding: 0.25rem 0.36rem 0.25rem 1.68rem;
   text-decoration: none;
+}
+
+.documentation-section-toc-link.level-3 {
+  font-size: 0.74rem;
+  padding-left: 2.08rem;
 }
 
 .documentation-section-toc-link:visited {
