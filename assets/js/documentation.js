@@ -3,6 +3,8 @@
   var MAX_SCALE = 1.25;
   var STEP = 0.1;
   var STORAGE_KEY = "unaltrawebDocumentationFontScale";
+  var PROFILE_STORAGE_KEY = "unaltrawebDocumentationProfile";
+  var PROFILE_PARAM = "doc_profile";
 
   function readScale() {
     var stored = parseFloat(localStorage.getItem(STORAGE_KEY) || "1");
@@ -102,6 +104,209 @@
     });
   }
 
+  function normalizeProfileToken(value) {
+    return (value || "").toString().trim().toLowerCase();
+  }
+
+  function profileTokens(value) {
+    return (value || "").toString().split(/[\s,]+/).map(normalizeProfileToken).filter(Boolean);
+  }
+
+  function readProfileFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    return params.has(PROFILE_PARAM) ? normalizeProfileToken(params.get(PROFILE_PARAM)) : null;
+  }
+
+  function readStoredProfile() {
+    return normalizeProfileToken(localStorage.getItem(PROFILE_STORAGE_KEY));
+  }
+
+  function writeStoredProfile(profile) {
+    if (profile) {
+      localStorage.setItem(PROFILE_STORAGE_KEY, profile);
+    } else {
+      localStorage.removeItem(PROFILE_STORAGE_KEY);
+    }
+  }
+
+  function readActiveProfile() {
+    var urlProfile = readProfileFromUrl();
+    if (urlProfile !== null) {
+      writeStoredProfile(urlProfile);
+      return urlProfile;
+    }
+    return readStoredProfile();
+  }
+
+  function updateProfileUrl(profile) {
+    if (!window.history || !window.history.replaceState) return;
+    var params = new URLSearchParams(window.location.search);
+    if (profile) params.set(PROFILE_PARAM, profile);
+    if (!profile) params.delete(PROFILE_PARAM);
+    var query = params.toString();
+    var nextUrl = window.location.pathname + (query ? "?" + query : "") + window.location.hash;
+    window.history.replaceState({}, "", nextUrl);
+  }
+
+  function syncProfileControls(container, activeProfile) {
+    if (!container) return;
+    container.classList.toggle("has-active-profile", Boolean(activeProfile));
+    container.querySelectorAll("[data-documentation-profile-select]").forEach(function (select) {
+      select.value = activeProfile;
+    });
+  }
+
+  function profileExists(container, profile) {
+    if (!container || !profile) return false;
+    return Array.prototype.slice.call(container.querySelectorAll("[data-documentation-profile-select] option")).some(function (option) {
+      return normalizeProfileToken(option.value) === profile;
+    });
+  }
+
+  function validActiveProfile(container) {
+    var profile = readActiveProfile();
+    if (!profile) return "";
+    if (profileExists(container, profile)) return profile;
+    writeStoredProfile("");
+    updateProfileUrl("");
+    return "";
+  }
+
+  function itemMatchesProfile(item, activeProfile) {
+    if (!activeProfile) return true;
+    var profiles = profileTokens(item && item.dataset ? item.dataset.documentationProfiles : "");
+    return profiles.length === 0 || profiles.indexOf(activeProfile) !== -1;
+  }
+
+  function visibleElements(nodes) {
+    return Array.prototype.slice.call(nodes).filter(function (node) { return !node.hidden; });
+  }
+
+  function syncDocumentationTreeLine(tree) {
+    if (!tree) return;
+    var sections = Array.prototype.slice.call(tree.querySelectorAll("[data-documentation-tree-id]"));
+    sections.forEach(function (section) {
+      delete section.dataset.documentationVisibleSection;
+      delete section.dataset.documentationFirstVisibleSection;
+      delete section.dataset.documentationLastVisibleSection;
+    });
+
+    var visibleSections = visibleElements(sections);
+    tree.hidden = tree.dataset.documentationProfileEmpty === "true";
+    var hasVisibleBranch = visibleSections.some(function (section) {
+      return section.open && visibleElements(section.querySelectorAll("[data-documentation-profile-item]")).length > 0;
+    });
+    tree.classList.toggle("has-visible-documentation-sections", visibleSections.length > 0);
+    tree.classList.toggle("has-multiple-visible-documentation-sections", visibleSections.length > 1);
+    tree.classList.toggle("has-visible-documentation-branches", hasVisibleBranch);
+
+    if (!visibleSections.length) return;
+    visibleSections.forEach(function (section) { section.dataset.documentationVisibleSection = "true"; });
+    visibleSections[0].dataset.documentationFirstVisibleSection = "true";
+    visibleSections[visibleSections.length - 1].dataset.documentationLastVisibleSection = "true";
+
+    if (visibleSections.length < 2 && !hasVisibleBranch) return;
+    var treeRect = tree.getBoundingClientRect();
+    var firstSection = visibleSections[0];
+    var lastSection = visibleSections[visibleSections.length - 1];
+    var firstMark = firstSection.querySelector(".documentation-accordion-mark") || firstSection.querySelector("summary") || firstSection;
+    var lastMark = lastSection.querySelector(".documentation-accordion-mark") || lastSection.querySelector("summary") || lastSection;
+    if (lastSection.open) {
+      var lastSectionItems = visibleElements(lastSection.querySelectorAll("[data-documentation-profile-item]"));
+      if (lastSectionItems.length) lastMark = lastSectionItems[lastSectionItems.length - 1];
+    }
+    var firstRect = firstMark.getBoundingClientRect();
+    var lastRect = lastMark.getBoundingClientRect();
+    var firstCenter = firstRect.top + firstRect.height / 2 - treeRect.top;
+    var lastCenter = lastRect.top + lastRect.height / 2 - treeRect.top;
+    tree.style.setProperty("--documentation-tree-line-top", firstCenter.toFixed(2) + "px");
+    tree.style.setProperty("--documentation-tree-line-bottom", Math.max(0, treeRect.height - lastCenter).toFixed(2) + "px");
+  }
+
+  function syncDocumentationTrees() {
+    document.querySelectorAll("[data-documentation-tree]").forEach(syncDocumentationTreeLine);
+  }
+
+  function scheduleDocumentationTreeSync() {
+    window.requestAnimationFrame(syncDocumentationTrees);
+  }
+
+  function setupDocumentationTreeLineSync() {
+    if (document.documentElement.dataset.documentationTreeLineSyncReady) return;
+    document.documentElement.dataset.documentationTreeLineSyncReady = "true";
+    window.addEventListener("resize", scheduleDocumentationTreeSync, { passive: true });
+  }
+
+  function updateProfileSections(activeProfile) {
+    document.querySelectorAll("[data-documentation-tree-id]").forEach(function (section) {
+      var items = Array.prototype.slice.call(section.querySelectorAll("[data-documentation-profile-item]"));
+      var hasVisibleItem = items.some(function (item) { return !item.hidden; });
+      section.hidden = Boolean(activeProfile) && items.length > 0 && !hasVisibleItem;
+    });
+    document.querySelectorAll("[data-documentation-tree]").forEach(function (tree) {
+      var sections = Array.prototype.slice.call(tree.querySelectorAll("[data-documentation-tree-id]"));
+      var hasVisibleSection = sections.some(function (section) { return !section.hidden; });
+      tree.dataset.documentationProfileEmpty = Boolean(activeProfile) && sections.length > 0 && !hasVisibleSection ? "true" : "false";
+    });
+    document.querySelectorAll(".documentation-index-section").forEach(function (section) {
+      var cards = Array.prototype.slice.call(section.querySelectorAll(".documentation-card[data-documentation-profile-item]"));
+      var hasVisibleCard = cards.some(function (card) { return !card.hidden; });
+      section.hidden = Boolean(activeProfile) && cards.length > 0 && !hasVisibleCard;
+    });
+    document.querySelectorAll(".documentation-index").forEach(function (index) {
+      var sections = Array.prototype.slice.call(index.querySelectorAll(".documentation-index-section"));
+      var hasVisibleSection = sections.some(function (section) { return !section.hidden; });
+      index.hidden = Boolean(activeProfile) && sections.length > 0 && !hasVisibleSection;
+    });
+    scheduleDocumentationTreeSync();
+  }
+
+  function updateCurrentPageProfileNotice(activeProfile) {
+    var currentPage = document.querySelector("[data-documentation-current-page]");
+    var notice = document.querySelector("[data-documentation-profile-notice]");
+    if (!currentPage || !notice) return;
+    notice.hidden = !activeProfile || itemMatchesProfile(currentPage, activeProfile);
+  }
+
+  function applyDocumentationProfile(activeProfile) {
+    document.body.classList.toggle("documentation-profile-active", Boolean(activeProfile));
+    document.querySelectorAll("[data-documentation-profile-item]").forEach(function (item) {
+      var visible = itemMatchesProfile(item, activeProfile);
+      item.hidden = !visible;
+      item.classList.toggle("documentation-profile-hidden", !visible);
+    });
+    updateProfileSections(activeProfile);
+    updateCurrentPageProfileNotice(activeProfile);
+  }
+
+  function emitProfileChange(activeProfile) {
+    document.dispatchEvent(new CustomEvent("unaltraweb:documentationprofilechange", { detail: { profile: activeProfile } }));
+  }
+
+  function setupDocumentationProfiles() {
+    var container = document.querySelector("[data-documentation-profile-switcher]");
+    if (!container) {
+      applyDocumentationProfile("");
+      return;
+    }
+    var activeProfile = validActiveProfile(container);
+    syncProfileControls(container, activeProfile);
+    applyDocumentationProfile(activeProfile);
+
+    if (container.dataset.documentationProfilesReady) return;
+    container.dataset.documentationProfilesReady = "true";
+    container.addEventListener("change", function (event) {
+      var select = event.target.closest("[data-documentation-profile-select]");
+      if (!select) return;
+      activeProfile = normalizeProfileToken(select.value);
+      writeStoredProfile(activeProfile);
+      updateProfileUrl(activeProfile);
+      syncProfileControls(container, activeProfile);
+      applyDocumentationProfile(activeProfile);
+      emitProfileChange(activeProfile);
+    });
+  }
+
   function setupDocumentationTree() {
     document.querySelectorAll("[data-documentation-tree]").forEach(function (tree) {
       if (tree.dataset.documentationTreeReady) return;
@@ -137,8 +342,10 @@
         details.addEventListener("toggle", function () {
           stored[id] = details.open;
           localStorage.setItem(storageKey, JSON.stringify(stored));
+          scheduleDocumentationTreeSync();
         });
       });
+      scheduleDocumentationTreeSync();
     });
   }
 
@@ -212,6 +419,8 @@
     setupSidebarToggle();
     setupFontControls();
     updateThemeLabels();
+    setupDocumentationProfiles();
+    setupDocumentationTreeLineSync();
     setupDocumentationTree();
     setupPageToc();
   }

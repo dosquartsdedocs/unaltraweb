@@ -54,6 +54,17 @@ unaltraweb:
     logo: /assets/img/brand/dosquartsdedocs-logo.svg
     logo_inverse: /assets/img/brand/dosquartsdedocs-logo-white.svg
     logo_cafe: /assets/img/brand/dosquartsdedocs-logo.svg
+    profiles:
+      - id: github-publishers
+        label: GitHub publishers
+      - id: local-authors
+        label: Local authors
+      - id: site-designers
+        label: Site designers
+      - id: contributors
+        label: Contributors
+      - id: core-developers
+        label: Core developers
   figure_captions:
     enabled: true
     collections: [documentation]

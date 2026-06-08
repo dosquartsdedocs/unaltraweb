@@ -1,14 +1,20 @@
 ---
-title: Jekyll basics for child sites
+title: Jekyll Basics For Child Sites
 description: The minimum Jekyll concepts needed to edit an unaltraweb site safely.
 lang: en
 ref: jekyll_basics
-profiles: [unaltredocs]
-section: User guides
-weight: 40
-permalink: /jekyll-basics/
+profiles:
+- unaltredocs
+documentation_profiles:
+- local-authors
+- site-designers
+- contributors
+- core-developers
+section: Work Locally
+weight: 130
+permalink: "/jekyll-basics/"
+nav_title: Jekyll Basics
 ---
-
 `unaltraweb` sites are normal Jekyll sites with a reusable theme gem. You do not need to edit the theme to edit content.
 
 ## Front Matter

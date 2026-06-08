@@ -1,14 +1,21 @@
 ---
-title: Quick Start
+title: Choose Your unaltraweb Workflow
 description: Create and edit an unaltraweb site through GitHub or locally with Docker.
 lang: en
 ref: quick_start
-profiles: [unaltredocs]
-section: User guides
+profiles:
+- unaltredocs
+documentation_profiles:
+- github-publishers
+- local-authors
+- site-designers
+- contributors
+- core-developers
+section: Start Here
 weight: 10
-permalink: /quick-start/
+permalink: "/quick-start/"
+nav_title: Start Here
 ---
-
 <p class="lede">Start from <code>unaltraweb-template</code>. Use GitHub-only editing for content changes, or the local Docker workflow when you need previews, larger edits, screenshots or tests.</p>
 
 ## Choose A Path

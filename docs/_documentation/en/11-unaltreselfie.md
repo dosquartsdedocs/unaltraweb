@@ -1,14 +1,20 @@
 ---
-title: unaltreselfie profile
+title: Build A Personal Site With unaltreselfie
 description: Personal academic and professional sites.
 lang: en
 ref: profile_unaltreselfie
-profiles: [unaltredocs]
-section: Profiles
-weight: 110
-permalink: /profiles/unaltreselfie/
+profiles:
+- unaltredocs
+documentation_profiles:
+- github-publishers
+- local-authors
+- site-designers
+- contributors
+section: Build A Site
+weight: 230
+permalink: "/profiles/unaltreselfie/"
+nav_title: Personal Site
 ---
-
 Use `unaltreselfie` for a personal academic, researcher or professional website.
 
 ```yaml

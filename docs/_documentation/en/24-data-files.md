@@ -1,14 +1,20 @@
 ---
-title: Data files reference
+title: Data Files Reference
 description: Structured data files commonly used by unaltraweb child sites.
 lang: en
 ref: data_files_reference
-profiles: [unaltredocs]
-section: Standards
-weight: 240
-permalink: /data-files/
+profiles:
+- unaltredocs
+documentation_profiles:
+- local-authors
+- site-designers
+- contributors
+- core-developers
+section: Reference
+weight: 910
+permalink: "/data-files/"
+nav_title: Data Files
 ---
-
 Use `_data/` for structured content that should not live inside prose pages.
 
 | File | Typical use |

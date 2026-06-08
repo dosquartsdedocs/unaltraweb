@@ -225,6 +225,9 @@ documentation:
   in_this_section: En aquesta secció
   in_this_subsection: En aquesta subsecció
   on_this_page: En aquesta pàgina
+  profile: Perfil de documentació
+  profile_all: Tota la documentació
+  profile_page_notice: Aquesta pàgina queda fora del perfil de documentació actiu, però els enllaços directes continuen disponibles.
 
 manual:
   contents: Continguts

@@ -1,14 +1,20 @@
 ---
-title: Customization
+title: Customize A Child Site
 description: Local customization points for unaltraweb child sites.
 lang: en
 ref: customization
-profiles: [unaltredocs]
-section: Developers
-weight: 300
-permalink: /customization/
+profiles:
+- unaltredocs
+documentation_profiles:
+- local-authors
+- site-designers
+- contributors
+- core-developers
+section: Design And Customize
+weight: 330
+permalink: "/customization/"
+nav_title: Customization
 ---
-
 `unaltraweb` is intended to be customized from the site repository, not by editing the core theme files.
 
 ## Local Styles

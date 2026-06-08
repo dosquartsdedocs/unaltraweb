@@ -1,14 +1,21 @@
 ---
-title: Site Profiles
+title: Choose A Site Profile
 description: Prepared website families supported by unaltraweb.
 lang: en
 ref: site_profiles
-profiles: [unaltredocs]
-section: Profiles
-weight: 100
-permalink: /profiles/
+profiles:
+- unaltredocs
+documentation_profiles:
+- github-publishers
+- local-authors
+- site-designers
+- contributors
+- core-developers
+section: Build A Site
+weight: 220
+permalink: "/profiles/"
+nav_title: Site Profiles
 ---
-
 <p class="lede">A site profile is a high-level prepared website family. It is not a Jekyll layout or include. Profiles select the real build shape before Jekyll writes the site.</p>
 
 ```yaml

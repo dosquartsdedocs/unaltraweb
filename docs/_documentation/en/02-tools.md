@@ -1,14 +1,19 @@
 ---
-title: Tools And Requirements
+title: Tools For Local Work
 description: What users and maintainers need to work with unaltraweb.
 lang: en
 ref: tools_requirements
-profiles: [unaltredocs]
-section: User guides
-weight: 20
-permalink: /tools/
+profiles:
+- unaltredocs
+documentation_profiles:
+- local-authors
+- contributors
+- core-developers
+section: Work Locally
+weight: 110
+permalink: "/tools/"
+nav_title: Local Tools
 ---
-
 <p class="lede">Most site authors can choose between GitHub-only editing and a local Docker workflow. The local path is intentionally small: Git, Docker and Make.</p>
 
 ## User Paths

@@ -1,14 +1,21 @@
 ---
-title: FAQ
+title: Frequently Asked Questions
 description: Common questions about unaltraweb sites.
 lang: en
 ref: faq
-profiles: [unaltredocs]
-section: FAQs
-weight: 500
-permalink: /faq/
+profiles:
+- unaltredocs
+documentation_profiles:
+- github-publishers
+- local-authors
+- site-designers
+- contributors
+- core-developers
+section: Reference
+weight: 920
+permalink: "/faq/"
+nav_title: FAQ
 ---
-
 ## Do content editors need Docker?
 
 No. Small edits can be done in GitHub. Docker is for local preview, tests and larger edits.

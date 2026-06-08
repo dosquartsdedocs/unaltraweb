@@ -1,14 +1,20 @@
 ---
-title: Usage
+title: Run And Preview A Site
 description: How to create, edit, preview and publish unaltraweb sites.
 lang: en
 ref: usage_workflow
-profiles: [unaltredocs]
-section: User guides
-weight: 30
-permalink: /usage/
+profiles:
+- unaltredocs
+documentation_profiles:
+- local-authors
+- site-designers
+- contributors
+- core-developers
+section: Work Locally
+weight: 120
+permalink: "/usage/"
+nav_title: Run And Preview
 ---
-
 <p class="lede">An <code>unaltraweb</code> site should keep content and local choices in the child repository. Shared rendering, styles, plugins, scripts and workflows stay in the core.</p>
 
 ## Create A Site

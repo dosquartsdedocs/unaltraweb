@@ -1,14 +1,20 @@
 ---
-title: unaltreprojecte profile
+title: Build A Project Site With unaltreprojecte
 description: Research project and infrastructure sites.
 lang: en
 ref: profile_unaltreprojecte
-profiles: [unaltredocs]
-section: Profiles
-weight: 120
-permalink: /profiles/unaltreprojecte/
+profiles:
+- unaltredocs
+documentation_profiles:
+- github-publishers
+- local-authors
+- site-designers
+- contributors
+section: Build A Site
+weight: 240
+permalink: "/profiles/unaltreprojecte/"
+nav_title: Project Site
 ---
-
 Use `unaltreprojecte` for a funded project, lab infrastructure, consortium or research output site.
 
 ```yaml

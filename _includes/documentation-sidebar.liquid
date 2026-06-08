@@ -4,6 +4,11 @@
 {% assign documentation_toc_logo = documentation_config.toc_logo %}
 {% assign documentation_toc_logo_inverse = documentation_config.toc_logo_inverse | default: documentation_toc_logo %}
 {% assign documentation_toc_logo_cafe = documentation_config.toc_logo_cafe | default: documentation_config.toc_logo_sepia | default: documentation_toc_logo %}
+{% assign docs_profile_options = documentation_config['profiles'] %}
+{% assign docs_has_profile_options = false %}
+{% if docs_profile_options and docs_profile_options.size > 0 %}
+  {% assign docs_has_profile_options = true %}
+{% endif %}
 {% assign docs = include.docs %}
 {% assign home_candidates = site.pages | where: 'ref', 'home' | where: 'lang', current_lang %}
 {% assign docs_home = home_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
@@ -12,6 +17,8 @@
 {% endif %}
 {% capture docs_contents_text %}{% include t.liquid key='documentation.contents' default='Table of contents' %}{% endcapture %}
 {% capture docs_toggle_contents_text %}{% include t.liquid key='documentation.toggle_contents' default='Show or hide table of contents' %}{% endcapture %}
+{% capture docs_profile_text %}{% include t.liquid key='documentation.profile' default='Documentation profile' %}{% endcapture %}
+{% capture docs_profile_all_text %}{% include t.liquid key='documentation.profile_all' default='All documentation' %}{% endcapture %}
 
 <aside class="documentation-sidebar" aria-label="{{ docs_contents_text | strip }}">
   <button class="documentation-tool-button documentation-toc-toggle" type="button" data-documentation-sidebar-toggle aria-controls="documentation-nav" aria-expanded="true" title="{{ docs_toggle_contents_text | strip }}">
@@ -22,8 +29,8 @@
 
   <div class="documentation-sidebar-inner">
 
-    <nav id="documentation-nav" class="documentation-nav{% if documentation_toc_logo %} has-sidebar-logo{% endif %}" aria-label="{{ docs_contents_text | strip }}">
-      {% if documentation_toc_logo %}
+    <nav id="documentation-nav" class="documentation-nav{% if documentation_toc_logo and docs_has_profile_options == false %} has-sidebar-logo{% endif %}{% if docs_has_profile_options %} has-profile-selector{% endif %}" aria-label="{{ docs_contents_text | strip }}">
+      {% if documentation_toc_logo and docs_has_profile_options == false %}
         <div class="documentation-sidebar-brand" aria-hidden="true">
           <span class="documentation-sidebar-logo-stack">
             <img class="documentation-sidebar-logo documentation-sidebar-logo-light" src="{{ documentation_toc_logo | relative_url }}" alt="">
@@ -32,6 +39,24 @@
           </span>
         </div>
       {% endif %}
+
+      {% if docs_has_profile_options %}
+        <div class="documentation-nav-block documentation-profile-switcher" data-documentation-profile-switcher>
+          <label class="documentation-profile-label" for="documentation-profile-select">{{ docs_profile_text | strip }}</label>
+          <div class="documentation-profile-control">
+            <span class="documentation-profile-icon" aria-hidden="true"><i class="ti ti-users"></i></span>
+            <select id="documentation-profile-select" class="documentation-profile-select" data-documentation-profile-select>
+              <option value="">{{ docs_profile_all_text | strip }}</option>
+              {% for profile_option in docs_profile_options %}
+                {% assign docs_profile_id = profile_option['id'] | default: profile_option['profile'] | default: profile_option['label'] | slugify %}
+                {% assign docs_profile_label = profile_option['label'] | default: docs_profile_id %}
+                <option value="{{ docs_profile_id }}">{{ docs_profile_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      {% endif %}
+
       <div class="documentation-nav-block documentation-toc-heading-block">
         <p class="documentation-nav-block-title">{{ docs_contents_text | strip }}</p>
       </div>
@@ -66,13 +91,13 @@
                   {% if doc_subsection != '' %}
                     {% if doc_subsection != current_subsection %}
                       {% assign current_subsection = doc_subsection %}
-                      <a class="documentation-nav-link documentation-subsection-link level-2{% if page.section == doc_section and page.subsection == doc_subsection %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.section == doc_section and page.subsection == doc_subsection %} aria-current="location"{% endif %}>
+                      <a class="documentation-nav-link documentation-subsection-link level-2{% if page.section == doc_section and page.subsection == doc_subsection %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.section == doc_section and page.subsection == doc_subsection %} aria-current="location"{% endif %}{% include documentation-profile-attributes.liquid doc=doc %}>
                         {{ doc_subsection }}
                       </a>
                     {% endif %}
                   {% else %}
                     {% assign current_subsection = '' %}
-                    <a class="documentation-nav-link documentation-accordion-link level-2{% if page.url == doc.url %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.url == doc.url %} aria-current="page"{% endif %}>
+                    <a class="documentation-nav-link documentation-accordion-link level-2{% if page.url == doc.url %} active{% endif %}" href="{{ doc.url | relative_url }}"{% if page.url == doc.url %} aria-current="page"{% endif %}{% include documentation-profile-attributes.liquid doc=doc %}>
                       {{ doc.nav_title | default: doc.title }}
                     </a>
                   {% endif %}

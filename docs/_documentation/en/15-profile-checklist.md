@@ -1,14 +1,21 @@
 ---
-title: Profile feature checklist
+title: Check Profile Features Before Publishing
 description: What to check before choosing and publishing a profile.
 lang: en
 ref: profile_checklist
-profiles: [unaltredocs]
-section: Profiles
-weight: 150
-permalink: /profiles/checklist/
+profiles:
+- unaltredocs
+documentation_profiles:
+- github-publishers
+- local-authors
+- site-designers
+- contributors
+- core-developers
+section: Build A Site
+weight: 270
+permalink: "/profiles/checklist/"
+nav_title: Feature Checklist
 ---
-
 Before publishing a child site, check the profile contract rather than only the visual layout.
 
 ## Configuration

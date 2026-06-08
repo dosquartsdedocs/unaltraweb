@@ -72,7 +72,7 @@ layout: default
                 </header>
                 <div class="documentation-card-grid">
             {% endif %}
-                  <a class="documentation-card documentation-card--{{ section_slug }}" href="{{ doc.url | relative_url }}">
+                  <a class="documentation-card documentation-card--{{ section_slug }}" href="{{ doc.url | relative_url }}"{% include documentation-profile-attributes.liquid doc=doc %}>
                     {% if doc.subsection %}<span>{{ doc.subsection }}</span>{% endif %}
                     <strong>{{ doc.title }}</strong>
                     {% if doc.description %}<small>{{ doc.description }}</small>{% endif %}

@@ -1,14 +1,18 @@
 ---
-title: Bibliometric Metrics Pipeline
+title: Maintain The Metrics Pipeline
 description: Static bibliometric metrics workflow for unaltraweb sites.
 lang: en
 ref: bibliometrics
-profiles: [unaltredocs]
-section: Operations
-weight: 410
-permalink: /bibliometrics/
+profiles:
+- unaltredocs
+documentation_profiles:
+- contributors
+- core-developers
+section: Core Development
+weight: 630
+permalink: "/bibliometrics/"
+nav_title: Metrics Pipeline
 ---
-
 This project uses a data-first bibliometrics workflow:
 
 - metrics are fetched and written into BibTeX fields (`x_*` + `note`) in a pre-build step,

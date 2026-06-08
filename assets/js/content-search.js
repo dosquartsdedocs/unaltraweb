@@ -1,5 +1,7 @@
 (function () {
   var searchIndexPromises = {};
+  var DOCUMENTATION_PROFILE_STORAGE_KEY = "unaltrawebDocumentationProfile";
+  var DOCUMENTATION_PROFILE_PARAM = "doc_profile";
 
   function normalize(text) {
     return (text || "")
@@ -26,6 +28,36 @@
       }).catch(function () { return []; });
     }
     return searchIndexPromises[resolvedUrl];
+  }
+
+  function normalizeProfileToken(value) {
+    return (value || "").toString().trim().toLowerCase();
+  }
+
+  function readDocumentationProfile() {
+    var switcher = document.querySelector("[data-documentation-profile-switcher]");
+    if (!switcher) return "";
+    var params = new URLSearchParams(window.location.search);
+    var profile = params.has(DOCUMENTATION_PROFILE_PARAM)
+      ? normalizeProfileToken(params.get(DOCUMENTATION_PROFILE_PARAM))
+      : normalizeProfileToken(localStorage.getItem(DOCUMENTATION_PROFILE_STORAGE_KEY));
+    if (!profile) return "";
+    var hasProfileOption = Array.prototype.slice.call(switcher.querySelectorAll("[data-documentation-profile-select] option")).some(function (option) {
+      return normalizeProfileToken(option.value) === profile;
+    });
+    return hasProfileOption ? profile : "";
+  }
+
+  function documentationSearchProfileEnabled(input) {
+    var siteProfile = document.documentElement.getAttribute("data-site-profile") || "";
+    var url = input && input.dataset ? input.dataset.contentSearchUrl || "" : "";
+    return siteProfile === "unaltredocs" && url.indexOf("documentation-search-index") !== -1;
+  }
+
+  function entryMatchesDocumentationProfile(entry, activeProfile) {
+    if (!activeProfile) return true;
+    var profiles = entry && Array.isArray(entry.documentation_profile_slugs) ? entry.documentation_profile_slugs : [];
+    return profiles.length === 0 || profiles.indexOf(activeProfile) !== -1;
   }
 
   function excerpt(body, query) {
@@ -83,8 +115,10 @@
 
     var lang = (document.documentElement.getAttribute("lang") || "").toLowerCase();
     var needle = normalize(query);
+    var activeProfile = documentationSearchProfileEnabled(input) ? readDocumentationProfile() : "";
     var matches = entries.filter(function (entry) {
       if (entry.lang && lang && entry.lang.toLowerCase() !== lang) return false;
+      if (activeProfile && !entryMatchesDocumentationProfile(entry, activeProfile)) return false;
       return normalize([entry.title, entry.description, entry.keywords, entry.section, entry.subsection, entry.body].join(" ")).indexOf(needle) !== -1;
     }).slice(0, 12);
 
@@ -128,6 +162,15 @@
       };
       input.addEventListener("input", run);
       input.addEventListener("focus", run);
+    });
+  }
+
+  function rerenderSearchResults() {
+    document.querySelectorAll("[data-content-search]").forEach(function (input) {
+      if (!input.dataset.contentSearchReady) return;
+      var query = input.value;
+      if (!query || query.trim().length < 2) return;
+      loadSearchIndex(input.dataset.contentSearchUrl).then(function (entries) { renderSearchResults(input, entries, query); });
     });
   }
 
@@ -176,4 +219,5 @@
     enhanceContentSearch();
   }
   document.addEventListener("unaltraweb:contentchange", enhanceContentSearch);
+  document.addEventListener("unaltraweb:documentationprofilechange", rerenderSearchResults);
 })();

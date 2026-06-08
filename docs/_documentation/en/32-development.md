@@ -1,14 +1,18 @@
 ---
-title: Development
+title: Develop The Core
 description: Safe development and verification workflow for unaltraweb.
 lang: en
 ref: development_workflow
-profiles: [unaltredocs]
-section: Developers
-weight: 320
-permalink: /development/
+profiles:
+- unaltredocs
+documentation_profiles:
+- contributors
+- core-developers
+section: Core Development
+weight: 610
+permalink: "/development/"
+nav_title: Core Development
 ---
-
 <p class="lede">Validate core changes in layers. Use lightweight checks while editing, then run heavier Docker or Playwright checks only when the machine can handle them.</p>
 
 ## Lightweight Checks

@@ -1,14 +1,20 @@
 ---
-title: Content Syntax
+title: Write Content With Markdown Extensions
 description: unaltraweb syntax beyond standard Markdown.
 lang: en
 ref: content_syntax
-profiles: [unaltredocs]
-section: Standards
-weight: 200
-permalink: /syntax/
+profiles:
+- unaltredocs
+documentation_profiles:
+- github-publishers
+- local-authors
+- site-designers
+- contributors
+section: Design And Customize
+weight: 310
+permalink: "/syntax/"
+nav_title: Markdown Extensions
 ---
-
 <p class="lede"><code>unaltraweb</code> keeps ordinary Markdown readable, then adds a small set of conventions for profiles, callouts, figures, diagrams, cards and static academic data.</p>
 
 ## Profile And Feature Front Matter
@@ -212,6 +218,7 @@ title: Installation
 section: Getting Started
 subsection: Local workflow
 weight: 20
+documentation_profiles: [local-authors]
 ---
 ```
 

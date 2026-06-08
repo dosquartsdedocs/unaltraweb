@@ -1,14 +1,21 @@
 ---
-title: Pages, collections and navigation
+title: Create Pages, Collections, And Navigation
 description: How editable content becomes navigation and rendered pages.
 lang: en
 ref: pages_collections_navigation
-profiles: [unaltredocs]
-section: User guides
-weight: 50
-permalink: /pages-collections-navigation/
+profiles:
+- unaltredocs
+documentation_profiles:
+- github-publishers
+- local-authors
+- site-designers
+- contributors
+- core-developers
+section: Build A Site
+weight: 210
+permalink: "/pages-collections-navigation/"
+nav_title: Pages And Navigation
 ---
-
 Child sites keep navigation pages in `_pages/` and structured entries in collections.
 
 ## Navigation Pages

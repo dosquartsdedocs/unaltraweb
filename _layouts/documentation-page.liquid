@@ -10,6 +10,8 @@ layout: default
 {% if documentation_docs.size == 0 and current_lang != site.default_lang %}
   {% assign documentation_docs = documentation_collection | where: 'lang', site.default_lang | where_exp: 'doc', 'doc.profiles == nil or doc.profiles contains current_profile' | sort: 'weight' %}
 {% endif %}
+{% assign documentation_previous_next = documentation_config.previous_next | default: false %}
+{% capture documentation_profile_notice_text %}{% include t.liquid key='documentation.profile_page_notice' default='This page is outside the active documentation profile, but direct links remain available.' %}{% endcapture %}
 <script>
   window.unaltrawebContentSearchUrl = {{ '/assets/js/documentation-search-index.json' | relative_url | jsonify }};
   window.unaltrawebContentSearchTarget = ".documentation-content";
@@ -19,7 +21,7 @@ layout: default
   {% include documentation-sidebar.liquid docs=documentation_docs %}
   {% include documentation-section-toc.liquid docs=documentation_docs section=page.section %}
 
-  <article class="documentation-main documentation-page">
+  <article class="documentation-main documentation-page" data-documentation-current-page{% include documentation-profile-attributes.liquid doc=page item=false %}>
     <header class="documentation-page-header">
       {% if page.section %}
         <nav class="documentation-breadcrumb" aria-label="Documentation location">
@@ -29,12 +31,15 @@ layout: default
       {% endif %}
       <h1>{{ page.title }}</h1>
       {% if page.description %}<p class="documentation-subtitle">{{ page.description }}</p>{% endif %}
+      <div class="documentation-profile-notice" data-documentation-profile-notice hidden>{{ documentation_profile_notice_text | strip }}</div>
     </header>
 
     <div class="documentation-content">
       {{ content }}
     </div>
 
-    {% include previous-next.liquid items=documentation_docs class='documentation-page-nav' aria_label='Documentation navigation' %}
+    {% if documentation_previous_next %}
+      {% include previous-next.liquid items=documentation_docs class='documentation-page-nav' aria_label='Documentation navigation' %}
+    {% endif %}
   </article>
 </div>

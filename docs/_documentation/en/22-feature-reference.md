@@ -3,12 +3,17 @@ title: Feature Reference
 description: Map of reusable unaltraweb features, syntax and examples.
 lang: en
 ref: feature_reference
-profiles: [unaltredocs]
-section: Standards
-weight: 220
-permalink: /features/
+profiles:
+- unaltredocs
+documentation_profiles:
+- site-designers
+- contributors
+- core-developers
+section: Design And Customize
+weight: 340
+permalink: "/features/"
+nav_title: Feature Reference
 ---
-
 <p class="lede">This page maps reusable <code>unaltraweb</code> features to the documentation pages and template examples that demonstrate them.</p>
 
 The companion `unaltraweb-template` repository contains full-profile demos because it exercises the core as a real child site. This site is the `unaltraweb` reference: it explains the platform and shows the syntax users should copy.

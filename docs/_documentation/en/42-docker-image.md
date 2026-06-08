@@ -1,14 +1,18 @@
 ---
-title: Docker image
+title: Use The Docker Image
 description: Runtime image used by local unaltraweb workflows.
 lang: en
 ref: docker_image
-profiles: [unaltredocs]
-section: Operations
-weight: 420
-permalink: /docker-image/
+profiles:
+- unaltredocs
+documentation_profiles:
+- local-authors
+- core-developers
+section: Work Locally
+weight: 140
+permalink: "/docker-image/"
+nav_title: Docker Image
 ---
-
 The shared image is published from the core repository:
 
 ```text

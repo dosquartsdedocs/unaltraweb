@@ -1,14 +1,19 @@
 ---
-title: Themes
+title: Theme And Visual Design
 description: Theme modes, local style overrides and JavaScript integration in unaltraweb.
 lang: en
 ref: theme_modes
-profiles: [unaltredocs]
-section: Standards
-weight: 210
-permalink: /themes/
+profiles:
+- unaltredocs
+documentation_profiles:
+- local-authors
+- site-designers
+- contributors
+section: Design And Customize
+weight: 320
+permalink: "/themes/"
+nav_title: Themes
 ---
-
 <p class="lede"><code>unaltraweb</code> supports system, light, coffee and dark theme settings. The modes are part of the user interface and are covered by the template render smoke tests.</p>
 
 ## Modes

@@ -75,6 +75,7 @@ module Unaltraweb
       if manual_bibliography_page?(item)
         body = "#{body}\n\n#{manual_bibliography_text(site, item.data["lang"].to_s)}"
       end
+      documentation_profiles = metadata_values(item, "documentation_profiles")
 
       {
         title: item.data["title"].to_s,
@@ -84,8 +85,17 @@ module Unaltraweb
         section: item.data["section"].to_s,
         subsection: item.data["subsection"].to_s,
         keywords: Array(item.data["keywords"] || item.data["tags"]).join(" "),
+        documentation_profiles: documentation_profiles,
+        documentation_profile_slugs: documentation_profiles.map { |value| Jekyll::Utils.slugify(value) },
         body: normalize_text(body),
       }
+    end
+
+    def metadata_values(item, *keys)
+      keys.flat_map { |key| Array(item.data[key]) }
+          .map { |value| value.to_s.strip }
+          .reject(&:empty?)
+          .uniq
     end
 
     def manual_bibliography_page?(item)

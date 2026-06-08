@@ -1,14 +1,17 @@
 ---
-title: Distribution Model
+title: Understand The Distribution Model
 description: Core/template split and update model for unaltraweb.
 lang: en
 ref: distribution_model
-profiles: [unaltredocs]
-section: Operations
-weight: 400
-permalink: /distribution/
+profiles:
+- unaltredocs
+documentation_profiles:
+- core-developers
+section: Core Development
+weight: 620
+permalink: "/distribution/"
+nav_title: Distribution Model
 ---
-
 `unaltraweb` is the source of truth for reusable code. Template repositories should stay thin and contain only site-specific content, local overrides and small integration files.
 
 ## Repository Roles

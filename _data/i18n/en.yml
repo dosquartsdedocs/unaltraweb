@@ -225,6 +225,9 @@ documentation:
   in_this_section: In this section
   in_this_subsection: In this subsection
   on_this_page: On this page
+  profile: Documentation profile
+  profile_all: All documentation
+  profile_page_notice: This page is outside the active documentation profile, but direct links remain available.
 
 manual:
   contents: Contents

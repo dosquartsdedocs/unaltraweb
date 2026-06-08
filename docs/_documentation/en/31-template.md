@@ -1,14 +1,19 @@
 ---
-title: Template Role
+title: Understand Core And Template Roles
 description: Why unaltraweb-template is the primary integration demo.
 lang: en
 ref: template_role
-profiles: [unaltredocs]
-section: Developers
-weight: 310
-permalink: /template/
+profiles:
+- unaltredocs
+documentation_profiles:
+- local-authors
+- contributors
+- core-developers
+section: Contribute
+weight: 510
+permalink: "/template/"
+nav_title: Core And Template
 ---
-
 <p class="lede"><code>unaltraweb-template</code> is the starter repository and integration fixture. It should stay thin, but it is the best place to prove that the gem works for real child sites.</p>
 
 ## Why The Template Matters
