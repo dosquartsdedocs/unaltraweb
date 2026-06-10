@@ -22,7 +22,7 @@
       {% if download_summary %}<p class="documentation-download-detail-summary">{{ download_summary }}</p>{% endif %}
 
       {% if download_platform or download_version or download_format or download_asset %}
-        <dl class="documentation-download-detail-meta">
+        <dl class="documentation-download-detail-meta" aria-label="Package details">
           {% if download_platform %}
             <div>
               <dt>Platform</dt>
@@ -43,7 +43,7 @@
           {% endif %}
           {% if download_asset %}
             <div>
-              <dt>Asset</dt>
+              <dt>Package</dt>
               <dd>{{ download_asset }}</dd>
             </div>
           {% endif %}
