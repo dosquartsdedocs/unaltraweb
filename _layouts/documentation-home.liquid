@@ -29,11 +29,23 @@ layout: default
         {% if page.description %}<p class="documentation-subtitle">{{ page.description }}</p>{% endif %}
         {% assign documentation_hero_cta_label = page.hero.cta_label | default: page.hero_cta_label %}
         {% assign documentation_hero_cta_url = page.hero.cta_url | default: page.hero_cta_url %}
-        {% if documentation_hero_cta_label and documentation_hero_cta_url %}
-          <a class="documentation-hero-cta" href="{% if documentation_hero_cta_url contains '://' %}{{ documentation_hero_cta_url }}{% else %}{{ documentation_hero_cta_url | relative_url }}{% endif %}">
-            {{ documentation_hero_cta_label }}
-            <i class="ti ti-arrow-right" aria-hidden="true"></i>
-          </a>
+        {% assign documentation_hero_secondary_cta_label = page.hero.secondary_cta_label | default: page.hero_secondary_cta_label %}
+        {% assign documentation_hero_secondary_cta_url = page.hero.secondary_cta_url | default: page.hero_secondary_cta_url %}
+        {% if documentation_hero_cta_label and documentation_hero_cta_url or documentation_hero_secondary_cta_label and documentation_hero_secondary_cta_url %}
+          <div class="documentation-hero-actions">
+            {% if documentation_hero_cta_label and documentation_hero_cta_url %}
+              <a class="documentation-hero-cta" href="{% if documentation_hero_cta_url contains '://' %}{{ documentation_hero_cta_url }}{% else %}{{ documentation_hero_cta_url | relative_url }}{% endif %}">
+                {{ documentation_hero_cta_label }}
+                <i class="ti ti-arrow-right" aria-hidden="true"></i>
+              </a>
+            {% endif %}
+            {% if documentation_hero_secondary_cta_label and documentation_hero_secondary_cta_url %}
+              <a class="documentation-hero-cta documentation-hero-cta--secondary" href="{% if documentation_hero_secondary_cta_url contains '://' %}{{ documentation_hero_secondary_cta_url }}{% else %}{{ documentation_hero_secondary_cta_url | relative_url }}{% endif %}">
+                <i class="ti ti-download" aria-hidden="true"></i>
+                {{ documentation_hero_secondary_cta_label }}
+              </a>
+            {% endif %}
+          </div>
         {% endif %}
       </div>
       {% assign documentation_hero_image = page.hero.image | default: page.hero_image %}

@@ -1048,6 +1048,16 @@ html[data-theme="dark"] .md-table {
   height: auto;
 }
 
+.md-figure-inner:has(img.printable-page) {
+  border-color: color-mix(in srgb, #cbd5e1 88%, transparent);
+  background: #fff;
+}
+
+.md-figure img.printable-page {
+  background: #fff;
+  color: #111;
+}
+
 .md-figcaption {
   margin-bottom: 0.55rem;
   color: var(--global-text-color-light);
