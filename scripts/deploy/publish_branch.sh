@@ -77,4 +77,4 @@ if is_true "$PUBLISH_DRY_RUN" || is_true "$PUBLISH_PREPARE_ONLY"; then
   exit 0
 fi
 
-git -C "$worktree_abs" push --force "$PUBLISH_REMOTE" "HEAD:$PUBLISH_BRANCH"
+git -C "$worktree_abs" push --force "$PUBLISH_REMOTE" "HEAD:refs/heads/$PUBLISH_BRANCH"
