@@ -23,6 +23,8 @@ It provides the runtime environment: Ruby, Bundler, Jekyll system dependencies, 
 
 The image is not the source of layouts and styles. Those come from the `unaltraweb` gem in the child site's `Gemfile`.
 
+The GHCR package is kept because it makes the local Docker workflow cheap and repeatable. Publishing the image is manual: run `.github/workflows/docker-image.yml` only when runtime dependencies change. The workflow publishes `main`/`latest` from the default branch and release tags from tag refs; it does not publish per-commit SHA tags by default.
+
 During local core development, use the locally built image:
 
 ```bash

@@ -26,18 +26,19 @@ Use these for documentation-only changes or before deciding whether a heavier bu
 
 ## Docs Deploy
 
-The core repository publishes the `unaltraweb` reference site from `docs/` with `.github/workflows/deploy.yml` and GitHub Pages Actions. This workflow does not need Node/npm and does not build the full inherited core demo site.
+The core repository can publish the `unaltraweb` reference site from `docs/` with the manual `.github/workflows/deploy.yml` workflow and GitHub Pages Actions. This workflow does not need Node/npm and does not build the full inherited core demo site.
 
 The reference site is a real child site of the local `unaltraweb` gem. It uses `theme: unaltraweb`, the shared layouts/includes/Sass, and `unaltraweb.site_profile: unaltredocs`.
 
 ```bash
 make docs-serve DOCKER_IMAGE=unaltraweb:local
 make docs-build DOCKER_IMAGE=unaltraweb:local
+make docs-publish DOCKER_IMAGE=unaltraweb:local
 ```
 
 After the published Docker image is available, omit `DOCKER_IMAGE=unaltraweb:local`.
 
-Automatic CI is intentionally scoped to docs/web publication and local link checking. CodeQL remains available as a manual workflow.
+Docs deploys, link checks, Docker image publishing and CodeQL are intentionally manual to avoid consuming Actions minutes on every push.
 
 ## Core Build
 
@@ -56,7 +57,7 @@ docker compose -f docker-compose.yml down --remove-orphans
 
 This can be resource-heavy because the inherited demo build minifies JavaScript and can generate many responsive WebP images.
 
-The same Dockerfile is published to GHCR as `ghcr.io/dosquartsdedocs/unaltraweb:main` by `.github/workflows/docker-image.yml`. Template repositories use that image as their default local runtime, while the `unaltraweb` gem remains the source of theme files and plugins.
+The same Dockerfile is published to GHCR as `ghcr.io/dosquartsdedocs/unaltraweb:main` by the manual `.github/workflows/docker-image.yml` workflow. Template repositories use that image as their default local runtime, while the `unaltraweb` gem remains the source of theme files and plugins.
 
 The root core build excludes `docs/`. The reference site is published from the `docs/` folder through a dedicated workflow so its root-relative permalinks do not collide with the inherited core demo build.
 

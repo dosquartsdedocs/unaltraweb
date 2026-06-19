@@ -23,7 +23,8 @@ nav_title: Run And Preview
 2. Edit `_config.yml`.
 3. Choose one `unaltraweb.site_profile`.
 4. Edit content and data files.
-5. Commit to `main` and let GitHub Actions deploy.
+5. Commit to `main`.
+6. Publish locally with `make publish`, or run the manual GitHub deploy workflow when local publishing is not possible.
 
 Minimal profile selection:
 
@@ -67,6 +68,7 @@ assets/img/local-brand.svg
 ```bash
 make serve
 make build
+make publish
 make test
 ```
 
@@ -86,11 +88,11 @@ make serve-allprofiles
 ## Update Model
 
 - Gem updates change layouts, includes, Sass, plugins and scripts.
-- Docker image updates change local runtime dependencies.
-- Reusable workflow updates change GitHub build and deploy behavior.
+- Docker image updates change local runtime dependencies and are published manually.
+- Reusable workflow updates change optional GitHub build and deploy behavior.
 - Template changes affect new sites, but existing GitHub-template repositories do not automatically inherit scaffold changes.
 
-Dependabot should stay enabled for Bundler and GitHub Actions in child sites.
+Dependabot can stay enabled for Bundler and GitHub Actions in child sites, but deploy workflows should remain manual so dependency pull requests do not consume deploy minutes automatically.
 
 ## Content-Only Work
 
@@ -102,4 +104,4 @@ The GitHub web UI is enough for common edits:
 - update a team member in `_data/`;
 - change profile feature flags in `_config.yml`.
 
-Use local Docker when you need to inspect the rendered result before committing.
+Use local Docker when you need to inspect the rendered result before committing or publish the generated site to `gh-pages`.

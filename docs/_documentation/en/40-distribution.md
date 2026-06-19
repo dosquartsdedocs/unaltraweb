@@ -26,7 +26,7 @@ The template is the better place to validate gem consumption, centralized styles
 
 ### GitHub-only editing
 
-Users can create a site from `dosquartsdedocs/unaltraweb-template`, edit content in the GitHub web UI and let GitHub Actions build and publish the site.
+Users can create a site from `dosquartsdedocs/unaltraweb-template`, edit content in the GitHub web UI and run the manual deploy workflow when the site should be published.
 
 This path is intended for small content edits, bibliography updates, course/manual chapter edits and configuration changes. It does not require Docker, Make or a local development environment.
 
@@ -37,6 +37,7 @@ Users who need larger edits can clone their generated site repository and use th
 ```bash
 make serve
 make build
+make publish
 make test
 ```
 
@@ -58,9 +59,9 @@ make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreprojecte
 
 ## Core Docs Publishing
 
-The core repository deploy workflow builds only `docs/` and publishes it with GitHub Pages Actions. The root core Jekyll build excludes `docs/`, so the reference site can use its own root-relative permalinks without colliding with the internal core demo build.
+The core repository deploy workflow is manual. It builds only `docs/` and publishes it with GitHub Pages Actions. The root core Jekyll build excludes `docs/`, so the reference site can use its own root-relative permalinks without colliding with the internal core demo build.
 
-Automatic CI is limited to docs/web publication and a local docs link check. Publication metrics run manually from GitHub or locally, and CodeQL is available as a manual workflow.
+Deploys, link checks, Docker image publishing, publication metrics and CodeQL run manually from GitHub or locally.
 
 ## Updates
 
@@ -69,13 +70,13 @@ Repositories created from a GitHub template are not linked to the template as fo
 For that reason:
 
 - normal improvements should ship through the `unaltraweb` gem or reusable workflows;
-- site repositories should enable Dependabot for Bundler and GitHub Actions;
+- site repositories can enable Dependabot for Bundler and GitHub Actions, but deploy workflows should remain manual;
 - breaking changes should be released with migration notes;
 - scaffold changes should be rare and, when needed, delivered as explicit pull requests or a future `unaltraweb sync` command.
 
 ## Docker Runtime
 
-The shared runtime image is published from the core repository as `ghcr.io/dosquartsdedocs/unaltraweb:main` and `ghcr.io/dosquartsdedocs/unaltraweb:latest` on pushes to `main`, plus tag and SHA variants. It carries Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local builds. The GHCR package must be public before unauthenticated template users can pull it.
+The shared runtime image is published from the core repository as `ghcr.io/dosquartsdedocs/unaltraweb:main` and `ghcr.io/dosquartsdedocs/unaltraweb:latest` by the manual Docker image workflow. Release tags are available when the workflow is run from a `v*` tag. The workflow avoids default SHA image tags and does not write a GitHub Actions build cache. The image carries Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local builds. The GHCR package must be public before unauthenticated template users can pull it.
 
 The image is not the source of layouts or styles. Child sites still get those from the `unaltraweb` gem declared in their `Gemfile`. This keeps updates centralized in two places:
 
@@ -84,7 +85,7 @@ The image is not the source of layouts or styles. Child sites still get those fr
 
 Before recommending the local Docker workflow to unauthenticated users, complete this first-publish checklist:
 
-- Push the core workflow to `main` and let `.github/workflows/docker-image.yml` publish the image.
+- Run the manual `.github/workflows/docker-image.yml` workflow from `main` to publish the image.
 - Open the `ghcr.io/dosquartsdedocs/unaltraweb` package settings in GitHub.
 - Make the package public.
 - Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb:main` works without `docker login`.

@@ -45,8 +45,8 @@ unaltraweb:
 
 Use `dosquartsdedocs/unaltraweb-template` to create child sites. There are two supported user paths:
 
-- GitHub-only editing for small content changes, bibliography updates, page edits and simple configuration changes.
-- Local Docker editing for previews, larger edits, screenshots and tests.
+- Local Docker editing for previews, larger edits, screenshots, tests and low-cost publishing to `gh-pages`.
+- GitHub-only editing for small content changes, bibliography updates, page edits and simple configuration changes, followed by an explicit manual workflow run when GitHub Pages must publish the site.
 
 Local editing is intended to require only Git, Docker and GNU Make. On Windows, use WSL2 with Docker Desktop and run `make` commands inside the WSL Linux shell.
 
@@ -77,6 +77,8 @@ make docs-build DOCKER_IMAGE=unaltraweb:local
 ```
 
 The published runtime image is `ghcr.io/dosquartsdedocs/unaltraweb:main`. It replaces the inherited `al-folio` image for local template workflows while the gem remains the source of the theme code.
+
+The GHCR image is a shared runtime, not the source of the theme. Publish it only through the manual Docker image workflow when runtime dependencies change.
 
 When running the core and the template profiles together, keep `unaltraweb` on port `4000` and the template profile servers on `4001` through `4004`.
 
@@ -120,11 +122,25 @@ The manual metrics workflow keeps Scimago caches and temporary diagnostics out o
 
 ## Publishing Docs
 
-The core repository deploys the `unaltraweb` reference site from `docs/` through `.github/workflows/deploy.yml`. Configure GitHub Pages for GitHub Actions deployments in the repository settings.
+The core repository can deploy the `unaltraweb` reference site from `docs/` through the manual `.github/workflows/deploy.yml` workflow. Configure GitHub Pages for GitHub Actions deployments when using that route.
+
+It can also publish the reference site locally to `gh-pages`:
+
+```bash
+make docs-publish
+```
+
+Child sites should prefer local publishing when possible:
+
+```bash
+make publish
+```
+
+That builds locally and pushes the generated site to the replaceable `gh-pages` branch.
 
 ## CI Scope
 
-Automatic CI is intentionally limited to the web/docs path and its local link check. Publication metrics run through the manual/reusable `.github/workflows/metrics-update.yml` workflow or local commands. CodeQL is kept as an optional manual workflow.
+Build, deploy, link-check, Docker image, publication metrics and CodeQL workflows are intentionally manual. Publication metrics run through the manual/reusable `.github/workflows/metrics-update.yml` workflow or local commands.
 
 ## Attribution
 

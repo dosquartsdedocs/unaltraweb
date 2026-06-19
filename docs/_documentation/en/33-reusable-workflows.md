@@ -16,6 +16,8 @@ nav_title: GitHub Workflows
 ---
 Child sites should keep workflow files thin and call reusable workflows from the core repository.
 
+These wrappers should normally be manual-only. Use `workflow_dispatch` so a push or Dependabot pull request does not start a deploy unless someone explicitly asks for it.
+
 ## Site deploy
 
 ```yaml
@@ -25,6 +27,8 @@ jobs:
 ```
 
 The reusable workflow checks out the site, installs Ruby dependencies, builds with the `unaltraweb` gem config and deploys to GitHub Pages.
+
+For lower-cost publishing, prefer the template's local `make publish` target and configure GitHub Pages to serve the generated `gh-pages` branch.
 
 ## Publication metrics
 

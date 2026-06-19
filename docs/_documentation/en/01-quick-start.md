@@ -16,12 +16,12 @@ weight: 10
 permalink: "/quick-start/"
 nav_title: Start Here
 ---
-<p class="lede">Start from <code>unaltraweb-template</code>. Use GitHub-only editing for content changes, or the local Docker workflow when you need previews, larger edits, screenshots or tests.</p>
+<p class="lede">Start from <code>unaltraweb-template</code>. Prefer the local Docker workflow for previews, checks and low-cost publishing. Use GitHub-only editing when contributors cannot work locally, then publish with an explicit manual workflow run.</p>
 
 ## Choose A Path
 
-- **GitHub-only**: no local setup. Good for editing pages, posts, bibliography records, project data and small configuration changes.
-- **Local Docker**: requires Git, Docker and Make. Good for previewing the site, trying profiles, larger edits and local validation.
+- **Local Docker**: requires Git, Docker and Make. Good for previewing the site, trying profiles, larger edits, validation and publishing to `gh-pages`.
+- **GitHub-only**: no local setup. Good for editing pages, posts, bibliography records, project data and small configuration changes; deployment is manual.
 
 ## GitHub-only Editing
 
@@ -29,8 +29,8 @@ nav_title: Start Here
 2. Edit `_config.yml` in GitHub.
 3. Set `url`, `baseurl`, title, languages and `unaltraweb.site_profile`.
 4. Edit content files in `_pages/`, `_posts/`, `_projects/`, `_chapters/`, `_bibliography/`, `_data/` and `assets/`.
-5. Push or commit to `main`.
-6. Let GitHub Actions build and deploy the site.
+5. Commit to `main`.
+6. Run the manual deploy workflow when the site should be published.
 
 This path is enough for small content updates such as adding a bibliography entry, editing a page, updating project data or correcting text.
 
@@ -51,6 +51,7 @@ Use these commands during normal local work:
 ```bash
 make serve
 make build
+make publish
 make test
 make down
 ```
