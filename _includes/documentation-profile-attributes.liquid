@@ -1,4 +1,0 @@
-{% assign documentation_profile_doc = include.doc %}
-{% assign documentation_profile_values = documentation_profile_doc.documentation_profiles %}
-{% unless include.item == false %} data-documentation-profile-item{% endunless %}
- data-documentation-profiles="{% if documentation_profile_values %}{% for value in documentation_profile_values %}{{ value | slugify }}{% unless forloop.last %},{% endunless %}{% endfor %}{% endif %}"

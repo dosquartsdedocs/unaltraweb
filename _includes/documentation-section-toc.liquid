@@ -1,9 +1,0 @@
-{% capture docs_page_toc_text %}{% include t.liquid key='documentation.on_this_page' default='On this page' %}{% endcapture %}
-<aside class="documentation-section-toc" data-documentation-page-toc-container hidden aria-label="{{ docs_page_toc_text | strip | escape }}">
-  <div class="documentation-section-toc-inner">
-    <p class="documentation-section-toc-heading">{{ docs_page_toc_text | strip }}</p>
-    <nav class="documentation-section-toc-nav" aria-label="{{ docs_page_toc_text | strip | escape }}">
-      <ol class="documentation-section-toc-list" data-documentation-page-toc></ol>
-    </nav>
-  </div>
-</aside>

@@ -1,0 +1,857 @@
+<!DOCTYPE html> <html lang="en" data-site-profile="unaltredocs"> <head> <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"> <meta charset="utf-8"> <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"> <meta http-equiv="X-UA-Compatible" content="IE=edge"> <title> Customize A Child Site | unaltraweb </title> <meta name="author" content=" "> <meta name="description" content="Local customization points for unaltraweb child sites."> <meta name="keywords" content="jekyll, jekyll-theme, academic-website, portfolio-website"> <link rel="alternate" hreflang="en" href="https://dosquartsdedocs.github.io/unaltraweb/customization/"> <link rel="alternate" hreflang="x-default" href="https://dosquartsdedocs.github.io/unaltraweb/customization/"> <link rel="stylesheet" href="/unaltraweb/assets/css/bootstrap.min.css"> <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mdbootstrap@4.20.0/css/mdb.min.css" integrity="sha256-jpjYvU3G3N6nrrBwXJoVEYI/0zw8htfFnhT9ljN3JJw=" crossorigin="anonymous"> <link defer rel="stylesheet" href="/unaltraweb/assets/css/academicons.min.css"> <link defer rel="stylesheet" href="/unaltraweb/assets/css/scholar-icons.css"> <link defer rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Roboto+Slab:100,300,400,500,700|Material+Icons&amp;display=swap"> <link defer rel="stylesheet" href="/unaltraweb/assets/css/jekyll-pygments-themes-github.css" media="" id="highlight_theme_light"> <link rel="shortcut icon" href="/unaltraweb/assets/img/brand/dosquartsdedocs-logo-white.svg?v=1fdc6f318edf30e3ba291dd0bf7f2ec4"> <link rel="stylesheet" href="/unaltraweb/assets/css/main.css?v=ad07c703e82f3c9577af883306af3264"> <link rel="canonical" href="https://dosquartsdedocs.github.io/unaltraweb/customization/"> <script src="/unaltraweb/assets/js/theme.js?v=55e41c63cc4c5065d572924f543de76c"></script> <link defer rel="stylesheet" href="/unaltraweb/assets/css/jekyll-pygments-themes-native.css" media="none" id="highlight_theme_dark"> <script>
+    initTheme();
+  </script> </head> <body class="site-profile-unaltredocs fixed-top-nav "> <header> <nav id="navbar" class="navbar navbar-light navbar-expand-sm fixed-top" role="navigation"> <div class="container"> <a class="navbar-brand title font-weight-lighter" href="/unaltraweb/"> <span class="documentation-navbar-logo-stack" aria-hidden="true"> <img class="navbar-brand-logo documentation-navbar-logo documentation-navbar-logo-light" src="/unaltraweb/assets/img/brand/dosquartsdedocs-logo.svg" alt=""> <img class="navbar-brand-logo documentation-navbar-logo documentation-navbar-logo-dark" src="/unaltraweb/assets/img/brand/dosquartsdedocs-logo-white.svg" alt=""> <img class="navbar-brand-logo documentation-navbar-logo documentation-navbar-logo-cafe" src="/unaltraweb/assets/img/brand/dosquartsdedocs-logo.svg" alt=""> </span> <span class="documentation-navbar-title">unaltraweb</span> </a> <button class="navbar-toggler collapsed ml-auto documentation-navbar-toc-toggle" type="button" data-documentation-sidebar-toggle aria-controls="documentation-nav" aria-expanded="false" aria-label="Show or hide table of contents"> <span class="sr-only">Show or hide table of contents</span> <span class="icon-bar top-bar"></span> <span class="icon-bar middle-bar"></span> <span class="icon-bar bottom-bar"></span> </button> <div class="collapse navbar-collapse text-right" id="navbarNav"> <ul class="navbar-nav ml-auto flex-nowrap"> <li class="nav-item documentation-navbar-search" role="search" data-content-search-box> <label class="sr-only" for="documentation-navbar-search-input">Search documentation</label> <span class="documentation-navbar-search-icon" aria-hidden="true"><i class="ti ti-search"></i></span> <input id="documentation-navbar-search-input" class="documentation-search-input" type="search" data-content-search data-content-search-url="/unaltraweb/assets/js/documentation-search-index.json" data-content-search-target=".documentation-content" data-content-search-empty="No results" placeholder="Search documentation" autocomplete="off"> <div class="documentation-search-results" data-content-search-results data-content-search-empty="No results" hidden> <h2>Search results</h2> <ol data-content-search-list></ol> </div> </li> <li class="nav-item dropdown documentation-font-nav documentation-font-dropdown"> <a class="nav-link dropdown-toggle documentation-font-nav-toggle" href="#" id="documentationFontDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Text size"> <span aria-hidden="true">A</span> <span class="sr-only">Text size</span> </a> <div class="dropdown-menu dropdown-menu-right documentation-font-menu" aria-labelledby="documentationFontDropdown"> <button class="dropdown-item documentation-font-menu-item" type="button" data-documentation-font="decrease">A- <span>Decrease text size</span></button> <button class="dropdown-item documentation-font-menu-item" type="button" data-documentation-font="reset">A <span>Reset text size</span></button> <button class="dropdown-item documentation-font-menu-item" type="button" data-documentation-font="increase">A+ <span>Increase text size</span></button> </div> </li> <li class="nav-item dropdown"> <a class="nav-link dropdown-toggle" href="#" id="navbarLangDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Language"> <span aria-hidden="true">🇬🇧</span> <span class="sr-only">Language: EN</span> </a> <div class="dropdown-menu dropdown-menu-right" aria-labelledby="navbarLangDropdown"> <a class="dropdown-item active" href="/unaltraweb/customization/"> <span aria-hidden="true">🇬🇧</span> <span>English</span> </a> <a class="dropdown-item " href="/unaltraweb/es/"> <span aria-hidden="true">🇪🇸</span> <span>Spanish</span> </a> <a class="dropdown-item " href="/unaltraweb/ca/"> <span aria-hidden="true">🇦🇩</span> <span>Catalan</span> </a> </div> </li> <li class="toggle-container"> <button id="light-toggle" title="Change theme" data-theme-label-system="System" data-theme-label-light="Light" data-theme-label-dark="Dark" data-theme-label-cafe="Coffee"> <i class="ti ti-sun-moon" id="light-toggle-system"></i> <i class="ti ti-moon-filled" id="light-toggle-dark"></i> <i class="ti ti-sun-filled" id="light-toggle-light"></i> <i class="ti ti-coffee" id="light-toggle-cafe"></i> <span class="sr-only" data-documentation-theme-label>System</span> </button> </li> </ul> </div> </div> </nav> <progress id="progress" value="0"> <div class="progress-container"> <span class="progress-bar"></span> </div> </progress> </header> <div class="container mt-5" role="main"> <script>
+  window.unaltrawebContentSearchUrl = "/unaltraweb/assets/js/documentation-search-index.json";
+  window.unaltrawebContentSearchTarget = ".documentation-content";
+</script> <div class="documentation-layout"> <aside class="documentation-sidebar" aria-label="Table of contents"> <button class="documentation-tool-button documentation-toc-toggle" type="button" data-documentation-sidebar-toggle aria-controls="documentation-nav" aria-expanded="true" title="Show or hide table of contents"> <i class="ti ti-chevrons-left" aria-hidden="true"></i> <span class="documentation-tool-label">Table of contents</span> <span class="sr-only">Show or hide table of contents</span> </button> <div class="documentation-sidebar-inner"> <nav id="documentation-nav" class="documentation-nav has-profile-selector" aria-label="Table of contents"> <div class="documentation-nav-block documentation-profile-switcher" data-documentation-profile-switcher> <label class="documentation-profile-label" for="documentation-profile-select">Documentation profile</label> <div class="documentation-profile-control"> <span class="documentation-profile-icon" aria-hidden="true"><i class="ti ti-users"></i></span> <select id="documentation-profile-select" class="documentation-profile-select" data-documentation-profile-select> <option value="">All documentation</option> <option value="github-publishers">GitHub publishers</option> <option value="local-authors">Local authors</option> <option value="site-designers">Site designers</option> <option value="contributors">Contributors</option> <option value="core-developers">Core developers</option> </select> </div> </div> <div class="documentation-nav-block documentation-toc-heading-block"> <p class="documentation-nav-block-title">Table of contents</p> </div> <div class="documentation-nav-scroll"> <div class="documentation-overview-section"> <a class="documentation-overview-link" href="/unaltraweb/"> <span class="documentation-overview-icon" aria-hidden="true"><i class="ti ti-home"></i></span> Overview </a> </div> <div class="documentation-accordion documentation-docs-block" data-documentation-tree> <details class="documentation-accordion-section" data-documentation-tree-id="section-start-here"> <summary class="documentation-accordion-summary"> <span class="documentation-accordion-mark" aria-hidden="true"></span> <span class="documentation-accordion-title">Start Here</span> <span class="documentation-accordion-caret" aria-hidden="true"><i class="ti ti-chevron-down"></i></span> </summary> <div class="documentation-accordion-items"> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/quick-start/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"> Start Here </a> </div> </details> <details class="documentation-accordion-section" data-documentation-tree-id="section-publish-with-github"> <summary class="documentation-accordion-summary"> <span class="documentation-accordion-mark" aria-hidden="true"></span> <span class="documentation-accordion-title">Publish With GitHub</span> <span class="documentation-accordion-caret" aria-hidden="true"><i class="ti ti-chevron-down"></i></span> </summary> <div class="documentation-accordion-items"> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/reusable-workflows/" data-documentation-profile-item data-documentation-profiles="github-publishers,contributors,core-developers"> GitHub Workflows </a> </div> </details> <details class="documentation-accordion-section" data-documentation-tree-id="section-work-locally"> <summary class="documentation-accordion-summary"> <span class="documentation-accordion-mark" aria-hidden="true"></span> <span class="documentation-accordion-title">Work Locally</span> <span class="documentation-accordion-caret" aria-hidden="true"><i class="ti ti-chevron-down"></i></span> </summary> <div class="documentation-accordion-items"> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/tools/" data-documentation-profile-item data-documentation-profiles="local-authors,contributors,core-developers"> Local Tools </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/usage/" data-documentation-profile-item data-documentation-profiles="local-authors,site-designers,contributors,core-developers"> Run And Preview </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/jekyll-basics/" data-documentation-profile-item data-documentation-profiles="local-authors,site-designers,contributors,core-developers"> Jekyll Basics </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/docker-image/" data-documentation-profile-item data-documentation-profiles="local-authors,core-developers"> Docker Image </a> </div> </details> <details class="documentation-accordion-section" data-documentation-tree-id="section-build-a-site"> <summary class="documentation-accordion-summary"> <span class="documentation-accordion-mark" aria-hidden="true"></span> <span class="documentation-accordion-title">Build A Site</span> <span class="documentation-accordion-caret" aria-hidden="true"><i class="ti ti-chevron-down"></i></span> </summary> <div class="documentation-accordion-items"> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/pages-collections-navigation/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"> Pages And Navigation </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"> Site Profiles </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/unaltreselfie/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors"> Personal Site </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/unaltreprojecte/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors"> Project Site </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/unaltremanual/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"> Manual Site </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/unaltredocs/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"> Documentation Portal </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/checklist/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"> Feature Checklist </a> </div> </details> <details class="documentation-accordion-section" data-documentation-tree-id="section-design-and-customize" data-documentation-active-section="true" open> <summary class="documentation-accordion-summary active"> <span class="documentation-accordion-mark" aria-hidden="true"></span> <span class="documentation-accordion-title">Design And Customize</span> <span class="documentation-accordion-caret" aria-hidden="true"><i class="ti ti-chevron-down"></i></span> </summary> <div class="documentation-accordion-items"> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/syntax/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors"> Markdown Extensions </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/themes/" data-documentation-profile-item data-documentation-profiles="local-authors,site-designers,contributors"> Themes </a> <a class="documentation-nav-link documentation-accordion-link level-2 active" href="/unaltraweb/customization/" aria-current="page" data-documentation-profile-item data-documentation-profiles="local-authors,site-designers,contributors,core-developers"> Customization </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/features/" data-documentation-profile-item data-documentation-profiles="site-designers,contributors,core-developers"> Feature Reference </a> </div> </details> <details class="documentation-accordion-section" data-documentation-tree-id="section-contribute"> <summary class="documentation-accordion-summary"> <span class="documentation-accordion-mark" aria-hidden="true"></span> <span class="documentation-accordion-title">Contribute</span> <span class="documentation-accordion-caret" aria-hidden="true"><i class="ti ti-chevron-down"></i></span> </summary> <div class="documentation-accordion-items"> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/template/" data-documentation-profile-item data-documentation-profiles="local-authors,contributors,core-developers"> Core And Template </a> </div> </details> <details class="documentation-accordion-section" data-documentation-tree-id="section-core-development"> <summary class="documentation-accordion-summary"> <span class="documentation-accordion-mark" aria-hidden="true"></span> <span class="documentation-accordion-title">Core Development</span> <span class="documentation-accordion-caret" aria-hidden="true"><i class="ti ti-chevron-down"></i></span> </summary> <div class="documentation-accordion-items"> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/development/" data-documentation-profile-item data-documentation-profiles="contributors,core-developers"> Core Development </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/distribution/" data-documentation-profile-item data-documentation-profiles="core-developers"> Distribution Model </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/bibliometrics/" data-documentation-profile-item data-documentation-profiles="contributors,core-developers"> Metrics Pipeline </a> </div> </details> <details class="documentation-accordion-section" data-documentation-tree-id="section-reference"> <summary class="documentation-accordion-summary"> <span class="documentation-accordion-mark" aria-hidden="true"></span> <span class="documentation-accordion-title">Reference</span> <span class="documentation-accordion-caret" aria-hidden="true"><i class="ti ti-chevron-down"></i></span> </summary> <div class="documentation-accordion-items"> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/front-matter/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"> Front Matter </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/data-files/" data-documentation-profile-item data-documentation-profiles="local-authors,site-designers,contributors,core-developers"> Data Files </a> <a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/faq/" data-documentation-profile-item data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"> FAQ </a> </div> </details> </div> </div> </nav> </div> </aside> <aside class="documentation-section-toc" data-documentation-page-toc-container hidden aria-label="On this page"> <div class="documentation-section-toc-inner"> <p class="documentation-section-toc-heading">On this page</p> <nav class="documentation-section-toc-nav" aria-label="On this page"> <ol class="documentation-section-toc-list" data-documentation-page-toc></ol> </nav> </div> </aside> <article class="documentation-main documentation-page" data-documentation-current-page data-documentation-profiles="local-authors,site-designers,contributors,core-developers"> <header class="documentation-page-header"> <nav class="documentation-breadcrumb" aria-label="Documentation location"> <span class="documentation-breadcrumb-item">Design And Customize</span> </nav> <h1>Customize A Child Site</h1> <p class="documentation-subtitle">Local customization points for unaltraweb child sites.</p> <div class="documentation-profile-notice" data-documentation-profile-notice hidden>This page is outside the active documentation profile, but direct links remain available.</div> </header> <div class="documentation-content"> <p><code class="language-plaintext highlighter-rouge">unaltraweb</code> is intended to be customized from the site repository, not by editing the core theme files.</p> <h2 id="local-styles">Local Styles</h2> <p>Create <code class="language-plaintext highlighter-rouge">_sass/_site-custom.scss</code> in your site repository. It is imported after the core styles, so local rules can override CSS custom properties or add small components while still receiving upstream <code class="language-plaintext highlighter-rouge">unaltraweb</code> updates.</p> <div class="language-scss highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">:root</span> <span class="p">{</span>
+  <span class="na">--global-theme-color</span><span class="p">:</span> <span class="mh">#2f6f5e</span><span class="p">;</span>
+  <span class="na">--global-hover-color</span><span class="p">:</span> <span class="mh">#2f6f5e</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nt">html</span><span class="o">[</span><span class="nt">data-theme</span><span class="o">=</span><span class="s2">"cafe"</span><span class="o">]</span> <span class="p">{</span>
+  <span class="na">--global-theme-color</span><span class="p">:</span> <span class="mh">#6f4e1f</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div> <p>The built-in coffee mode uses <code class="language-plaintext highlighter-rouge">data-theme="cafe"</code>. Override CSS custom properties in that selector when you want a different brown palette without changing light or dark mode.</p> <p>For larger local style changes, keep selectors scoped by profile or theme:</p> <div class="language-scss highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">html</span><span class="o">[</span><span class="nt">data-site-profile</span><span class="o">=</span><span class="s2">"unaltredocs"</span><span class="o">]</span> <span class="nc">.documentation-sidebar</span> <span class="p">{</span>
+  <span class="na">--documentation-toc-line</span><span class="p">:</span> <span class="nf">color-mix</span><span class="p">(</span><span class="n">in</span> <span class="n">srgb</span><span class="o">,</span> <span class="nf">var</span><span class="p">(</span><span class="o">--</span><span class="n">global-theme-color</span><span class="p">)</span> <span class="m">42%</span><span class="o">,</span> <span class="nf">var</span><span class="p">(</span><span class="o">--</span><span class="n">global-divider-color</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="nt">html</span><span class="o">[</span><span class="nt">data-theme</span><span class="o">=</span><span class="s2">"dark"</span><span class="o">]</span> <span class="nc">.my-local-card</span> <span class="p">{</span>
+  <span class="nl">background</span><span class="p">:</span> <span class="mh">#1f2935</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div> <p>Do not copy <code class="language-plaintext highlighter-rouge">_sass/</code> files from <code class="language-plaintext highlighter-rouge">unaltraweb</code> into a child site. Override tokens and small selectors locally so future gem updates still apply.</p> <h2 id="multilingual-hyphenation">Multilingual Hyphenation</h2> <p>Text hyphenation is enabled globally in the main content area. Browsers use the page language from <code class="language-plaintext highlighter-rouge">lang</code> (<code class="language-plaintext highlighter-rouge">en</code>, <code class="language-plaintext highlighter-rouge">es</code>, <code class="language-plaintext highlighter-rouge">ca</code>, or another configured language) to choose the hyphenation dictionary.</p> <p>Use <code class="language-plaintext highlighter-rouge">.no-hyphenate</code> when a specific word, brand, code-like label or compact block should not be split:</p> <div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"no-hyphenate"</span><span class="nt">&gt;</span>dosquartsdedocs<span class="nt">&lt;/span&gt;</span>
+</code></pre></div></div> <p>For mixed-language passages, set the appropriate <code class="language-plaintext highlighter-rouge">lang</code> attribute on the local element so the browser can switch dictionaries.</p> <h2 id="local-layouts">Local Layouts</h2> <p>Create a layout in <code class="language-plaintext highlighter-rouge">_layouts/</code> inside the site repository and reference it from page front matter.</p> <div class="language-liquid highlighter-rouge"><div class="highlight"><pre class="highlight"><code>---
+layout: page
+---
+
+&lt;div class="my-local-layout"&gt;
+  
+
+
+
+
+
+
+
+
+&lt;script&gt;
+  window.unaltrawebContentSearchUrl = "/unaltraweb/assets/js/documentation-search-index.json";
+  window.unaltrawebContentSearchTarget = ".documentation-content";
+&lt;/script&gt;
+
+&lt;div class="documentation-layout"&gt;
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+&lt;aside class="documentation-sidebar" aria-label="Table of contents"&gt;
+  &lt;button class="documentation-tool-button documentation-toc-toggle" type="button" data-documentation-sidebar-toggle aria-controls="documentation-nav" aria-expanded="true" title="Show or hide table of contents"&gt;
+    &lt;i class="ti ti-chevrons-left" aria-hidden="true"&gt;&lt;/i&gt;
+    &lt;span class="documentation-tool-label"&gt;Table of contents&lt;/span&gt;
+    &lt;span class="sr-only"&gt;Show or hide table of contents&lt;/span&gt;
+  &lt;/button&gt;
+
+  &lt;div class="documentation-sidebar-inner"&gt;
+
+    &lt;nav id="documentation-nav" class="documentation-nav has-profile-selector" aria-label="Table of contents"&gt;
+      
+
+      
+        &lt;div class="documentation-nav-block documentation-profile-switcher" data-documentation-profile-switcher&gt;
+          &lt;label class="documentation-profile-label" for="documentation-profile-select"&gt;Documentation profile&lt;/label&gt;
+          &lt;div class="documentation-profile-control"&gt;
+            &lt;span class="documentation-profile-icon" aria-hidden="true"&gt;&lt;i class="ti ti-users"&gt;&lt;/i&gt;&lt;/span&gt;
+            &lt;select id="documentation-profile-select" class="documentation-profile-select" data-documentation-profile-select&gt;
+              &lt;option value=""&gt;All documentation&lt;/option&gt;
+              
+                
+                
+                &lt;option value="github-publishers"&gt;GitHub publishers&lt;/option&gt;
+              
+                
+                
+                &lt;option value="local-authors"&gt;Local authors&lt;/option&gt;
+              
+                
+                
+                &lt;option value="site-designers"&gt;Site designers&lt;/option&gt;
+              
+                
+                
+                &lt;option value="contributors"&gt;Contributors&lt;/option&gt;
+              
+                
+                
+                &lt;option value="core-developers"&gt;Core developers&lt;/option&gt;
+              
+            &lt;/select&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      
+
+      &lt;div class="documentation-nav-block documentation-toc-heading-block"&gt;
+        &lt;p class="documentation-nav-block-title"&gt;Table of contents&lt;/p&gt;
+      &lt;/div&gt;
+
+      &lt;div class="documentation-nav-scroll"&gt;
+        &lt;div class="documentation-overview-section"&gt;
+          &lt;a class="documentation-overview-link" href="/unaltraweb/"&gt;
+            &lt;span class="documentation-overview-icon" aria-hidden="true"&gt;&lt;i class="ti ti-home"&gt;&lt;/i&gt;&lt;/span&gt;
+            Overview
+          &lt;/a&gt;
+        &lt;/div&gt;
+
+        &lt;div class="documentation-accordion documentation-docs-block" data-documentation-tree&gt;
+          
+          
+            
+            
+            
+            
+            &lt;details class="documentation-accordion-section" data-documentation-tree-id="section-start-here"&gt;
+              &lt;summary class="documentation-accordion-summary"&gt;
+                &lt;span class="documentation-accordion-mark" aria-hidden="true"&gt;&lt;/span&gt;
+                &lt;span class="documentation-accordion-title"&gt;Start Here&lt;/span&gt;
+                &lt;span class="documentation-accordion-caret" aria-hidden="true"&gt;&lt;i class="ti ti-chevron-down"&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/summary&gt;
+              &lt;div class="documentation-accordion-items"&gt;
+                
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/quick-start/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Start Here
+                    &lt;/a&gt;
+                  
+                
+              &lt;/div&gt;
+            &lt;/details&gt;
+          
+            
+            
+            
+            
+            &lt;details class="documentation-accordion-section" data-documentation-tree-id="section-publish-with-github"&gt;
+              &lt;summary class="documentation-accordion-summary"&gt;
+                &lt;span class="documentation-accordion-mark" aria-hidden="true"&gt;&lt;/span&gt;
+                &lt;span class="documentation-accordion-title"&gt;Publish With GitHub&lt;/span&gt;
+                &lt;span class="documentation-accordion-caret" aria-hidden="true"&gt;&lt;i class="ti ti-chevron-down"&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/summary&gt;
+              &lt;div class="documentation-accordion-items"&gt;
+                
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/reusable-workflows/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,contributors,core-developers"
+&gt;
+                      GitHub Workflows
+                    &lt;/a&gt;
+                  
+                
+              &lt;/div&gt;
+            &lt;/details&gt;
+          
+            
+            
+            
+            
+            &lt;details class="documentation-accordion-section" data-documentation-tree-id="section-work-locally"&gt;
+              &lt;summary class="documentation-accordion-summary"&gt;
+                &lt;span class="documentation-accordion-mark" aria-hidden="true"&gt;&lt;/span&gt;
+                &lt;span class="documentation-accordion-title"&gt;Work Locally&lt;/span&gt;
+                &lt;span class="documentation-accordion-caret" aria-hidden="true"&gt;&lt;i class="ti ti-chevron-down"&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/summary&gt;
+              &lt;div class="documentation-accordion-items"&gt;
+                
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/tools/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="local-authors,contributors,core-developers"
+&gt;
+                      Local Tools
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/usage/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Run And Preview
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/jekyll-basics/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Jekyll Basics
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/docker-image/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="local-authors,core-developers"
+&gt;
+                      Docker Image
+                    &lt;/a&gt;
+                  
+                
+              &lt;/div&gt;
+            &lt;/details&gt;
+          
+            
+            
+            
+            
+            &lt;details class="documentation-accordion-section" data-documentation-tree-id="section-build-a-site"&gt;
+              &lt;summary class="documentation-accordion-summary"&gt;
+                &lt;span class="documentation-accordion-mark" aria-hidden="true"&gt;&lt;/span&gt;
+                &lt;span class="documentation-accordion-title"&gt;Build A Site&lt;/span&gt;
+                &lt;span class="documentation-accordion-caret" aria-hidden="true"&gt;&lt;i class="ti ti-chevron-down"&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/summary&gt;
+              &lt;div class="documentation-accordion-items"&gt;
+                
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/pages-collections-navigation/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Pages And Navigation
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Site Profiles
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/unaltreselfie/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors"
+&gt;
+                      Personal Site
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/unaltreprojecte/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors"
+&gt;
+                      Project Site
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/unaltremanual/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Manual Site
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/unaltredocs/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Documentation Portal
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/profiles/checklist/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Feature Checklist
+                    &lt;/a&gt;
+                  
+                
+              &lt;/div&gt;
+            &lt;/details&gt;
+          
+            
+            
+            
+            
+            &lt;details class="documentation-accordion-section" data-documentation-tree-id="section-design-and-customize" data-documentation-active-section="true" open&gt;
+              &lt;summary class="documentation-accordion-summary active"&gt;
+                &lt;span class="documentation-accordion-mark" aria-hidden="true"&gt;&lt;/span&gt;
+                &lt;span class="documentation-accordion-title"&gt;Design And Customize&lt;/span&gt;
+                &lt;span class="documentation-accordion-caret" aria-hidden="true"&gt;&lt;i class="ti ti-chevron-down"&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/summary&gt;
+              &lt;div class="documentation-accordion-items"&gt;
+                
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/syntax/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors"
+&gt;
+                      Markdown Extensions
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2 active" href="/unaltraweb/themes/" aria-current="page"
+
+ data-documentation-profile-item
+ data-documentation-profiles="local-authors,site-designers,contributors"
+&gt;
+                      Themes
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/customization/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Customization
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/features/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="site-designers,contributors,core-developers"
+&gt;
+                      Feature Reference
+                    &lt;/a&gt;
+                  
+                
+              &lt;/div&gt;
+            &lt;/details&gt;
+          
+            
+            
+            
+            
+            &lt;details class="documentation-accordion-section" data-documentation-tree-id="section-contribute"&gt;
+              &lt;summary class="documentation-accordion-summary"&gt;
+                &lt;span class="documentation-accordion-mark" aria-hidden="true"&gt;&lt;/span&gt;
+                &lt;span class="documentation-accordion-title"&gt;Contribute&lt;/span&gt;
+                &lt;span class="documentation-accordion-caret" aria-hidden="true"&gt;&lt;i class="ti ti-chevron-down"&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/summary&gt;
+              &lt;div class="documentation-accordion-items"&gt;
+                
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/template/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="local-authors,contributors,core-developers"
+&gt;
+                      Core And Template
+                    &lt;/a&gt;
+                  
+                
+              &lt;/div&gt;
+            &lt;/details&gt;
+          
+            
+            
+            
+            
+            &lt;details class="documentation-accordion-section" data-documentation-tree-id="section-core-development"&gt;
+              &lt;summary class="documentation-accordion-summary"&gt;
+                &lt;span class="documentation-accordion-mark" aria-hidden="true"&gt;&lt;/span&gt;
+                &lt;span class="documentation-accordion-title"&gt;Core Development&lt;/span&gt;
+                &lt;span class="documentation-accordion-caret" aria-hidden="true"&gt;&lt;i class="ti ti-chevron-down"&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/summary&gt;
+              &lt;div class="documentation-accordion-items"&gt;
+                
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/development/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="contributors,core-developers"
+&gt;
+                      Core Development
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/distribution/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="core-developers"
+&gt;
+                      Distribution Model
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/bibliometrics/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="contributors,core-developers"
+&gt;
+                      Metrics Pipeline
+                    &lt;/a&gt;
+                  
+                
+              &lt;/div&gt;
+            &lt;/details&gt;
+          
+            
+            
+            
+            
+            &lt;details class="documentation-accordion-section" data-documentation-tree-id="section-reference"&gt;
+              &lt;summary class="documentation-accordion-summary"&gt;
+                &lt;span class="documentation-accordion-mark" aria-hidden="true"&gt;&lt;/span&gt;
+                &lt;span class="documentation-accordion-title"&gt;Reference&lt;/span&gt;
+                &lt;span class="documentation-accordion-caret" aria-hidden="true"&gt;&lt;i class="ti ti-chevron-down"&gt;&lt;/i&gt;&lt;/span&gt;
+              &lt;/summary&gt;
+              &lt;div class="documentation-accordion-items"&gt;
+                
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/front-matter/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Front Matter
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/data-files/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="local-authors,site-designers,contributors,core-developers"
+&gt;
+                      Data Files
+                    &lt;/a&gt;
+                  
+                
+                  
+                  
+                    
+                    &lt;a class="documentation-nav-link documentation-accordion-link level-2" href="/unaltraweb/faq/"
+
+ data-documentation-profile-item
+ data-documentation-profiles="github-publishers,local-authors,site-designers,contributors,core-developers"
+&gt;
+                      FAQ
+                    &lt;/a&gt;
+                  
+                
+              &lt;/div&gt;
+            &lt;/details&gt;
+          
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/nav&gt;
+  &lt;/div&gt;
+&lt;/aside&gt;
+
+  
+&lt;aside class="documentation-section-toc" data-documentation-page-toc-container hidden aria-label="On this page"&gt;
+  &lt;div class="documentation-section-toc-inner"&gt;
+    &lt;p class="documentation-section-toc-heading"&gt;On this page&lt;/p&gt;
+    &lt;nav class="documentation-section-toc-nav" aria-label="On this page"&gt;
+      &lt;ol class="documentation-section-toc-list" data-documentation-page-toc&gt;&lt;/ol&gt;
+    &lt;/nav&gt;
+  &lt;/div&gt;
+&lt;/aside&gt;
+
+
+  &lt;article class="documentation-main documentation-page" data-documentation-current-page
+
+
+ data-documentation-profiles="local-authors,site-designers,contributors"
+&gt;
+    &lt;header class="documentation-page-header"&gt;
+      
+        &lt;nav class="documentation-breadcrumb" aria-label="Documentation location"&gt;
+          &lt;span class="documentation-breadcrumb-item"&gt;Design And Customize&lt;/span&gt;
+          
+        &lt;/nav&gt;
+      
+      &lt;h1&gt;Theme And Visual Design&lt;/h1&gt;
+      &lt;p class="documentation-subtitle"&gt;Theme modes, local style overrides and JavaScript integration in unaltraweb.&lt;/p&gt;
+      &lt;div class="documentation-profile-notice" data-documentation-profile-notice hidden&gt;This page is outside the active documentation profile, but direct links remain available.&lt;/div&gt;
+    &lt;/header&gt;
+
+    &lt;div class="documentation-content"&gt;
+      &lt;p class="lede"&gt;&lt;code&gt;unaltraweb&lt;/code&gt; supports system, light, coffee and dark theme settings. The modes are part of the user interface and are covered by the template render smoke tests.&lt;/p&gt;
+
+&lt;h2 id="modes"&gt;Modes&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Light&lt;/strong&gt;: high-contrast default reading mode for normal pages and profile sites.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Coffee&lt;/strong&gt;: warm brown reading mode for manuals, long-form documentation and course material.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Dark&lt;/strong&gt;: dark mode with matching integration state for embedded libraries and generated diagrams.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The switch rotates through:&lt;/p&gt;
+
+&lt;div class="language-text highlighter-rouge"&gt;&lt;div class="highlight"&gt;&lt;pre class="highlight"&gt;&lt;code&gt;system -&amp;gt; light -&amp;gt; coffee -&amp;gt; dark -&amp;gt; system
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class="language-plaintext highlighter-rouge"&gt;system&lt;/code&gt; follows the browser preference and resolves to light or dark.&lt;/p&gt;
+
+&lt;h2 id="data-attributes"&gt;Data Attributes&lt;/h2&gt;
+
+&lt;p&gt;The active theme state is exposed on &lt;code class="language-plaintext highlighter-rouge"&gt;&amp;lt;html&amp;gt;&lt;/code&gt;:&lt;/p&gt;
+
+&lt;div class="language-html highlighter-rouge"&gt;&lt;div class="highlight"&gt;&lt;pre class="highlight"&gt;&lt;code&gt;&lt;span class="nt"&gt;&amp;lt;html&lt;/span&gt; &lt;span class="na"&gt;data-theme-setting=&lt;/span&gt;&lt;span class="s"&gt;"cafe"&lt;/span&gt; &lt;span class="na"&gt;data-theme=&lt;/span&gt;&lt;span class="s"&gt;"cafe"&lt;/span&gt; &lt;span class="na"&gt;data-theme-integration=&lt;/span&gt;&lt;span class="s"&gt;"light"&lt;/span&gt; &lt;span class="na"&gt;data-site-profile=&lt;/span&gt;&lt;span class="s"&gt;"unaltremanual"&lt;/span&gt;&lt;span class="nt"&gt;&amp;gt;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Use these attributes for local CSS and automated checks. Do not infer the active profile from URLs.&lt;/p&gt;
+
+&lt;h2 id="local-sass-overrides"&gt;Local Sass Overrides&lt;/h2&gt;
+
+&lt;p&gt;Create &lt;code class="language-plaintext highlighter-rouge"&gt;_sass/_site-custom.scss&lt;/code&gt; in the child site. It is imported after the core styles.&lt;/p&gt;
+
+&lt;div class="language-scss highlighter-rouge"&gt;&lt;div class="highlight"&gt;&lt;pre class="highlight"&gt;&lt;code&gt;&lt;span class="nd"&gt;:root&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+  &lt;span class="na"&gt;--global-theme-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mh"&gt;#2f6f5e&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+  &lt;span class="na"&gt;--global-hover-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mh"&gt;#2f6f5e&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="nt"&gt;html&lt;/span&gt;&lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="nt"&gt;data-theme&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;"cafe"&lt;/span&gt;&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+  &lt;span class="na"&gt;--global-theme-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mh"&gt;#6f4e1f&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+
+&lt;span class="nt"&gt;html&lt;/span&gt;&lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="nt"&gt;data-site-profile&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;"unaltremanual"&lt;/span&gt;&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="nc"&gt;.manual-sidebar&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+  &lt;span class="nl"&gt;border-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nf"&gt;var&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="o"&gt;--&lt;/span&gt;&lt;span class="n"&gt;global-theme-color&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id="custom-coffee-palette"&gt;Custom Coffee Palette&lt;/h2&gt;
+
+&lt;p&gt;Use CSS custom properties to customize a built-in mode without changing the theme switcher:&lt;/p&gt;
+
+&lt;div class="language-scss highlighter-rouge"&gt;&lt;div class="highlight"&gt;&lt;pre class="highlight"&gt;&lt;code&gt;&lt;span class="nt"&gt;html&lt;/span&gt;&lt;span class="o"&gt;[&lt;/span&gt;&lt;span class="nt"&gt;data-theme&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="s2"&gt;"cafe"&lt;/span&gt;&lt;span class="o"&gt;]&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+  &lt;span class="na"&gt;--global-bg-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mh"&gt;#2a1d16&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+  &lt;span class="na"&gt;--global-card-bg-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mh"&gt;#34251d&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+  &lt;span class="na"&gt;--global-text-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mh"&gt;#f4e8da&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+  &lt;span class="na"&gt;--global-text-color-light&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mh"&gt;#c8ad94&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+  &lt;span class="na"&gt;--global-theme-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mh"&gt;#d39a5f&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+  &lt;span class="na"&gt;--global-hover-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="mh"&gt;#d39a5f&lt;/span&gt;&lt;span class="p"&gt;;&lt;/span&gt;
+  &lt;span class="na"&gt;--global-divider-color&lt;/span&gt;&lt;span class="p"&gt;:&lt;/span&gt; &lt;span class="nf"&gt;rgba&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="m"&gt;211&lt;/span&gt;&lt;span class="o"&gt;,&lt;/span&gt; &lt;span class="m"&gt;154&lt;/span&gt;&lt;span class="o"&gt;,&lt;/span&gt; &lt;span class="m"&gt;95&lt;/span&gt;&lt;span class="o"&gt;,&lt;/span&gt; &lt;span class="m"&gt;0&lt;/span&gt;&lt;span class="mi"&gt;.28&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="p"&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Adding a fifth switcher mode is a core-theme change: extend &lt;code class="language-plaintext highlighter-rouge"&gt;assets/js/theme.js&lt;/code&gt;, the header toggle icons and the Sass selectors together. For normal child sites, override &lt;code class="language-plaintext highlighter-rouge"&gt;light&lt;/code&gt;, &lt;code class="language-plaintext highlighter-rouge"&gt;cafe&lt;/code&gt; or &lt;code class="language-plaintext highlighter-rouge"&gt;dark&lt;/code&gt; with &lt;code class="language-plaintext highlighter-rouge"&gt;_sass/_site-custom.scss&lt;/code&gt; instead.&lt;/p&gt;
+
+&lt;h2 id="javascript-event"&gt;JavaScript Event&lt;/h2&gt;
+
+&lt;p&gt;Local scripts can observe theme changes:&lt;/p&gt;
+
+&lt;div class="language-js highlighter-rouge"&gt;&lt;div class="highlight"&gt;&lt;pre class="highlight"&gt;&lt;code&gt;&lt;span class="nb"&gt;document&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nf"&gt;addEventListener&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="dl"&gt;"&lt;/span&gt;&lt;span class="s2"&gt;unaltraweb:themechange&lt;/span&gt;&lt;span class="dl"&gt;"&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;event&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt; &lt;span class="o"&gt;=&amp;gt;&lt;/span&gt; &lt;span class="p"&gt;{&lt;/span&gt;
+  &lt;span class="nx"&gt;console&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nf"&gt;log&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="nx"&gt;event&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;detail&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;theme&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="nx"&gt;event&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;detail&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="nx"&gt;themeSetting&lt;/span&gt;&lt;span class="p"&gt;);&lt;/span&gt;
+&lt;span class="p"&gt;});&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id="diagram-surfaces"&gt;Diagram Surfaces&lt;/h2&gt;
+
+&lt;p&gt;Manual Mermaid figures receive diagram surfaces tuned for light, coffee and dark modes. Keep source diagrams simple and let the render pipeline generate theme-compatible SVGs.&lt;/p&gt;
+
+&lt;h2 id="testing-themes"&gt;Testing Themes&lt;/h2&gt;
+
+&lt;p&gt;The template Playwright smoke test reloads pages with each theme in local storage and checks the resulting attributes and CSS variables.&lt;/p&gt;
+
+&lt;div class="language-bash highlighter-rouge"&gt;&lt;div class="highlight"&gt;&lt;pre class="highlight"&gt;&lt;code&gt;make &lt;span class="nb"&gt;test &lt;/span&gt;&lt;span class="nv"&gt;SITE_PROFILE&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;unaltreselfie
+make screenshots
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Screenshots generated by &lt;code class="language-plaintext highlighter-rouge"&gt;make screenshots&lt;/code&gt; are copied into &lt;code class="language-plaintext highlighter-rouge"&gt;assets/img/screenshots/&lt;/code&gt; with &lt;code class="language-plaintext highlighter-rouge"&gt;make docs-screenshots&lt;/code&gt;.&lt;/p&gt;
+
+    &lt;/div&gt;
+
+    
+  &lt;/article&gt;
+&lt;/div&gt;
+
+&lt;/div&gt;
+</code></pre></div></div> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">layout</span><span class="pi">:</span> <span class="s">my-local-layout</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Custom Page</span>
+<span class="nn">---</span>
+</code></pre></div></div> <p>Jekyll resolves site files before theme files, so local layouts can extend or override core layouts without forking <code class="language-plaintext highlighter-rouge">unaltraweb</code>.</p> <h2 id="site-profiles-and-features">Site Profiles And Features</h2> <p>Use <code class="language-plaintext highlighter-rouge">site.unaltraweb.site_profile</code> to select the prepared website profile and <code class="language-plaintext highlighter-rouge">site.unaltraweb.features</code> to enable or hide standard sections. A site profile is a high-level preset for the kind of website being built; it is not a Jekyll layout or include.</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">unaltraweb</span><span class="pi">:</span>
+  <span class="na">site_profile</span><span class="pi">:</span> <span class="s">unaltreselfie</span>
+  <span class="na">features</span><span class="pi">:</span>
+    <span class="na">blog</span><span class="pi">:</span> <span class="kc">true</span>
+    <span class="na">cv</span><span class="pi">:</span> <span class="kc">true</span>
+    <span class="na">projects</span><span class="pi">:</span> <span class="kc">true</span>
+    <span class="na">publications</span><span class="pi">:</span> <span class="kc">true</span>
+    <span class="na">metrics</span><span class="pi">:</span> <span class="kc">true</span>
+</code></pre></div></div> <p>Navigation pages can opt into a feature gate with front matter:</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Projects</span>
+<span class="na">ref</span><span class="pi">:</span> <span class="s">projects</span>
+<span class="na">feature</span><span class="pi">:</span> <span class="s">projects</span>
+<span class="na">nav</span><span class="pi">:</span> <span class="kc">true</span>
+<span class="nn">---</span>
+</code></pre></div></div> <p>If <code class="language-plaintext highlighter-rouge">unaltraweb.features.projects</code> is <code class="language-plaintext highlighter-rouge">false</code>, that page is hidden from the navigation. The page still exists if it is published, so users can keep drafts or direct links while changing presets.</p> <h2 id="standard-section-layouts">Standard Section Layouts</h2> <p>Several reusable sections are layouts. Child sites should prefer these layouts over copying Liquid loops into their pages:</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">layout</span><span class="pi">:</span> <span class="s">outputs</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Outputs</span>
+<span class="na">ref</span><span class="pi">:</span> <span class="s">outputs</span>
+<span class="na">permalink</span><span class="pi">:</span> <span class="s">/en/outputs/</span>
+<span class="nn">---</span>
+</code></pre></div></div> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">layout</span><span class="pi">:</span> <span class="s">repositories</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Repositories</span>
+<span class="na">ref</span><span class="pi">:</span> <span class="s">repositories</span>
+<span class="na">permalink</span><span class="pi">:</span> <span class="s">/en/repositories/</span>
+<span class="nn">---</span>
+</code></pre></div></div> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">layout</span><span class="pi">:</span> <span class="s">theses</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Theses</span>
+<span class="na">ref</span><span class="pi">:</span> <span class="s">theses</span>
+<span class="na">permalink</span><span class="pi">:</span> <span class="s">/en/theses/</span>
+<span class="nn">---</span>
+</code></pre></div></div> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">layout</span><span class="pi">:</span> <span class="s">book-shelf</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Readings</span>
+<span class="na">ref</span><span class="pi">:</span> <span class="s">books</span>
+<span class="na">collection</span><span class="pi">:</span> <span class="s">books</span>
+<span class="na">permalink</span><span class="pi">:</span> <span class="s">/en/readings/</span>
+<span class="nn">---</span>
+</code></pre></div></div> <p>The content lives in the site repository: <code class="language-plaintext highlighter-rouge">_outputs/</code> for output cards, <code class="language-plaintext highlighter-rouge">_data/repositories.yml</code> for repository cards, <code class="language-plaintext highlighter-rouge">_theses/</code> for thesis records, and <code class="language-plaintext highlighter-rouge">_books/</code> for reading notes. The rendering logic stays in <code class="language-plaintext highlighter-rouge">unaltraweb</code>.</p> <h2 id="callout-shorthand">Callout Shorthand</h2> <p>Use nested Markdown blockquotes for lightweight teaching callouts. A single <code class="language-plaintext highlighter-rouge">&gt;</code> remains a normal quotation; deeper levels become callouts:</p> <div class="language-markdown highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gt">&gt;&gt; A note or tip.</span>
+<span class="gt">
+&gt;&gt;&gt; A worked example.</span>
+<span class="gt">
+&gt;&gt;&gt;&gt; A warning.</span>
+<span class="gt">
+&gt;&gt;&gt;&gt;&gt; Learning objectives.</span>
+<span class="gt">
+&gt;&gt;&gt;&gt;&gt;&gt; A caution or danger note.</span>
+</code></pre></div></div> <p>The labels are localized through <code class="language-plaintext highlighter-rouge">_data/i18n/*.yml</code> under <code class="language-plaintext highlighter-rouge">callouts</code>, and the colors follow the active light, coffee, or dark theme.</p> <h2 id="manual-profile">Manual Profile</h2> <p>Use the <code class="language-plaintext highlighter-rouge">unaltremanual</code> site profile for academic handbooks, course manuals and book-like teaching material. The core profile provides a cover page, a sticky contents sidebar, a right-hand chapter table of contents, multilingual chapter routing, teacher blocks, automatic figure captions for chapters, a full-text manual search index, navbar reader font-size controls and a bibliography section without bibliometric badges.</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">unaltraweb</span><span class="pi">:</span>
+  <span class="na">site_profile</span><span class="pi">:</span> <span class="s">unaltremanual</span>
+  <span class="na">manual</span><span class="pi">:</span>
+    <span class="na">collection</span><span class="pi">:</span> <span class="s">chapters</span>
+    <span class="na">cover_image</span><span class="pi">:</span> <span class="s">/assets/img/manual-cover.svg</span>
+    <span class="na">logo</span><span class="pi">:</span> <span class="s">/assets/img/brand/dosquartsdedocs-logo.svg</span>
+    <span class="na">logo_inverse</span><span class="pi">:</span> <span class="s">/assets/img/brand/dosquartsdedocs-logo-white.svg</span>
+  <span class="na">figure_captions</span><span class="pi">:</span>
+    <span class="na">enabled</span><span class="pi">:</span> <span class="kc">true</span>
+    <span class="na">collections</span><span class="pi">:</span> <span class="pi">[</span><span class="nv">chapters</span><span class="pi">]</span>
+
+<span class="na">scholar</span><span class="pi">:</span>
+  <span class="c1"># Optional, useful when porting a GitBook/TIG-style course bibliography.</span>
+  <span class="na">style</span><span class="pi">:</span> <span class="s">_bibliography/my-apa-cv-no-access.csl</span>
+  <span class="na">bibliography_template</span><span class="pi">:</span> <span class="s">manual-bib</span>
+  <span class="na">group_by</span><span class="pi">:</span> <span class="s">none</span>
+</code></pre></div></div> <p>Create one localized home page per language with <code class="language-plaintext highlighter-rouge">layout: manual-home</code> and <code class="language-plaintext highlighter-rouge">ref: home</code>, then add chapters to <code class="language-plaintext highlighter-rouge">_chapters/&lt;lang&gt;/</code>:</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">layout</span><span class="pi">:</span> <span class="s">manual-chapter</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Reading Spatial Data</span>
+<span class="na">lang</span><span class="pi">:</span> <span class="s">en</span>
+<span class="na">ref</span><span class="pi">:</span> <span class="s">reading-spatial-data</span>
+<span class="na">weight</span><span class="pi">:</span> <span class="m">20</span>
+<span class="na">permalink</span><span class="pi">:</span> <span class="s">/en/chapters/reading-spatial-data/</span>
+<span class="na">manual_references</span><span class="pi">:</span> <span class="kc">true</span>
+<span class="na">mermaid</span><span class="pi">:</span>
+  <span class="na">enabled</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">zoomable</span><span class="pi">:</span> <span class="kc">true</span>
+<span class="nn">---</span>
+</code></pre></div></div> <p>Markdown images inside configured chapter collections are wrapped in <code class="language-plaintext highlighter-rouge">&lt;figure&gt;</code> elements and get localized labels. Use the optional image title as the caption:</p> <div class="language-markdown highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">![</span><span class="nv">Digitizing workflow</span><span class="p">](</span><span class="sx">/unaltraweb/assets/img/workflow.svg</span> <span class="nn">"Main editing steps"</span><span class="p">)</span>
+</code></pre></div></div> <p>For multi-panel teaching figures, use a compact subfigure block. The layout string uses <code class="language-plaintext highlighter-rouge">/</code> for rows and <code class="language-plaintext highlighter-rouge">+</code> for columns, inspired by patchwork-style composition:</p> <div class="language-markdown highlighter-rouge"><div class="highlight"><pre class="highlight"><code>::: subfigures a+b/c "Three views of the same exercise"
+<span class="p">![</span><span class="nv">Interface</span><span class="p">](</span><span class="sx">/unaltraweb/assets/img/interface.svg</span> <span class="nn">"Interface"</span><span class="p">)</span>
+<span class="p">![</span><span class="nv">Map</span><span class="p">](</span><span class="sx">/unaltraweb/assets/img/map.svg</span> <span class="nn">"Map"</span><span class="p">)</span>
+<span class="p">![</span><span class="nv">Diagram</span><span class="p">](</span><span class="sx">/unaltraweb/assets/img/diagram.svg</span> <span class="nn">"Diagram"</span><span class="p">)</span>
+:::
+</code></pre></div></div> <p>This renders one numbered figure with panel labels <code class="language-plaintext highlighter-rouge">a</code>, <code class="language-plaintext highlighter-rouge">b</code>, <code class="language-plaintext highlighter-rouge">c</code>; the contained images remain ordinary Markdown image declarations.</p> <p>Manual chapters can also number teaching tables with the same localized counter style. Wrap a regular Markdown table in a table block and put the caption in the opening line:</p> <div class="language-markdown highlighter-rouge"><div class="highlight"><pre class="highlight"><code>::: table "Weekly work rhythm"
+| Week | Focus | Output |
+| --- | --- | --- |
+| 1 | Orientation | Reading notes |
+| 2 | Data setup | Working project folder |
+:::
+</code></pre></div></div> <p>This renders a numbered table with localized labels such as <code class="language-plaintext highlighter-rouge">Table 1.</code>, <code class="language-plaintext highlighter-rouge">Taula 1.</code> or <code class="language-plaintext highlighter-rouge">Tabla 1.</code>. Tables and figures keep separate counters.</p> <p>Use fenced code blocks for programming examples. The theme uses Rouge, so common TIG languages such as Bash/Linux shell, Windows PowerShell, SQL/PostGIS, Python, R and Haskell get syntax highlighting when the fence includes the language name:</p> <div class="language-markdown highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Inline code like <span class="sb">`ST_Transform`</span> stays inside the paragraph.
+
+<span class="p">```</span><span class="nl">sql
+</span><span class="k">SELECT</span> <span class="n">ST_Area</span><span class="p">(</span><span class="n">geom</span><span class="p">::</span><span class="n">geography</span><span class="p">)</span> <span class="k">AS</span> <span class="n">area_m2</span>
+<span class="k">FROM</span> <span class="n">protected_areas</span><span class="p">;</span>
+<span class="p">```</span>
+
+<span class="p">```</span><span class="nl">bash
+</span>ogrinfo data/raw/roads.gpkg <span class="nt">-so</span> roads
+<span class="p">```</span>
+
+<span class="p">```</span><span class="nl">powershell
+</span><span class="n">ogrinfo</span><span class="w"> </span><span class="nx">data\raw\roads.gpkg</span><span class="w"> </span><span class="nt">-so</span><span class="w"> </span><span class="nx">roads</span>
+<span class="p">```</span>
+
+<span class="p">```</span><span class="nl">python
+</span><span class="kn">import</span> <span class="n">geopandas</span> <span class="k">as</span> <span class="n">gpd</span>
+<span class="p">```</span>
+
+<span class="p">```</span><span class="nl">r
+</span><span class="n">library</span><span class="p">(</span><span class="n">sf</span><span class="p">)</span>
+<span class="p">```</span>
+
+<span class="p">```</span><span class="nl">haskell
+</span><span class="n">manhattan</span> <span class="o">::</span> <span class="kt">Int</span> <span class="o">-&gt;</span> <span class="kt">Int</span> <span class="o">-&gt;</span> <span class="kt">Int</span>
+<span class="p">```</span>
+</code></pre></div></div> <p>The manual profile also writes <code class="language-plaintext highlighter-rouge">assets/js/manual-search-index.json</code> during the build so the sidebar search can find terms anywhere in the localized manual.</p> <p>Mermaid source references ending in <code class="language-plaintext highlighter-rouge">.mmd</code> are rewritten to <code class="language-plaintext highlighter-rouge">.mmd.edited.svg</code> when that file exists, or <code class="language-plaintext highlighter-rouge">.mmd.svg</code> otherwise. Manual Mermaid figures also receive diagram surfaces tuned for light, dark and coffee themes. This keeps generated diagrams and hand-edited diagrams readable in the same Markdown:</p> <div class="language-markdown highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">![</span><span class="nv">Vector workflow</span><span class="p">](</span><span class="sx">/unaltraweb/assets/diagrams/vector-workflow.mmd</span> <span class="nn">"Vector workflow"</span><span class="p">)</span>
+</code></pre></div></div> <h2 id="page-hero-images">Page Hero Images</h2> <p>Any page that uses <code class="language-plaintext highlighter-rouge">layout: page</code> or <code class="language-plaintext highlighter-rouge">layout: about</code> can define a hero image in front matter. The compact form keeps compatibility with older pages:</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">layout</span><span class="pi">:</span> <span class="s">page</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Example Page</span>
+<span class="na">hero_image</span><span class="pi">:</span> <span class="s">/assets/img/example-hero.jpg</span>
+<span class="na">hero_image_alt</span><span class="pi">:</span> <span class="s">Short accessible description</span>
+<span class="na">hero_caption</span><span class="pi">:</span> <span class="s">Optional caption</span>
+<span class="na">hero_source</span><span class="pi">:</span> <span class="s">Optional source name</span>
+<span class="na">hero_source_url</span><span class="pi">:</span> <span class="s">https://example.org/source</span>
+<span class="nn">---</span>
+</code></pre></div></div> <p>For new pages, use the grouped <code class="language-plaintext highlighter-rouge">hero</code> form:</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">layout</span><span class="pi">:</span> <span class="s">page</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Example Page</span>
+<span class="na">hero</span><span class="pi">:</span>
+  <span class="na">image</span><span class="pi">:</span> <span class="s">/assets/img/example-hero.jpg</span>
+  <span class="na">alt</span><span class="pi">:</span> <span class="s">Short accessible description</span>
+  <span class="na">caption</span><span class="pi">:</span> <span class="s">Optional caption</span>
+  <span class="na">source</span><span class="pi">:</span> <span class="s">Optional source name</span>
+  <span class="na">source_url</span><span class="pi">:</span> <span class="s">https://example.org/source</span>
+  <span class="na">position</span><span class="pi">:</span> <span class="s">center</span>
+<span class="nn">---</span>
+</code></pre></div></div> <h2 id="blog-pagination">Blog Pagination</h2> <p>Child sites can enable blog pagination without changing the core defaults. Set pagination in the site config and enable it on the blog page that includes <code class="language-plaintext highlighter-rouge">blog-list.liquid</code>.</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">pagination</span><span class="pi">:</span>
+  <span class="na">enabled</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">collection</span><span class="pi">:</span> <span class="s">posts</span>
+  <span class="na">per_page</span><span class="pi">:</span> <span class="m">4</span>
+  <span class="na">permalink</span><span class="pi">:</span> <span class="s">/page/:num/</span>
+  <span class="na">title</span><span class="pi">:</span> <span class="s2">"</span><span class="s">:title"</span>
+  <span class="na">sort_field</span><span class="pi">:</span> <span class="s">date</span>
+  <span class="na">sort_reverse</span><span class="pi">:</span> <span class="kc">true</span>
+</code></pre></div></div> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Blog</span>
+<span class="na">pagination</span><span class="pi">:</span>
+  <span class="na">enabled</span><span class="pi">:</span> <span class="kc">true</span>
+  <span class="na">locale</span><span class="pi">:</span> <span class="s">en</span>
+<span class="nn">---</span>
+</code></pre></div></div> <p><code class="language-plaintext highlighter-rouge">blog-list.liquid</code> uses <code class="language-plaintext highlighter-rouge">paginator.posts</code> when Jekyll generates paginated pages and falls back to the localized post archive otherwise. For multilingual sites, set the page-level <code class="language-plaintext highlighter-rouge">pagination.locale</code> and the same <code class="language-plaintext highlighter-rouge">locale</code> value in each post front matter.</p> <h2 id="project-card-images">Project Card Images</h2> <p>Project entries can define a main image with <code class="language-plaintext highlighter-rouge">hero</code>. In project cards, that image is used as a very light degraded background for the card.</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Example Project</span>
+<span class="na">description</span><span class="pi">:</span> <span class="s">Short project summary.</span>
+<span class="na">hero</span><span class="pi">:</span> <span class="s">/assets/img/projects/example.jpg</span>
+<span class="nn">---</span>
+</code></pre></div></div> <h2 id="project-resources">Project Resources</h2> <p>Project entries can also define <code class="language-plaintext highlighter-rouge">resources</code>. These links are rendered as icon badges on the project card and in a resources panel inside pages that use <code class="language-plaintext highlighter-rouge">layout: project</code>.</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">layout</span><span class="pi">:</span> <span class="s">project</span>
+<span class="na">title</span><span class="pi">:</span> <span class="s">Example Project</span>
+<span class="na">resources</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">type</span><span class="pi">:</span> <span class="s">zenodo</span>
+    <span class="na">label</span><span class="pi">:</span> <span class="s">Zenodo dataset</span>
+    <span class="na">url</span><span class="pi">:</span> <span class="s">https://zenodo.org/records/1000001</span>
+    <span class="na">doi</span><span class="pi">:</span> <span class="s">10.5281/zenodo.1000001</span>
+  <span class="pi">-</span> <span class="na">type</span><span class="pi">:</span> <span class="s">dataset</span>
+    <span class="na">label</span><span class="pi">:</span> <span class="s">Harmonized data layers</span>
+    <span class="na">url</span><span class="pi">:</span> <span class="s">https://example.org/datasets/example</span>
+  <span class="pi">-</span> <span class="na">type</span><span class="pi">:</span> <span class="s">documentation</span>
+    <span class="na">label</span><span class="pi">:</span> <span class="s">Technical notes</span>
+    <span class="na">url</span><span class="pi">:</span> <span class="s">https://example.org/docs/example</span>
+<span class="nn">---</span>
+</code></pre></div></div> <p>Supported built-in icon types include <code class="language-plaintext highlighter-rouge">zenodo</code>, <code class="language-plaintext highlighter-rouge">doi</code>, <code class="language-plaintext highlighter-rouge">dataset</code>, <code class="language-plaintext highlighter-rouge">data</code>, <code class="language-plaintext highlighter-rouge">code</code>, <code class="language-plaintext highlighter-rouge">github</code>, <code class="language-plaintext highlighter-rouge">repository</code>, <code class="language-plaintext highlighter-rouge">documentation</code>, <code class="language-plaintext highlighter-rouge">docs</code>, <code class="language-plaintext highlighter-rouge">unaltremanual</code>, <code class="language-plaintext highlighter-rouge">map</code>, <code class="language-plaintext highlighter-rouge">publication</code>, <code class="language-plaintext highlighter-rouge">paper</code>, <code class="language-plaintext highlighter-rouge">report</code>, <code class="language-plaintext highlighter-rouge">website</code>, and <code class="language-plaintext highlighter-rouge">link</code>. A resource can override the icon with an explicit class, for example <code class="language-plaintext highlighter-rouge">icon: fa-solid fa-chart-line</code>.</p> <h2 id="cv-preview-cards">CV Preview Cards</h2> <p>Use <code class="language-plaintext highlighter-rouge">cv-download-card.liquid</code> on CV pages when the PDF is the source of truth and the page should show a first-page preview plus a download button.</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nn">---</span>
+<span class="na">cv_pdf</span><span class="pi">:</span> <span class="s">/assets/pdf/cv.pdf</span>
+<span class="na">cv_preview</span><span class="pi">:</span> <span class="s">/assets/img/cv-preview.jpg</span>
+<span class="nn">---</span>
+</code></pre></div></div> <div class="language-liquid highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">{%</span><span class="w"> </span><span class="nt">include</span><span class="w"> </span>cv-download-card.liquid<span class="w"> </span><span class="na">pdf</span><span class="o">=</span><span class="nv">page</span><span class="p">.</span><span class="nv">cv_pdf</span><span class="w"> </span><span class="na">preview</span><span class="o">=</span><span class="nv">page</span><span class="p">.</span><span class="nv">cv_preview</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s2">"CV"</span><span class="w"> </span><span class="cp">%}</span>
+</code></pre></div></div> <p>Child sites can generate the preview with their template <code class="language-plaintext highlighter-rouge">Makefile</code> target:</p> <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>make cv-preview <span class="nv">CV_PDF</span><span class="o">=</span>assets/pdf/cv.pdf <span class="nv">CV_PREVIEW</span><span class="o">=</span>assets/img/cv-preview.jpg
+</code></pre></div></div> <h2 id="theme-modes">Theme Modes</h2> <p>The built-in theme switch supports <code class="language-plaintext highlighter-rouge">system</code>, <code class="language-plaintext highlighter-rouge">light</code>, <code class="language-plaintext highlighter-rouge">cafe</code>, and <code class="language-plaintext highlighter-rouge">dark</code> settings. <code class="language-plaintext highlighter-rouge">system</code> follows the browser preference and resolves to light or dark; <code class="language-plaintext highlighter-rouge">cafe</code> is an explicit coffee reading mode for warm long-form pages.</p> <p>Theme changes are observable from JavaScript through the <code class="language-plaintext highlighter-rouge">unaltraweb:themechange</code> event:</p> <div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">document</span><span class="p">.</span><span class="nf">addEventListener</span><span class="p">(</span><span class="dl">"</span><span class="s2">unaltraweb:themechange</span><span class="dl">"</span><span class="p">,</span> <span class="p">(</span><span class="nx">event</span><span class="p">)</span> <span class="o">=&gt;</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nf">log</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">detail</span><span class="p">.</span><span class="nx">theme</span><span class="p">,</span> <span class="nx">event</span><span class="p">.</span><span class="nx">detail</span><span class="p">.</span><span class="nx">themeSetting</span><span class="p">);</span>
+<span class="p">});</span>
+</code></pre></div></div> <p>The active values are also available on <code class="language-plaintext highlighter-rouge">&lt;html&gt;</code> as <code class="language-plaintext highlighter-rouge">data-theme</code>, <code class="language-plaintext highlighter-rouge">data-theme-setting</code>, <code class="language-plaintext highlighter-rouge">data-theme-integration</code>, and <code class="language-plaintext highlighter-rouge">data-site-profile</code>. These attributes are stable enough for local styles and automated browser tests.</p> <h2 id="developer-mode">Developer Mode</h2> <p>Child sites can enable <code class="language-plaintext highlighter-rouge">unaltraweb.developer_mode</code> in a development-only config file. When <code class="language-plaintext highlighter-rouge">JEKYLL_ENV</code> is not <code class="language-plaintext highlighter-rouge">production</code>, this displays a floating indicator showing the real profile used by the current build.</p> <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">unaltraweb</span><span class="pi">:</span>
+  <span class="na">developer_mode</span><span class="pi">:</span> <span class="kc">true</span>
+</code></pre></div></div> <p>Keep this setting out of production builds. The template <code class="language-plaintext highlighter-rouge">Makefile</code> writes it to <code class="language-plaintext highlighter-rouge">tmp/_config.development.yml</code> for <code class="language-plaintext highlighter-rouge">make serve</code>, while <code class="language-plaintext highlighter-rouge">make build</code> uses the normal production config.</p> <p>Do not rely on client-side preview shells for alternate profiles. Jekyll renders one real configuration per build, so profiles should be tested by rebuilding with a config overlay, for example <code class="language-plaintext highlighter-rouge">make serve SITE_PROFILE=unaltreprojecte</code> in the template. Pages can declare <code class="language-plaintext highlighter-rouge">profiles: [unaltreselfie]</code> or <code class="language-plaintext highlighter-rouge">profiles: [unaltreprojecte]</code>; the core filters non-matching pages before writing the site.</p> </div> </article> </div> </div> <footer class="fixed-bottom" role="contentinfo"> <div class="container mt-0"> © 2026 dosquartsdedocs. Made with <a href="https://github.com/dosquartsdedocs/unaltraweb" rel="external nofollow noopener" target="_blank">unaltraweb</a>. Last updated: June 19, 2026. </div> </footer> <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script> <script src="/unaltraweb/assets/js/bootstrap.bundle.min.js"></script> <script src="https://cdn.jsdelivr.net/npm/mdbootstrap@4.20.0/js/mdb.min.js" integrity="sha256-NdbiivsvWt7VYCt6hYNT3h/th9vSTL4EDWeGs5SN3DA=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/masonry-layout@4.2.2/dist/masonry.pkgd.min.js" integrity="sha256-Nn1q/fx0H7SNLZMQ5Hw5JLaTRZp0yILA/FRexe19VdI=" crossorigin="anonymous"></script> <script defer src="https://cdn.jsdelivr.net/npm/imagesloaded@5.0.0/imagesloaded.pkgd.min.js" integrity="sha256-htrLFfZJ6v5udOG+3kNLINIKh2gvoKqwEhHYfTTMICc=" crossorigin="anonymous"></script> <script defer src="/unaltraweb/assets/js/masonry.js?v=a0db7e5d5c70cc3252b3138b0c91dcaf" type="text/javascript"></script> <script defer src="https://cdn.jsdelivr.net/npm/medium-zoom@1.1.0/dist/medium-zoom.min.js" integrity="sha256-ZgMyDAIYDYGxbcpJcfUnYwNevG/xi9OHKaR/8GK+jWc=" crossorigin="anonymous"></script> <script defer src="/unaltraweb/assets/js/zoom.js?v=7b01e8c744b7ce69216c205ddc67a1f9"></script> <script src="/unaltraweb/assets/js/no_defer.js?v=2781658a0a2b13ed609542042a859126"></script> <script defer src="/unaltraweb/assets/js/common.js?v=e148323ca2051ea726abdb1b5632ed59"></script> <script defer src="/unaltraweb/assets/js/copy_code.js?v=c8a01c11a92744d44b093fc3bda915df" type="text/javascript"></script> <script>
+  window.unaltrawebCalloutLabels = window.unaltrawebCalloutLabels || {};
+  window.unaltrawebCalloutLabels["en"] = {
+    info: "NOTE",
+    example: "EXAMPLE",
+    warning: "WARNING",
+    objectives: "LEARNING OBJECTIVES",
+    danger: "CAUTION",
+  };
+</script> <script defer src="/unaltraweb/assets/js/callouts.js?v=262b41ec0c721c71cc6535a9a629fb51" type="text/javascript"></script> <script defer src="/unaltraweb/assets/js/content-search.js?v=7572b37195aee991235b44d9238134a6" type="text/javascript"></script> <script defer src="/unaltraweb/assets/js/documentation.js?v=3d45d343ef1f9c01ee05bba232283a67" type="text/javascript"></script> <script defer src="/unaltraweb/assets/js/jupyter_new_tab.js?v=d9f17b6adc2311cbabd747f4538bb15f"></script> <script async src="https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script> <script async src="https://badge.dimensions.ai/badge.js"></script> <script defer type="text/javascript" id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js" integrity="sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI=" crossorigin="anonymous"></script> <script src="/unaltraweb/assets/js/mathjax-setup.js?v=a5bb4e6a542c546dd929b24b8b236dfd"></script> <script defer src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6" crossorigin="anonymous"></script> <script defer src="/unaltraweb/assets/js/progress-bar.js?v=2f30e0e6801ea8f5036fa66e1ab0a71a" type="text/javascript"></script> <script src="/unaltraweb/assets/js/vanilla-back-to-top.min.js?v=f40d453793ff4f64e238e420181a1d17"></script> <script>
+    addBackToTop();
+  </script> <script type="module" src="/unaltraweb/assets/js/search/ninja-keys.min.js?v=a3446f084dcaecc5f75aa1757d087dcf"></script> <ninja-keys hidebreadcrumbs noautoloadmdicons placeholder="Type to start searching"></ninja-keys> <script src="/unaltraweb/assets/js/search-setup.js?v=6c304f7b1992d4b60f7a07956e52f04a"></script> <script src="/unaltraweb/assets/js/search-data.js"></script> <script src="/unaltraweb/assets/js/shortcut-key.js?v=6f508d74becd347268a7f822bca7309d"></script> </body> </html>
