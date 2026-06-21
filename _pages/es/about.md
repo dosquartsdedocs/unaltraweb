@@ -25,7 +25,7 @@ latest_posts:
   limit: 5
 ---
 
-Este sitio es una plantilla reutilizable para páginas de proyectos basada en Jekyll y al-folio.
+Este sitio es una plantilla reutilizable para páginas de proyectos basada en Jekyll y `unaltraweb`.
 Mantiene la estructura técnica preparada para que cada nuevo proyecto solo tenga que sustituir contenidos.
 
 La plantilla permite:

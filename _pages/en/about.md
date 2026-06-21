@@ -25,7 +25,7 @@ latest_posts:
   limit: 5
 ---
 
-This website is a reusable template for project-driven sites built with Jekyll and al-folio.
+This website is a reusable template for project-driven sites built with Jekyll and `unaltraweb`.
 It keeps the technical pieces in place so each new project only needs to replace the content.
 
 Use this template to:

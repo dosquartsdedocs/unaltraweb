@@ -25,7 +25,7 @@ latest_posts:
   limit: 5
 ---
 
-Aquesta web és una plantilla reutilitzable per a projectes basada en Jekyll i al-folio.
+Aquesta web és una plantilla reutilitzable per a projectes basada en Jekyll i `unaltraweb`.
 Manté preparada l'estructura tècnica perquè cada nou projecte només haja de canviar els continguts.
 
 La plantilla permet:

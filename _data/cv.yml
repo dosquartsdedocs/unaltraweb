@@ -2,96 +2,64 @@
   type: map
   contents:
     - name: Full Name
-      value: Albert Einstein
-    - name: Date of Birth
-      value: 14th March 1879
+      value: Example Researcher
+    - name: Role
+      value: Research project lead
     - name: Languages
-      value: English, German
+      value: Catalan, English, Spanish
 
 - title: Education
   type: time_table
   contents:
     - title: PhD
-      institution: University of Zurich, Zurich, Switzerland
-      year: 1905
+      institution: Example University
+      year: 2020
       description:
-        - Description 1.
-        - Description 2.
-        - title: Description 3.
-          contents:
-            - Sub-description 1.
-            - Sub-description 2.
-    - title: Federal teaching diploma
-      institution: Eidgenössische Technische Hochschule, Zurich, Switzerland
-      year: 1900
+        - Replace this entry with your own education details.
+        - Keep only the sections that are useful for your site profile.
+    - title: MSc
+      institution: Example University
+      year: 2016
       description:
-        - Description 1.
-        - Description 2.
+        - Optional second education entry.
 
 - title: Experience
   type: time_table
   contents:
-    - title: Professor of Theoretical Physics
-      institution: Institute for Advanced Study, Princeton University
-      year: 1933 - 1955
+    - title: Project Coordinator
+      institution: Example Research Group
+      year: 2021-now
       description:
-        - Description 1.
-        - Description 2.
-        - title: Description 3.
-          contents:
-            - Sub-description 1.
-            - Sub-description 2.
-    - title: Visiting Professor
-      institution: California Institute of Technology, Pasadena, California, US
-      year: 1933
+        - Coordinates reusable data, documentation and publication workflows.
+        - Maintains project outputs for public dissemination.
+    - title: Researcher
+      institution: Example Lab
+      year: 2016-2021
       description:
-        - Description 1.
-        - Description 2.
-
-    - title: Director
-      institution: Kaiser Wilhelm Institute for Physics, Berlin, Germany.
-      year: 1917-1933
-
-    - title: Professor of Theoretical Physics
-      institution: Karl-Ferdinand University, Prague, Czechoslovakia
-      year: 1911 - 1917
-      description:
-
-    - title: Associate Professor of Theoretical Physics
-      institution: University of Zurich, Zurich, Switzerland
-      year: 1909 - 1911
+        - Developed reproducible methods and open project material.
 
 - title: Open Source Projects
   type: time_table
   contents:
-    - title: <a href="https://github.com/alshedivat/al-folio">al-folio</a>
-      year: 2015-now
-      description: A beautiful, simple, clean, and responsive Jekyll theme for academics.
+    - title: <a href="https://github.com/dosquartsdedocs/unaltraweb">unaltraweb</a>
+      year: 2025-now
+      description: A reusable Jekyll core for academic, research project, software and documentation websites.
 
-- title: Honors and Awards
-  type: time_table
-  contents:
-    - year: 1921
-      items:
-        - Nobel Prize in Physics
-        - Matteucci Medal
-    - year: 2029
-      items:
-        - Max Planck Medal
-
-- title: Academic Interests
-  type: nested_list
-  contents:
-    - title: Topic 1.
-      items:
-        - Description 1.
-        - Description 2.
-    - title: Topic 2.
-      items:
-        - Description 1.
-        - Description 2.
-
-- title: Other Interests
+- title: Selected Outputs
   type: list
   contents:
-    - <u>Hobbies:</u> Hobby 1, Hobby 2, etc.
+    - Project website
+    - Open data package
+    - Technical documentation
+
+- title: Research Interests
+  type: nested_list
+  contents:
+    - title: Reproducible web publishing
+      items:
+        - Lightweight static sites.
+        - Shared templates and documentation.
+    - title: Open research workflows
+      items:
+        - Bibliography metadata.
+        - Reusable project outputs.
