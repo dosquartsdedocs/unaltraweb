@@ -276,11 +276,21 @@ manhattan :: Int -> Int -> Int
 
 The manual profile also writes `assets/js/manual-search-index.json` during the build so the sidebar search can find terms anywhere in the localized manual.
 
-Mermaid source references ending in `.mmd` are rewritten to `.mmd.edited.svg` when that file exists, or `.mmd.svg` otherwise. Manual Mermaid figures also receive diagram surfaces tuned for light, dark and coffee themes. This keeps generated diagrams and hand-edited diagrams readable in the same Markdown:
+Mermaid and PlantUML source references are rewritten to SVG outputs. When a
+matching `*.edited.svg` exists it wins; otherwise the build targets the generated
+`*.svg` file and asks `diavisuals` to render it when the shared renderer is
+available. Manual diagram figures also receive diagram surfaces tuned for light,
+dark and coffee themes. This keeps generated diagrams and hand-edited diagrams
+readable in the same Markdown:
 
 ```markdown
 ![Vector workflow]({{ site.baseurl }}/assets/diagrams/vector-workflow.mmd "Vector workflow")
 ```
+
+SVG is the first-choice output so authors can edit the figure after generation.
+If an agent is asked to change a diagram source while `*.edited.svg` exists, it
+should ask whether to preserve that edited SVG or replace it with a new generated
+SVG.
 
 ## Page Hero Images
 

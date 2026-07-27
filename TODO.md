@@ -92,6 +92,33 @@ Important current template behaviour:
 
 ## Next Work
 
+### Planned MCP Contract
+
+- Create an `unaltraweb` MCP for agent-assisted site maintenance: updating pages/posts/news, adding bibliography entries, editing project/output/team data, checking profile-specific content contracts and preparing deploy-safe content changes.
+- The future MCP should declare `diavisuals` as a required MCP dependency instead of embedding Mermaid, PlantUML, Chromium or Java in this repository.
+- The dependency manifest should use the shared fields understood by ContExt:
+
+```yaml
+mcp_dependencies:
+  - name: diavisuals
+    role: shared-diagram-renderer
+    required: true
+    install: true
+    build: true
+    init: true
+    remote: git@github.com:dosquartsdedocs/diavisuals.git
+    package: diavisuals
+    extras:
+      - mcp
+    required_tools:
+      - render_diagram
+      - render_diagram_text
+    suggested_path: ../diavisuals
+```
+
+- Diagram-editing MCP tools should prefer SVG output. When a source diagram has a matching `*.edited.svg`, the tool must ask the user whether to preserve the edited SVG or replace it with a regenerated SVG before changing or discarding that author-edited file.
+- Normal Jekyll builds should stay non-interactive: the Jekyll filter may render a missing/stale generated SVG through `diavisuals` when available, but it must never overwrite `*.edited.svg`.
+
 ### Next Session Priority: Docker-First Distribution And Child-Site Contract
 
 - Decide and document the recommended new-site workflow. Current direction: users clone or fork `unaltraweb-template`, then run `make keep PROFILE=unaltremanual` or a profile-specific shortcut such as `make keep-unaltremanual` so the starter removes unused profile content for them instead of asking users to delete demo material manually.

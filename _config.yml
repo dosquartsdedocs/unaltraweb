@@ -40,6 +40,13 @@ unaltraweb:
     metrics: true
     docs: false
     manual: true
+  diagrams:
+    render: true
+    format: svg
+    family: benizar
+    compatibility: mermaid-11.4.2-plantuml-1.2026.1
+    diavisuals_command:
+    fail_on_render_error: false
   manual:
     collection: chapters
     cover_image:

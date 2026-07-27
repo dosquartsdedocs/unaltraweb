@@ -99,20 +99,27 @@ Manual chapters can number teaching tables with localized labels:
 :::
 ```
 
-## Mermaid Diagrams
+## Diagram Sources
 
-Reference Mermaid source files as images. The build rewrites `.mmd` references to generated SVG files when available:
+Reference diagram source files as images. The Jekyll plugin rewrites Mermaid and
+PlantUML text sources to SVG files, rendering them through `diavisuals` when the
+shared renderer is available:
 
 ```markdown
 ![Vector workflow]({{ site.baseurl }}/assets/diagrams/vector-workflow.mmd "Vector workflow")
 ```
 
-The lookup order prefers edited diagrams first:
+SVG is the preferred output because it remains editable. The lookup order
+prefers edited diagrams first:
 
 ```text
 vector-workflow.mmd.edited.svg
 vector-workflow.mmd.svg
 ```
+
+When `*.edited.svg` exists, the build keeps using it and does not overwrite it.
+Agents changing the diagram source should ask whether to keep the edited SVG or
+replace it with a regenerated version.
 
 ## Code Fences
 

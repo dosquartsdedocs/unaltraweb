@@ -89,7 +89,7 @@ When the core docs and all template profiles are running together, use this conv
 - Node/npm are only needed for formatting and frontend development tasks in the core repository.
 - Playwright is pulled through its Docker image by the template tests; users do not need to install browsers manually.
 - Python dependencies are installed inside the local workflow for metrics and bibliography tooling.
-- Diagram rendering currently depends on the configured `diavisuals` path or render image; this is still being simplified.
+- Diagram rendering is delegated to the shared `diavisuals` MCP/CLI renderer. Jekyll rewrites diagram text sources to SVG and keeps `*.edited.svg` files as author-owned overrides.
 
 ## Publishing Checklist
 
