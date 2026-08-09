@@ -1,0 +1,123 @@
+---
+name: unaltraweb
+kind: codex-mcp-factory
+version: 0.1.0
+description: Reusable Jekyll website factory with MCP tooling for content, profiles, bibliography, bibliometrics, and build checks.
+install_scope: user
+workspace_rule:
+  consumer_root: .
+  init_creates:
+    - _config.yml
+    - Makefile
+    - Gemfile
+    - _pages
+    - _posts
+    - _news
+    - _projects
+    - _outputs
+    - _chapters
+    - _documentation
+    - _bibliography
+    - _data
+    - assets
+  source_paths:
+    - _config.yml
+    - _pages
+    - _posts
+    - _news
+    - _projects
+    - _outputs
+    - _chapters
+    - _documentation
+    - _bibliography
+    - _data
+    - assets
+  generated_paths:
+    - _site
+    - tmp
+    - .cache/scimago
+    - assets/diagrams/**/*.svg from Mermaid or PlantUML sources
+  allowed_external_writes: []
+runtime:
+  kind: python
+  package_manager: pip
+  module: unaltraweb_mcp
+transport:
+  type: stdio
+  command:
+    - make
+    - -C
+    - '${factoryRoot}'
+    - mcp-stdio
+    - 'PROJECT=${workspaceFolder}'
+commands:
+  build:
+    - make
+    - mcp-build
+  init:
+    - make
+    - mcp-init
+  check:
+    - make
+    - mcp-check
+  smoke:
+    - make
+    - mcp-smoke
+  serve:
+    - make
+    - mcp-stdio
+discovery:
+  suggested_scan_roots:
+    - ~/git
+  notes:
+    - Consumer website repositories remain the workspace root.
+    - The MCP is on-demand stdio; Jekyll preview remains a separate local HTTP server started by normal Make targets.
+    - Durable website state belongs in versioned site files, not in chat history.
+mcp:
+  server_name: unaltraweb
+  transport: stdio
+  resources:
+    - web://site-context
+    - web://starter-templates
+    - web://profile-contract
+    - web://profile-prune-plan
+    - web://content-inventory
+    - web://bibliography
+    - web://bibliometrics
+    - web://build-health
+    - web://prompts
+  required_tools:
+    - initialize_site
+    - starter_templates
+    - site_context
+    - site_check
+    - profile_check
+    - profile_prune_plan
+    - profile_prune
+    - content_inventory
+    - content_freshness_check
+    - bibliography_inventory
+    - bibliography_add_entry
+    - bibliometrics_check
+    - bibliometrics_fetch_scimago
+    - bibliometrics_update
+    - build_site
+    - build_health
+    - http_check
+mcp_dependencies:
+  - name: diavisuals
+    role: shared-diagram-renderer
+    required: true
+    install: true
+    build: true
+    init: true
+    remote: git@github.com:dosquartsdedocs/diavisuals.git
+    package: diavisuals
+    extras:
+      - mcp
+    required_tools:
+      - render_diagram
+      - render_diagram_text
+    suggested_path: ../diavisuals
+    reason: Mermaid and PlantUML rendering/styles are owned by diavisuals.
+---

@@ -1,0 +1,10 @@
+Start or resume work in an `unaltraweb` website workspace.
+
+1. Read local `AGENTS.md` if present.
+2. If the workspace has no `_config.yml`, inspect `web://starter-templates` or call `starter_templates`, then use `initialize_site` only after the target profile, title, baseurl, and url are known or intentionally left blank.
+3. Inspect `web://site-context` or call `site_context`.
+4. Confirm the configured `unaltraweb.site_profile`, languages, and enabled features before editing.
+5. When a newly initialized starter should be reduced to one profile, inspect `profile_prune_plan`; use `profile_prune(dry_run=false, confirm_prune=true)` only after the plan is reviewed and approved.
+6. Run or inspect `profile_check`, `content_inventory`, `bibliography_inventory`, and `content_freshness_check`.
+7. Keep edits inside the website workspace. Do not treat chat history as durable project memory.
+8. For visible content changes, run `build_site` or the local Make equivalent before handoff when feasible.

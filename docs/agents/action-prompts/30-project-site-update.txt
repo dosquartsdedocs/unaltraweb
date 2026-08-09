@@ -1,0 +1,7 @@
+Update an `unaltreprojecte` research project site.
+
+1. Inspect project pages, `_outputs/`, `_projects/`, `_data/team.yml`, `_data/repositories.yml`, publications, resources, and news.
+2. Keep project communication concrete: funder/project identity, outputs, datasets, reports, maps, repositories, team roles, and dated news.
+3. Preserve DOI, GitHub, documentation, dataset, and download links exactly unless a verified replacement is provided.
+4. For publication or output claims, add or update bibliography entries only from verified metadata.
+5. Run `profile_check` and `build_site(site_profile="unaltreprojecte")` when navigation, outputs, team, or resources changed.

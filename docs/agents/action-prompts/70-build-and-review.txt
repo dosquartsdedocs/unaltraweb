@@ -1,0 +1,7 @@
+Build and review an `unaltraweb` site change.
+
+1. Run `profile_check` and `content_freshness_check` first for quick local issues.
+2. Run `build_site`, passing `site_profile` when reviewing a specific profile override.
+3. If a preview server is already running, call `http_check` with the expected local base URL and key paths.
+4. For visual or browser-level checks, use the consumer site's existing Playwright/render-smoke Make targets rather than inventing a new server workflow.
+5. Summarize build failures with the relevant target, return code, and the actionable stderr/stdout tail.

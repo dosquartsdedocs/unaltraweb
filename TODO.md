@@ -92,10 +92,11 @@ Important current template behaviour:
 
 ## Next Work
 
-### Planned MCP Contract
+### MCP Contract
 
-- Create an `unaltraweb` MCP for agent-assisted site maintenance: updating pages/posts/news, adding bibliography entries, editing project/output/team data, checking profile-specific content contracts and preparing deploy-safe content changes.
-- The future MCP should declare `diavisuals` as a required MCP dependency instead of embedding Mermaid, PlantUML, Chromium or Java in this repository.
+- Initial stdio MCP scaffold exists under `src/unaltraweb_mcp/`, with `mcp-factory.yml`, Make targets, reusable prompts, and a plugin skeleton under `plugins/unaltraweb-site/`.
+- The `unaltraweb` MCP is for agent-assisted site maintenance: updating pages/posts/news, adding bibliography entries, editing project/output/team data, checking profile-specific content contracts and preparing deploy-safe content changes.
+- The MCP declares `diavisuals` as a required MCP dependency instead of embedding Mermaid, PlantUML, Chromium or Java in this repository.
 - The dependency manifest should use the shared fields understood by ContExt:
 
 ```yaml

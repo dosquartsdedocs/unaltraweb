@@ -1,0 +1,7 @@
+Refresh static bibliometrics for an `unaltraweb` site.
+
+1. Inspect `bibliography_inventory`, `web://bibliometrics`, `_data/metrics.yml`, `_data/metrics-overrides.yml`, and diagnostics under `tmp/` if present.
+2. Use `bibliometrics_check` for offline validation before networked updates.
+3. Use `bibliometrics_update` only when the author expects versionable bibliography and `_data/metrics.yml` changes.
+4. Use `bibliometrics_fetch_scimago` or `bibliometrics_update(fetch_scimago=True)` when Scimago cache refresh is required.
+5. Keep local caches and diagnostics unversioned; report unmatched or uncertain entries instead of forcing dubious matches.

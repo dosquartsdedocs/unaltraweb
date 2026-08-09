@@ -1,0 +1,7 @@
+Add or revise bibliography for an `unaltraweb` site.
+
+1. Start with `bibliography_inventory` and check duplicate citekeys.
+2. Add entries only from author-provided BibTeX, DOI metadata, Zotero/exported metadata, or another verified source.
+3. Do not invent authors, titles, venues, years, DOIs, citation counts, quartiles, or metric fields.
+4. Use `bibliography_add_entry` for appends under `_bibliography/`; use replacement only after explicit approval when a citekey already exists.
+5. After bibliography changes, run `bibliometrics_check` or explain why the heavier check was not run.

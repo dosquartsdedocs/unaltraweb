@@ -1,4 +1,11 @@
 PYTHON ?= python3
+PROJECT ?= .
+TEMPLATE_PATH ?=
+INIT_SITE_PROFILE ?= unaltreselfie
+SITE_PROFILE ?=
+SITE_TITLE ?=
+BASEURL ?=
+URL ?=
 METRICS_ARGS ?=
 SCIMAGO_INPUT ?=
 DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:main
@@ -18,6 +25,57 @@ SCIMAGO_ARGS += --input $(SCIMAGO_INPUT)
 endif
 
 .PHONY: docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check
+.PHONY: mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
+
+mcp-build: ## Validate the lightweight Python MCP control plane
+	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m compileall -q src/unaltraweb_mcp
+
+mcp-init: mcp-build ## Initialize reusable MCP dependencies without starting services
+
+mcp-check: ## Verify the source checkout can serve the MCP CLI contract
+	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli version
+
+mcp-smoke: mcp-check ## Run a fast deterministic MCP smoke check against PROJECT
+	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp starter-templates >/dev/null
+	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp site-context >/dev/null
+	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-check >/dev/null
+	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp bibliography-inventory >/dev/null
+
+mcp-stdio: ## Serve the unaltraweb MCP through the standard stdio launcher
+	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp serve
+
+mcp-list-tools: ## List MCP resources, prompts, and tools exposed by this factory
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp list-tools
+
+mcp-starter-templates: ## List starter website templates available to initialize PROJECT
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp starter-templates
+
+mcp-initialize-site: ## Initialize PROJECT from the starter template without overwriting existing files
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp initialize-site --template-path "$(TEMPLATE_PATH)" --site-profile "$(INIT_SITE_PROFILE)" --title "$(SITE_TITLE)" --baseurl "$(BASEURL)" --url "$(URL)"
+
+mcp-site-context: ## Print JSON site context for PROJECT
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp site-context
+
+mcp-profile-check: ## Print JSON profile contract checks for PROJECT
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-check
+
+mcp-profile-prune-plan: ## Print JSON dry-run prune candidates for the active or selected profile
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-prune-plan --site-profile "$(SITE_PROFILE)"
+
+mcp-profile-prune: ## Dry-run profile prune; use the MCP tool with confirm_prune for destructive runs
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-prune --site-profile "$(SITE_PROFILE)"
+
+mcp-content-inventory: ## Print JSON content inventory for PROJECT
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp content-inventory
+
+mcp-bibliography-inventory: ## Print JSON bibliography inventory for PROJECT
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp bibliography-inventory
+
+mcp-bibliometrics-check: ## Run the offline bibliometrics check for PROJECT
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp bibliometrics-check
+
+mcp-build-health: ## Inspect existing _site build artefacts for PROJECT
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp build-health
 
 docs-build:
 	docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e BUNDLE_GEMFILE=docs/Gemfile -e BUNDLE_APP_CONFIG=/work/tmp/docs_bundle_config -e BUNDLE_PATH=/work/tmp/docs_bundle_path -v "$(CURDIR):/work" -w /work $(DOCKER_IMAGE) bash -lc 'git config --global --add safe.directory /work >/dev/null 2>&1 || true; mkdir -p tmp/docs_bundle_config tmp/docs_bundle_path; bundle check || bundle install; core_config=$$(bundle exec ruby -e "spec = Gem::Specification.find_by_name(\"unaltraweb\"); print File.join(spec.full_gem_path, \"_config.yml\")"); bundle exec jekyll build --source docs --destination tmp/docs-site --config "$$core_config,docs/_config.yml" --disable-disk-cache'

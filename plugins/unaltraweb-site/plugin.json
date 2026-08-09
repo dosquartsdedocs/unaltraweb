@@ -1,0 +1,10 @@
+{
+  "name": "unaltraweb-site",
+  "description": "Website authoring workflow for unaltraweb: content, teaching manuals, project/documentation sites, bibliography, bibliometrics, profile checks, and builds.",
+  "version": "0.1.0",
+  "author": {
+    "name": "dosquartsdedocs"
+  },
+  "skills": "skills/",
+  "agents": "agents/"
+}

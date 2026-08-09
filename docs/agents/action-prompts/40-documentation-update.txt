@@ -1,0 +1,7 @@
+Update an `unaltredocs` documentation page.
+
+1. Inspect `_documentation/<lang>/`, `section`, `subsection`, `weight`, `documentation_profiles`, and version metadata.
+2. Prefer task, reference, troubleshooting, and operational clarity over linear textbook prose.
+3. Keep examples executable or clearly marked as illustrative. Do not invent commands or config keys.
+4. Preserve stable permalinks and cross-language `ref` values.
+5. Run `profile_check` and `build_site(site_profile="unaltredocs")` when documentation navigation or examples changed.
