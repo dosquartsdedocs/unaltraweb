@@ -793,6 +793,7 @@ def translation_plan(project: Path, *, target_langs: list[str] | str | None = No
     blocked_sources: list[dict[str, Any]] = []
     missing: list[dict[str, Any]] = []
     existing: list[dict[str, Any]] = []
+    premature: list[dict[str, Any]] = []
     orphan_translations: list[dict[str, Any]] = []
 
     for key, group in sorted(groups.items()):
@@ -818,6 +819,10 @@ def translation_plan(project: Path, *, target_langs: list[str] | str | None = No
                     )
         else:
             blocked_sources.append(source)
+            for target in targets:
+                translation = next((record for record in group if record["lang"] == target), None)
+                if translation:
+                    premature.append({"source": source["path"], "target": translation["path"], "target_lang": target, "source_status": source["status"], "translation_status": translation["status"]})
 
     return {
         "project": str(project),
@@ -829,11 +834,13 @@ def translation_plan(project: Path, *, target_langs: list[str] | str | None = No
         "blocked_source_count": len(blocked_sources),
         "missing_translation_count": len(missing),
         "existing_translation_count": len(existing),
+        "premature_translation_count": len(premature),
         "orphan_translation_count": len(orphan_translations),
         "ready_sources_sample": ready_sources[:40],
         "blocked_sources_sample": blocked_sources[:40],
         "missing_translations": missing,
         "existing_translations_sample": existing[:80],
+        "premature_translations_sample": premature[:80],
         "orphan_translations_sample": orphan_translations[:40],
         "rule": "Only default-language content with an approved editorial status is ready for translation.",
     }
