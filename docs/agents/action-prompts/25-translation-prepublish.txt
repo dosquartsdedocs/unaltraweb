@@ -1,0 +1,8 @@
+Prepare `unaltraweb` translations before publication.
+
+1. Read `language_policy` and `translation_plan` first.
+2. Translate only from default-language sources whose editorial status is approved.
+3. Keep `ref` identical across languages and set the translated file's `lang` to the target language.
+4. Preserve citations, bibliography keys, figure references, tables, callout semantics, links, code, and data field names unless the target language requires visible prose changes.
+5. Mark translated files with an explicit translation state, for example `translation_status: translated` or `translation_status: needs_review`, following local project rules.
+6. After translation, run `profile_check`, `translation_plan`, and `build_site` when feasible.

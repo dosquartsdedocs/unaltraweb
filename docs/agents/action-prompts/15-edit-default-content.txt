@@ -1,0 +1,8 @@
+Draft or revise default-language `unaltraweb` content.
+
+1. Read `language_policy`, `content_approval_inventory`, and the target file before editing.
+2. Work in the configured default language first. Do not translate parallel language files during drafting unless the user explicitly asks for a translation pass.
+3. Preserve `lang`, `ref`, `permalink`, `profiles`, `section`, `subsection`, `weight`, and other routing front matter.
+4. Use `content_status: draft`, `review`, or `approved` to make editorial state explicit. Only mark content as `approved` when the user or project rules make that approval clear.
+5. When meaning changes in approved default-language content, treat existing translations as stale and mention that `translation_plan` should be checked before publication.
+6. Run `profile_check`; run `build_site` when the edit changes navigation, layout, links, citations, or collection structure.

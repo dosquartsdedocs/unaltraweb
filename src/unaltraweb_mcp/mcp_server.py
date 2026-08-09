@@ -9,7 +9,9 @@ from . import site_tools as tools
 PROMPT_FILES = {
     "start_site_session": "00-start-site-session.txt",
     "content_update": "10-content-update.txt",
+    "edit_default_content": "15-edit-default-content.txt",
     "manual_teaching_materials": "20-manual-teaching-materials.txt",
+    "translation_prepublish": "25-translation-prepublish.txt",
     "project_site_update": "30-project-site-update.txt",
     "documentation_update": "40-documentation-update.txt",
     "bibliography_entry": "50-bibliography-entry.txt",
@@ -59,6 +61,21 @@ def run_server(project: Path, factory: Path) -> None:
         """Inventory of pages, posts, news, projects, outputs, chapters, documentation, books, theses, data, and assets."""
         return tools.dumps(tools.content_inventory(project))
 
+    @mcp.resource("web://language-policy")
+    def language_policy_resource() -> str:
+        """Default language, configured languages, and the approved-before-translation workflow."""
+        return tools.dumps(tools.language_policy(project))
+
+    @mcp.resource("web://content-approval")
+    def content_approval_resource() -> str:
+        """Editorial approval status for default-language and translated content."""
+        return tools.dumps(tools.content_approval_inventory(project))
+
+    @mcp.resource("web://translation-plan")
+    def translation_plan_resource() -> str:
+        """Pre-publication translation plan for approved default-language content."""
+        return tools.dumps(tools.translation_plan(project))
+
     @mcp.resource("web://bibliography")
     def bibliography_resource() -> str:
         """BibTeX files, entry counts, types, duplicates, and bibliometrics update dates."""
@@ -90,9 +107,20 @@ def run_server(project: Path, factory: Path) -> None:
         return _prompt_text(factory, "content_update") + f"\n\nCurrent target: {target}\n"
 
     @mcp.prompt()
+    def edit_default_content(target: str = "default-language content item") -> str:
+        """Draft, revise, and approve content in the configured default language before localization."""
+        return _prompt_text(factory, "edit_default_content") + f"\n\nCurrent target: {target}\n"
+
+    @mcp.prompt()
     def manual_teaching_materials(target: str = "manual chapter or teaching resource") -> str:
         """Create or revise teaching/manual content for unaltremanual sites."""
         return _prompt_text(factory, "manual_teaching_materials") + f"\n\nCurrent target: {target}\n"
+
+    @mcp.prompt()
+    def translation_prepublish(target_language: str = "") -> str:
+        """Prepare approved default-language content for translation shortly before publication."""
+        suffix = f"\n\nTarget language: {target_language}\n" if target_language else ""
+        return _prompt_text(factory, "translation_prepublish") + suffix
 
     @mcp.prompt()
     def project_site_update(target: str = "project site section") -> str:
@@ -126,9 +154,9 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.starter_templates(factory)
 
     @mcp.tool()
-    def initialize_site(template_path: str = "", site_profile: str = "unaltreselfie", title: str = "", baseurl: str = "", url: str = "", force: bool = False, confirm_overwrite: bool = False) -> dict[str, Any]:
+    def initialize_site(template_path: str = "", site_profile: str = "unaltreselfie", title: str = "", baseurl: str = "", url: str = "", default_lang: str = "", languages: str = "", force: bool = False, confirm_overwrite: bool = False) -> dict[str, Any]:
         """Initialize the current workspace from a starter template. Existing files are skipped unless force and confirm_overwrite are both true."""
-        return tools.initialize_site(project, factory, template_path=template_path, site_profile_value=site_profile, title=title, baseurl=baseurl, url=url, force=force, confirm_overwrite=confirm_overwrite)
+        return tools.initialize_site(project, factory, template_path=template_path, site_profile_value=site_profile, title=title, baseurl=baseurl, url=url, default_lang=default_lang, languages=languages, force=force, confirm_overwrite=confirm_overwrite)
 
     @mcp.tool()
     def site_context() -> dict[str, Any]:
@@ -138,7 +166,7 @@ def run_server(project: Path, factory: Path) -> None:
     @mcp.tool()
     def site_check(max_bibliometrics_age_days: int = 180) -> dict[str, Any]:
         """Run local profile, freshness, bibliography, bibliometrics, and build-state checks without network access."""
-        return {"profile": tools.profile_check(project), "freshness": tools.content_freshness_check(project, max_bibliometrics_age_days), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)}
+        return {"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project, max_bibliometrics_age_days), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)}
 
     @mcp.tool()
     def profile_check() -> dict[str, Any]:
@@ -159,6 +187,21 @@ def run_server(project: Path, factory: Path) -> None:
     def content_inventory() -> dict[str, Any]:
         """List editable site collections, data files, and assets."""
         return tools.content_inventory(project)
+
+    @mcp.tool()
+    def language_policy() -> dict[str, Any]:
+        """Return default language, configured languages, and editorial translation workflow settings."""
+        return tools.language_policy(project)
+
+    @mcp.tool()
+    def content_approval_inventory(status_field: str = "", approved_value: str = "") -> dict[str, Any]:
+        """Summarize local content approval status before translation or publication."""
+        return tools.content_approval_inventory(project, status_field=status_field, approved_value=approved_value)
+
+    @mcp.tool()
+    def translation_plan(target_langs: list[str] | None = None, status_field: str = "", approved_value: str = "") -> dict[str, Any]:
+        """List approved default-language sources and missing translations for pre-publication localization."""
+        return tools.translation_plan(project, target_langs=target_langs, status_field=status_field, approved_value=approved_value)
 
     @mcp.tool()
     def content_freshness_check(max_bibliometrics_age_days: int = 180) -> dict[str, Any]:

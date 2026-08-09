@@ -2,6 +2,7 @@ Update one `unaltraweb` content item.
 
 1. Identify the profile and content type before editing: page, post, news item, project, output, chapter, documentation page, book, thesis, or `_data` record.
 2. Preserve front matter keys used for routing: `title`, `lang`, `ref`, `permalink`, `profiles`, `feature`, `section`, and `weight` when relevant.
-3. For multilingual content, keep `ref` stable across languages and do not silently update only one language when the change affects meaning across all languages.
+3. Draft and approve substantial content in the configured default language first. For multilingual content, keep `ref` stable across languages and do not silently update translations while the default-language source is still changing.
 4. Prefer small versionable edits over generated churn. Do not edit `_site`, `tmp`, or local caches.
-5. Run `profile_check` and a build check when the edit changes navigation, layout, links, or collection structure.
+5. Use `translation_plan` before publication to identify approved default-language content that still needs localization.
+6. Run `profile_check` and a build check when the edit changes navigation, layout, links, or collection structure.

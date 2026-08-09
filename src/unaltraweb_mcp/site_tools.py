@@ -31,6 +31,9 @@ CONTENT_DIRS = [
 
 BIB_ENTRY_RE = re.compile(r"(?m)^@(\w+)\s*\{\s*([^,\s]+)")
 DATE_RE = re.compile(r"\b(20\d{2}|19\d{2})-(\d{2})-(\d{2})\b")
+POST_LANG_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-([a-z]{2,3})-")
+DEFAULT_STATUS_FIELD = "content_status"
+DEFAULT_APPROVED_VALUE = "approved"
 
 PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     "unaltreselfie": {
@@ -199,6 +202,36 @@ def configured_languages(config: dict[str, Any]) -> list[str]:
     return [str(default_lang)] if default_lang else []
 
 
+def default_language(config: dict[str, Any]) -> str:
+    uw_config = unaltraweb_config(config)
+    for value in [
+        uw_config.get("default_lang"),
+        uw_config.get("lang"),
+        config.get("default_lang"),
+        config.get("lang"),
+    ]:
+        if value:
+            return str(value)
+    languages = configured_languages(config)
+    return languages[0] if languages else ""
+
+
+def editorial_config(config: dict[str, Any]) -> dict[str, str]:
+    uw_config = unaltraweb_config(config)
+    return {
+        "status_field": str(uw_config.get("content_status_field") or DEFAULT_STATUS_FIELD),
+        "approved_value": str(uw_config.get("approved_status") or DEFAULT_APPROVED_VALUE),
+    }
+
+
+def _parse_languages(value: str | list[str] | None) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        return [item.strip() for item in value.split(",") if item.strip()]
+    return []
+
+
 def _profile_values(value: Any) -> list[str]:
     if isinstance(value, list):
         return [str(item).strip() for item in value if str(item).strip()]
@@ -290,6 +323,10 @@ def _yaml_scalar(value: str) -> str:
     return json.dumps(str(value), ensure_ascii=False)
 
 
+def _yaml_inline_list(values: list[str]) -> str:
+    return "[" + ", ".join(_yaml_scalar(value) for value in values) + "]"
+
+
 def _replace_top_level_scalar(lines: list[str], key: str, value: str) -> tuple[list[str], bool]:
     replaced = False
     rendered = f"{key}: {_yaml_scalar(value)}"
@@ -335,7 +372,22 @@ def _replace_unaltraweb_site_profile(lines: list[str], site_profile_value: str) 
     return output, replaced or inserted
 
 
-def _update_initialized_config(project: Path, *, site_profile_value: str, title: str, baseurl: str, url: str) -> dict[str, Any]:
+def _replace_top_level_list(lines: list[str], key: str, values: list[str]) -> tuple[list[str], bool]:
+    replaced = False
+    rendered = f"{key}: {_yaml_inline_list(values)}"
+    output = []
+    for line in lines:
+        if not replaced and line.startswith(f"{key}:"):
+            output.append(rendered)
+            replaced = True
+        else:
+            output.append(line)
+    if not replaced:
+        output.append(rendered)
+    return output, replaced
+
+
+def _update_initialized_config(project: Path, *, site_profile_value: str, title: str, baseurl: str, url: str, default_lang: str, languages: list[str]) -> dict[str, Any]:
     config_path = project / "_config.yml"
     if not config_path.is_file():
         return {"updated": False, "reason": "_config.yml not found"}
@@ -350,6 +402,13 @@ def _update_initialized_config(project: Path, *, site_profile_value: str, title:
     if url:
         lines, _ = _replace_top_level_scalar(lines, "url", url)
         updates.append("url")
+    if default_lang:
+        lines, _ = _replace_top_level_scalar(lines, "lang", default_lang)
+        lines, _ = _replace_top_level_scalar(lines, "default_lang", default_lang)
+        updates.extend(["lang", "default_lang"])
+    if languages:
+        lines, _ = _replace_top_level_list(lines, "languages", languages)
+        updates.append("languages")
     if site_profile_value:
         lines, _ = _replace_unaltraweb_site_profile(lines, site_profile_value)
         updates.append("unaltraweb.site_profile")
@@ -366,6 +425,8 @@ def initialize_site(
     title: str = "",
     baseurl: str = "",
     url: str = "",
+    default_lang: str = "",
+    languages: str | list[str] | None = None,
     force: bool = False,
     confirm_overwrite: bool = False,
 ) -> dict[str, Any]:
@@ -377,6 +438,9 @@ def initialize_site(
         raise ValueError(f"Unknown site profile: {site_profile_value}")
 
     template = _resolve_template(factory, template_path)
+    language_values = _parse_languages(languages)
+    if default_lang and language_values and default_lang not in language_values:
+        language_values.insert(0, default_lang)
     project.mkdir(parents=True, exist_ok=True)
     config_existed_before = (project / "_config.yml").exists()
     copied: list[str] = []
@@ -423,6 +487,8 @@ def initialize_site(
             title=title,
             baseurl=baseurl,
             url=url,
+            default_lang=default_lang,
+            languages=language_values,
         )
     return {
         "ok": True,
@@ -576,11 +642,200 @@ def profile_check(project: Path) -> dict[str, Any]:
         "project": str(project),
         "profile": profile,
         "contract": contract,
+        "default_language": default_language(config),
         "languages": configured_languages(config),
         "features": feature_flags(config),
         "ok": not issues,
         "issues": issues,
         "warnings": warnings,
+    }
+
+
+def _collection_root(relative: str) -> str:
+    parts = Path(relative).parts
+    return parts[0] if parts else ""
+
+
+def _infer_content_language(project: Path, path: Path, front: dict[str, Any], config: dict[str, Any]) -> str:
+    explicit = str(front.get("lang") or "").strip()
+    if explicit:
+        return explicit
+    languages = configured_languages(config)
+    relative_parts = Path(rel(project, path)).parts
+    for part in relative_parts:
+        if part in languages:
+            return part
+    match = POST_LANG_RE.match(path.name)
+    if match and match.group(1) in languages:
+        return match.group(1)
+    return default_language(config)
+
+
+def _content_status(front: dict[str, Any], status_field: str) -> str:
+    value = front.get(status_field)
+    return str(value).strip() if value is not None else ""
+
+
+def _content_record(project: Path, path: Path, config: dict[str, Any], *, status_field: str, approved_value: str) -> dict[str, Any]:
+    front = read_front_matter(path)
+    status = _content_status(front, status_field)
+    return {
+        "path": rel(project, path),
+        "collection": _collection_root(rel(project, path)),
+        "lang": _infer_content_language(project, path, front, config),
+        "ref": str(front.get("ref") or "").strip(),
+        "title": str(front.get("title") or "").strip(),
+        "status": status,
+        "approved": status == approved_value,
+    }
+
+
+def _suggest_translation_path(source_path: str, source_lang: str, target_lang: str) -> str:
+    path = Path(source_path)
+    parts = list(path.parts)
+    for index, part in enumerate(parts[:-1]):
+        if part == source_lang:
+            parts[index] = target_lang
+            return str(Path(*parts))
+    filename = path.name
+    replaced = POST_LANG_RE.sub(lambda match: match.group(0).replace(f"-{source_lang}-", f"-{target_lang}-", 1), filename)
+    if replaced != filename:
+        return str(path.with_name(replaced))
+    if len(parts) > 1:
+        return str(Path(parts[0]) / target_lang / filename)
+    return str(path.with_name(f"{path.stem}-{target_lang}{path.suffix}"))
+
+
+def language_policy(project: Path) -> dict[str, Any]:
+    project = project_path(project)
+    config = site_config(project)
+    languages = configured_languages(config)
+    default_lang = default_language(config)
+    editorial = editorial_config(config)
+    issues: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+
+    if not default_lang:
+        issues.append({"severity": "error", "message": "No default language configured. Set default_lang or lang in _config.yml."})
+    if default_lang and languages and default_lang not in languages:
+        issues.append({"severity": "error", "message": "Default language is not listed in languages.", "default_language": default_lang, "languages": languages})
+    if not languages:
+        warnings.append({"severity": "warning", "message": "No languages list configured; multilingual translation planning will be limited."})
+
+    return {
+        "project": str(project),
+        "default_language": default_lang,
+        "languages": languages,
+        "translation_languages": [lang for lang in languages if lang != default_lang],
+        "status_field": editorial["status_field"],
+        "approved_value": editorial["approved_value"],
+        "workflow": [
+            "Draft, edit, and approve meaningful content in the default language first.",
+            "Treat translations as pre-publication work after the default-language source is approved.",
+            "Keep lang and ref stable across localized versions.",
+            "Use translation_plan before publication to find missing or premature translations.",
+        ],
+        "ok": not issues,
+        "issues": issues,
+        "warnings": warnings,
+    }
+
+
+def content_approval_inventory(project: Path, *, status_field: str = "", approved_value: str = "") -> dict[str, Any]:
+    project = project_path(project)
+    config = site_config(project)
+    editorial = editorial_config(config)
+    status_field = status_field or editorial["status_field"]
+    approved_value = approved_value or editorial["approved_value"]
+    default_lang = default_language(config)
+    records = [_content_record(project, path, config, status_field=status_field, approved_value=approved_value) for path in iter_content_files(project)]
+    by_status: dict[str, int] = {}
+    for record in records:
+        status = str(record["status"] or "missing")
+        by_status[status] = by_status.get(status, 0) + 1
+    default_records = [record for record in records if record["lang"] == default_lang]
+    approved_default = [record for record in default_records if record["approved"]]
+    pending_default = [record for record in default_records if not record["approved"]]
+    return {
+        "project": str(project),
+        "default_language": default_lang,
+        "status_field": status_field,
+        "approved_value": approved_value,
+        "content_count": len(records),
+        "status_counts": dict(sorted(by_status.items())),
+        "default_language_count": len(default_records),
+        "approved_default_count": len(approved_default),
+        "pending_default_count": len(pending_default),
+        "pending_default_sample": pending_default[:40],
+        "records_sample": records[:80],
+    }
+
+
+def translation_plan(project: Path, *, target_langs: list[str] | str | None = None, status_field: str = "", approved_value: str = "") -> dict[str, Any]:
+    project = project_path(project)
+    config = site_config(project)
+    editorial = editorial_config(config)
+    status_field = status_field or editorial["status_field"]
+    approved_value = approved_value or editorial["approved_value"]
+    languages = configured_languages(config)
+    default_lang = default_language(config)
+    targets = _parse_languages(target_langs)
+    if not targets:
+        targets = [lang for lang in languages if lang != default_lang]
+
+    records = [_content_record(project, path, config, status_field=status_field, approved_value=approved_value) for path in iter_content_files(project)]
+    with_ref = [record for record in records if record["ref"]]
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for record in with_ref:
+        groups.setdefault((str(record["collection"]), str(record["ref"])), []).append(record)
+
+    ready_sources: list[dict[str, Any]] = []
+    blocked_sources: list[dict[str, Any]] = []
+    missing: list[dict[str, Any]] = []
+    existing: list[dict[str, Any]] = []
+    orphan_translations: list[dict[str, Any]] = []
+
+    for key, group in sorted(groups.items()):
+        source = next((record for record in group if record["lang"] == default_lang), None)
+        if source is None:
+            orphan_translations.extend(record for record in group if record["lang"] in targets)
+            continue
+        if source["approved"]:
+            ready_sources.append(source)
+            for target in targets:
+                translation = next((record for record in group if record["lang"] == target), None)
+                if translation:
+                    existing.append({"source": source["path"], "target": translation["path"], "target_lang": target, "status": translation["status"]})
+                else:
+                    missing.append(
+                        {
+                            "source": source["path"],
+                            "target_lang": target,
+                            "suggested_path": _suggest_translation_path(str(source["path"]), default_lang, target),
+                            "ref": source["ref"],
+                            "title": source["title"],
+                        }
+                    )
+        else:
+            blocked_sources.append(source)
+
+    return {
+        "project": str(project),
+        "default_language": default_lang,
+        "target_languages": targets,
+        "status_field": status_field,
+        "approved_value": approved_value,
+        "ready_source_count": len(ready_sources),
+        "blocked_source_count": len(blocked_sources),
+        "missing_translation_count": len(missing),
+        "existing_translation_count": len(existing),
+        "orphan_translation_count": len(orphan_translations),
+        "ready_sources_sample": ready_sources[:40],
+        "blocked_sources_sample": blocked_sources[:40],
+        "missing_translations": missing,
+        "existing_translations_sample": existing[:80],
+        "orphan_translations_sample": orphan_translations[:40],
+        "rule": "Only default-language content with an approved editorial status is ready for translation.",
     }
 
 
@@ -801,9 +1056,11 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
         "generated_at": utc_now(),
         "title": str(config.get("title") or ""),
         "profile": site_profile(config),
+        "language_policy": language_policy(project),
         "languages": configured_languages(config),
         "features": feature_flags(config),
         "content": content_inventory(project),
+        "approval": content_approval_inventory(project),
         "bibliography": bibliography_inventory(project),
         "bibliometrics": bibliometrics_status(project),
         "build_health": build_health(project),
@@ -813,9 +1070,9 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
 
 def list_tools() -> dict[str, Any]:
     return {
-        "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://profile-prune-plan", "web://content-inventory", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
-        "prompts": ["start_site_session", "content_update", "manual_teaching_materials", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
-        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "profile_prune_plan", "profile_prune", "content_inventory", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
+        "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
+        "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
+        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
     }
 
 

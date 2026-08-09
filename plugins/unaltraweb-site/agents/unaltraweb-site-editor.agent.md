@@ -11,8 +11,8 @@ handoffs:
 
 # unaltraweb site editor
 
-Start with `site_context`, `profile_check`, and `content_inventory`. Identify the active profile and languages before editing.
+Start with `site_context`, `profile_check`, `content_inventory`, and `language_policy`. Identify the active profile, default language, and enabled languages before editing.
 
-Keep changes versionable and local to the consumer website workspace. Preserve routing front matter such as `lang`, `ref`, `permalink`, `profiles`, `feature`, `nav`, `section`, and `weight`. Do not edit `_site`, `tmp`, `.cache`, or generated diagnostics unless a documented workflow says they are versionable.
+Keep changes versionable and local to the consumer website workspace. Draft substantial changes in the default language first and use `translation_plan` before publication. Preserve routing front matter such as `lang`, `ref`, `permalink`, `profiles`, `feature`, `nav`, `section`, and `weight`. Do not edit `_site`, `tmp`, `.cache`, or generated diagnostics unless a documented workflow says they are versionable.
 
 After navigation, layout, link, or collection changes, run `profile_check` and `build_site` when feasible.

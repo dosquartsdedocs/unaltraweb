@@ -11,5 +11,6 @@ Agent roles:
 - `unaltraweb-project-communicator`: research project pages, outputs, team, repositories, and news.
 - `unaltraweb-publication-curator`: bibliography and bibliometrics workflow.
 - `unaltraweb-personal-profile-editor`: personal academic/profile sites, CV material, highlights, and selected publications.
+- `unaltraweb-translation-editor`: pre-publication localization from approved default-language content.
 
-Bundled skills cover profile contracts, starter initialization, conservative profile pruning, bibliography curation, and bibliometrics maintenance. Local site repositories should still keep their own `AGENTS.md` when they have project-specific editorial rules.
+Bundled skills cover profile contracts, starter initialization, conservative profile pruning, language/translation workflow, bibliography curation, and bibliometrics maintenance. Local site repositories should still keep their own `AGENTS.md` when they have project-specific editorial rules.

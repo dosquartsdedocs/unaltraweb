@@ -54,6 +54,8 @@ def cmd_mcp(args: argparse.Namespace) -> int:
                 title=args.title,
                 baseurl=args.baseurl,
                 url=args.url,
+                default_lang=args.default_lang,
+                languages=args.languages,
                 force=args.force,
                 confirm_overwrite=args.confirm_overwrite,
             )
@@ -61,7 +63,7 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "site-context":
         return print_json(tools.site_context(project, factory))
     if command == "site-check":
-        return print_json({"profile": tools.profile_check(project), "freshness": tools.content_freshness_check(project), "build_health": tools.build_health(project)})
+        return print_json({"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)})
     if command == "profile-check":
         return print_json(tools.profile_check(project))
     if command == "profile-prune-plan":
@@ -70,6 +72,12 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return print_json(tools.profile_prune(project, site_profile_value=args.site_profile, dry_run=not args.apply, confirm_prune=args.confirm_prune))
     if command == "content-inventory":
         return print_json(tools.content_inventory(project))
+    if command == "language-policy":
+        return print_json(tools.language_policy(project))
+    if command == "content-approval-inventory":
+        return print_json(tools.content_approval_inventory(project, status_field=args.status_field, approved_value=args.approved_value))
+    if command == "translation-plan":
+        return print_json(tools.translation_plan(project, target_langs=args.target_langs, status_field=args.status_field, approved_value=args.approved_value))
     if command == "content-freshness-check":
         return print_json(tools.content_freshness_check(project, max_bibliometrics_age_days=args.max_bibliometrics_age_days))
     if command == "bibliography-inventory":
@@ -112,7 +120,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp = sub.add_parser("mcp", help="MCP server and JSON helper commands")
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
-    for name in ["serve", "list-tools", "starter-templates", "site-context", "site-check", "profile-check", "content-inventory", "bibliography-inventory", "bibliometrics-check", "build-health", "prompts"]:
+    for name in ["serve", "list-tools", "starter-templates", "site-context", "site-check", "profile-check", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "prompts"]:
         mcp_sub.add_parser(name)
 
     init_site = mcp_sub.add_parser("initialize-site")
@@ -121,8 +129,19 @@ def build_parser() -> argparse.ArgumentParser:
     init_site.add_argument("--title", default="")
     init_site.add_argument("--baseurl", default="")
     init_site.add_argument("--url", default="")
+    init_site.add_argument("--default-lang", default="")
+    init_site.add_argument("--languages", default="")
     init_site.add_argument("--force", action="store_true")
     init_site.add_argument("--confirm-overwrite", action="store_true")
+
+    approval = mcp_sub.add_parser("content-approval-inventory")
+    approval.add_argument("--status-field", default="")
+    approval.add_argument("--approved-value", default="")
+
+    translation = mcp_sub.add_parser("translation-plan")
+    translation.add_argument("--target-langs", default="")
+    translation.add_argument("--status-field", default="")
+    translation.add_argument("--approved-value", default="")
 
     freshness = mcp_sub.add_parser("content-freshness-check")
     freshness.add_argument("--max-bibliometrics-age-days", type=int, default=180)

@@ -19,6 +19,9 @@ The opened workspace is the consumer website repository. Factory logic remains i
 | `web://profile-contract` | Checks for `unaltreselfie`, `unaltreprojecte`, `unaltremanual`, and `unaltredocs`. |
 | `web://profile-prune-plan` | Dry-run list of profile-specific content that can be removed from the active profile. |
 | `web://content-inventory` | Local editable collections, `_data/`, and assets. |
+| `web://language-policy` | Default language, configured languages, and editorial translation workflow settings. |
+| `web://content-approval` | Local editorial approval status for default-language and translated content. |
+| `web://translation-plan` | Missing translations for approved default-language content before publication. |
 | `web://bibliography` | BibTeX files, entry counts, types, duplicate citekeys, and update dates. |
 | `web://bibliometrics` | Static bibliometrics summary state and bibliography update dates. |
 | `web://build-health` | Existing `_site` build artefacts without starting a server. |
@@ -36,6 +39,9 @@ The opened workspace is the consumer website repository. Factory logic remains i
 | `profile_prune_plan` | List content files whose explicit `profiles:` front matter excludes the selected profile. |
 | `profile_prune` | Remove those profile-specific files only after reviewing the plan and passing `confirm_prune=true`. Defaults to dry-run. |
 | `content_inventory` | Inventory pages, posts, chapters, documentation, data, and assets. |
+| `language_policy` | Inspect `lang`, `default_lang`, `languages`, and the default-language-first editorial workflow. |
+| `content_approval_inventory` | Summarize `content_status` values, approved default-language sources, and pending default-language content. |
+| `translation_plan` | List approved default-language sources, missing target-language files, existing translations, and blocked unapproved sources. |
 | `content_freshness_check` | Detect stale bibliometrics and future-dated posts/news from local files. |
 | `bibliography_inventory` | Inspect BibTeX files and duplicate citekeys. |
 | `bibliography_add_entry` | Append a verified BibTeX entry under `_bibliography/`. |
@@ -52,9 +58,19 @@ The tool names use `bibliometrics_*` even though existing Make targets still use
 
 `initialize_site` is intended for empty or nearly-empty website repositories. It copies a starter template into the consumer workspace, skips generated folders such as `_site`, `.jekyll-cache`, `.bundle`, `.cache`, `node_modules`, `tmp`, and `vendor`, and updates `_config.yml` with the selected `unaltraweb.site_profile`, `title`, `baseurl`, and `url`.
 
+It can also set `lang`, `default_lang`, and `languages` so a new site has an explicit source language from the first commit.
+
 By default it does not overwrite existing files. Overwrites require both `force=true` and `confirm_overwrite=true`, and agents should only use that combination after explicit user approval.
 
 Use `profile_prune_plan` after initialization when the starter should be reduced to one profile. The prune rule is deliberately conservative: it only targets Markdown/HTML content files with explicit `profiles:` front matter that does not include the selected profile. It does not remove assets, bibliography, `_data`, or unprofiled content. Destructive pruning requires `profile_prune(dry_run=false, confirm_prune=true)` after the plan has been reviewed.
+
+## Language And Translation Discipline
+
+Each website should have an explicit default language in `_config.yml`, using `default_lang` and usually `lang` as the HTML fallback. `languages` lists the language variants that are actively maintained.
+
+Agents should draft and edit meaningful content in the default language first. Use `content_status: draft`, `content_status: review`, or `content_status: approved` to make editorial state visible. `translation_plan` treats only default-language files with the approved value as ready for translation, then reports missing target-language files by shared `ref`.
+
+Translations are a pre-publication task. They should preserve `ref`, citations, bibliography keys, figures, links, code, data field names, and routing metadata. Existing translations should not be silently rewritten while the default-language source is still changing; mark or report them as stale instead.
 
 ## HTTP Preview
 

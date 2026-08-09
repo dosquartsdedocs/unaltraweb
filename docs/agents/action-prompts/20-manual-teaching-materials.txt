@@ -1,7 +1,8 @@
 Create or revise teaching material for an `unaltremanual` site.
 
 1. Read the manual profile config and inventory `_chapters/<lang>/`, manual bibliography files, figures, tables, and downloadable resources.
-2. Write for sequential learners: clear chapter function, stable headings, examples, exercises or prompts when appropriate, and references where claims depend on literature.
-3. Keep web-only affordances separate from printable content when possible.
-4. Do not regenerate or overwrite author-edited diagram SVGs without asking when a matching `*.edited.svg` exists.
-5. Run `profile_check`; run `build_site(site_profile="unaltremanual")` when structure, figures, bibliography, or navigation changed.
+2. Work in the configured default language until the chapter or resource is approved. Use `translation_plan` only as a pre-publication localization checklist.
+3. Write for sequential learners: clear chapter function, stable headings, examples, exercises or prompts when appropriate, and references where claims depend on literature.
+4. Keep web-only affordances separate from printable content when possible.
+5. Do not regenerate or overwrite author-edited diagram SVGs without asking when a matching `*.edited.svg` exists.
+6. Run `profile_check`; run `build_site(site_profile="unaltremanual")` when structure, figures, bibliography, or navigation changed.

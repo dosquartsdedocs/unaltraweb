@@ -6,6 +6,8 @@ SITE_PROFILE ?=
 SITE_TITLE ?=
 BASEURL ?=
 URL ?=
+DEFAULT_LANG ?=
+LANGUAGES ?=
 METRICS_ARGS ?=
 SCIMAGO_INPUT ?=
 DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:main
@@ -25,7 +27,7 @@ SCIMAGO_ARGS += --input $(SCIMAGO_INPUT)
 endif
 
 .PHONY: docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check
-.PHONY: mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
+.PHONY: mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
 
 mcp-build: ## Validate the lightweight Python MCP control plane
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m compileall -q src/unaltraweb_mcp
@@ -39,6 +41,7 @@ mcp-smoke: mcp-check ## Run a fast deterministic MCP smoke check against PROJECT
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp starter-templates >/dev/null
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp site-context >/dev/null
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-check >/dev/null
+	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp translation-plan >/dev/null
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp bibliography-inventory >/dev/null
 
 mcp-stdio: ## Serve the unaltraweb MCP through the standard stdio launcher
@@ -51,7 +54,7 @@ mcp-starter-templates: ## List starter website templates available to initialize
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp starter-templates
 
 mcp-initialize-site: ## Initialize PROJECT from the starter template without overwriting existing files
-	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp initialize-site --template-path "$(TEMPLATE_PATH)" --site-profile "$(INIT_SITE_PROFILE)" --title "$(SITE_TITLE)" --baseurl "$(BASEURL)" --url "$(URL)"
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp initialize-site --template-path "$(TEMPLATE_PATH)" --site-profile "$(INIT_SITE_PROFILE)" --title "$(SITE_TITLE)" --baseurl "$(BASEURL)" --url "$(URL)" --default-lang "$(DEFAULT_LANG)" --languages "$(LANGUAGES)"
 
 mcp-site-context: ## Print JSON site context for PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp site-context
@@ -67,6 +70,15 @@ mcp-profile-prune: ## Dry-run profile prune; use the MCP tool with confirm_prune
 
 mcp-content-inventory: ## Print JSON content inventory for PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp content-inventory
+
+mcp-language-policy: ## Print JSON default language and translation workflow settings for PROJECT
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp language-policy
+
+mcp-content-approval-inventory: ## Print JSON editorial approval state for PROJECT content
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp content-approval-inventory
+
+mcp-translation-plan: ## Print JSON missing translations for approved default-language content
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp translation-plan
 
 mcp-bibliography-inventory: ## Print JSON bibliography inventory for PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp bibliography-inventory
