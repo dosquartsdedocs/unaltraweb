@@ -29,6 +29,16 @@ CONTENT_DIRS = [
     "_theses",
 ]
 
+TRANSLATABLE_CONTENT_DIRS = {
+    "_pages",
+    "_posts",
+    "_news",
+    "_projects",
+    "_outputs",
+    "_chapters",
+    "_documentation",
+}
+
 BIB_ENTRY_RE = re.compile(r"(?m)^@(\w+)\s*\{\s*([^,\s]+)")
 DATE_RE = re.compile(r"\b(20\d{2}|19\d{2})-(\d{2})-(\d{2})\b")
 POST_LANG_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-([a-z]{2,3})-")
@@ -783,7 +793,11 @@ def translation_plan(project: Path, *, target_langs: list[str] | str | None = No
     if not targets:
         targets = [lang for lang in languages if lang != default_lang]
 
-    records = [_content_record(project, path, config, status_field=status_field, approved_value=approved_value) for path in iter_content_files(project)]
+    records = [
+        _content_record(project, path, config, status_field=status_field, approved_value=approved_value)
+        for path in iter_content_files(project)
+        if _collection_root(rel(project, path)) in TRANSLATABLE_CONTENT_DIRS
+    ]
     with_ref = [record for record in records if record["ref"]]
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for record in with_ref:
