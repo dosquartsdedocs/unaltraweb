@@ -437,8 +437,8 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
 }
 
 .hd-num {
-  color: var(--global-text-color-light);
-  font-weight: 600;
+  color: var(--global-theme-color);
+  font-weight: 400;
   margin-right: 0.45rem;
   font-variant-numeric: tabular-nums;
 }
@@ -798,7 +798,9 @@ html[data-theme="dark"] .manual-teacher-links a[aria-label="X"] i {
   text-decoration: none;
 }
 
+.site-profile-unaltremanual .manual-chapter-nav-link:hover span,
 .site-profile-unaltremanual .manual-chapter-nav-link:hover strong,
+.site-profile-unaltremanual .manual-chapter-nav-link:focus-visible span,
 .site-profile-unaltremanual .manual-chapter-nav-link:focus-visible strong {
   color: var(--global-theme-color);
 }
