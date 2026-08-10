@@ -1105,7 +1105,7 @@ html[data-theme="dark"] .md-table {
 html[data-theme="light"] .figlabel {
   border-color: color-mix(in srgb, var(--global-theme-color) 24%, var(--global-divider-color));
   background: color-mix(in srgb, var(--global-theme-color) 12%, transparent);
-  color: var(--global-text-color-light);
+  color: color-mix(in srgb, var(--global-theme-color) 72%, var(--global-text-color));
 }
 
 @media (max-width: 960px) {
