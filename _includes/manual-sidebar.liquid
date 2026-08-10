@@ -23,7 +23,10 @@
       <p class="manual-sidebar-heading manual-sidebar-heading--contents">{{ manual_contents_text | strip }}</p>
       <ol class="manual-chapter-tree manual-cover-tree">
         <li class="manual-sidebar-item manual-home-link{% if page.ref == 'home' %} active{% endif %}">
-          <a href="{{ manual_home.url | default: default_manual_home_url | relative_url }}">{{ manual_cover_text | strip }}</a>
+          <a href="{{ manual_home.url | default: default_manual_home_url | relative_url }}">
+            <span class="manual-chapter-number manual-chapter-number--blank" aria-hidden="true"></span>
+            <span class="manual-chapter-title">{{ manual_cover_text | strip }}</span>
+          </a>
         </li>
       </ol>
       <ol class="manual-chapter-tree">
