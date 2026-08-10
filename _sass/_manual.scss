@@ -358,7 +358,7 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
 }
 
 .manual-chapter-number {
-  color: var(--global-text-color-light);
+  color: var(--manual-number-color, var(--global-theme-color));
   font-variant-numeric: tabular-nums;
 }
 
@@ -2085,7 +2085,7 @@ html[data-theme="cafe"] .manual-brand-logo-default {
 
 .manual-sidebar-item.active .manual-chapter-number,
 .manual-sidebar-item a:hover .manual-chapter-number {
-  color: var(--global-theme-color);
+  color: var(--manual-number-color, var(--global-theme-color));
 }
 
 .manual-toc-panel {
