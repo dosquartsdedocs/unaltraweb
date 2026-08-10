@@ -393,7 +393,7 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
 }
 
 .manual-page-toc-number {
-  color: var(--global-theme-color);
+  color: var(--manual-number-color, var(--global-theme-color));
   font-weight: 400;
   margin-right: 0.35em;
 }
@@ -443,7 +443,7 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
 }
 
 .hd-num {
-  color: var(--global-theme-color);
+  color: var(--manual-number-color, var(--global-theme-color));
   font-weight: 400;
   margin-right: 0.45rem;
   font-variant-numeric: tabular-nums;
@@ -1330,6 +1330,7 @@ html[data-theme="light"] .figlabel {
 
 /* Manual book layout refinements: centered body, right chapter TOC, navbar reading controls. */
 .site-profile-unaltremanual {
+  --manual-number-color: var(--global-theme-color);
   --manual-diagram-bg: #f7fafc;
   --manual-diagram-border: #d7e0eb;
   --manual-diagram-canvas: #ffffff;
@@ -1337,6 +1338,7 @@ html[data-theme="light"] .figlabel {
 }
 
 html[data-theme="cafe"] .site-profile-unaltremanual {
+  --manual-number-color: var(--global-highlight-color);
   --manual-diagram-bg: #efe1c4;
   --manual-diagram-border: #cfb986;
   --manual-diagram-canvas: #fbf2dc;
