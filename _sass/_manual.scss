@@ -392,6 +392,16 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   padding-left: 0.65rem;
 }
 
+.manual-page-toc-number {
+  color: var(--global-theme-color);
+  font-weight: 400;
+  margin-right: 0.35em;
+}
+
+.manual-page-toc-title {
+  color: var(--global-text-color-light);
+}
+
 .manual-main {
   grid-column: 3;
   max-width: 920px;
@@ -790,15 +800,7 @@ html[data-theme="dark"] .manual-teacher-links a[aria-label="X"] i {
 .site-profile-unaltremanual .manual-chapter-nav-link:focus-visible {
   border-color: var(--global-theme-color);
   background: color-mix(in srgb, var(--global-theme-color) 12%, transparent);
-  color: var(--global-theme-color);
   text-decoration: none;
-}
-
-.site-profile-unaltremanual .manual-chapter-nav-link:hover span,
-.site-profile-unaltremanual .manual-chapter-nav-link:hover strong,
-.site-profile-unaltremanual .manual-chapter-nav-link:focus-visible span,
-.site-profile-unaltremanual .manual-chapter-nav-link:focus-visible strong {
-  color: var(--global-theme-color);
 }
 
 .manual-bibliography h2.bibliography {
@@ -1100,7 +1102,7 @@ html[data-theme="dark"] .md-table {
   vertical-align: middle;
 }
 
-html[data-theme="light"] .md-table-caption .figlabel {
+html[data-theme="light"] .figlabel {
   border-color: color-mix(in srgb, var(--global-theme-color) 24%, var(--global-divider-color));
   background: color-mix(in srgb, var(--global-theme-color) 12%, transparent);
   color: var(--global-text-color-light);

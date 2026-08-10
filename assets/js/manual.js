@@ -114,11 +114,24 @@
     var sections = [];
     var current = null;
 
+    function appendLinkLabel(link, item) {
+      if (item.number) {
+        var number = document.createElement("span");
+        number.className = "manual-page-toc-number";
+        number.textContent = item.number;
+        link.appendChild(number);
+      }
+      var title = document.createElement("span");
+      title.className = "manual-page-toc-title";
+      title.textContent = item.text;
+      link.appendChild(title);
+    }
+
     headings.forEach(function (heading) {
       if (!heading.id) heading.id = uniqueId(slugify(heading.textContent), seen);
       var cleanText = heading.textContent.replace(/^\s*\d+(?:\.\d+)*\s*/, "").trim();
       var number = heading.querySelector(".hd-num") ? heading.querySelector(".hd-num").textContent : "";
-      var item = { heading: heading, text: (number ? number + " " : "") + cleanText };
+      var item = { heading: heading, number: number, text: cleanText };
 
       if (heading.tagName.toLowerCase() === "h2" || !current) {
         current = { parent: item, children: [] };
@@ -133,7 +146,7 @@
         var single = document.createElement("a");
         single.className = "manual-page-toc-link";
         single.href = "#" + section.parent.heading.id;
-        single.textContent = section.parent.text;
+        appendLinkLabel(single, section.parent);
         target.appendChild(single);
         return;
       }
@@ -144,7 +157,7 @@
       var summary = document.createElement("summary");
       var link = document.createElement("a");
       link.href = "#" + section.parent.heading.id;
-      link.textContent = section.parent.text;
+      appendLinkLabel(link, section.parent);
       summary.appendChild(link);
       details.appendChild(summary);
 
@@ -153,7 +166,7 @@
         var item = document.createElement("li");
         var sublink = document.createElement("a");
         sublink.href = "#" + child.heading.id;
-        sublink.textContent = child.text;
+        appendLinkLabel(sublink, child);
         item.appendChild(sublink);
         list.appendChild(item);
       });
