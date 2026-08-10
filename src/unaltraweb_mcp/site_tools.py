@@ -44,6 +44,10 @@ DATE_RE = re.compile(r"\b(20\d{2}|19\d{2})-(\d{2})-(\d{2})\b")
 POST_LANG_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-([a-z]{2,3})-")
 DEFAULT_STATUS_FIELD = "content_status"
 DEFAULT_APPROVED_VALUE = "approved"
+MARKDOWN_TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
+DIAGRAM_FENCE_RE = re.compile(r"^\s*(```|~~~)\s*(mermaid|plantuml|puml|uml)\b", re.IGNORECASE)
+FENCE_RE = re.compile(r"^\s*(```|~~~)")
+MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)\n]+)\)")
 
 PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     "unaltreselfie": {
@@ -601,6 +605,141 @@ def profile_prune(project: Path, site_profile_value: str = "", *, dry_run: bool 
     }
 
 
+def manual_source_quality_check(project: Path) -> dict[str, Any]:
+    project = project_path(project)
+    paths: list[Path] = []
+    chapters_root = project / "_chapters"
+    if chapters_root.is_dir():
+        paths.extend(path for path in chapters_root.rglob("*.md") if path.is_file())
+
+    pages_root = project / "_pages"
+    if pages_root.is_dir():
+        for path in pages_root.rglob("*.md"):
+            front = read_front_matter(path)
+            profiles = _profile_values(front.get("profiles"))
+            if front.get("layout") in {"manual-home", "manual-chapter"} or "unaltremanual" in profiles:
+                paths.append(path)
+
+    bare_tables: list[dict[str, Any]] = []
+    inline_diagrams: list[dict[str, Any]] = []
+    figures_without_title: list[dict[str, Any]] = []
+
+    for path in sorted(set(paths)):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+
+        in_fence = False
+        fence_marker = ""
+        in_table_block = False
+        in_bare_table = False
+        for lineno, line in enumerate(lines, start=1):
+            stripped = line.strip()
+
+            if in_table_block:
+                if stripped == ":::":
+                    in_table_block = False
+                continue
+            if stripped.startswith("::: table"):
+                in_table_block = True
+                in_bare_table = False
+                continue
+
+            if in_fence:
+                if stripped.startswith(fence_marker):
+                    in_fence = False
+                    fence_marker = ""
+                continue
+
+            diagram_match = DIAGRAM_FENCE_RE.match(line)
+            if diagram_match:
+                inline_diagrams.append(
+                    {
+                        "path": rel(project, path),
+                        "line": lineno,
+                        "engine": diagram_match.group(2).lower(),
+                        "message": "Use a versioned diagram source under assets/diagrams and reference it as a captioned image.",
+                    }
+                )
+                in_fence = True
+                fence_marker = diagram_match.group(1)
+                in_bare_table = False
+                continue
+
+            fence_match = FENCE_RE.match(line)
+            if fence_match:
+                in_fence = True
+                fence_marker = fence_match.group(1)
+                in_bare_table = False
+                continue
+
+            if MARKDOWN_TABLE_ROW_RE.match(line):
+                if not in_bare_table:
+                    bare_tables.append(
+                        {
+                            "path": rel(project, path),
+                            "line": lineno,
+                            "message": 'Wrap manual tables in ::: table "Caption" blocks.',
+                        }
+                    )
+                    in_bare_table = True
+                continue
+            in_bare_table = False
+
+            for image_match in MARKDOWN_IMAGE_RE.finditer(line):
+                raw = image_match.group(1).strip()
+                if ".no-figure" in line or "data-no-figure" in line:
+                    continue
+                if not re.search(r"\s+[\"'][^\"']+[\"']\s*$", raw):
+                    figures_without_title.append(
+                        {
+                            "path": rel(project, path),
+                            "line": lineno,
+                            "message": "Add a Markdown image title so the manual figure caption is explicit.",
+                        }
+                    )
+
+    issues: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    if bare_tables:
+        issues.append(
+            {
+                "severity": "error",
+                "message": "Manual contains Markdown tables without captioned table blocks.",
+                "count": len(bare_tables),
+                "sample": bare_tables[:20],
+            }
+        )
+    if inline_diagrams:
+        issues.append(
+            {
+                "severity": "error",
+                "message": "Manual contains inline diagram fences; use diavisuals source files instead.",
+                "count": len(inline_diagrams),
+                "sample": inline_diagrams[:20],
+            }
+        )
+    if figures_without_title:
+        warnings.append(
+            {
+                "severity": "warning",
+                "message": "Some manual figures do not have an explicit Markdown title caption.",
+                "count": len(figures_without_title),
+                "sample": figures_without_title[:20],
+            }
+        )
+
+    return {
+        "ok": not issues,
+        "issues": issues,
+        "warnings": warnings,
+        "bare_tables": bare_tables,
+        "inline_diagrams": inline_diagrams,
+        "figures_without_title": figures_without_title,
+    }
+
+
 def profile_check(project: Path) -> dict[str, Any]:
     project = project_path(project)
     config = site_config(project)
@@ -648,6 +787,12 @@ def profile_check(project: Path) -> dict[str, Any]:
             }
         )
 
+    manual_source_quality: dict[str, Any] = {}
+    if profile == "unaltremanual":
+        manual_source_quality = manual_source_quality_check(project)
+        issues.extend(manual_source_quality.get("issues", []))
+        warnings.extend(manual_source_quality.get("warnings", []))
+
     return {
         "project": str(project),
         "profile": profile,
@@ -655,6 +800,7 @@ def profile_check(project: Path) -> dict[str, Any]:
         "default_language": default_language(config),
         "languages": configured_languages(config),
         "features": feature_flags(config),
+        "manual_source_quality": manual_source_quality,
         "ok": not issues,
         "issues": issues,
         "warnings": warnings,
@@ -1092,8 +1238,8 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
 def list_tools() -> dict[str, Any]:
     return {
         "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
-        "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
-        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
+        "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
+        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
     }
 
 

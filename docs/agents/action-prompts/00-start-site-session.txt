@@ -8,3 +8,4 @@ Start or resume work in an `unaltraweb` website workspace.
 6. Run or inspect `profile_check`, `content_inventory`, `content_approval_inventory`, `translation_plan`, `bibliography_inventory`, and `content_freshness_check`.
 7. Keep edits inside the website workspace. Do not treat chat history as durable project memory.
 8. For visible content changes, run `build_site` or the local Make equivalent before handoff when feasible.
+9. Do not commit or publish visible content changes until the human author has reviewed the served site in a browser and explicitly approved the rendered result.

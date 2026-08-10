@@ -14,10 +14,12 @@
 {% assign documentation_logo = documentation_config.logo %}
 {% assign documentation_logo_inverse = documentation_config.logo_inverse | default: documentation_logo %}
 {% assign documentation_logo_cafe = documentation_config.logo_cafe | default: documentation_config.logo_sepia | default: documentation_logo %}
+{% assign documentation_nav_title = documentation_config.nav_title | default: documentation_config.short_title | default: site.short_title | default: site.acronym | default: site.title %}
 {% assign manual_config = site.unaltraweb.manual %}
 {% assign manual_logo = manual_config.logo %}
 {% assign manual_logo_inverse = manual_config.logo_inverse | default: manual_logo %}
 {% assign manual_logo_cafe = manual_config.logo_cafe | default: manual_config.logo_sepia | default: manual_logo %}
+{% assign manual_nav_title = manual_config.nav_title | default: manual_config.short_title | default: site.short_title | default: site.acronym | default: site.title %}
 {% assign home_candidates = site.pages | where: 'ref', 'home' | where: 'lang', current_lang %}
 {% assign home_page = home_candidates | where_exp: 'candidate', 'candidate.profiles contains current_profile' | first %}
 {% if home_page == nil %}
@@ -66,14 +68,14 @@
               <img class="navbar-brand-logo documentation-navbar-logo documentation-navbar-logo-dark" src="{{ documentation_logo_inverse | relative_url }}" alt="">
               <img class="navbar-brand-logo documentation-navbar-logo documentation-navbar-logo-cafe" src="{{ documentation_logo_cafe | relative_url }}" alt="">
             </span>
-            <span class="documentation-navbar-title">{{ site.title }}</span>
+            <span class="documentation-navbar-title">{{ documentation_nav_title }}</span>
           {% elsif manual_profile and manual_logo %}
             <span class="manual-navbar-logo-stack" aria-hidden="true">
               <img class="navbar-brand-logo manual-navbar-logo manual-navbar-logo-light" src="{{ manual_logo | relative_url }}" alt="">
               <img class="navbar-brand-logo manual-navbar-logo manual-navbar-logo-dark" src="{{ manual_logo_inverse | relative_url }}" alt="">
               <img class="navbar-brand-logo manual-navbar-logo manual-navbar-logo-cafe" src="{{ manual_logo_cafe | relative_url }}" alt="">
             </span>
-            <span class="manual-navbar-title">{{ site.title }}</span>
+            <span class="manual-navbar-title">{{ manual_nav_title }}</span>
           {% elsif site.title == 'blank' %}
             {% if site.first_name %}
               <span class="font-weight-bold">

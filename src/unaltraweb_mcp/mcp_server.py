@@ -11,6 +11,7 @@ PROMPT_FILES = {
     "content_update": "10-content-update.txt",
     "edit_default_content": "15-edit-default-content.txt",
     "manual_teaching_materials": "20-manual-teaching-materials.txt",
+    "manual_style_audit": "22-manual-style-audit.txt",
     "translation_prepublish": "25-translation-prepublish.txt",
     "project_site_update": "30-project-site-update.txt",
     "documentation_update": "40-documentation-update.txt",
@@ -117,6 +118,11 @@ def run_server(project: Path, factory: Path) -> None:
         return _prompt_text(factory, "manual_teaching_materials") + f"\n\nCurrent target: {target}\n"
 
     @mcp.prompt()
+    def manual_style_audit(target: str = "manual chapter or teaching resource") -> str:
+        """Audit unaltremanual prose for pedagogical flow, technical precision, and local style."""
+        return _prompt_text(factory, "manual_style_audit") + f"\n\nCurrent target: {target}\n"
+
+    @mcp.prompt()
     def translation_prepublish(target_language: str = "") -> str:
         """Prepare approved default-language content for translation shortly before publication."""
         suffix = f"\n\nTarget language: {target_language}\n" if target_language else ""
@@ -172,6 +178,11 @@ def run_server(project: Path, factory: Path) -> None:
     def profile_check() -> dict[str, Any]:
         """Check the current site against the configured unaltraweb profile contract."""
         return tools.profile_check(project)
+
+    @mcp.tool()
+    def manual_source_quality_check() -> dict[str, Any]:
+        """Check unaltremanual source hygiene: captioned tables, captioned figures, and external diagram sources."""
+        return tools.manual_source_quality_check(project)
 
     @mcp.tool()
     def profile_prune_plan(site_profile: str = "") -> dict[str, Any]:

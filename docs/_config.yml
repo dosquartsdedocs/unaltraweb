@@ -5,7 +5,7 @@ baseurl: /unaltraweb
 lang: en
 default_lang: en
 languages: [en, es, ca]
-icon: "brand/dosquartsdedocs-logo-white.svg"
+icon: "brand/dosquartsdedocs-logo.svg"
 theme: unaltraweb
 
 plugins:

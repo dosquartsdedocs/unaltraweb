@@ -58,8 +58,11 @@
   >
 {% endif %}
 
-{% assign unaltraweb_default_icon = site.unaltraweb.site_icon | default: 'brand/dosquartsdedocs-logo-white.svg' %}
+{% assign unaltraweb_default_icon = site.unaltraweb.site_icon | default: 'brand/dosquartsdedocs-logo.svg' %}
 {% assign unaltraweb_site_icon = site.icon | default: unaltraweb_default_icon %}
+{% if unaltraweb_site_icon == 'brand/dosquartsdedocs-logo-white.svg' %}
+  {% assign unaltraweb_site_icon = 'brand/dosquartsdedocs-logo.svg' %}
+{% endif %}
 {% assign unaltraweb_site_icon_prefix = unaltraweb_site_icon | slice: 0 %}
 {% if unaltraweb_site_icon.size <= 4 %}
   <link

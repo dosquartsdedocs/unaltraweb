@@ -328,7 +328,7 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   font-size: 0.72rem;
 }
 
-.manual-sidebar-item a {
+.manual-sidebar .manual-sidebar-item a {
   display: grid;
   grid-template-columns: 1.6rem minmax(0, 1fr);
   gap: 0.35rem;
@@ -429,9 +429,16 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   line-height: 1.08;
 }
 
+.manual-cover h1 {
+  -webkit-hyphens: none;
+  hyphens: none;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
 .hd-num {
-  color: var(--global-theme-color);
-  font-weight: 700;
+  color: var(--global-text-color-light);
+  font-weight: 600;
   margin-right: 0.45rem;
   font-variant-numeric: tabular-nums;
 }
@@ -783,6 +790,19 @@ html[data-theme="dark"] .manual-teacher-links a[aria-label="X"] i {
   text-align: right;
 }
 
+.site-profile-unaltremanual .manual-chapter-nav-link:hover,
+.site-profile-unaltremanual .manual-chapter-nav-link:focus-visible {
+  border-color: var(--global-theme-color);
+  background: color-mix(in srgb, var(--global-theme-color) 12%, transparent);
+  color: var(--global-theme-color);
+  text-decoration: none;
+}
+
+.site-profile-unaltremanual .manual-chapter-nav-link:hover strong,
+.site-profile-unaltremanual .manual-chapter-nav-link:focus-visible strong {
+  color: var(--global-theme-color);
+}
+
 .manual-bibliography h2.bibliography {
   display: none;
 }
@@ -1080,6 +1100,12 @@ html[data-theme="dark"] .md-table {
   margin-right: 0.35rem;
   padding: 0 0.45rem;
   vertical-align: middle;
+}
+
+html[data-theme="light"] .md-table-caption .figlabel {
+  border-color: color-mix(in srgb, var(--global-theme-color) 24%, var(--global-divider-color));
+  background: color-mix(in srgb, var(--global-theme-color) 12%, transparent);
+  color: var(--global-text-color-light);
 }
 
 @media (max-width: 960px) {
@@ -2052,6 +2078,12 @@ html[data-theme="cafe"] .manual-brand-logo-default {
 .manual-right-rail .manual-page-toc-section a:hover {
   background: color-mix(in srgb, var(--global-theme-color) 12%, transparent) !important;
   color: var(--global-theme-color) !important;
+  text-decoration: none !important;
+}
+
+.manual-sidebar-item.active .manual-chapter-number,
+.manual-sidebar-item a:hover .manual-chapter-number {
+  color: var(--global-theme-color);
 }
 
 .manual-toc-panel {

@@ -423,13 +423,13 @@ The active values are also available on `<html>` as `data-theme`, `data-theme-se
 
 ## Developer Mode
 
-Child sites can enable `unaltraweb.developer_mode` in a development-only config file. When `JEKYLL_ENV` is not `production`, this displays a floating indicator showing the real profile used by the current build.
+`unaltraweb-template` can enable `unaltraweb.developer_mode` in a development-only config file. When `JEKYLL_ENV` is not `production`, this displays a floating indicator showing the real profile used by the current build.
 
 ```yaml
 unaltraweb:
   developer_mode: true
 ```
 
-Keep this setting out of production builds. The template `Makefile` writes it to `tmp/_config.development.yml` for `make serve`, while `make build` uses the normal production config.
+Keep this setting out of production builds. The template `Makefile` writes it to `tmp/_config.development.yml` for `make serve` only when working directly in the `unaltraweb-template` checkout, while child sites keep it disabled unless `DEVELOPER_MODE=true` is passed explicitly. `make build` uses the normal production config.
 
 Do not rely on client-side preview shells for alternate profiles. Jekyll renders one real configuration per build, so profiles should be tested by rebuilding with a config overlay, for example `make serve SITE_PROFILE=unaltreprojecte` in the template. Pages can declare `profiles: [unaltreselfie]` or `profiles: [unaltreprojecte]`; the core filters non-matching pages before writing the site.

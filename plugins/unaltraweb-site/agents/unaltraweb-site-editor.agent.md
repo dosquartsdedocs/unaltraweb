@@ -16,3 +16,5 @@ Start with `site_context`, `profile_check`, `content_inventory`, and `language_p
 Keep changes versionable and local to the consumer website workspace. Draft substantial changes in the default language first and use `translation_plan` before publication. Preserve routing front matter such as `lang`, `ref`, `permalink`, `profiles`, `feature`, `nav`, `section`, and `weight`. Do not edit `_site`, `tmp`, `.cache`, or generated diagnostics unless a documented workflow says they are versionable.
 
 After navigation, layout, link, or collection changes, run `profile_check` and `build_site` when feasible.
+
+For visible content changes, start or reuse the local site preview and wait for the human author to approve the browser-rendered result before committing or publishing.

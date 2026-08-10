@@ -209,9 +209,9 @@ module Unaltraweb
 
       count += 1
       rows = subfigure_rows(block[:layout], images.length)
-      any_mermaid = images.any? { |img| mermaid_path?(img[:url]) }
+      any_diagram = images.any? { |img| diagram_path?(img[:url]) }
       outer_classes = ["md-figure", "md-subfigure-set"]
-      outer_classes << "mermaid-figure" if any_mermaid
+      outer_classes << "mermaid-figure" if any_diagram
 
       row_html = rows.map do |row|
         cells = row.map do |slot|
@@ -583,12 +583,17 @@ module Unaltraweb
 
     def figure_classes_for(path)
       classes = ["md-figure"]
-      classes << "mermaid-figure" if mermaid_path?(path)
+      classes << "mermaid-figure" if diagram_path?(path)
       classes
     end
 
+    def diagram_path?(path)
+      path.to_s.match?(/\.(?:mmd|mermaid|puml|plantuml|uml)(?:\.edited)?\.svg(?:[?#].*)?\z/i) ||
+        path.to_s.match?(/\.(?:mmd|mermaid|puml|plantuml|uml)(?:[?#].*)?\z/i)
+    end
+
     def mermaid_path?(path)
-      path.to_s.match?(/\.mmd(?:\.edited)?\.svg(?:[?#].*)?\z/i) || path.to_s.match?(/\.mmd(?:[?#].*)?\z/i)
+      diagram_path?(path)
     end
 
     def render_inline_markdown(text)

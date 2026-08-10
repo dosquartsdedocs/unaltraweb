@@ -14,6 +14,7 @@ layout: default
 {% assign manual_cover_image = page.cover_image | default: page.cover.image | default: manual_config.cover_image %}
 {% assign manual_cover_alt = page.cover_alt | default: page.cover.alt | default: page.title %}
 {% assign manual_subtitle = page.subtitle | default: page.description | default: site.description %}
+{% assign manual_kicker = page.kicker | default: manual_config.kicker | default: manual_config.nav_title | default: manual_config.short_title | default: site.short_title | default: site.acronym | default: site.title %}
 {% capture manual_contents_text %}{% include t.liquid key='manual.contents' default='Contents' %}{% endcapture %}
 {% capture manual_toggle_text %}{% include t.liquid key='manual.toggle_sidebar' default='Toggle contents' %}{% endcapture %}
 {% capture manual_no_chapters_text %}{% include t.liquid key='manual.no_chapters' default='No chapters available yet.' %}{% endcapture %}
@@ -30,7 +31,7 @@ layout: default
   <article class="manual-main manual-home">
     <header class="manual-cover">
       <div class="manual-cover-copy">
-        <p class="manual-kicker">{{ site.title }}</p>
+        {% if manual_kicker %}<p class="manual-kicker">{{ manual_kicker }}</p>{% endif %}
         <h1>{{ page.title }}</h1>
         {% if manual_subtitle %}<p class="manual-subtitle">{{ manual_subtitle }}</p>{% endif %}
       </div>

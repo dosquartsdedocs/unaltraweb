@@ -27,7 +27,7 @@ SCIMAGO_ARGS += --input $(SCIMAGO_INPUT)
 endif
 
 .PHONY: docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check
-.PHONY: mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
+.PHONY: mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
 
 mcp-build: ## Validate the lightweight Python MCP control plane
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m compileall -q src/unaltraweb_mcp
@@ -41,6 +41,7 @@ mcp-smoke: mcp-check ## Run a fast deterministic MCP smoke check against PROJECT
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp starter-templates >/dev/null
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp site-context >/dev/null
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-check >/dev/null
+	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-source-quality-check >/dev/null
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp translation-plan >/dev/null
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp bibliography-inventory >/dev/null
 
@@ -61,6 +62,9 @@ mcp-site-context: ## Print JSON site context for PROJECT
 
 mcp-profile-check: ## Print JSON profile contract checks for PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-check
+
+mcp-manual-source-quality-check: ## Print JSON manual source hygiene checks for PROJECT
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-source-quality-check
 
 mcp-profile-prune-plan: ## Print JSON dry-run prune candidates for the active or selected profile
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-prune-plan --site-profile "$(SITE_PROFILE)"

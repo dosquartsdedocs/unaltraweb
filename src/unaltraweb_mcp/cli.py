@@ -66,6 +66,8 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return print_json({"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)})
     if command == "profile-check":
         return print_json(tools.profile_check(project))
+    if command == "manual-source-quality-check":
+        return print_json(tools.manual_source_quality_check(project))
     if command == "profile-prune-plan":
         return print_json(tools.profile_prune_plan(project, site_profile_value=args.site_profile))
     if command == "profile-prune":
@@ -120,7 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp = sub.add_parser("mcp", help="MCP server and JSON helper commands")
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
-    for name in ["serve", "list-tools", "starter-templates", "site-context", "site-check", "profile-check", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "prompts"]:
+    for name in ["serve", "list-tools", "starter-templates", "site-context", "site-check", "profile-check", "manual-source-quality-check", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "prompts"]:
         mcp_sub.add_parser(name)
 
     init_site = mcp_sub.add_parser("initialize-site")

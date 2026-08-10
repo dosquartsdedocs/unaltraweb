@@ -1,0 +1,10 @@
+Review or revise the prose style of an `unaltremanual` chapter.
+
+1. Read `AGENTS.md`, the target chapter, and `context/writing-profile.md` when present.
+2. Diagnose section and paragraph function before sentence polishing. Each paragraph should mainly orient, explain a concept, frame a technical decision, give an example, guide a practical action, state a criterion, warn about a limitation, or transition.
+3. Prefer narrative pedagogical prose over executive-summary bullets. Keep lists for steps, criteria, inventories, or rubrics, but expand conceptual material into connected paragraphs.
+4. Check that theory and practice are connected: concepts should lead to decisions with data, software, maps, figures, synthesis, or assessment criteria.
+5. Check visual-material hygiene: tables need captioned `::: table "Caption"` blocks; figures need captions; reusable diagrams should be `.mmd`, `.mermaid`, `.puml`, `.plantuml`, or `.uml` sources rendered through `diavisuals`; folder/file trees should normally use PlantUML `@startfiles`.
+6. Do not invent official teaching-guide content, dates, assessment weights, learning outcomes, datasets, or policies. Mark those items for author verification when needed.
+7. Move general explanations of how the manual works, how Moodle relates to the course, and how students should read chapters into the orientation chapter rather than overloading the cover page.
+8. Run `profile_check`; run `build_site(site_profile="unaltremanual")` when structure, navigation, links, citations, or rendered content changed.

@@ -1,8 +1,14 @@
 Create or revise teaching material for an `unaltremanual` site.
 
 1. Read the manual profile config and inventory `_chapters/<lang>/`, manual bibliography files, figures, tables, and downloadable resources.
-2. Work in the configured default language until the chapter or resource is approved. Use `translation_plan` only as a pre-publication localization checklist.
-3. Write for sequential learners: clear chapter function, stable headings, examples, exercises or prompts when appropriate, and references where claims depend on literature.
-4. Keep web-only affordances separate from printable content when possible.
-5. Do not regenerate or overwrite author-edited diagram SVGs without asking when a matching `*.edited.svg` exists.
-6. Run `profile_check`; run `build_site(site_profile="unaltremanual")` when structure, figures, bibliography, or navigation changed.
+2. Read the site `AGENTS.md` and `context/writing-profile.md` when present. Local writing-profile rules override the generic voice.
+3. Work in the configured default language until the chapter or resource is approved. Use `translation_plan` only as a pre-publication localization checklist.
+4. Write for sequential learners with narrative pedagogical prose: clear chapter function, stable headings, connected paragraphs, examples, exercises or prompts when appropriate, and references where claims depend on literature.
+5. Use bullet lists for steps, criteria, inventories, or rubrics, but do not let lists replace the explanation of concepts, decisions, or transitions between theory and practice.
+6. Use the manual figure/table conventions: every teaching table must use a captioned `::: table "Caption"` block, and every figure image should provide a caption through the Markdown image title or the relevant include parameter.
+7. Prefer versioned diagram sources rendered through `diavisuals`: `.mmd`/`.mermaid` for Mermaid and `.puml`/`.plantuml`/`.uml` for PlantUML. Do not use inline ```mermaid``` or ```plantuml``` fences for manual figures that should be numbered, captioned, reusable, or editable.
+8. For folder or file structures, prefer PlantUML `@startfiles` diagrams through `diavisuals` instead of plain text trees.
+9. For orientation material, keep broad explanations of how the manual works, how Moodle relates to the course, and how students should read chapters in chapter 0 or the configured orientation chapter rather than overloading the cover page.
+10. Keep web-only affordances separate from printable content when possible.
+11. Do not regenerate or overwrite author-edited diagram SVGs without asking when a matching `*.edited.svg` exists.
+12. Run `profile_check`; run `build_site(site_profile="unaltremanual")` when structure, figures, bibliography, or navigation changed.

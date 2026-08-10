@@ -36,6 +36,7 @@ The opened workspace is the consumer website repository. Factory logic remains i
 | `site_context` | Read the main local state for an agent session. |
 | `site_check` | Run profile, freshness, bibliography, bibliometrics, and build-state checks without network. |
 | `profile_check` | Check current profile and expected content/config paths. |
+| `manual_source_quality_check` | For `unaltremanual`, check captioned table blocks, captioned figures, and external Mermaid/PlantUML diagram sources. |
 | `profile_prune_plan` | List content files whose explicit `profiles:` front matter excludes the selected profile. |
 | `profile_prune` | Remove those profile-specific files only after reviewing the plan and passing `confirm_prune=true`. Defaults to dry-run. |
 | `content_inventory` | Inventory pages, posts, chapters, documentation, data, and assets. |
