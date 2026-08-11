@@ -1,0 +1,17 @@
+Audit the structure and paragraph functions of an `unaltremanual` text against its reader goals.
+
+1. Read `AGENTS.md`, `context/writing-profile.md`, `web://manual-authoring-components`, the target text, and adjacent chapters before reviewing.
+2. Diagnose function before style. Assign each section and paragraph one primary job: orientation, topic, problem, concept, argument, evidence, example, technical decision, practical instruction, discussion, limitation, quality criterion, verification, warning, closure, or transition.
+3. Use this sequence diagnostically when appropriate: topic or reader goal; problem or question; arguments, evidence, and examples; discussion, alternatives, consequences, or limits; concrete closure or transition.
+4. Do not force every paragraph through every move. Flag missing setup, abrupt shifts, duplicated jobs, incompatible jobs combined in one paragraph, examples introduced before their purpose is clear, unsupported claims, and generic endings.
+5. Check the handoff between paragraphs. Replace vague bridge words with the concrete object, decision, result, or limitation that the next paragraph develops.
+6. Check whether a supported content component would improve the explanation: callout, definition list, captioned figure, subfigure layout, captioned table, Mermaid or PlantUML source, citation, code block, or equation. Do not add a component merely for decoration, and respect its web/PDF support boundary.
+7. Treat every body line as final publication copy. Put uncertainty and review findings in the audit response, never in the chapter body.
+8. Return a section map, paragraph-function map, issues ordered by reader impact, recommended actions, and remaining evidence or verification needs.
+
+Use this table for paragraph findings when useful:
+
+| Location | Primary job | Contribution to reader task | Evidence or example | Issue | Action |
+| --- | --- | --- | --- | --- | --- |
+
+Recommended actions are: keep, move, split, merge, compress, expand, rewrite, source, verify, or remove.

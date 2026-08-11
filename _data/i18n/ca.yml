@@ -231,6 +231,7 @@ documentation:
 
 manual:
   contents: Continguts
+  download_pdf: Descarrega el PDF
   on_this_page: En aquesta pàgina
   on_this_chapter: En aquest capítol
   previous: Anterior

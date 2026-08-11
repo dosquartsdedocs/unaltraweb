@@ -3,6 +3,20 @@
 {% capture last_updated_format %}{% include t.liquid key='footer.last_updated_format' default='%B %-d, %Y' %}{% endcapture %}
 {% capture made_with_text %}{% include t.liquid key='footer.made_with' default='Made with' %}{% endcapture %}
 {% assign copyright_holder = site.copyright_holder | default: 'dosquartsdedocs' %}
+{% assign footer_config = site.unaltraweb.footer %}
+{% assign footer_logo_light = footer_config.logo_light | default: site.unaltraweb.logos.inverse %}
+{% assign footer_logo_dark = footer_config.logo_dark | default: site.unaltraweb.logos.default %}
+{% assign footer_logo_cafe = footer_config.logo_cafe | default: footer_logo_light %}
+
+{% capture footer_logo %}
+  {% if footer_config.show_logo and footer_logo_light %}
+    <span class="footer-logo-stack" aria-hidden="true">
+      <img class="footer-logo footer-logo-light" src="{{ footer_logo_light | relative_url }}" alt="">
+      <img class="footer-logo footer-logo-dark" src="{{ footer_logo_dark | relative_url }}" alt="">
+      <img class="footer-logo footer-logo-cafe" src="{{ footer_logo_cafe | relative_url }}" alt="">
+    </span>
+  {% endif %}
+{% endcapture %}
 
 {% capture footer_contents %}
   &copy; {{ site.time | date: '%Y' }}
@@ -23,7 +37,10 @@
 {% if site.footer_fixed %}
   <footer class="fixed-bottom" role="contentinfo">
     <div class="container mt-0">
-      {{ footer_contents }}
+      <div class="footer-content">
+        {{ footer_logo }}
+        <span>{{ footer_contents }}</span>
+      </div>
     </div>
   </footer>
 {% else %}
@@ -33,7 +50,10 @@
     {% endif %}
 
     <div class="container">
-      {{ footer_contents }}
+      <div class="footer-content">
+        {{ footer_logo }}
+        <span>{{ footer_contents }}</span>
+      </div>
     </div>
   </footer>
 {% endif %}

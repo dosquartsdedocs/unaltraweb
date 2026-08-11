@@ -231,6 +231,7 @@ documentation:
 
 manual:
   contents: Contents
+  download_pdf: Download PDF
   on_this_page: On this page
   on_this_chapter: On this chapter
   previous: Previous

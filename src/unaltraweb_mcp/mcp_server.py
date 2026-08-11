@@ -12,6 +12,7 @@ PROMPT_FILES = {
     "edit_default_content": "15-edit-default-content.txt",
     "manual_teaching_materials": "20-manual-teaching-materials.txt",
     "manual_style_audit": "22-manual-style-audit.txt",
+    "manual_structure_audit": "23-manual-structure-audit.txt",
     "translation_prepublish": "25-translation-prepublish.txt",
     "project_site_update": "30-project-site-update.txt",
     "documentation_update": "40-documentation-update.txt",
@@ -27,6 +28,21 @@ def _prompt_text(factory: Path, name: str) -> str:
     if filename and path.is_file():
         return path.read_text(encoding="utf-8")
     return f"Prompt `{name}` is not available in this unaltraweb checkout."
+
+
+def _manual_writing_guidance(project: Path, factory: Path) -> str:
+    sections = [
+        _prompt_text(factory, "manual_teaching_materials"),
+        _prompt_text(factory, "manual_style_audit"),
+        _prompt_text(factory, "manual_structure_audit"),
+    ]
+    components = factory / "docs" / "agents" / "manual-authoring-components.md"
+    if components.is_file():
+        sections.append(components.read_text(encoding="utf-8"))
+    writing_profile = project / "context" / "writing-profile.md"
+    if writing_profile.is_file():
+        sections.append("Project-specific writing profile:\n\n" + writing_profile.read_text(encoding="utf-8"))
+    return "\n\n---\n\n".join(sections)
 
 
 def run_server(project: Path, factory: Path) -> None:
@@ -51,6 +67,16 @@ def run_server(project: Path, factory: Path) -> None:
     def profile_contract_resource() -> str:
         """Profile-specific contract checks for unaltreselfie, unaltreprojecte, unaltremanual, and unaltredocs."""
         return tools.dumps(tools.profile_check(project))
+
+    @mcp.resource("web://manual-writing-guidance")
+    def manual_writing_guidance_resource() -> str:
+        """Generic and project-specific rules for drafting publishable unaltremanual prose."""
+        return _manual_writing_guidance(project, factory)
+
+    @mcp.resource("web://manual-authoring-components")
+    def manual_authoring_components_resource() -> str:
+        """Supported manual prose structures and content components with web/PDF compatibility."""
+        return tools.dumps(tools.manual_authoring_capabilities(project))
 
     @mcp.resource("web://profile-prune-plan")
     def profile_prune_plan_resource() -> str:
@@ -123,6 +149,11 @@ def run_server(project: Path, factory: Path) -> None:
         return _prompt_text(factory, "manual_style_audit") + f"\n\nCurrent target: {target}\n"
 
     @mcp.prompt()
+    def manual_structure_audit(target: str = "whole manual", revision_mode: str = "report only") -> str:
+        """Audit section and paragraph functions against reader goals and tasks."""
+        return _prompt_text(factory, "manual_structure_audit") + f"\n\nCurrent target: {target}\nRevision mode: {revision_mode}\n"
+
+    @mcp.prompt()
     def translation_prepublish(target_language: str = "") -> str:
         """Prepare approved default-language content for translation shortly before publication."""
         suffix = f"\n\nTarget language: {target_language}\n" if target_language else ""
@@ -183,6 +214,31 @@ def run_server(project: Path, factory: Path) -> None:
     def manual_source_quality_check() -> dict[str, Any]:
         """Check unaltremanual source hygiene: captioned tables, captioned figures, and external diagram sources."""
         return tools.manual_source_quality_check(project)
+
+    @mcp.tool()
+    def manual_editorial_quality_check() -> dict[str, Any]:
+        """Reject non-publishable metatext, user/agent instructions, workflow markers, and editorial placeholders in manual prose."""
+        return tools.manual_editorial_quality_check(project)
+
+    @mcp.tool()
+    def manual_authoring_capabilities() -> dict[str, Any]:
+        """Return supported manual prose structures, component syntax, and web/PDF compatibility."""
+        return tools.manual_authoring_capabilities(project)
+
+    @mcp.tool()
+    def manual_pdf_status(language: str = "") -> dict[str, Any]:
+        """Inspect manual PDF configuration, source availability, and artefact freshness without changing files."""
+        return tools.manual_pdf_status(project, language=language)
+
+    @mcp.tool()
+    def manual_pdf_build(language: str = "") -> dict[str, Any]:
+        """Build configured unaltremanual PDFs and first-page cover previews under the site's temporary directory."""
+        return tools.manual_pdf_build(project, language=language)
+
+    @mcp.tool()
+    def manual_pdf_publish(language: str = "", dry_run: bool = True, confirm_publish: bool = False) -> dict[str, Any]:
+        """Copy built PDFs and covers to public site assets. Defaults to dry-run; real publication requires confirmation."""
+        return tools.manual_pdf_publish(project, language=language, dry_run=dry_run, confirm_publish=confirm_publish)
 
     @mcp.tool()
     def profile_prune_plan(site_profile: str = "") -> dict[str, Any]:

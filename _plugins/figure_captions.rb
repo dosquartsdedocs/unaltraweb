@@ -598,6 +598,12 @@ module Unaltraweb
 
     def render_inline_markdown(text)
       html = text.to_s.dup
+      code_spans = []
+      html.gsub!(/`([^`\n]+)`/) do
+        index = code_spans.length
+        code_spans << %(<code class="language-plaintext highlighter-rouge">#{h(Regexp.last_match(1))}</code>)
+        "\u0000INLINE_CODE_#{index}\u0000"
+      end
       html.gsub!(/\[([^\]]+)\]\((\S+?)(?:\s+"([^"]*)")?\)/) do
         label = Regexp.last_match(1)
         url = Regexp.last_match(2)
@@ -607,6 +613,9 @@ module Unaltraweb
       end
       html.gsub!(/\*\*([^*]+)\*\*/, '<strong>\1</strong>')
       html.gsub!(/\*([^*]+)\*/, '<em>\1</em>')
+      code_spans.each_with_index do |code, index|
+        html.gsub!("\u0000INLINE_CODE_#{index}\u0000", code)
+      end
       html
     end
 

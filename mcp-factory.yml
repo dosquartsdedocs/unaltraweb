@@ -80,6 +80,8 @@ mcp:
     - web://site-context
     - web://starter-templates
     - web://profile-contract
+    - web://manual-writing-guidance
+    - web://manual-authoring-components
     - web://profile-prune-plan
     - web://content-inventory
     - web://bibliography
@@ -92,6 +94,12 @@ mcp:
     - site_context
     - site_check
     - profile_check
+    - manual_source_quality_check
+    - manual_editorial_quality_check
+    - manual_authoring_capabilities
+    - manual_pdf_status
+    - manual_pdf_build
+    - manual_pdf_publish
     - profile_prune_plan
     - profile_prune
     - content_inventory

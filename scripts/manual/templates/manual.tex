@@ -1,0 +1,195 @@
+\documentclass[11pt,a4paper,oneside]{book}
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{fontspec}
+\usepackage{fancyvrb}
+\usepackage{framed}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{calc}
+\usepackage{geometry}
+\usepackage{microtype}
+\usepackage{setspace}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{bookmark}
+\usepackage[$babel-lang$]{babel}
+
+\geometry{left=25mm,right=22mm,top=24mm,bottom=26mm}
+\setmainfont{DejaVu Serif}
+\setsansfont{DejaVu Sans}
+\setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]
+\setstretch{1.08}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em plus 0.1em minus 0.1em}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\setlist[description]{style=nextline,leftmargin=1.5em,labelindent=0pt,itemsep=0.65em,topsep=0.65em,font=\normalfont\bfseries}
+\renewcommand*{\descriptionlabel}[1]{\hspace\labelsep\normalfont\bfseries #1:}
+
+\definecolor{ManualPrimary}{HTML}{$primary-color$}
+\definecolor{ManualBand}{HTML}{$band-color$}
+\definecolor{ManualSecondary}{HTML}{$secondary-color$}
+\definecolor{ManualMuted}{HTML}{$muted-color$}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=ManualSecondary,
+  urlcolor=ManualPrimary,
+  citecolor=ManualSecondary,
+  pdftitle={$title$},
+  pdfauthor={$author$}
+}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\pandocbounded}[1]{#1}
+\newcommand{\passthrough}[1]{#1}
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newcommand{\citeproctext}{}
+\newcommand{\citeproc}[2]{\begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\makeatletter
+\let\@cite@ofmt\@firstofone
+\def\@biblabel#1{}
+\def\@cite#1#2{{#1\if@tempswa , #2\fi}}
+\makeatother
+\newenvironment{CSLReferences}[2]
+  {\begin{list}{}{%
+    \setlength{\itemindent}{0pt}
+    \setlength{\leftmargin}{0pt}
+    \setlength{\parsep}{0pt}
+    \ifodd #1
+      \setlength{\leftmargin}{\cslhangindent}
+      \setlength{\itemindent}{-1\cslhangindent}
+    \fi
+    \setlength{\itemsep}{#2\baselineskip}}}
+  {\end{list}}
+\newcommand{\CSLBlock}[1]{\hfill\break\parbox[t]{\linewidth}{\strut\ignorespaces#1\strut}}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{\strut#1\strut}}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>0.82\textheight 0.82\textheight\else\Gin@nat@height\fi}
+\makeatother
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\small\sffamily\color{ManualMuted}{$short-title$}}
+\fancyhead[RE,LO]{\small\sffamily\color{ManualMuted}\leftmark}
+\fancyfoot[C]{\small\sffamily\thepage}
+\renewcommand{\headrulewidth}{0.2pt}
+
+\begin{document}
+\frontmatter
+
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[ManualBand] (current page.north west) rectangle ([yshift=-2cm]current page.north east);
+  \fill[ManualBand] (current page.south west) rectangle ([yshift=2cm]current page.south east);
+
+  \node[anchor=north,inner sep=0pt,text=white,yshift=-0.46cm] at (current page.north) {
+    $if(series-logo)$\raisebox{-0.23cm}{\includegraphics[height=1.05cm]{$series-logo$}}\hspace{0.42cm}$endif$
+    {\large\bfseries\sffamily ``\textit{$series$}''}$if(series-subtitle)$\enspace·\enspace{\normalsize\bfseries\sffamily $series-subtitle$}$endif$
+  };
+
+  \node[text width=0.9\textwidth,align=center,anchor=north,font=\fontsize{23}{28}\selectfont\bfseries\sffamily,text=ManualSecondary,yshift=-3.6cm]
+    at (current page.north) {$title$};
+
+$if(cover-image)$
+  \node[anchor=north,inner sep=0pt,yshift=-7.8cm] at (current page.north) {
+    \includegraphics[width=\paperwidth]{$cover-image$}
+  };
+$else$
+  \fill[ManualSecondary!10] ([yshift=-7cm]current page.north west) rectangle ([yshift=-18cm]current page.north east);
+$endif$
+
+  \node[text width=0.92\textwidth,align=center,anchor=north,font=\normalsize\sffamily,text=ManualMuted,yshift=-22.12cm]
+    at (current page.north) {$for(instructors)$$instructors$$sep$ · $endfor$};
+
+$if(cover-logo)$
+  \node[anchor=center,yshift=4.7cm] at (current page.south) {
+    \includegraphics[height=2.1cm]{$cover-logo$}
+  };
+$endif$
+
+  \node[anchor=center,font=\small\sffamily,text=white] at ([yshift=1cm]current page.south) {$rights$};
+\end{tikzpicture}
+\end{titlepage}
+
+\thispagestyle{empty}
+\vspace*{1.1cm}
+{\Huge\bfseries\sffamily\color{ManualSecondary}$metadata-page-title$}\par
+\vspace{0.45cm}
+$if(description)$
+{\large\color{ManualMuted}$description$}\par
+\vspace{0.7cm}
+$endif$
+\begin{description}[style=nextline,leftmargin=0pt,labelindent=0pt,itemsep=0.75em,topsep=0pt,font=\normalfont\bfseries\sffamily\color{ManualSecondary}]
+$if(subject)$
+  \item[$metadata-subject-label$] $subject$
+$endif$
+$if(teaching-guides)$
+  \item[$metadata-teaching-guides-label$]
+  $for(teaching-guides)$$teaching-guides.degree$$if(teaching-guides.subject-code)$ · \texttt{$teaching-guides.subject-code$}$endif$\par
+  $endfor$
+$endif$
+$if(academic-year)$
+  \item[$metadata-academic-year-label$] $academic-year$
+$endif$
+$if(department)$
+  \item[$metadata-department-label$] $department$
+$endif$
+$if(faculty)$
+  \item[$metadata-faculty-label$] $faculty$
+$endif$
+$if(institution)$
+  \item[$metadata-institution-label$] $institution$
+$endif$
+$if(location)$
+  \item[$metadata-location-label$] $location$
+$endif$
+$if(revision-date)$
+  \item[$metadata-revision-date-label$] $revision-date$
+$endif$
+$if(instructors)$
+  \item[$metadata-instructors-label$] $for(instructors)$$instructors$$sep$, $endfor$
+$endif$
+\end{description}
+\vfill
+{\small\sffamily\color{ManualMuted}$rights$}
+\clearpage
+
+$if(draft)$
+\thispagestyle{empty}
+\vspace*{0.3\textheight}
+\begin{center}
+  {\Huge\bfseries\sffamily\color{ManualPrimary}$draft-label$}\par
+  \vspace{1em}
+  {\large\sffamily $draft-description$}
+\end{center}
+\clearpage
+$endif$
+
+$if(toc)$
+\tableofcontents
+\clearpage
+$endif$
+
+\mainmatter
+\setcounter{chapter}{-1}
+$body$
+
+\end{document}

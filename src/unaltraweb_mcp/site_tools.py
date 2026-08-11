@@ -48,6 +48,59 @@ MARKDOWN_TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
 DIAGRAM_FENCE_RE = re.compile(r"^\s*(```|~~~)\s*(mermaid|plantuml|puml|uml)\b", re.IGNORECASE)
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
 MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)\n]+)\)")
+STANDALONE_BOLD_LABEL_RE = re.compile(r"^\s*\*\*[^*\n]+\.\*\*\s*$")
+MANUAL_EDITORIAL_RULES = [
+    (
+        "workflow_status",
+        re.compile(r"\b(?:content_status|translation_status|needs_review|TODO|FIXME|TBD)\b", re.IGNORECASE),
+        "Remove internal workflow states and task markers from publishable prose.",
+    ),
+    (
+        "editorial_scaffolding",
+        re.compile(
+            r"\b(?:estat editorial|estado editorial|editorial status|nota d['’]edici[oó]|nota de edici[oó]n|editorial note|draft notes?|pendent (?:de|d['’]) (?:redacci[oó]|revisi[oó]|aprovaci[oó]|traducci[oó])|pending (?:writing|review|approval|translation))\b",
+            re.IGNORECASE,
+        ),
+        "Move editorial planning and approval notes out of the manual body.",
+    ),
+    (
+        "author_instruction_reference",
+        re.compile(
+            r"(?:\b(?:tal com|com)\s+(?:m['’]has|ens has|has)\s+(?:demanat|indicat|dit)\b|\b(?:segons|d['’]acord amb)\s+(?:les\s+)?teves instruccions\b|\b(?:l['’]usuari|la usuària|la persona usuària)\s+(?:ha|vol|demana|indica)\b|\b(?:como|tal como)\s+(?:me|nos)\s+has\s+(?:pedido|indicado|dicho)\b|\bseg[uú]n tus instrucciones\b|\bel usuario\s+(?:ha|quiere|pide|indica)\b|\b(?:as requested|per your instructions|the user\s+(?:asked|wants|requested))\b)",
+            re.IGNORECASE,
+        ),
+        "Rewrite references to the author, user, or their instructions as standalone publishable content.",
+    ),
+    (
+        "assistant_conversation",
+        re.compile(
+            r"\b(?:aqu[ií] tens|aqu[ií] tienes|here (?:is|are)|he afegit|hem afegit|he canviat|hem canviat|he añadido|hemos añadido|i have added|i['’]ve added|si vols|si quieres|if you want|puc afegir|puedo añadir|i can add)\b",
+            re.IGNORECASE,
+        ),
+        "Remove assistant-style conversational framing from the manual body.",
+    ),
+    (
+        "author_note",
+        re.compile(
+            r"\b(?:nota per a l['’]autor|nota para el autor|note to the author|instruccions? per a l['’](?:autor|agent)|instrucciones? para el (?:autor|agente)|instructions? for the (?:author|agent))\b",
+            re.IGNORECASE,
+        ),
+        "Keep author and agent instructions in context files, not publishable manual prose.",
+    ),
+    (
+        "placeholder",
+        re.compile(r"(?:\[\s*(?:pendent|todo|tbd)[^\]]*\]|<insert[^>]*>|\b(?:afegir|inserir) (?:aqu[ií]|ac[ií])\b)", re.IGNORECASE),
+        "Replace editorial placeholders with final prose or remove them.",
+    ),
+    (
+        "draft_process_language",
+        re.compile(
+            r"\b(?:en aquest esborrany|en este borrador|in this draft|aquesta versi[oó] provisional|esta versi[oó]n provisional|this provisional version|(?:la versi[oó] catalana|la versi[oó] castellana|the (?:Catalan|Spanish|English) version) (?:[ée]s la font de treball|es la fuente de trabajo|is the working source))\b",
+            re.IGNORECASE,
+        ),
+        "Remove drafting and localization-process language from reader-facing content.",
+    ),
+]
 
 PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     "unaltreselfie": {
@@ -605,8 +658,7 @@ def profile_prune(project: Path, site_profile_value: str = "", *, dry_run: bool 
     }
 
 
-def manual_source_quality_check(project: Path) -> dict[str, Any]:
-    project = project_path(project)
+def _manual_markdown_paths(project: Path) -> list[Path]:
     paths: list[Path] = []
     chapters_root = project / "_chapters"
     if chapters_root.is_dir():
@@ -619,12 +671,19 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
             profiles = _profile_values(front.get("profiles"))
             if front.get("layout") in {"manual-home", "manual-chapter"} or "unaltremanual" in profiles:
                 paths.append(path)
+    return sorted(set(paths))
+
+
+def manual_source_quality_check(project: Path) -> dict[str, Any]:
+    project = project_path(project)
+    paths = _manual_markdown_paths(project)
 
     bare_tables: list[dict[str, Any]] = []
     inline_diagrams: list[dict[str, Any]] = []
     figures_without_title: list[dict[str, Any]] = []
+    standalone_bold_labels: list[dict[str, Any]] = []
 
-    for path in sorted(set(paths)):
+    for path in paths:
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except OSError:
@@ -687,11 +746,20 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
                 continue
             in_bare_table = False
 
+            if STANDALONE_BOLD_LABEL_RE.match(line):
+                standalone_bold_labels.append(
+                    {
+                        "path": rel(project, path),
+                        "line": lineno,
+                        "message": "Use a semantic #### heading for a real fourth-level subsection, or keep a bold run-in in the same paragraph.",
+                    }
+                )
+
             for image_match in MARKDOWN_IMAGE_RE.finditer(line):
                 raw = image_match.group(1).strip()
                 if ".no-figure" in line or "data-no-figure" in line:
                     continue
-                if not re.search(r"\s+[\"'][^\"']+[\"']\s*$", raw):
+                if not re.search(r'''\s+(?:"[^"]+"|'[^']+')\s*$''', raw):
                     figures_without_title.append(
                         {
                             "path": rel(project, path),
@@ -729,6 +797,15 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
                 "sample": figures_without_title[:20],
             }
         )
+    if standalone_bold_labels:
+        warnings.append(
+            {
+                "severity": "warning",
+                "message": "Some standalone bold labels look like non-semantic fourth-level headings.",
+                "count": len(standalone_bold_labels),
+                "sample": standalone_bold_labels[:20],
+            }
+        )
 
     return {
         "ok": not issues,
@@ -737,6 +814,199 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
         "bare_tables": bare_tables,
         "inline_diagrams": inline_diagrams,
         "figures_without_title": figures_without_title,
+        "standalone_bold_labels": standalone_bold_labels,
+    }
+
+
+def manual_editorial_quality_check(project: Path) -> dict[str, Any]:
+    project = project_path(project)
+    paths = _manual_markdown_paths(project)
+    findings: list[dict[str, Any]] = []
+
+    for path in paths:
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+
+        in_front_matter = bool(lines and lines[0].strip() == "---")
+        in_fence = False
+        fence_marker = ""
+        in_html_comment = False
+        in_liquid_comment = False
+        for lineno, line in enumerate(lines, start=1):
+            stripped = line.strip()
+
+            if in_front_matter:
+                if lineno > 1 and stripped == "---":
+                    in_front_matter = False
+                continue
+            if in_html_comment:
+                if "-->" in line:
+                    in_html_comment = False
+                continue
+            if in_liquid_comment:
+                if "{% endcomment %}" in line:
+                    in_liquid_comment = False
+                continue
+            if "<!--" in line:
+                if "-->" not in line.split("<!--", 1)[1]:
+                    in_html_comment = True
+                line = line.split("<!--", 1)[0]
+                stripped = line.strip()
+            if "{% comment %}" in line:
+                in_liquid_comment = "{% endcomment %}" not in line.split("{% comment %}", 1)[1]
+                line = line.split("{% comment %}", 1)[0]
+                stripped = line.strip()
+            if in_fence:
+                if stripped.startswith(fence_marker):
+                    in_fence = False
+                    fence_marker = ""
+                continue
+            fence_match = FENCE_RE.match(line)
+            if fence_match:
+                in_fence = True
+                fence_marker = fence_match.group(1)
+                continue
+            if not stripped:
+                continue
+
+            for rule, pattern, message in MANUAL_EDITORIAL_RULES:
+                if pattern.search(line):
+                    findings.append(
+                        {
+                            "path": rel(project, path),
+                            "line": lineno,
+                            "rule": rule,
+                            "excerpt": stripped[:240],
+                            "message": message,
+                        }
+                    )
+
+    grouped: list[dict[str, Any]] = []
+    for rule, _, message in MANUAL_EDITORIAL_RULES:
+        matches = [item for item in findings if item["rule"] == rule]
+        if matches:
+            grouped.append({"severity": "error", "rule": rule, "message": message, "count": len(matches), "sample": matches[:20]})
+
+    writing_profile = project / "context" / "writing-profile.md"
+    warnings: list[dict[str, Any]] = []
+    if not writing_profile.is_file():
+        warnings.append(
+            {
+                "severity": "warning",
+                "message": "Add context/writing-profile.md so drafting and review agents have project-specific voice and style rules.",
+            }
+        )
+
+    return {
+        "project": str(project),
+        "ok": not findings,
+        "files_checked": len(paths),
+        "writing_profile": rel(project, writing_profile) if writing_profile.is_file() else "",
+        "issues": grouped,
+        "warnings": warnings,
+        "findings": findings,
+        "review_checklist": [
+            "Every body paragraph must read as final material for the intended reader.",
+            "No passage may mention the user, author instructions, agent actions, chat history, drafting status, or approval workflow.",
+            "Give each paragraph one primary job and, when appropriate, develop topic, problem, arguments or examples, discussion or limits, and a concrete closure.",
+            "Choose callouts, definition lists, figure layouts, tables, diagrams, citations, code, and math for a pedagogical purpose and check web/PDF compatibility.",
+            "Check spelling, grammar, terminology, factual precision, pedagogical sequence, citations, captions, and cross-references before approval.",
+            "Keep editorial plans and unresolved decisions in AGENTS.md, context/, issues, or review notes outside publishable Markdown bodies.",
+        ],
+    }
+
+
+def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
+    project = project_path(project)
+    config = site_config(project)
+    unaltraweb = config.get("unaltraweb") if isinstance(config.get("unaltraweb"), dict) else {}
+    manual = unaltraweb.get("manual") if isinstance(unaltraweb.get("manual"), dict) else {}
+    pdf = manual.get("pdf") if isinstance(manual.get("pdf"), dict) else {}
+    return {
+        "project": str(project),
+        "site_profile": site_profile(config),
+        "features": feature_flags(config),
+        "languages": configured_languages(config),
+        "pdf_enabled": bool(pdf.get("enabled", False)),
+        "paragraph_structure": {
+            "principle": "Diagnose function before sentence polish; give each paragraph one primary job and a concrete handoff.",
+            "diagnostic_sequence": ["topic_or_reader_goal", "problem_or_question", "arguments_and_examples", "discussion_or_limits", "concrete_closure_or_transition"],
+            "note": "Do not force every paragraph through every move. Use the sequence to find missing logic and combine moves only when they serve one clear purpose.",
+        },
+        "components": [
+            {
+                "id": "heading_levels",
+                "syntax": ["## numbered section", "### numbered subsection", "#### numbered fourth-level subsection"],
+                "web": "all three are numbered; h2 and h3 appear in the secondary TOC, h4 does not",
+                "pdf": "all three are numbered; h4 remains below the configured TOC depth",
+                "guidance": "Use #### for a cohesive minor subsection with its own developed content. Do not imitate a heading with a standalone bold phrase and terminal period.",
+            },
+            {
+                "id": "callouts",
+                "syntax": ["> quotation", ">> note", ">>> example", ">>>> warning", ">>>>> learning objectives", ">>>>>> caution"],
+                "web": "supported with localized labels and nested-blockquote styling",
+                "pdf": "partial: preserved as blockquotes without equivalent web labels or styling",
+                "guidance": "Do not type the generated callout label in the body.",
+            },
+            {
+                "id": "definition_lists",
+                "syntax": ["Term", ": Definition"],
+                "web": "supported and styled as dictionary entries",
+                "pdf": "supported as indented description entries with term colons",
+                "guidance": "Use for compact terminology, not as a substitute for conceptual explanation.",
+            },
+            {
+                "id": "figures",
+                "syntax": ['![Alt text](assets/img/example.png "Explicit caption")'],
+                "web": "supported with localized numbering",
+                "pdf": "supported",
+                "guidance": "Always provide meaningful alt text and an explicit Markdown title caption.",
+            },
+            {
+                "id": "subfigures",
+                "syntax": ['::: subfigures a+b/c "Overall caption"', '![Panel A](a.png "Panel caption")', ":::"] ,
+                "web": "supported; + joins panels in a row and / starts a new row",
+                "pdf": "not yet layout-equivalent; inspect rendered PDF or use separate figures",
+                "guidance": "Use only when the comparison benefits from a shared numbered figure.",
+            },
+            {
+                "id": "captioned_tables",
+                "syntax": ['::: table "Caption"', "| Column | Column |", "| --- | --- |", ":::"] ,
+                "web": "supported with localized numbering",
+                "pdf": "supported through Pandoc table captions",
+                "guidance": "Bare pipe tables are rejected by manual_source_quality_check.",
+            },
+            {
+                "id": "diagrams",
+                "syntax": ['![Flow](assets/diagrams/flow.mmd "Flow caption")', '![Folders](assets/diagrams/folders.puml "Folder layout")'],
+                "web": "supported through diavisuals-generated SVGs",
+                "pdf": "supported for .mmd, .puml, and .plantuml when a printable SVG exists",
+                "guidance": "Keep source files under assets/diagrams, prefer PlantUML @startfiles for file trees, and never overwrite *.edited.svg without approval.",
+            },
+            {
+                "id": "citations",
+                "syntax": ["{% cite key %}", "{% cite key1 key2 %}"],
+                "web": "supported through Jekyll Scholar",
+                "pdf": "supported through Pandoc citeproc",
+                "guidance": "Use verified bibliography keys and manual_references: true when a chapter needs its references section.",
+            },
+            {
+                "id": "code_and_math",
+                "syntax": ["```python ... ```", "$$ E = mc^2 $$"],
+                "web": "supported",
+                "pdf": "ordinary fenced code and LaTeX-compatible math supported",
+                "guidance": "Prefer ordinary fenced code with an explicit language; avoid PDF-unsupported Liquid widgets.",
+            },
+        ],
+        "web_only_or_pdf_review_required": ["tabs", "details", "interactive charts", "interactive maps", "galleries", "audio", "video", "arbitrary Liquid figure includes"],
+        "quality_tools": ["manual_source_quality_check", "manual_editorial_quality_check", "build_site", "manual_pdf_build"],
+        "source_guides": [
+            "docs/agents/manual-authoring-components.md",
+            "plugins/unaltraweb-site/skills/manual-pedagogical-writing/SKILL.md",
+            "context/writing-profile.md",
+        ],
     }
 
 
@@ -788,10 +1058,14 @@ def profile_check(project: Path) -> dict[str, Any]:
         )
 
     manual_source_quality: dict[str, Any] = {}
+    manual_editorial_quality: dict[str, Any] = {}
     if profile == "unaltremanual":
         manual_source_quality = manual_source_quality_check(project)
         issues.extend(manual_source_quality.get("issues", []))
         warnings.extend(manual_source_quality.get("warnings", []))
+        manual_editorial_quality = manual_editorial_quality_check(project)
+        issues.extend(manual_editorial_quality.get("issues", []))
+        warnings.extend(manual_editorial_quality.get("warnings", []))
 
     return {
         "project": str(project),
@@ -801,6 +1075,7 @@ def profile_check(project: Path) -> dict[str, Any]:
         "languages": configured_languages(config),
         "features": feature_flags(config),
         "manual_source_quality": manual_source_quality,
+        "manual_editorial_quality": manual_editorial_quality,
         "ok": not issues,
         "issues": issues,
         "warnings": warnings,
@@ -1169,6 +1444,30 @@ def build_site(project: Path, site_profile: str = "") -> dict[str, Any]:
     return run_make(project_path(project), "build", extra_args=args)
 
 
+def _manual_pdf_args(language: str) -> list[str]:
+    value = language.strip()
+    if value and not re.fullmatch(r"[A-Za-z0-9_-]+", value):
+        raise ValueError("Manual PDF language must contain only letters, numbers, underscores, or hyphens.")
+    return [f"MANUAL_PDF_LANG={value}"] if value else []
+
+
+def manual_pdf_status(project: Path, language: str = "") -> dict[str, Any]:
+    return run_make(project_path(project), "manual-pdf-status", extra_args=_manual_pdf_args(language))
+
+
+def manual_pdf_build(project: Path, language: str = "") -> dict[str, Any]:
+    return run_make(project_path(project), "manual-pdf-build", extra_args=_manual_pdf_args(language))
+
+
+def manual_pdf_publish(project: Path, language: str = "", *, dry_run: bool = True, confirm_publish: bool = False) -> dict[str, Any]:
+    if not dry_run and not confirm_publish:
+        raise RuntimeError("A real manual PDF publication requires confirm_publish=True after reviewing the dry-run.")
+    args = _manual_pdf_args(language)
+    args.append(f"MANUAL_PDF_PUBLISH_DRY_RUN={1 if dry_run else 0}")
+    result = run_make(project_path(project), "manual-pdf-publish", extra_args=args)
+    return {**result, "dry_run": dry_run, "confirmed": confirm_publish}
+
+
 def bibliometrics_check(project: Path) -> dict[str, Any]:
     return run_make(project_path(project), "metrics-check")
 
@@ -1237,9 +1536,9 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
 
 def list_tools() -> dict[str, Any]:
     return {
-        "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
-        "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
-        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
+        "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
+        "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "manual_structure_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
+        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
     }
 
 

@@ -53,3 +53,24 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
+
+      - name: Manual PDF Docker metadata
+        id: manual-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf
+          tags: |
+            type=raw,value=main,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag
+
+      - name: Build and publish manual PDF image
+        uses: docker/build-push-action@v6
+        with:
+          context: scripts/manual
+          file: scripts/manual/Dockerfile
+          push: true
+          tags: ${{ steps.manual-meta.outputs.tags }}
+          labels: ${{ steps.manual-meta.outputs.labels }}
+          cache-from: type=gha,scope=manual-pdf
+          cache-to: type=gha,mode=max,scope=manual-pdf

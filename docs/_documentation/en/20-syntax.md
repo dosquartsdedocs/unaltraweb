@@ -66,6 +66,32 @@ Rendered by the same parser:
 
 >>>> **Warning.** Flag steps that can damage data, confuse students or break a build.
 
+## Manual Heading Levels
+
+Manual chapters number three body levels:
+
+```markdown
+## Section
+### Subsection
+#### Fourth-level subsection
+```
+
+The secondary page TOC includes `##` and `###`. A `####` heading remains numbered in the text but is intentionally omitted from that TOC. Use it for a cohesive minor subdivision, not as a formatting substitute for every short item. Do not write standalone fake headings such as `**Source.**`; use a real `####` heading or keep the bold run-in and its explanation in one paragraph.
+
+## Definition Lists
+
+Definition lists render compact terminology as dictionary-style entries on the web and in the manual PDF:
+
+```markdown
+Spatial reference system
+: Rules and parameters used to interpret coordinates in a defined spatial framework.
+
+Map projection
+: Mathematical transformation used to represent a curved surface on a plane.
+```
+
+Use them for concise vocabulary. Develop concepts that need arguments, examples, discussion, or limitations in normal paragraphs.
+
 ## Figures And Captions
 
 For pages with figure captions enabled, use the Markdown image title as the caption:

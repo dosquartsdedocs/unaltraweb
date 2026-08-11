@@ -11,13 +11,37 @@ layout: default
 {% endif %}
 {% assign manual_chapters = manual_pages | where_exp: 'chapter', 'chapter.manual_numbered != false' %}
 {% assign manual_reference_pages = manual_pages | where_exp: 'chapter', 'chapter.manual_numbered == false' %}
-{% assign manual_cover_image = page.cover_image | default: page.cover.image | default: manual_config.cover_image %}
+{% assign manual_show_chapter_index = true %}
+{% if manual_config.show_chapter_index == false %}{% assign manual_show_chapter_index = false %}{% endif %}
+{% if page.show_chapter_index == false %}{% assign manual_show_chapter_index = false %}{% endif %}
+{% if page.show_chapter_index == true %}{% assign manual_show_chapter_index = true %}{% endif %}
+{% assign manual_pdf_config = manual_config.pdf %}
+{% assign manual_pdf_url = manual_pdf_config.output | replace: '{lang}', current_lang %}
+{% assign manual_pdf_cover_url = manual_pdf_config.cover_output | replace: '{lang}', current_lang %}
+{% assign manual_pdf_path = manual_pdf_url %}
+{% assign manual_pdf_cover_path = manual_pdf_cover_url %}
+{% assign manual_pdf_path_prefix = manual_pdf_path | slice: 0 %}
+{% assign manual_pdf_cover_path_prefix = manual_pdf_cover_path | slice: 0 %}
+{% unless manual_pdf_path_prefix == '/' %}
+  {% assign manual_pdf_path = manual_pdf_path | prepend: '/' %}
+{% endunless %}
+{% unless manual_pdf_cover_path_prefix == '/' %}
+  {% assign manual_pdf_cover_path = manual_pdf_cover_path | prepend: '/' %}
+{% endunless %}
+{% assign manual_pdf_asset = site.static_files | where: 'path', manual_pdf_path | first %}
+{% assign manual_pdf_cover_asset = site.static_files | where: 'path', manual_pdf_cover_path | first %}
+{% if manual_pdf_config.enabled and manual_pdf_cover_asset %}
+  {% assign manual_cover_image = manual_pdf_cover_url %}
+{% else %}
+  {% assign manual_cover_image = page.cover_image | default: page.cover.image | default: manual_config.cover_image %}
+{% endif %}
 {% assign manual_cover_alt = page.cover_alt | default: page.cover.alt | default: page.title %}
 {% assign manual_subtitle = page.subtitle | default: page.description | default: site.description %}
 {% assign manual_kicker = page.kicker | default: manual_config.kicker | default: manual_config.nav_title | default: manual_config.short_title | default: site.short_title | default: site.acronym | default: site.title %}
 {% capture manual_contents_text %}{% include t.liquid key='manual.contents' default='Contents' %}{% endcapture %}
 {% capture manual_toggle_text %}{% include t.liquid key='manual.toggle_sidebar' default='Toggle contents' %}{% endcapture %}
 {% capture manual_no_chapters_text %}{% include t.liquid key='manual.no_chapters' default='No chapters available yet.' %}{% endcapture %}
+{% capture manual_download_text %}{% include t.liquid key='manual.download_pdf' default='Download PDF' %}{% endcapture %}
 <script>
   window.unaltrawebContentSearchUrl = {{ '/assets/js/manual-search-index.json' | relative_url | jsonify }};
   window.unaltrawebContentSearchTarget = ".manual-content";
@@ -31,14 +55,20 @@ layout: default
   <article class="manual-main manual-home">
     <header class="manual-cover">
       <div class="manual-cover-copy">
-        {% if manual_kicker %}<p class="manual-kicker">{{ manual_kicker }}</p>{% endif %}
-        <h1>{{ page.title }}</h1>
-        {% if manual_subtitle %}<p class="manual-subtitle">{{ manual_subtitle }}</p>{% endif %}
-      </div>
-      {% if manual_cover_image %}
-        <figure class="manual-cover-art">
-          <img src="{{ manual_cover_image | relative_url }}" alt="{{ manual_cover_alt | escape }}">
-        </figure>
+         {% if manual_kicker %}<p class="manual-kicker">{{ manual_kicker }}</p>{% endif %}
+         <h1>{{ page.title }}</h1>
+         {% if manual_subtitle %}<p class="manual-subtitle">{{ manual_subtitle }}</p>{% endif %}
+       </div>
+      {% if manual_cover_image or manual_pdf_asset %}
+        <div class="manual-cover-art">
+          {% if manual_cover_image %}<img src="{{ manual_cover_image | relative_url }}" alt="{{ manual_cover_alt | escape }}">{% endif %}
+          {% if manual_pdf_config.enabled and manual_pdf_asset %}
+            <a class="manual-download" href="{{ manual_pdf_url | relative_url }}" download>
+              <i class="fa-solid fa-file-pdf" aria-hidden="true"></i>
+              <span>{{ manual_download_text | strip }}</span>
+            </a>
+          {% endif %}
+        </div>
       {% endif %}
     </header>
 
@@ -48,7 +78,8 @@ layout: default
 
     {% include manual-teachers.liquid %}
 
-    <section class="manual-chapter-index" aria-labelledby="manual-chapter-index-title">
+    {% if manual_show_chapter_index %}
+      <section class="manual-chapter-index" aria-labelledby="manual-chapter-index-title">
       <h2 id="manual-chapter-index-title">{{ manual_contents_text | strip }}</h2>
       {% if manual_chapters.size > 0 or manual_reference_pages.size > 0 %}
         <ol class="manual-chapter-cards">
@@ -74,6 +105,7 @@ layout: default
       {% else %}
         <p>{{ manual_no_chapters_text | strip }}</p>
       {% endif %}
-    </section>
+      </section>
+    {% endif %}
   </article>
 </div>

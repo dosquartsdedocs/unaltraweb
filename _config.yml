@@ -30,7 +30,12 @@ unaltraweb:
   logos:
     default: /assets/img/brand/dosquartsdedocs-logo.svg
     inverse: /assets/img/brand/dosquartsdedocs-logo-white.svg
-    cafe: /assets/img/brand/dosquartsdedocs-logo.svg
+    cafe: /assets/img/brand/dosquartsdedocs-logo-cafe.svg
+  footer:
+    show_logo: false
+    logo_light: /assets/img/brand/dosquartsdedocs-logo-white.svg
+    logo_dark: /assets/img/brand/dosquartsdedocs-logo.svg
+    logo_cafe: /assets/img/brand/dosquartsdedocs-logo-footer-cafe.svg
   features:
     news: true
     blog: true
@@ -52,13 +57,54 @@ unaltraweb:
     cover_image:
     logo:
     logo_inverse:
+    logo_cafe: /assets/img/brand/dosquartsdedocs-logo-cafe.svg
     bibliography: true
     bibliography_file: manual.bib
+    metadata:
+      short_title:
+      description:
+      series: unaltremanual
+      series_subtitle:
+      subject:
+      subject_code:
+      degree:
+      teaching_guides: []
+      department:
+      faculty:
+      institution:
+      location:
+      academic_year:
+      revision_date:
+      instructors: []
+      rights:
+    pdf:
+      enabled: false
+      languages: []
+      build_dir: tmp/manual-pdf
+      output: assets/pdf/manual-{lang}.pdf
+      cover_output: assets/img/manual-cover-{lang}.png
+      include_home: true
+      include_bibliography: true
+      toc: true
+      mark_drafts: true
+      home_title:
+      draft_label:
+      draft_description:
+      csl:
+      template:
+      cover:
+        image:
+        series_logo:
+        institution_logo:
+        band_color: "990000"
+        primary_color: "990000"
+        secondary_color: "003366"
+        muted_color: "666666"
   documentation:
     collection: documentation
     logo: /assets/img/brand/dosquartsdedocs-logo.svg
     logo_inverse: /assets/img/brand/dosquartsdedocs-logo-white.svg
-    logo_cafe: /assets/img/brand/dosquartsdedocs-logo.svg
+    logo_cafe: /assets/img/brand/dosquartsdedocs-logo-cafe.svg
     toc_logo:
     toc_logo_inverse:
     toc_logo_cafe:

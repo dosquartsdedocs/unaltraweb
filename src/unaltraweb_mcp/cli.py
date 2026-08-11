@@ -68,6 +68,16 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return print_json(tools.profile_check(project))
     if command == "manual-source-quality-check":
         return print_json(tools.manual_source_quality_check(project))
+    if command == "manual-editorial-quality-check":
+        return print_json(tools.manual_editorial_quality_check(project))
+    if command == "manual-authoring-capabilities":
+        return print_json(tools.manual_authoring_capabilities(project))
+    if command == "manual-pdf-status":
+        return print_json(tools.manual_pdf_status(project, language=args.language))
+    if command == "manual-pdf-build":
+        return print_json(tools.manual_pdf_build(project, language=args.language))
+    if command == "manual-pdf-publish":
+        return print_json(tools.manual_pdf_publish(project, language=args.language, dry_run=not args.apply, confirm_publish=args.confirm_publish))
     if command == "profile-prune-plan":
         return print_json(tools.profile_prune_plan(project, site_profile_value=args.site_profile))
     if command == "profile-prune":
@@ -122,8 +132,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp = sub.add_parser("mcp", help="MCP server and JSON helper commands")
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
-    for name in ["serve", "list-tools", "starter-templates", "site-context", "site-check", "profile-check", "manual-source-quality-check", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "prompts"]:
+    for name in ["serve", "list-tools", "starter-templates", "site-context", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "prompts"]:
         mcp_sub.add_parser(name)
+
+    for name in ["manual-pdf-status", "manual-pdf-build"]:
+        manual_pdf = mcp_sub.add_parser(name)
+        manual_pdf.add_argument("--language", default="")
+
+    manual_pdf_publish = mcp_sub.add_parser("manual-pdf-publish")
+    manual_pdf_publish.add_argument("--language", default="")
+    manual_pdf_publish.add_argument("--apply", action="store_true")
+    manual_pdf_publish.add_argument("--confirm-publish", action="store_true")
 
     init_site = mcp_sub.add_parser("initialize-site")
     init_site.add_argument("--template-path", default="")

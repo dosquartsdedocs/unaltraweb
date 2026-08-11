@@ -22,9 +22,10 @@ Gem::Specification.new do |spec|
     end
   end
   spec.files = (tracked_files + discovered_files).uniq.select do |file|
-    ["_config.yml", "requirements.txt"].include?(file) ||
-      file.match?(%r{\A(_includes|_layouts|_sass|_plugins|_scripts|assets|lib|scripts)/}) ||
-      file.match?(%r{\A(README|LICENSE|docs)/})
+    !file.match?(%r{(^|/)__pycache__/|\.pyc\z}) &&
+      (["_config.yml", "requirements.txt"].include?(file) ||
+       file.match?(%r{\A(_includes|_layouts|_sass|_plugins|_scripts|assets|lib|scripts)/}) ||
+       file.match?(%r{\A(README|LICENSE|docs)/}))
   end
 
   spec.require_paths = ["lib"]

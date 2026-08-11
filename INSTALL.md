@@ -42,6 +42,16 @@ make build LOCAL_CORE=../unaltraweb
 make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltremanual
 ```
 
+For a configured `unaltremanual` PDF edition, Docker remains the only runtime prerequisite:
+
+```bash
+make manual-pdf-status LOCAL_CORE=../unaltraweb
+make manual-pdf-build LOCAL_CORE=../unaltraweb
+make manual-pdf-publish LOCAL_CORE=../unaltraweb
+```
+
+The publication command is a local dry-run by default. A real copy into the configured `assets/pdf/` and cover paths requires `MANUAL_PDF_PUBLISH_DRY_RUN=0`; review the generated files under `tmp/manual-pdf/` first.
+
 ## Core Development Workflow
 
 Use this repository directly when changing shared layouts, includes, Sass, plugins, scripts or docs:

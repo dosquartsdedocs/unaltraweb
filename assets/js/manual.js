@@ -73,6 +73,7 @@
     if (!Number.isFinite(chapter) || chapter < 1) chapter = 1;
     var section = 0;
     var subsection = 0;
+    var subsubsection = 0;
 
     function prefix(heading, value) {
       var span = document.createElement("span");
@@ -84,15 +85,22 @@
     var title = root.querySelector(".manual-chapter-header h1");
     if (title) prefix(title, String(chapter));
 
-    root.querySelectorAll(".manual-content h2, .manual-content h3").forEach(function (heading) {
+    root.querySelectorAll(".manual-content h2, .manual-content h3, .manual-content h4").forEach(function (heading) {
       if (heading.tagName.toLowerCase() === "h2") {
         section += 1;
         subsection = 0;
+        subsubsection = 0;
         prefix(heading, chapter + "." + section);
-      } else {
+      } else if (heading.tagName.toLowerCase() === "h3") {
         if (section === 0) section = 1;
         subsection += 1;
+        subsubsection = 0;
         prefix(heading, chapter + "." + section + "." + subsection);
+      } else {
+        if (section === 0) section = 1;
+        if (subsection === 0) subsection = 1;
+        subsubsection += 1;
+        prefix(heading, chapter + "." + section + "." + subsection + "." + subsubsection);
       }
     });
   }
@@ -103,6 +111,7 @@
     var content = document.querySelector(".manual-content");
     if (!target || !container || !content) return;
 
+    // Fourth-level headings are numbered in the text but intentionally omitted here.
     var headings = Array.prototype.slice.call(content.querySelectorAll("h2, h3"));
     target.innerHTML = "";
     if (!headings.length) {

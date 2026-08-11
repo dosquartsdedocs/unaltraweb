@@ -26,6 +26,8 @@ The opened workspace is the consumer website repository. Factory logic remains i
 | `web://bibliometrics` | Static bibliometrics summary state and bibliography update dates. |
 | `web://build-health` | Existing `_site` build artefacts without starting a server. |
 | `web://prompts` | Reusable website workflow prompts. |
+| `web://manual-writing-guidance` | Generic drafting and style-review prompts combined with the site's `context/writing-profile.md` when available. |
+| `web://manual-authoring-components` | Supported prose structures and component syntax, including callouts, definition lists, figure layouts, tables, diagrams, citations, and web/PDF compatibility. |
 
 ## Tools
 
@@ -37,6 +39,11 @@ The opened workspace is the consumer website repository. Factory logic remains i
 | `site_check` | Run profile, freshness, bibliography, bibliometrics, and build-state checks without network. |
 | `profile_check` | Check current profile and expected content/config paths. |
 | `manual_source_quality_check` | For `unaltremanual`, check captioned table blocks, captioned figures, and external Mermaid/PlantUML diagram sources. |
+| `manual_editorial_quality_check` | Reject non-publishable metatext, user/agent instructions, workflow markers, drafting notes, and placeholders in manual bodies; return the editorial review checklist and local writing-profile path. |
+| `manual_authoring_capabilities` | Return the paragraph-development model and structured component catalogue an MCP writing assistant must use. |
+| `manual_pdf_status` | Inspect PDF configuration, sources, generated artefacts, published paths, and freshness without writing files. |
+| `manual_pdf_build` | Build one or all configured language PDFs and first-page cover previews under `tmp/`. |
+| `manual_pdf_publish` | Copy built PDFs and covers to configured public assets. Defaults to dry-run; real publication requires explicit confirmation. |
 | `profile_prune_plan` | List content files whose explicit `profiles:` front matter excludes the selected profile. |
 | `profile_prune` | Remove those profile-specific files only after reviewing the plan and passing `confirm_prune=true`. Defaults to dry-run. |
 | `content_inventory` | Inventory pages, posts, chapters, documentation, data, and assets. |
@@ -54,6 +61,8 @@ The opened workspace is the consumer website repository. Factory logic remains i
 | `http_check` | Probe an already-running Jekyll preview over HTTP. |
 
 The tool names use `bibliometrics_*` even though existing Make targets still use `metrics-*` for backwards compatibility.
+
+Manual PDF publication is a local workspace operation: it copies reviewed artefacts from `tmp/manual-pdf/` to configured paths such as `assets/pdf/` and `assets/img/`. It never commits, pushes, creates releases, or writes outside the consumer workspace. Run `manual_source_quality_check`, `manual_editorial_quality_check`, `manual_pdf_status`, `manual_pdf_build`, and a `manual_pdf_publish` dry-run before calling `manual_pdf_publish(dry_run=false, confirm_publish=true)`.
 
 ## New Site Initialization
 

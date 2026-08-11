@@ -15,7 +15,7 @@ keywords = ["jekyll", "mcp", "websites", "bibliometrics"]
 dependencies = []
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.0.0"]
+mcp = ["mcp>=1.0.0,<2"]
 
 [project.scripts]
 unaltraweb-mcp = "unaltraweb_mcp.cli:main"

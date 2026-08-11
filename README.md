@@ -4,6 +4,8 @@
 
 It packages shared layouts, includes, Sass, assets, Jekyll plugins, bibliometric tooling, multilingual behaviour, theme modes and reusable GitHub Actions workflows. Child sites should stay thin and consume this core through the `unaltraweb` gem.
 
+`unaltremanual` sites can also build language-specific PDF editions and matching web-cover images in an isolated Pandoc/XeLaTeX container. PDF status, build, and local publication are available through Make and the MCP control plane.
+
 ## Current Status
 
 - The core builds successfully as a standalone Jekyll site through Docker.
@@ -77,6 +79,8 @@ make docs-build DOCKER_IMAGE=unaltraweb:local
 ```
 
 The published runtime image is `ghcr.io/dosquartsdedocs/unaltraweb:main`. It replaces the inherited `al-folio` image for local template workflows while the gem remains the source of the theme code.
+
+The independent manual PDF runtime is built from `scripts/manual/Dockerfile`; it is deliberately separate from the Jekyll image so normal site builds do not carry Pandoc and TeX Live.
 
 The GHCR image is a shared runtime, not the source of the theme. Publish it only through the manual Docker image workflow when runtime dependencies change.
 
