@@ -132,3 +132,15 @@ Core maintainers publish both base images with the manual `Compute images` workf
 Projects can call `.github/workflows/project-compute-image.yml` to publish their own extension package. Use a separate package name such as `example-compute-r`; do not encode project dependencies as variants of `unaltraweb-compute-r`.
 
 The current publication workflows build `linux/amd64` images. ARM authors need Docker emulation or a separately published compatible image; image IDs recorded in the computation lock are platform-specific.
+
+## Web Capture Image
+
+Selector-based screenshot authoring uses a separate Playwright image rather than adding Chromium to the Jekyll runtime:
+
+```text
+ghcr.io/dosquartsdedocs/unaltraweb-web-capture
+```
+
+The image contains pinned Playwright/Chromium, the capture worker, the Python status controller, and the core visual sources used in fingerprints. `make web-capture-image` builds the local image; the manual `Web capture image` workflow publishes default-branch, commit, and release tags to GHCR.
+
+Rendering creates an ephemeral Docker `--internal` network shared only by Jekyll and Chromium, keeps browser requests on the preview origin, blocks service workers, popups, and WebSockets, drops Linux capabilities, uses a read-only container root and bounded resources, and writes only the declared PNG/SVG outputs under the mounted project. Ordinary checks run without browser execution or network access.

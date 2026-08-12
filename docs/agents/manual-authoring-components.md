@@ -115,6 +115,19 @@ Store reusable sources under `assets/diagrams/` and reference them as captioned 
 
 Use Mermaid `.mmd` for flows and PlantUML `.puml` or `.plantuml` for structured diagrams. Prefer PlantUML `@startfiles` for file trees. `diavisuals` generates the SVG; preserve an existing `*.edited.svg` unless the author explicitly approves replacement. Do not use inline Mermaid or PlantUML fences in manuals.
 
+## Web captures
+
+Use a versioned `.capture.yml` recipe when a teaching figure must show a rendered website. The recipe stores a local preview path, viewport, theme, waits, declared inputs, and CSS selectors for annotations. Rendering creates:
+
+```text
+page.capture.yml
+page.capture.png
+page.capture.svg
+page.capture.edited.svg  # optional author-owned override
+```
+
+Reference `page.capture.yml` as the captioned image source. Jekyll and the PDF builder prefer `page.capture.edited.svg` when it exists, otherwise `page.capture.svg`. The PNG is the untouched browser capture; annotations remain editable vector layers in the self-contained SVG. Never overwrite an edited SVG without approval, and do not publish while `web_capture_check` reports it stale.
+
 ## Citations, code, and math
 
 Use verified bibliography keys:

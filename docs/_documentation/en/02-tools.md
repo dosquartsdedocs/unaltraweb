@@ -45,6 +45,9 @@ make build
 make publish
 make test
 make screenshots
+make web-capture-status
+make web-capture-render WEB_CAPTURE_SOURCE=assets/captures/chapter.capture.yml
+make web-capture-check
 make metrics-update
 make cv-preview CV_PDF=assets/pdf/cv.pdf CV_PREVIEW=assets/img/cv-preview.jpg
 make down

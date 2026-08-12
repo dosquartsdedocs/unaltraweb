@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,28 @@ IMAGE_RE = re.compile(r"!\[([^\]]*)\]\((\S+?)(?:\s+[\"']([^\"']+)[\"'])?\)")
 TABLE_DIV_RE = re.compile(r'^::: table\s+["\'](.+?)["\']\s*\n(.*?)^:::\s*$', re.MULTILINE | re.DOTALL)
 LANGUAGE_NAMES = {"ca": "catalan", "es": "spanish", "en": "english"}
 LANGUAGE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
+CAPTURE_SVG_ALLOWED_ELEMENTS = {
+    "svg", "g", "defs", "metadata", "title", "desc", "image", "rect", "path", "text", "tspan",
+    "marker", "polygon", "polyline", "line", "circle", "ellipse", "clippath", "mask", "lineargradient",
+    "radialgradient", "stop", "pattern", "use", "namedview", "grid", "page",
+}
+CAPTURE_SVG_ALLOWED_ATTRIBUTES = {
+    "id", "class", "version", "baseprofile", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r", "rx", "ry",
+    "width", "height", "viewbox", "preserveaspectratio", "d", "points", "transform", "fill", "stroke", "stroke-width",
+    "stroke-linecap", "stroke-linejoin", "stroke-miterlimit", "stroke-dasharray", "stroke-dashoffset", "opacity", "fill-opacity",
+    "stroke-opacity", "fill-rule", "clip-rule", "clip-path", "mask", "font-family", "font-size", "font-style", "font-weight",
+    "text-anchor", "dominant-baseline", "marker-start", "marker-mid", "marker-end", "markerwidth", "markerheight", "refx", "refy",
+    "orient", "offset", "stop-color", "stop-opacity", "patternunits", "patterncontentunits", "gradientunits", "gradienttransform",
+    "spreadmethod", "href", "style", "data-selector", "groupmode", "label", "space", "role", "aria-label", "pagecolor",
+    "bordercolor", "borderopacity", "objecttolerance", "gridtolerance", "guidetolerance", "showgrid", "showguides", "zoom",
+    "current-layer", "document-units", "pagecheckerboard", "deskcolor", "units", "originx", "originy", "spacingx", "spacingy",
+}
+CAPTURE_SVG_ALLOWED_STYLE_PROPERTIES = {
+    "fill", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit", "stroke-dasharray",
+    "stroke-dashoffset", "opacity", "fill-opacity", "stroke-opacity", "fill-rule", "clip-rule", "clip-path", "mask",
+    "font-family", "font-size", "font-style", "font-weight", "text-anchor", "dominant-baseline", "marker-start", "marker-mid",
+    "marker-end", "stop-color", "stop-opacity", "display", "visibility",
+}
 METADATA_LABELS = {
     "ca": {
         "title": "Fitxa del manual",
@@ -228,8 +251,51 @@ def manual_sources(project: Path, config: dict[str, Any], lang: str) -> tuple[Pa
     return home, numbered + references, lang
 
 
-def resolve_diagram(project: Path, raw_path: str) -> str:
+def validate_capture_svg(path: Path) -> None:
+    text = path.read_text(encoding="utf-8")
+    lowered = text.lower()
+    if "<!doctype" in lowered or "<!entity" in lowered:
+        raise ManualPdfError(f"Unsafe web capture SVG: {path}")
+    try:
+        root = ET.fromstring(text)
+    except ET.ParseError as exc:
+        raise ManualPdfError(f"Invalid web capture SVG: {path}: {exc}") from exc
+    for element in root.iter():
+        tag = element.tag.rsplit("}", 1)[-1].lower()
+        if tag not in CAPTURE_SVG_ALLOWED_ELEMENTS:
+            raise ManualPdfError(f"Unsupported web capture SVG element in {path}: {tag}")
+        for raw_name, raw_value in element.attrib.items():
+            name = raw_name.rsplit("}", 1)[-1].lower()
+            value = raw_value.strip()
+            lowered_value = value.lower()
+            if name not in CAPTURE_SVG_ALLOWED_ATTRIBUTES:
+                raise ManualPdfError(f"Unsupported web capture SVG attribute in {path}: {name}")
+            if "@import" in lowered_value or "javascript:" in lowered_value or "expression(" in lowered_value:
+                raise ManualPdfError(f"Unsafe web capture SVG attribute in {path}: {name}")
+            if name == "href" and not (value.startswith("data:image/png;base64,") or value.startswith("#")):
+                raise ManualPdfError(f"External web capture SVG reference in {path}")
+            without_local_urls = re.sub(r"url\(\s*['\"]?#[A-Za-z_][-:.A-Za-z0-9_]*['\"]?\s*\)", "", lowered_value)
+            if "url(" in without_local_urls:
+                raise ManualPdfError(f"External CSS reference in web capture SVG: {path}")
+            if name == "style":
+                declarations = [part.strip() for part in value.split(";") if part.strip()]
+                for declaration in declarations:
+                    property_name, separator, _ = declaration.partition(":")
+                    if not separator or property_name.strip().lower() not in CAPTURE_SVG_ALLOWED_STYLE_PROPERTIES:
+                        raise ManualPdfError(f"Unsupported CSS property in web capture SVG {path}: {property_name.strip()}")
+
+
+def resolve_visual_source(project: Path, raw_path: str) -> str:
     path = raw_path.lstrip("/")
+    if path.lower().endswith((".capture.yml", ".capture.yaml")):
+        source = safe_relative(project, path, label="web capture source", must_exist=True)
+        base = str(source).rsplit(".", 1)[0]
+        candidates = [Path(base + ".edited.svg"), Path(base + ".svg")]
+        for candidate in candidates:
+            if candidate.is_file():
+                validate_capture_svg(candidate)
+                return str(candidate.relative_to(project))
+        raise ManualPdfError(f"No printable SVG found for web capture source: {path}")
     if not path.lower().endswith((".mmd", ".puml", ".plantuml")):
         return path
     source = safe_relative(project, path, label="diagram source", must_exist=True)
@@ -253,7 +319,7 @@ def transform_markdown(project: Path, text: str, source: Path) -> str:
 
     def image(match: re.Match[str]) -> str:
         alt, raw_path, title = match.groups()
-        printable = resolve_diagram(project, raw_path)
+        printable = resolve_visual_source(project, raw_path)
         caption = title or alt
         return f"![{caption}]({printable})"
 
