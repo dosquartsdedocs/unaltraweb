@@ -1096,7 +1096,9 @@ html[data-theme="dark"] .manual-teacher-links a[aria-label="X"] i {
 }
 
 .md-figure {
-  margin: 1.8rem 0;
+  width: var(--md-figure-width, auto);
+  max-width: 100%;
+  margin: 1.8rem auto;
 }
 
 .md-figure,

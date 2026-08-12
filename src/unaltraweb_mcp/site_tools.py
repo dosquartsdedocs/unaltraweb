@@ -967,10 +967,13 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
             },
             {
                 "id": "figures",
-                "syntax": ['![Alt text](assets/img/example.png "Explicit caption")'],
-                "web": "supported with localized numbering",
-                "pdf": "supported",
-                "guidance": "Always provide meaningful alt text and an explicit Markdown title caption.",
+                "syntax": [
+                    '![Alt text](assets/img/example.png "Explicit caption")',
+                    '![Alt text](assets/img/example.png "Explicit caption"){: data-figure-width="22rem"}',
+                ],
+                "web": "supported with localized numbering; data-figure-width narrows and centres an individual figure container",
+                "pdf": "supported; custom web container width requires rendered PDF review",
+                "guidance": "Always provide meaningful alt text and an explicit Markdown title caption. Use data-figure-width only when the natural content is substantially narrower than the reading column; it does not set a fixed height.",
             },
             {
                 "id": "subfigures",

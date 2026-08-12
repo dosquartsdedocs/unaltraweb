@@ -67,6 +67,14 @@ Use an explicit Markdown title as the caption:
 
 Every teaching figure needs meaningful alt text and a caption. The manual numbers figures automatically on the web; the same image and caption are available to the PDF builder.
 
+When the content is substantially narrower than the reading column, narrow and centre the complete figure container without setting a fixed height:
+
+```markdown
+![Project folders](assets/diagrams/folders.puml "Recommended project structure"){: data-figure-width="22rem"}
+```
+
+The value accepts a CSS width and remains limited by the available column. Review the PDF because this is primarily a web layout control.
+
 ## Figure layouts
 
 Use `subfigures` when panels form one comparison or explanation:

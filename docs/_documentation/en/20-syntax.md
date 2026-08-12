@@ -100,6 +100,14 @@ For pages with figure captions enabled, use the Markdown image title as the capt
 ![Digitizing workflow]({{ site.baseurl }}/assets/img/workflow.svg "Main editing steps")
 ```
 
+To narrow the space assigned to one figure without changing its height, set a
+CSS width with `data-figure-width`. The figure remains centred and cannot exceed
+the available width:
+
+```markdown
+![Project folders](assets/diagrams/folders.puml "Recommended project structure"){: data-figure-width="22rem"}
+```
+
 Multi-panel figures use a fenced subfigure block:
 
 ```markdown

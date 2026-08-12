@@ -98,7 +98,8 @@ module Unaltraweb
                 label: label,
                 lang: lang,
                 count: count,
-                classes: figure_classes_for(url)
+                classes: figure_classes_for(url),
+                attrs: figure_container_attrs(attrs_raw)
               )
               out << "\n\n"
             end
@@ -563,7 +564,7 @@ module Unaltraweb
       end
     end
 
-    def figure_html(img:, caption:, label:, lang:, count:, classes: ["md-figure"])
+    def figure_html(img:, caption:, label:, lang:, count:, classes: ["md-figure"], attrs: "")
       classes = Array(classes)
       classes = ["md-figure"] if classes.empty?
       clean_caption = caption.to_s.strip
@@ -574,7 +575,7 @@ module Unaltraweb
       end
 
       <<~HTML.strip
-        <figure id="fig-#{h(lang)}-#{count}" class="#{classes.map { |klass| h(klass) }.join(' ')}">
+        <figure id="fig-#{h(lang)}-#{count}" class="#{classes.map { |klass| h(klass) }.join(' ')}"#{attrs}>
           #{figcaption}
           <div class="md-figure-inner">#{img}</div>
         </figure>
@@ -585,6 +586,13 @@ module Unaltraweb
       classes = ["md-figure"]
       classes << "mermaid-figure" if diagram_path?(path)
       classes
+    end
+
+    def figure_container_attrs(raw)
+      width = kramdown_attr_value(raw, "data-figure-width")
+      return "" if width.to_s.strip.empty?
+
+      %( style="--md-figure-width: #{h(width.strip)};")
     end
 
     def diagram_path?(path)

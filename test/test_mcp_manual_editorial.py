@@ -99,6 +99,7 @@ Una font oficial ha d'identificar l'organisme responsable, la data de referènci
         self.assertIn("h4 does not", components["heading_levels"]["web"])
         self.assertIn(">>>> warning", components["callouts"]["syntax"])
         self.assertEqual(components["definition_lists"]["pdf"], "supported as indented description entries with term colons")
+        self.assertIn('data-figure-width="22rem"', components["figures"]["syntax"][1])
         self.assertIn("a+b/c", components["subfigures"]["syntax"][0])
         self.assertIn("@startfiles", components["diagrams"]["guidance"])
         self.assertIn("$x_i$", components["code_and_math"]["syntax"])
