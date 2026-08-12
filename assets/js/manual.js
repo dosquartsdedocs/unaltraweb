@@ -124,6 +124,7 @@
     var current = null;
 
     function appendLinkLabel(link, item) {
+      link.setAttribute("aria-label", item.number ? item.number + " " + item.text : item.text);
       if (item.number) {
         var number = document.createElement("span");
         number.className = "manual-page-toc-number";
