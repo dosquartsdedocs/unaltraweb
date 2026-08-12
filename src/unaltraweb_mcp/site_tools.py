@@ -994,10 +994,10 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
             },
             {
                 "id": "code_and_math",
-                "syntax": ["```python ... ```", "$$ E = mc^2 $$"],
+                "syntax": ["```python ... ```", "$x_i$", "$$\nE = mc^2\n$$"],
                 "web": "supported",
                 "pdf": "ordinary fenced code and LaTeX-compatible math supported",
-                "guidance": "Prefer ordinary fenced code with an explicit language; avoid PDF-unsupported Liquid widgets.",
+                "guidance": "Use $...$ for inline math and $$ on separate lines for display math. Do not use inline code for mathematical variables or \\(...\\) directly in Markdown sources. Prefer ordinary fenced code with an explicit language and avoid PDF-unsupported Liquid widgets.",
             },
         ],
         "web_only_or_pdf_review_required": ["tabs", "details", "interactive charts", "interactive maps", "galleries", "audio", "video", "arbitrary Liquid figure includes"],

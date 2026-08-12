@@ -101,6 +101,8 @@ Una font oficial ha d'identificar l'organisme responsable, la data de referènci
         self.assertEqual(components["definition_lists"]["pdf"], "supported as indented description entries with term colons")
         self.assertIn("a+b/c", components["subfigures"]["syntax"][0])
         self.assertIn("@startfiles", components["diagrams"]["guidance"])
+        self.assertIn("$x_i$", components["code_and_math"]["syntax"])
+        self.assertIn("Do not use inline code", components["code_and_math"]["guidance"])
 
         inventory = site_tools.list_tools()
         self.assertIn("web://manual-authoring-components", inventory["resources"])

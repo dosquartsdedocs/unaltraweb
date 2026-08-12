@@ -116,7 +116,17 @@ Use verified bibliography keys:
 {% cite firstKey secondKey %}
 ```
 
-Use ordinary fenced code with an explicit language and the documented MathJax/LaTeX delimiters. These forms have the clearest web and PDF path.
+Use ordinary fenced code with an explicit language. For mathematics in Markdown sources, use single dollar delimiters for inline expressions and double dollar delimiters on separate lines for display expressions. These forms survive the Jekyll Markdown pipeline and have the clearest web and PDF path:
+
+```markdown
+The density is $D_i=P_i/A_i$ for territory $i$.
+
+$$
+D_i = \frac{P_i}{A_i}
+$$
+```
+
+Do not mark mathematical variables as inline code: `` `P_i` `` renders literally instead of typesetting the subscript. Do not use `\(...\)` directly in Markdown sources because Kramdown consumes those backslashes before MathJax runs.
 
 ## Web-only components
 
