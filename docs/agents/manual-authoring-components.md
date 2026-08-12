@@ -132,6 +132,10 @@ Do not mark mathematical variables as inline code: `` `P_i` `` renders literally
 
 Tabs, details, interactive charts and maps, galleries, audio, video, and arbitrary Liquid figure includes can work in the browser but do not have general PDF parity. An assistant must not introduce them into a PDF-enabled manual without stating the limitation and reviewing both outputs.
 
+## Executable sources
+
+When a `.qmd`, `.Rmd`, `.R`, `.py`, or `.ipynb` source owns a chapter, edit that source rather than its generated `.md`. Keep one R or Python engine per source, declare non-code inputs, render explicitly, and review source, Markdown, figures, and `.unaltraweb/computations.lock.json` together. Never publish while `manual_computation_check` reports stale output.
+
 ## Required checks
 
 Run these checks after drafting or structural revision:
@@ -139,6 +143,7 @@ Run these checks after drafting or structural revision:
 ```text
 manual_source_quality_check
 manual_editorial_quality_check
+manual_computation_check when executable sources exist
 build_site
 manual_pdf_build when PDF output is enabled
 ```

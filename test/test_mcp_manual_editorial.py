@@ -108,6 +108,8 @@ Una font oficial ha d'identificar l'organisme responsable, la data de referènci
         self.assertIn("web://manual-authoring-components", inventory["resources"])
         self.assertIn("manual_structure_audit", inventory["prompts"])
         self.assertIn("manual_authoring_capabilities", inventory["tools"])
+        self.assertIn("manual_computation_status", inventory["tools"])
+        self.assertIn("executable_sources", components)
 
     def test_source_quality_warns_about_fake_fourth_level_headings(self) -> None:
         (self.project / "_chapters/ca/chapter.md").write_text(

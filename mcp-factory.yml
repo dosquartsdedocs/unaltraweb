@@ -82,6 +82,7 @@ mcp:
     - web://profile-contract
     - web://manual-writing-guidance
     - web://manual-authoring-components
+    - web://manual-computations
     - web://profile-prune-plan
     - web://content-inventory
     - web://bibliography
@@ -97,6 +98,9 @@ mcp:
     - manual_source_quality_check
     - manual_editorial_quality_check
     - manual_authoring_capabilities
+    - manual_computation_status
+    - manual_computation_check
+    - manual_computation_render
     - manual_pdf_status
     - manual_pdf_build
     - manual_pdf_publish

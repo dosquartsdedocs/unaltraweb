@@ -3,6 +3,7 @@
 require_relative "unaltraweb/version"
 
 %w[
+  computation_sources
   details
   external-posts
   file-exists

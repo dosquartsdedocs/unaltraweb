@@ -51,7 +51,14 @@ def run_server(project: Path, factory: Path) -> None:
     except ImportError as exc:  # pragma: no cover - optional dependency
         raise SystemExit("The unaltraweb MCP server requires the optional dependency. Install with: uv tool install 'unaltraweb-mcp[mcp]' or install mcp in this environment.") from exc
 
-    mcp = FastMCP("unaltraweb")
+    mcp = FastMCP(
+        "unaltraweb",
+        instructions=(
+            "For unaltremanual work, inspect manual_authoring_capabilities before editing. "
+            "When a chapter has an executable .qmd, .Rmd, .R, .py, or .ipynb source, edit that source rather than its generated .md. "
+            "Run manual_computation_status and render explicitly after source or input changes; builds must not proceed with stale generated Markdown or figures."
+        ),
+    )
 
     @mcp.resource("web://site-context")
     def site_context_resource() -> str:
@@ -77,6 +84,11 @@ def run_server(project: Path, factory: Path) -> None:
     def manual_authoring_components_resource() -> str:
         """Supported manual prose structures and content components with web/PDF compatibility."""
         return tools.dumps(tools.manual_authoring_capabilities(project))
+
+    @mcp.resource("web://manual-computations")
+    def manual_computations_resource() -> str:
+        """Executable chapter sources, selected images, generated outputs, and freshness state."""
+        return tools.dumps(tools.manual_computation_status(project, factory))
 
     @mcp.resource("web://profile-prune-plan")
     def profile_prune_plan_resource() -> str:
@@ -203,7 +215,7 @@ def run_server(project: Path, factory: Path) -> None:
     @mcp.tool()
     def site_check(max_bibliometrics_age_days: int = 180) -> dict[str, Any]:
         """Run local profile, freshness, bibliography, bibliometrics, and build-state checks without network access."""
-        return {"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project, max_bibliometrics_age_days), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)}
+        return {"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project, max_bibliometrics_age_days), "computations": tools.manual_computation_status(project, factory), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)}
 
     @mcp.tool()
     def profile_check() -> dict[str, Any]:
@@ -224,6 +236,21 @@ def run_server(project: Path, factory: Path) -> None:
     def manual_authoring_capabilities() -> dict[str, Any]:
         """Return supported manual prose structures, component syntax, and web/PDF compatibility."""
         return tools.manual_authoring_capabilities(project)
+
+    @mcp.tool()
+    def manual_computation_status(source: str = "") -> dict[str, Any]:
+        """Inspect executable manual sources, selected R/Python images, generated outputs, and freshness without executing code."""
+        return tools.manual_computation_status(project, factory, source=source)
+
+    @mcp.tool()
+    def manual_computation_check(source: str = "") -> dict[str, Any]:
+        """Fail when versioned Markdown or figures are missing, modified, orphaned, or stale relative to executable sources and inputs."""
+        return tools.manual_computation_check(project, factory, source=source)
+
+    @mcp.tool()
+    def manual_computation_render(source: str = "", confirm_overwrite: bool = False) -> dict[str, Any]:
+        """Execute trusted manual sources in network-disabled containers and update versioned Markdown and figures."""
+        return tools.manual_computation_render(project, factory, source=source, confirm_overwrite=confirm_overwrite)
 
     @mcp.tool()
     def manual_pdf_status(language: str = "") -> dict[str, Any]:

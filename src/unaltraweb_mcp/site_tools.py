@@ -28,6 +28,7 @@ CONTENT_DIRS = [
     "_books",
     "_theses",
 ]
+COMPUTATION_SUFFIXES = {".qmd", ".rmd", ".r", ".py", ".ipynb"}
 
 TRANSLATABLE_CONTENT_DIRS = {
     "_pages",
@@ -339,12 +340,19 @@ def content_inventory(project: Path) -> dict[str, Any]:
             "sample": [rel(project, path) for path in markdown[:8]],
         }
     data_files = sorted((project / "_data").glob("**/*")) if (project / "_data").is_dir() else []
+    computation_sources = sorted(
+        path
+        for directory in CONTENT_DIRS
+        for path in (project / directory).rglob("*")
+        if (project / directory).is_dir() and path.is_file() and path.suffix.lower() in COMPUTATION_SUFFIXES
+    )
     return {
         "project": str(project),
         "generated_at": utc_now(),
         "collections": collections,
         "data_files": [rel(project, path) for path in data_files if path.is_file()],
         "assets_present": (project / "assets").is_dir(),
+        "computation_sources": [rel(project, path) for path in computation_sources],
     }
 
 
@@ -999,6 +1007,13 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "pdf": "ordinary fenced code and LaTeX-compatible math supported",
                 "guidance": "Use $...$ for inline math and $$ on separate lines for display math. Do not use inline code for mathematical variables or \\(...\\) directly in Markdown sources. Prefer ordinary fenced code with an explicit language and avoid PDF-unsupported Liquid widgets.",
             },
+            {
+                "id": "executable_sources",
+                "syntax": ["chapter.qmd -> chapter.md", "analysis.py -> analysis.md", "analysis.R -> analysis.md"],
+                "web": "the versioned generated Markdown and figures are published; executable sources are excluded",
+                "pdf": "uses the same checked generated Markdown and figures as the web build",
+                "guidance": "When an executable source exists, edit it rather than the generated .md. Declare one r or python engine per source, list non-code inputs, render explicitly, and never publish while manual_computation_check reports stale outputs.",
+            },
         ],
         "web_only_or_pdf_review_required": ["tabs", "details", "interactive charts", "interactive maps", "galleries", "audio", "video", "arbitrary Liquid figure includes"],
         "quality_tools": ["manual_source_quality_check", "manual_editorial_quality_check", "build_site", "manual_pdf_build"],
@@ -1439,6 +1454,60 @@ def run_make(project: Path, target: str, *, extra_args: list[str] | None = None,
     return {"target": target, "command": command, "returncode": completed.returncode, "ok": completed.returncode == 0, "stdout": completed.stdout, "stderr": completed.stderr}
 
 
+def run_factory_make(factory: Path, project: Path, target: str, *, extra_args: list[str] | None = None, env: dict[str, str] | None = None) -> dict[str, Any]:
+    factory_root = project_path(factory)
+    project_root = project_path(project)
+    unsafe = set("$`\"'\\\r\n \t")
+    if any(character in str(path) for path in [factory_root, project_root] for character in unsafe):
+        raise ValueError("Factory and project paths contain characters that are unsafe for Make delegation.")
+    command = ["make", "--silent", "--no-print-directory", "-C", str(factory_root), target, f"PROJECT={project_root}", *(extra_args or [])]
+    merged_env = os.environ.copy()
+    if env:
+        merged_env.update(env)
+    completed = subprocess.run(command, env=merged_env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    payload: dict[str, Any] = {
+        "target": target,
+        "command": command,
+        "returncode": completed.returncode,
+        "ok": completed.returncode == 0,
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+    }
+    if completed.stdout.strip():
+        try:
+            parsed = json.loads(completed.stdout)
+        except json.JSONDecodeError:
+            pass
+        else:
+            if isinstance(parsed, dict):
+                payload = {**parsed, "target": target, "command": command, "returncode": completed.returncode, "ok": completed.returncode == 0 and bool(parsed.get("ok", True)), "stderr": completed.stderr}
+    return payload
+
+
+def _computation_env(source: str) -> dict[str, str]:
+    value = source.strip()
+    if not value:
+        return {}
+    if Path(value).is_absolute() or ".." in Path(value).parts or not re.fullmatch(r"[A-Za-z0-9_./-]+", value):
+        raise ValueError("Computation source must be a safe project-relative path.")
+    return {"COMPUTE_SOURCE": value}
+
+
+def manual_computation_status(project: Path, factory: Path, source: str = "") -> dict[str, Any]:
+    return run_factory_make(factory, project, "manual-compute-status", env=_computation_env(source))
+
+
+def manual_computation_check(project: Path, factory: Path, source: str = "") -> dict[str, Any]:
+    return run_factory_make(factory, project, "manual-compute-check", env=_computation_env(source))
+
+
+def manual_computation_render(project: Path, factory: Path, source: str = "", *, confirm_overwrite: bool = False) -> dict[str, Any]:
+    env = _computation_env(source)
+    if confirm_overwrite:
+        env["COMPUTE_CONFIRM_OVERWRITE"] = "1"
+    return run_factory_make(factory, project, "manual-compute-render", env=env)
+
+
 def build_site(project: Path, site_profile: str = "") -> dict[str, Any]:
     args = [f"SITE_PROFILE={site_profile}"] if site_profile else []
     return run_make(project_path(project), "build", extra_args=args)
@@ -1536,9 +1605,9 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
 
 def list_tools() -> dict[str, Any]:
     return {
-        "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
+        "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "manual_structure_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
-        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
+        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
     }
 
 
