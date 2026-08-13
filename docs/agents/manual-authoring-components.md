@@ -77,7 +77,7 @@ The value accepts a CSS width and remains limited by the available column. Revie
 
 ## Figure layouts
 
-Use `subfigures` when panels form one comparison or explanation:
+Use `subfigures` when panels form one direct comparison or explanation, such as before/after states, controlled alternatives, a short sequence, or complementary views that the reader needs to inspect together:
 
 ```markdown
 ::: subfigures a+b/c "Comparison of source, intermediate result, and final map"
@@ -87,7 +87,7 @@ Use `subfigures` when panels form one comparison or explanation:
 :::
 ```
 
-`+` places panels in one row and `/` starts a new row. Web layout is supported. PDF layout is not yet equivalent, so inspect the PDF and use separate captioned figures when print composition matters.
+`+` places panels in one row and `/` starts a new row. Prefer compact layouts such as `a+b` or `a+b/c`, write one caption that states the shared comparison, and give each panel a specific caption. This is a high-value teaching device when juxtaposition carries the argument, but it should remain selective: do not group images only because they share a topic, and avoid consecutive multi-panel figures that reduce emphasis or make evidence too small. Web layout is supported. PDF layout is not yet equivalent, so inspect the PDF and use separate captioned figures when print composition matters.
 
 ## Tables
 

@@ -229,6 +229,7 @@ For multi-panel teaching figures, use a compact subfigure block. The layout stri
 ```
 
 This renders one numbered figure with panel labels `a`, `b`, `c`; the contained images remain ordinary Markdown image declarations.
+Multi-panel figures work best for direct before/after comparisons, controlled alternatives, short sequences, or complementary views. Prefer compact layouts such as `a+b` and `a+b/c`, keep panel captions specific, and use the device selectively rather than grouping every set of related images.
 
 Manual chapters can also number teaching tables with the same localized counter style. Wrap a regular Markdown table in a table block and put the caption in the opening line:
 

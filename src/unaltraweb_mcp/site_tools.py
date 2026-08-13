@@ -980,7 +980,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "syntax": ['::: subfigures a+b/c "Overall caption"', '![Panel A](a.png "Panel caption")', ":::"] ,
                 "web": "supported; + joins panels in a row and / starts a new row",
                 "pdf": "not yet layout-equivalent; inspect rendered PDF or use separate figures",
-                "guidance": "Use only when the comparison benefits from a shared numbered figure.",
+                "guidance": "Use when direct comparison is the teaching task: before/after states, controlled alternatives, a short sequence, or complementary views that benefit from one shared caption and number. Prefer compact layouts such as a+b or a+b/c, keep panel captions specific, and use the component selectively. Do not group images only because they share a topic, and avoid consecutive multi-panel blocks that weaken emphasis or legibility.",
             },
             {
                 "id": "captioned_tables",
