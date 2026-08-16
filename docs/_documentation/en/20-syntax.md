@@ -66,6 +66,8 @@ Rendered by the same parser:
 
 >>>> **Warning.** Flag steps that can damage data, confuse students or break a build.
 
+Use `>>>>>` learning objectives sparingly, normally once after a short chapter or major-section introduction. Do not put them before any orienting prose, and do not use them as repeated mid-section reminders; use prose, tables or ordinary notes for intermediate criteria.
+
 ## Manual Heading Levels
 
 Manual chapters number three body levels:
@@ -132,6 +134,8 @@ Manual chapters can number teaching tables with localized labels:
 | 2 | Data setup | Working project folder |
 :::
 ```
+
+Cells may contain inline code spans such as `` `=SUM(A2:A10)` ``. The manual renderer preserves these as inline `<code>` elements on the web; if a consumer project still shows literal backticks inside numbered tables, update its `unaltraweb` lock file or use explicit HTML `<code>` as a temporary compatibility fallback.
 
 ## Diagram Sources
 

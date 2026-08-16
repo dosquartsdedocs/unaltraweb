@@ -134,6 +134,110 @@ Publishable explanation.
         self.assertIn("#### heading", result["standalone_bold_labels"][0]["message"])
         self.assertEqual(result["figures_without_title"], [])
 
+    def test_source_quality_warns_about_repeated_learning_objective_callouts(self) -> None:
+        (self.project / "_chapters/ca/chapter.md").write_text(
+            """---
+title: Chapter
+---
+
+Chapter introduction.
+
+>>>>> Chapter learning objectives are allowed near the opening.
+
+## Data Access
+
+Introductory prose.
+
+>>>>> First objective block.
+
+More prose.
+
+>>>>> Second objective block in the same section.
+""",
+            encoding="utf-8",
+        )
+
+        result = site_tools.manual_source_quality_check(self.project)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(result["learning_objective_callouts"]), 3)
+        self.assertEqual(len(result["dense_learning_objective_callouts"]), 1)
+        messages = [warning["message"] for warning in result["warnings"]]
+        self.assertIn("Some learning-objective callouts are repeated or placed away from section openings.", messages)
+
+    def test_source_quality_warns_when_objectives_replace_introduction(self) -> None:
+        (self.project / "_chapters/ca/chapter.md").write_text(
+            """---
+title: Chapter
+---
+
+>>>>> Chapter objectives without prose.
+
+## Data Access
+
+>>>>> Section objectives without prose.
+""",
+            encoding="utf-8",
+        )
+
+        result = site_tools.manual_source_quality_check(self.project)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(result["dense_learning_objective_callouts"]), 2)
+        self.assertTrue(all(item["opening_blocks_before"] == 0 for item in result["dense_learning_objective_callouts"]))
+
+    def test_source_quality_accepts_objectives_after_brief_introduction(self) -> None:
+        (self.project / "_chapters/ca/chapter.md").write_text(
+            """---
+title: Chapter
+---
+
+Chapter context.
+
+>>>>> Chapter learning objectives after prose.
+
+## Data Access
+
+Opening paragraph.
+
+Second opening paragraph.
+
+>>>>> Section objectives after a short introduction.
+""",
+            encoding="utf-8",
+        )
+
+        result = site_tools.manual_source_quality_check(self.project)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(result["learning_objective_callouts"]), 2)
+        self.assertEqual(result["dense_learning_objective_callouts"], [])
+
+    def test_source_quality_warns_when_objectives_follow_subheading(self) -> None:
+        (self.project / "_chapters/ca/chapter.md").write_text(
+            """---
+title: Chapter
+---
+
+## Data Access
+
+Opening paragraph.
+
+### Downloading
+
+Subsection prose.
+
+>>>>> Late objective block.
+""",
+            encoding="utf-8",
+        )
+
+        result = site_tools.manual_source_quality_check(self.project)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(result["dense_learning_objective_callouts"]), 1)
+        self.assertTrue(result["dense_learning_objective_callouts"][0]["after_subheading"])
+
 
 if __name__ == "__main__":
     unittest.main()

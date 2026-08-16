@@ -22,8 +22,8 @@ from typing import Any
 
 try:
     import yaml
-except ImportError as exc:  # pragma: no cover - supplied by project tooling
-    raise SystemExit("PyYAML is required for unaltraweb computations.") from exc
+except ImportError:  # pragma: no cover - optional for status/check on lean hosts
+    yaml = None
 
 
 CONFIG_PATH = Path(".unaltraweb/computations.yml")
@@ -44,6 +44,114 @@ QUARTO_FIGURE_RE = re.compile(r'<div\s+id="fig-[^"]+"[^>]*>\s*<img\s+(.*?)\s*/>\
 
 class ComputationError(RuntimeError):
     pass
+
+
+def strip_inline_comment(value: str) -> str:
+    in_single = False
+    in_double = False
+    for index, char in enumerate(value):
+        if char == "'" and not in_double:
+            in_single = not in_single
+        elif char == '"' and not in_single:
+            in_double = not in_double
+        elif char == "#" and not in_single and not in_double and (index == 0 or value[index - 1].isspace()):
+            return value[:index].strip()
+    return value.strip()
+
+
+def parse_scalar(value: str) -> Any:
+    value = strip_inline_comment(value)
+    if value in {"", "null", "~"}:
+        return None
+    if value in {"true", "True"}:
+        return True
+    if value in {"false", "False"}:
+        return False
+    if re.fullmatch(r"-?\d+", value):
+        return int(value)
+    if len(value) >= 2 and value[0] == "[" and value[-1] == "]":
+        inner = value[1:-1].strip()
+        return [] if not inner else [parse_scalar(part.strip()) for part in inner.split(",")]
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
+def simple_yaml_load(text: str) -> Any:
+    lines = [(len(raw) - len(raw.lstrip(" ")), raw.strip()) for raw in text.splitlines() if raw.strip() and not raw.lstrip().startswith("#")]
+
+    def parse_block(index: int, indent: int) -> tuple[Any, int]:
+        if index >= len(lines):
+            return {}, index
+        if lines[index][0] < indent:
+            return {}, index
+        if lines[index][1].startswith("- "):
+            items: list[Any] = []
+            while index < len(lines) and lines[index][0] == indent and lines[index][1].startswith("- "):
+                item = lines[index][1][2:].strip()
+                if item:
+                    items.append(parse_scalar(item))
+                    index += 1
+                else:
+                    child, index = parse_block(index + 1, indent + 2)
+                    items.append(child)
+            return items, index
+        data: dict[str, Any] = {}
+        while index < len(lines) and lines[index][0] == indent and not lines[index][1].startswith("- "):
+            line = lines[index][1]
+            if ":" not in line:
+                index += 1
+                continue
+            key, value = line.split(":", 1)
+            key = key.strip()
+            value = value.strip()
+            if value:
+                data[key] = parse_scalar(value)
+                index += 1
+            else:
+                child_indent = lines[index + 1][0] if index + 1 < len(lines) else indent + 2
+                child, index = parse_block(index + 1, child_indent)
+                data[key] = child
+        return data, index
+
+    parsed, _ = parse_block(0, lines[0][0] if lines else 0)
+    return parsed
+
+
+def simple_yaml_dump(value: Any, indent: int = 0) -> str:
+    prefix = " " * indent
+    if isinstance(value, dict):
+        lines: list[str] = []
+        for key, item in value.items():
+            if isinstance(item, (dict, list)):
+                lines.append(f"{prefix}{key}:")
+                lines.append(simple_yaml_dump(item, indent + 2))
+            else:
+                lines.append(f"{prefix}{key}: {format_scalar(item)}")
+        return "\n".join(lines)
+    if isinstance(value, list):
+        lines = []
+        for item in value:
+            if isinstance(item, (dict, list)):
+                lines.append(f"{prefix}-")
+                lines.append(simple_yaml_dump(item, indent + 2))
+            else:
+                lines.append(f"{prefix}- {format_scalar(item)}")
+        return "\n".join(lines)
+    return f"{prefix}{format_scalar(value)}"
+
+
+def format_scalar(value: Any) -> str:
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if value is None:
+        return "null"
+    text = str(value)
+    if not text or re.search(r"[:#\[\]{},]|^[-?]|\s$|^\s", text):
+        return json.dumps(text, ensure_ascii=False)
+    return text
 
 
 def utc_now() -> str:
@@ -88,10 +196,13 @@ def paths_overlap(left: Path, right: Path) -> bool:
 
 
 def read_yaml_mapping(text: str, *, label: str) -> dict[str, Any]:
-    try:
-        parsed = yaml.safe_load(text)
-    except yaml.YAMLError as exc:
-        raise ComputationError(f"Invalid YAML in {label}: {exc}") from exc
+    if yaml is not None:
+        try:
+            parsed = yaml.safe_load(text)
+        except yaml.YAMLError as exc:
+            raise ComputationError(f"Invalid YAML in {label}: {exc}") from exc
+    else:
+        parsed = simple_yaml_load(text)
     if parsed is None:
         return {}
     if not isinstance(parsed, dict):
@@ -150,7 +261,7 @@ def front_matter_text(path: Path) -> str:
             raise ComputationError(f"Invalid notebook JSON in {path}: {exc}") from exc
         metadata = notebook.get("metadata") if isinstance(notebook, dict) else {}
         if isinstance(metadata, dict) and isinstance(metadata.get("unaltraweb_front_matter"), dict):
-            return yaml.safe_dump(metadata["unaltraweb_front_matter"], sort_keys=False)
+            return yaml.safe_dump(metadata["unaltraweb_front_matter"], sort_keys=False) if yaml is not None else simple_yaml_dump(metadata["unaltraweb_front_matter"])
         for cell in notebook.get("cells", []) if isinstance(notebook, dict) else []:
             if not isinstance(cell, dict) or cell.get("cell_type") not in {"raw", "markdown"}:
                 continue
@@ -275,7 +386,7 @@ def source_engine(path: Path, front: dict[str, Any]) -> tuple[str, dict[str, Any
         metadata = {}
     if not isinstance(metadata, dict):
         raise ComputationError(f"unaltraweb_compute must be a mapping in {path}")
-    validate_keys(metadata, {"engine", "inputs", "output", "figures", "enabled"}, label=f"unaltraweb_compute in {path}")
+    validate_keys(metadata, {"engine", "inputs", "output", "outputs", "figures", "mode", "enabled"}, label=f"unaltraweb_compute in {path}")
     declared = str(metadata.get("engine") or "").strip().lower()
     suffix = path.suffix.lower()
     inferred = "r" if suffix in {".r", ".rmd"} else "python" if suffix in {".py", ".ipynb"} else ""
@@ -317,33 +428,75 @@ def discover_sources(project: Path, config: dict[str, Any], engine_filter: str =
                 continue
             if metadata.get("enabled") is False:
                 continue
+            mode = str(metadata.get("mode") or "chapter").strip().lower()
+            if mode not in {"chapter", "figure"}:
+                raise ComputationError(f"Unsupported unaltraweb_compute.mode in {relative(project, path)}: {mode}")
             if not front.get("title") or not front.get("lang") or not front.get("ref"):
-                raise ComputationError(f"Executable chapter requires title, lang, and ref front matter: {relative(project, path)}")
+                raise ComputationError(f"Executable source requires title, lang, and ref front matter: {relative(project, path)}")
+            source_path = relative(project, path)
+            inputs_raw = metadata.get("inputs", [])
+            if not isinstance(inputs_raw, list):
+                raise ComputationError(f"unaltraweb_compute.inputs must be a list in {source_path}")
+            inputs = [safe_relative(project, str(item), label="computation input", must_exist=True) for item in inputs_raw]
+            if mode == "figure":
+                outputs_raw = metadata.get("outputs")
+                if outputs_raw is None and metadata.get("output"):
+                    outputs_raw = [metadata["output"]]
+                if not isinstance(outputs_raw, list) or not outputs_raw:
+                    raise ComputationError(f"Figure computation requires unaltraweb_compute.outputs in {source_path}")
+                outputs = [safe_relative(project, str(item), label="generated figure output") for item in outputs_raw]
+                for output in outputs:
+                    if output.suffix.lower() not in GENERATED_MEDIA_SUFFIXES:
+                        raise ComputationError(f"Figure computation output must use a supported media suffix: {relative(project, output)}")
+                    if any(contains(source_root, output) for source_root in roots):
+                        raise ComputationError(f"Figure computation output must not be inside a configured source root: {relative(project, output)}")
+                if len({relative(project, output) for output in outputs}) != len(outputs):
+                    raise ComputationError(f"Figure computation outputs must be unique in {source_path}")
+                for existing in records:
+                    if existing.get("mode") == "figure":
+                        if any(output == existing_output for output in outputs for existing_output in existing["outputs"]):
+                            raise ComputationError(f"Executable sources collide on generated figure outputs: {existing['source_path']} and {source_path}")
+                    elif any(output == existing["output"] or paths_overlap(output, existing["figures"]) for output in outputs):
+                        raise ComputationError(f"Generated output paths overlap for {existing['source_path']} and {source_path}")
+                records.append(
+                    {
+                        "mode": mode,
+                        "source": path,
+                        "source_path": source_path,
+                        "outputs": outputs,
+                        "output_paths": [relative(project, output) for output in outputs],
+                        "engine": engine,
+                        "front": front,
+                        "inputs": inputs,
+                        "input_paths": [relative(project, item) for item in inputs],
+                    }
+                )
+                continue
             output_raw = str(metadata.get("output") or relative(project, path.with_suffix(".md")))
             output = safe_relative(project, output_raw, label="generated Markdown output")
             if output.suffix.lower() != ".md":
                 raise ComputationError(f"Generated chapter output must use .md: {output_raw}")
             if not any(contains(root, output) for root in roots):
                 raise ComputationError(f"Generated chapter output must remain under a configured source root: {output_raw}")
-            source_path = relative(project, path)
             output_path = relative(project, output)
             figures_raw = str(metadata.get("figures") or Path(relative(project, assets_root)) / str(front["lang"]) / str(front["ref"]))
             figures = safe_relative(project, figures_raw, label="generated figures directory")
             if figures == assets_root or not contains(assets_root, figures):
                 raise ComputationError(f"Generated figures must use a subdirectory of {relative(project, assets_root)}: {figures_raw}")
             for existing in records:
+                if existing.get("mode") == "figure":
+                    if any(existing_output == output or paths_overlap(existing_output, figures) for existing_output in existing["outputs"]):
+                        raise ComputationError(f"Generated output paths overlap for {existing['source_path']} and {source_path}")
+                    continue
                 if output == existing["output"]:
                     raise ComputationError(f"Executable sources collide on {output_path}: {existing['source_path']} and {source_path}")
                 if paths_overlap(figures, existing["figures"]):
                     raise ComputationError(f"Executable sources overlap on generated figures: {existing['source_path']} and {source_path}")
                 if paths_overlap(output, existing["figures"]) or paths_overlap(figures, existing["output"]):
                     raise ComputationError(f"Generated output paths overlap for {existing['source_path']} and {source_path}")
-            inputs_raw = metadata.get("inputs", [])
-            if not isinstance(inputs_raw, list):
-                raise ComputationError(f"unaltraweb_compute.inputs must be a list in {source_path}")
-            inputs = [safe_relative(project, str(item), label="computation input", must_exist=True) for item in inputs_raw]
             records.append(
                 {
+                    "mode": mode,
                     "source": path,
                     "source_path": source_path,
                     "output": output,
@@ -411,10 +564,13 @@ def fingerprint(
         "engine": record["engine"],
         "image": image["image"],
         "image_identity": image_identity,
-        "output": record["output_path"],
-        "figures": record["figures_path"],
         "dependencies": entries,
     }
+    if record.get("mode") == "figure":
+        payload["outputs"] = record["output_paths"]
+    else:
+        payload["output"] = record["output_path"]
+        payload["figures"] = record["figures_path"]
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     return digest, entries, image
 
@@ -502,25 +658,52 @@ def status(project: Path, source: str = "", engine: str = "") -> dict[str, Any]:
     for record in records:
         saved = lock_records.get(record["source_path"], {})
         current_fingerprint, dependencies, image = fingerprint(project, config, config_path, record, saved)
-        output_exists = record["output"].is_file()
-        output_valid = bool(output_exists and saved.get("output") and signatures_match(project, [saved["output"]]))
-        saved_assets = saved.get("assets", [])
-        assets_valid = signatures_match(project, saved_assets) and no_unexpected_assets(project, record["figures"], saved_assets)
-        current = bool(saved and saved.get("fingerprint") == current_fingerprint and output_valid and assets_valid)
-        reason = "current"
-        if not saved:
-            reason = "not_rendered"
-        elif saved.get("fingerprint") != current_fingerprint:
-            reason = "source_or_environment_changed"
-        elif not output_exists:
-            reason = "output_missing"
-        elif not output_valid:
-            reason = "output_modified"
-        elif not assets_valid:
-            reason = "assets_missing_or_modified"
-        items.append(
-            {
+        if record.get("mode") == "figure":
+            saved_outputs = saved.get("outputs") if isinstance(saved.get("outputs"), list) else []
+            outputs_exist = all(output.is_file() for output in record["outputs"])
+            outputs_valid = bool(outputs_exist and saved_outputs and signatures_match(project, saved_outputs))
+            current = bool(saved and saved.get("fingerprint") == current_fingerprint and outputs_valid)
+            reason = "current"
+            if not saved:
+                reason = "not_rendered"
+            elif saved.get("fingerprint") != current_fingerprint:
+                reason = "source_or_environment_changed"
+            elif not outputs_exist:
+                reason = "output_missing"
+            elif not outputs_valid:
+                reason = "output_modified"
+            item = {
                 "source": record["source_path"],
+                "mode": "figure",
+                "outputs": record["output_paths"],
+                "engine": record["engine"],
+                "image": image,
+                "local_image": inspect_image(image["image"]),
+                "fingerprint": current_fingerprint,
+                "dependencies": dependencies,
+                "current": current,
+                "reason": reason,
+            }
+        else:
+            output_exists = record["output"].is_file()
+            output_valid = bool(output_exists and saved.get("output") and signatures_match(project, [saved["output"]]))
+            saved_assets = saved.get("assets", [])
+            assets_valid = signatures_match(project, saved_assets) and no_unexpected_assets(project, record["figures"], saved_assets)
+            current = bool(saved and saved.get("fingerprint") == current_fingerprint and output_valid and assets_valid)
+            reason = "current"
+            if not saved:
+                reason = "not_rendered"
+            elif saved.get("fingerprint") != current_fingerprint:
+                reason = "source_or_environment_changed"
+            elif not output_exists:
+                reason = "output_missing"
+            elif not output_valid:
+                reason = "output_modified"
+            elif not assets_valid:
+                reason = "assets_missing_or_modified"
+            item = {
+                "source": record["source_path"],
+                "mode": "chapter",
                 "output": record["output_path"],
                 "figures": record["figures_path"],
                 "engine": record["engine"],
@@ -531,7 +714,7 @@ def status(project: Path, source: str = "", engine: str = "") -> dict[str, Any]:
                 "current": current,
                 "reason": reason,
             }
-        )
+        items.append(item)
     known = {item["source_path"] for item in all_records}
     orphaned = sorted(path for path in lock_records if path not in known)
     return {
@@ -584,7 +767,8 @@ def normalize_generated_body(text: str, title: str) -> str:
 
 def yaml_front(front: dict[str, Any]) -> str:
     public = {key: value for key, value in front.items() if key != "unaltraweb_compute"}
-    return "---\n" + yaml.safe_dump(public, allow_unicode=True, sort_keys=False).rstrip() + "\n---\n"
+    dumped = yaml.safe_dump(public, allow_unicode=True, sort_keys=False).rstrip() if yaml is not None else simple_yaml_dump(public).rstrip()
+    return "---\n" + dumped + "\n---\n"
 
 
 def generated_media(stage: Path, markdown: Path, text: str, figures_path: str) -> tuple[str, list[tuple[Path, Path]]]:
@@ -667,9 +851,97 @@ def render_stage(project: Path, config: dict[str, Any], record: dict[str, Any], 
     return output_text, media, image_identity
 
 
+def staged_figure_output(stage: Path, output_path: str) -> Path | None:
+    direct = stage / output_path
+    if direct.is_file():
+        return direct
+    matches = sorted(path for path in stage.rglob(Path(output_path).name) if path.is_file())
+    return matches[0] if len(matches) == 1 else None
+
+
+def publish_figure_outputs(record: dict[str, Any], stage: Path, confirm_overwrite: bool, owned: bool) -> None:
+    staged: list[tuple[Path, Path]] = []
+    missing: list[Path] = []
+    for output, output_path in zip(record["outputs"], record["output_paths"]):
+        candidate = staged_figure_output(stage, output_path)
+        if candidate:
+            staged.append((candidate, output))
+        elif not output.is_file():
+            missing.append(output)
+    if missing:
+        names = ", ".join(str(path) for path in missing)
+        raise ComputationError(f"Figure computation did not create declared output(s): {names}")
+    if not staged:
+        return
+    unmanaged = [output for _, output in staged if output.exists()]
+    if unmanaged and not owned and not confirm_overwrite:
+        names = ", ".join(str(path) for path in unmanaged)
+        raise ComputationError(
+            f"Refusing to replace unmanaged generated figure output(s) for {record['source_path']}: {names}; rerun with --confirm-overwrite after review."
+        )
+    token = secrets.token_hex(6)
+    replacements: list[tuple[Path, Path, Path | None]] = []
+    try:
+        for source, output in staged:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            temp_output = output.with_name(f".{output.name}.{token}.compute-tmp")
+            backup_output = output.with_name(f".{output.name}.{token}.compute-backup")
+            if temp_output.exists():
+                temp_output.unlink()
+            if backup_output.exists():
+                backup_output.unlink()
+            shutil.copy2(source, temp_output)
+            if output.exists():
+                os.replace(output, backup_output)
+                replacements.append((temp_output, output, backup_output))
+            else:
+                replacements.append((temp_output, output, None))
+            os.replace(temp_output, output)
+    except Exception:
+        for temp_output, output, backup_output in replacements:
+            if output.exists():
+                output.unlink()
+            if backup_output and backup_output.exists():
+                os.replace(backup_output, output)
+            if temp_output.exists():
+                temp_output.unlink()
+        raise
+    finally:
+        for _, _, backup_output in replacements:
+            if backup_output and backup_output.exists():
+                backup_output.unlink()
+
+
+def render_figure_outputs(record: dict[str, Any], stage: Path, confirm_overwrite: bool, owned: bool) -> dict[str, str]:
+    command = [
+        "quarto",
+        "render",
+        record["source_path"],
+        "--to",
+        "gfm+yaml_metadata_block",
+        "--output-dir",
+        str(stage),
+        "--execute",
+        "--no-cache",
+        "--no-clean",
+    ]
+    run_command(command)
+    publish_figure_outputs(record, stage, confirm_overwrite, owned)
+    return {
+        "available": "true",
+        "id": os.environ.get("UNALTRAWEB_COMPUTE_IMAGE_ID", ""),
+        "digest": os.environ.get("UNALTRAWEB_COMPUTE_IMAGE_DIGEST", ""),
+    }
+
+
 def saved_paths_match(record: dict[str, Any], saved: dict[str, Any]) -> bool:
     output = saved.get("output") if isinstance(saved.get("output"), dict) else {}
     return output.get("path") == record["output_path"] and saved.get("figures") == record["figures_path"]
+
+
+def saved_figure_outputs_match(record: dict[str, Any], saved: dict[str, Any]) -> bool:
+    outputs = saved.get("outputs") if isinstance(saved.get("outputs"), list) else []
+    return [str(item.get("path") or "") for item in outputs] == record["output_paths"]
 
 
 def validate_path_migration(
@@ -695,7 +967,12 @@ def validate_path_migration(
         raise ComputationError(f"Recorded previous Markdown path is outside managed source roots: {saved_output_raw}")
     if old_figures and (old_figures == assets_root or not contains(assets_root, old_figures)):
         raise ComputationError(f"Recorded previous figures path is outside the managed assets root: {saved_figures_raw}")
-    protected = [path for item in other_records for path in [item["output"], item["figures"]]]
+    protected: list[Path] = []
+    for item in other_records:
+        if item.get("mode") == "figure":
+            protected.extend(item["outputs"])
+        else:
+            protected.extend([item["output"], item["figures"]])
     if any(old_path and any(paths_overlap(old_path, path) for path in protected) for old_path in [old_output, old_figures]):
         raise ComputationError(f"Recorded previous paths overlap another source's current output: {record['source_path']}")
     for old_path in [old_output, old_figures]:
@@ -716,15 +993,49 @@ def remove_previous_paths(record: dict[str, Any], old_output: Path | None, old_f
         shutil.rmtree(old_figures)
 
 
-def prune_absent_orphan_records(project: Path, lock: dict[str, Any], known: set[str]) -> None:
+def record_managed_paths(record: dict[str, Any]) -> list[Path]:
+    if record.get("mode") == "figure":
+        return list(record["outputs"])
+    return [record["output"], record["figures"]]
+
+
+def orphan_paths(project: Path, saved: dict[str, Any]) -> list[Path]:
+    if saved.get("mode") == "figure":
+        outputs = saved.get("outputs") if isinstance(saved.get("outputs"), list) else []
+        paths: list[Path] = []
+        for entry in outputs:
+            raw = str(entry.get("path") or "") if isinstance(entry, dict) else ""
+            if raw:
+                paths.append(safe_relative(project, raw, label="orphaned generated figure"))
+        return paths
+    paths = []
+    output = saved.get("output") if isinstance(saved.get("output"), dict) else {}
+    output_path = str(output.get("path") or "")
+    figures_path = str(saved.get("figures") or "")
+    if output_path:
+        paths.append(safe_relative(project, output_path, label="orphaned generated Markdown"))
+    if figures_path:
+        paths.append(safe_relative(project, figures_path, label="orphaned generated figures"))
+    return paths
+
+
+def prune_absent_orphan_records(project: Path, lock: dict[str, Any], records: list[dict[str, Any]]) -> None:
+    known = {item["source_path"] for item in records}
+    managed_paths = [path for record in records for path in record_managed_paths(record)]
     for source_path in [path for path in lock["records"] if path not in known]:
         saved = lock["records"][source_path]
-        output = saved.get("output") if isinstance(saved.get("output"), dict) else {}
-        output_path = str(output.get("path") or "")
-        figures_path = str(saved.get("figures") or "")
-        output_exists = bool(output_path and safe_relative(project, output_path, label="orphaned generated Markdown").exists())
-        figures_exist = bool(figures_path and safe_relative(project, figures_path, label="orphaned generated figures").exists())
-        if not output_exists and not figures_exist:
+        try:
+            saved_paths = orphan_paths(project, saved)
+        except ComputationError:
+            saved_paths = []
+        if saved_paths and all(any(paths_overlap(saved_path, managed_path) for managed_path in managed_paths) for saved_path in saved_paths):
+            del lock["records"][source_path]
+            continue
+        if saved.get("mode") == "figure":
+            if not any(path.exists() for path in saved_paths):
+                del lock["records"][source_path]
+            continue
+        if not any(path.exists() for path in saved_paths):
             del lock["records"][source_path]
 
 
@@ -800,6 +1111,24 @@ def _render(project: Path, source: str = "", engine: str = "", confirm_overwrite
     for record in records:
         current_fingerprint, dependencies, image = fingerprint(project, config, config_path, record)
         saved = lock["records"].get(record["source_path"], {})
+        if record.get("mode") == "figure":
+            build_root = project / "tmp" / "manual-computations"
+            build_root.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory(prefix=f"{record['source'].stem}-", dir=build_root) as temporary:
+                image_identity = render_figure_outputs(record, Path(temporary), confirm_overwrite, bool(saved and saved_figure_outputs_match(record, saved)))
+            lock["records"][record["source_path"]] = {
+                "mode": "figure",
+                "engine": record["engine"],
+                "image": image,
+                "image_identity": image_identity,
+                "fingerprint": current_fingerprint,
+                "dependencies": dependencies,
+                "outputs": [{"path": relative(project, output), **file_signature(output)} for output in record["outputs"]],
+                "rendered_at": utc_now(),
+            }
+            write_lock(project, lock)
+            results.append({"source": record["source_path"], "mode": "figure", "outputs": record["output_paths"], "engine": record["engine"], "image": image})
+            continue
         other_records = [item for item in all_records if item["source_path"] != record["source_path"]]
         old_output, old_figures = validate_path_migration(project, config, record, saved, confirm_overwrite, other_records)
         build_root = project / "tmp" / "manual-computations"
@@ -822,7 +1151,7 @@ def _render(project: Path, source: str = "", engine: str = "", confirm_overwrite
         write_lock(project, lock)
         results.append({"source": record["source_path"], "output": record["output_path"], "figures": record["figures_path"], "engine": record["engine"], "image": image, "assets": len(media)})
     if not source and not engine:
-        prune_absent_orphan_records(project, lock, {item["source_path"] for item in all_records})
+        prune_absent_orphan_records(project, lock, all_records)
     write_lock(project, lock)
     return {"project": str(project), "rendered": results, "rendered_count": len(results), "ok": True}
 
@@ -835,10 +1164,10 @@ def render(project: Path, source: str = "", engine: str = "", confirm_overwrite:
 def prune(project: Path) -> dict[str, Any]:
     with project_render_lock(project):
         config, _ = load_config(project)
-        known = {item["source_path"] for item in discover_sources(project, config)}
+        records = discover_sources(project, config)
         lock = load_lock(project)
         before = set(lock["records"])
-        prune_absent_orphan_records(project, lock, known)
+        prune_absent_orphan_records(project, lock, records)
         removed = sorted(before - set(lock["records"]))
         write_lock(project, lock)
         return {"project": str(project), "removed_records": removed, "removed_count": len(removed), "ok": True}

@@ -158,7 +158,7 @@ manual-compute-render: ## Execute sources and atomically publish Markdown and fi
 	  docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit "$(COMPUTE_PIDS_LIMIT)" --cpus "$(COMPUTE_CPUS)" --memory "$(COMPUTE_MEMORY)" --tmpfs /tmp:rw,noexec,nosuid,size=1g \
 	    -e HOME=/tmp -e COMPUTE_PYTHON_IMAGE="$$python_image" -e COMPUTE_R_IMAGE="$$r_image" \
 	    -e UNALTRAWEB_COMPUTE_IMAGE_ID="$$identity" -e UNALTRAWEB_COMPUTE_IMAGE_DIGEST="$$digest" \
-	    -v "$(abspath $(PROJECT)):/project:rw" -w /project --entrypoint python3 "$$image" \
+	    -v "$(abspath $(PROJECT)):/project:rw" -v "$(COMPUTE_SCRIPT):/opt/unaltraweb/computations/render.py:ro" -w /project --entrypoint python3 "$$image" \
 	    /opt/unaltraweb/computations/render.py render --project /project --engine "$$engine" $(if $(strip $(COMPUTE_SOURCE)),--source "$(COMPUTE_SOURCE)",) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_CONFIRM_OVERWRITE)),--confirm-overwrite,) >> "$$results"; \
 	done; \
 	if test -z "$(strip $(COMPUTE_SOURCE))"; then $(PYTHON) "$(COMPUTE_SCRIPT)" prune --project "$(abspath $(PROJECT))" >/dev/null; fi; \

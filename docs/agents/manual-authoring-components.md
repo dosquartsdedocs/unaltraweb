@@ -46,6 +46,8 @@ Nested blockquote depth selects the callout type. The browser inserts the locali
 
 Web rendering is fully styled. PDF output currently preserves these as blockquotes without equivalent labels or styling, so review both formats.
 
+Use `>>>>>` learning objectives sparingly, normally once after a short chapter or major-section introduction. They should orient the section after the reader has enough context, not replace the opening explanation, and they should not recur as mid-section reminders.
+
 ## Definition lists
 
 Use definition lists for compact terminology that benefits from a dictionary-like presentation:
