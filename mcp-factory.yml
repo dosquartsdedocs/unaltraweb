@@ -2,7 +2,7 @@
 name: unaltraweb
 kind: codex-mcp-factory
 version: 0.1.0
-description: Reusable Jekyll website factory with MCP tooling for content, profiles, bibliography, bibliometrics, and build checks.
+description: Reusable Jekyll website factory with MCP tooling for content, profiles, captures, bibliography, bibliometrics, and build checks.
 install_scope: user
 workspace_rule:
   consumer_root: .
@@ -37,6 +37,7 @@ workspace_rule:
     - tmp
     - .cache/scimago
     - assets/diagrams/**/*.svg from Mermaid or PlantUML sources
+    - assets/**/*.capture.png and assets/**/*.capture.svg from selector-based web capture recipes
   allowed_external_writes: []
 runtime:
   kind: python
@@ -83,6 +84,7 @@ mcp:
     - web://manual-writing-guidance
     - web://manual-authoring-components
     - web://manual-computations
+    - web://web-captures
     - web://profile-prune-plan
     - web://content-inventory
     - web://bibliography
@@ -101,6 +103,9 @@ mcp:
     - manual_computation_status
     - manual_computation_check
     - manual_computation_render
+    - web_capture_status
+    - web_capture_check
+    - web_capture_render
     - manual_pdf_status
     - manual_pdf_build
     - manual_pdf_publish

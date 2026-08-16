@@ -160,6 +160,35 @@ When `*.edited.svg` exists, the build keeps using it and does not overwrite it.
 Agents changing the diagram source should ask whether to keep the edited SVG or
 replace it with a regenerated version.
 
+## Selector-Based Web Captures
+
+Store a web capture recipe under `assets/` and reference the recipe as the image source:
+
+```markdown
+![Chapter navigation](assets/captures/chapter.capture.yml "Annotated chapter navigation")
+```
+
+The recipe uses a local preview path and CSS selectors rather than arbitrary browser scripts:
+
+```yaml
+version: 1
+path: /manual/en/chapter/
+viewport: {width: 1440, height: 900}
+theme:
+  setting: cafe
+waits:
+  selectors: [.manual-layout]
+inputs:
+  - _chapters/en/chapter.md
+annotations:
+  - id: chapter-navigation
+    selector: .manual-sidebar
+    kind: arrow
+    text: Chapter navigation
+```
+
+`make web-capture-render` keeps the untouched `*.capture.png` and generates a self-contained `*.capture.svg` with editable vector layers. A manually reviewed `*.capture.edited.svg` wins over the generated SVG and is never overwritten. Commit the recipe, PNG, SVG, and `.unaltraweb/web-captures.lock.json` together. `web-capture-check` blocks stale output and stale edited overrides. Ordinary Jekyll and PDF builds consume only the selected SVG and do not run Chromium.
+
 ## Code Fences
 
 Use language names for syntax highlighting. Common teaching languages are supported through Rouge:

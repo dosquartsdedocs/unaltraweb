@@ -348,6 +348,7 @@ def content_inventory(project: Path) -> dict[str, Any]:
         for path in (project / directory).rglob("*")
         if (project / directory).is_dir() and path.is_file() and path.suffix.lower() in COMPUTATION_SUFFIXES
     )
+    web_capture_sources = sorted((project / "assets").rglob("*.capture.yml")) if (project / "assets").is_dir() else []
     return {
         "project": str(project),
         "generated_at": utc_now(),
@@ -355,6 +356,7 @@ def content_inventory(project: Path) -> dict[str, Any]:
         "data_files": [rel(project, path) for path in data_files if path.is_file()],
         "assets_present": (project / "assets").is_dir(),
         "computation_sources": [rel(project, path) for path in computation_sources],
+        "web_capture_sources": [rel(project, path) for path in web_capture_sources],
     }
 
 
@@ -1122,9 +1124,16 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "pdf": "uses the same checked generated Markdown and figures as the web build",
                 "guidance": "When an executable source exists, edit it rather than generated artefacts. Declare one r or python engine per source, use mode: figure for reusable figures without generated chapter Markdown, list non-code inputs, render explicitly, and never publish while manual_computation_check reports stale outputs.",
             },
+            {
+                "id": "web_captures",
+                "syntax": ["page.capture.yml -> page.capture.png + page.capture.svg", "page.capture.edited.svg"],
+                "web": "publishes the generated or author-edited self-contained SVG; recipe and original PNG remain source artefacts",
+                "pdf": "uses the same generated or author-edited SVG as the web build",
+                "guidance": "Define local paths, waits, themes, and CSS selectors in a .capture.yml recipe. Preserve the original PNG, edit vector layers only in .capture.edited.svg, and never publish while web_capture_check reports stale outputs or an obsolete edited override.",
+            },
         ],
         "web_only_or_pdf_review_required": ["tabs", "details", "interactive charts", "interactive maps", "galleries", "audio", "video", "arbitrary Liquid figure includes"],
-        "quality_tools": ["manual_source_quality_check", "manual_editorial_quality_check", "build_site", "manual_pdf_build"],
+        "quality_tools": ["manual_source_quality_check", "manual_editorial_quality_check", "manual_computation_check", "web_capture_check", "build_site", "manual_pdf_build"],
         "source_guides": [
             "docs/agents/manual-authoring-components.md",
             "plugins/unaltraweb-site/skills/manual-pedagogical-writing/SKILL.md",
@@ -1616,6 +1625,31 @@ def manual_computation_render(project: Path, factory: Path, source: str = "", *,
     return run_factory_make(factory, project, "manual-compute-render", env=env)
 
 
+def _web_capture_env(source: str = "") -> dict[str, str]:
+    env: dict[str, str] = {}
+    value = source.strip()
+    if value:
+        if Path(value).is_absolute() or ".." in Path(value).parts or not re.fullmatch(r"[A-Za-z0-9_./-]+\.capture\.yml", value):
+            raise ValueError("Web capture source must be a safe project-relative *.capture.yml path.")
+        env["WEB_CAPTURE_SOURCE"] = value
+    return env
+
+
+def web_capture_status(project: Path, factory: Path, source: str = "") -> dict[str, Any]:
+    return run_factory_make(factory, project, "web-capture-status", env=_web_capture_env(source))
+
+
+def web_capture_check(project: Path, factory: Path, source: str = "") -> dict[str, Any]:
+    return run_factory_make(factory, project, "web-capture-check", env=_web_capture_env(source))
+
+
+def web_capture_render(project: Path, factory: Path, source: str = "", *, confirm_overwrite: bool = False) -> dict[str, Any]:
+    env = _web_capture_env(source)
+    if confirm_overwrite:
+        env["WEB_CAPTURE_CONFIRM_OVERWRITE"] = "1"
+    return run_make(project_path(project), "web-capture-render", env=env)
+
+
 def build_site(project: Path, site_profile: str = "") -> dict[str, Any]:
     args = [f"SITE_PROFILE={site_profile}"] if site_profile else []
     return run_make(project_path(project), "build", extra_args=args)
@@ -1707,15 +1741,16 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
         "bibliography": bibliography_inventory(project),
         "bibliometrics": bibliometrics_status(project),
         "build_health": build_health(project),
+        "web_captures": web_capture_status(project, factory) if factory else {},
         "factory": str(factory) if factory else "",
     }
 
 
 def list_tools() -> dict[str, Any]:
     return {
-        "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
+        "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "manual_structure_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
-        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
+        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
     }
 
 

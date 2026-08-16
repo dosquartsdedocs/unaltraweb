@@ -63,7 +63,7 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "site-context":
         return print_json(tools.site_context(project, factory))
     if command == "site-check":
-        return print_json({"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project), "computations": tools.manual_computation_status(project, factory), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)})
+        return print_json({"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project), "computations": tools.manual_computation_status(project, factory), "web_captures": tools.web_capture_status(project, factory), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)})
     if command == "profile-check":
         return print_json(tools.profile_check(project))
     if command == "manual-source-quality-check":
@@ -78,6 +78,12 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return print_json(tools.manual_computation_check(project, factory, source=args.source), enforce_ok=True)
     if command == "manual-computation-render":
         return print_json(tools.manual_computation_render(project, factory, source=args.source, confirm_overwrite=args.confirm_overwrite))
+    if command == "web-capture-status":
+        return print_json(tools.web_capture_status(project, factory, source=args.source))
+    if command == "web-capture-check":
+        return print_json(tools.web_capture_check(project, factory, source=args.source), enforce_ok=True)
+    if command == "web-capture-render":
+        return print_json(tools.web_capture_render(project, factory, source=args.source, confirm_overwrite=args.confirm_overwrite))
     if command == "manual-pdf-status":
         return print_json(tools.manual_pdf_status(project, language=args.language))
     if command == "manual-pdf-build":
@@ -148,6 +154,14 @@ def build_parser() -> argparse.ArgumentParser:
     computation_render = mcp_sub.add_parser("manual-computation-render")
     computation_render.add_argument("--source", default="")
     computation_render.add_argument("--confirm-overwrite", action="store_true")
+
+    for name in ["web-capture-status", "web-capture-check"]:
+        web_capture = mcp_sub.add_parser(name)
+        web_capture.add_argument("--source", default="")
+
+    web_capture_render = mcp_sub.add_parser("web-capture-render")
+    web_capture_render.add_argument("--source", default="")
+    web_capture_render.add_argument("--confirm-overwrite", action="store_true")
 
     for name in ["manual-pdf-status", "manual-pdf-build"]:
         manual_pdf = mcp_sub.add_parser(name)

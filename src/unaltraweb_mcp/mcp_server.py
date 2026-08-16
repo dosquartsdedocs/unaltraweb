@@ -56,7 +56,8 @@ def run_server(project: Path, factory: Path) -> None:
         instructions=(
             "For unaltremanual work, inspect manual_authoring_capabilities before editing. "
             "When a chapter has an executable .qmd, .Rmd, .R, .py, or .ipynb source, edit that source rather than its generated .md. "
-            "Run manual_computation_status and render explicitly after source or input changes; builds must not proceed with stale generated Markdown or figures."
+            "Run manual_computation_status and render explicitly after source or input changes; builds must not proceed with stale generated Markdown or figures. "
+            "For selector-based screenshots, edit the .capture.yml recipe, preserve the original PNG, and never overwrite .capture.edited.svg without approval."
         ),
     )
 
@@ -89,6 +90,11 @@ def run_server(project: Path, factory: Path) -> None:
     def manual_computations_resource() -> str:
         """Executable chapter sources, selected images, generated outputs, and freshness state."""
         return tools.dumps(tools.manual_computation_status(project, factory))
+
+    @mcp.resource("web://web-captures")
+    def web_captures_resource() -> str:
+        """Versioned selector-based screenshot recipes, PNG sources, annotated SVGs, and freshness state."""
+        return tools.dumps(tools.web_capture_status(project, factory))
 
     @mcp.resource("web://profile-prune-plan")
     def profile_prune_plan_resource() -> str:
@@ -215,7 +221,7 @@ def run_server(project: Path, factory: Path) -> None:
     @mcp.tool()
     def site_check(max_bibliometrics_age_days: int = 180) -> dict[str, Any]:
         """Run local profile, freshness, bibliography, bibliometrics, and build-state checks without network access."""
-        return {"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project, max_bibliometrics_age_days), "computations": tools.manual_computation_status(project, factory), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)}
+        return {"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project, max_bibliometrics_age_days), "computations": tools.manual_computation_status(project, factory), "web_captures": tools.web_capture_status(project, factory), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)}
 
     @mcp.tool()
     def profile_check() -> dict[str, Any]:
@@ -251,6 +257,21 @@ def run_server(project: Path, factory: Path) -> None:
     def manual_computation_render(source: str = "", confirm_overwrite: bool = False) -> dict[str, Any]:
         """Execute trusted manual sources in network-disabled containers and update versioned Markdown and figures."""
         return tools.manual_computation_render(project, factory, source=source, confirm_overwrite=confirm_overwrite)
+
+    @mcp.tool()
+    def web_capture_status(source: str = "") -> dict[str, Any]:
+        """Inspect selector-based web capture recipes, generated PNG/SVG artefacts, edited overrides, and freshness."""
+        return tools.web_capture_status(project, factory, source=source)
+
+    @mcp.tool()
+    def web_capture_check(source: str = "") -> dict[str, Any]:
+        """Fail when a web capture PNG/SVG is missing, modified, stale, orphaned, or shadowed by a stale edited SVG."""
+        return tools.web_capture_check(project, factory, source=source)
+
+    @mcp.tool()
+    def web_capture_render(source: str = "", confirm_overwrite: bool = False) -> dict[str, Any]:
+        """Start an isolated project preview and publish original PNG plus editable annotated SVG artefacts."""
+        return tools.web_capture_render(project, factory, source=source, confirm_overwrite=confirm_overwrite)
 
     @mcp.tool()
     def manual_pdf_status(language: str = "") -> dict[str, Any]:

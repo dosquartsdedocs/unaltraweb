@@ -17,6 +17,7 @@ require_relative "unaltraweb/version"
   remove-accents
   search-data
   theme-cache-bust
+  web_capture_images
 ].each do |plugin|
   require File.expand_path("../_plugins/#{plugin}", __dir__)
 end

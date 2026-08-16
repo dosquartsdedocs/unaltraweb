@@ -83,6 +83,38 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn("Table: A useful table", result)
         self.assertIn("![Detailed flow](assets/diagrams/flow.mmd.edited.svg)", result)
 
+    def test_transform_prefers_edited_web_capture_svg(self) -> None:
+        capture = self.project / "assets/captures/sidebar.capture.yml"
+        capture.parent.mkdir(parents=True)
+        capture.write_text("version: 1\npath: /en/\n", encoding="utf-8")
+        Path(str(capture).removesuffix(".yml") + ".svg").write_text("<svg/>", encoding="utf-8")
+        Path(str(capture).removesuffix(".yml") + ".edited.svg").write_text("<svg/>", encoding="utf-8")
+        source = self.project / "_chapters/en/chapter.md"
+
+        result = manual_pdf.transform_markdown(
+            self.project,
+            '![Sidebar]({{ site.baseurl }}/assets/captures/sidebar.capture.yml "Annotated sidebar")',
+            source,
+        )
+
+        self.assertIn("![Annotated sidebar](assets/captures/sidebar.capture.edited.svg)", result)
+
+    def test_transform_rejects_unsafe_edited_web_capture_svg(self) -> None:
+        capture = self.project / "assets/captures/sidebar.capture.yml"
+        capture.parent.mkdir(parents=True)
+        capture.write_text("version: 1\npath: /en/\n", encoding="utf-8")
+        Path(str(capture).removesuffix(".yml") + ".edited.svg").write_text(
+            '<svg><style>@import url("https://example.com/x.css");</style></svg>',
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(manual_pdf.ManualPdfError, "(?:Unsafe|Unsupported) web capture SVG"):
+            manual_pdf.transform_markdown(
+                self.project,
+                '![Sidebar](assets/captures/sidebar.capture.yml "Annotated sidebar")',
+                self.project / "_chapters/en/chapter.md",
+            )
+
     def test_unknown_liquid_fails_instead_of_dropping_content(self) -> None:
         source = self.project / "_chapters/en/chapter.md"
         with self.assertRaisesRegex(manual_pdf.ManualPdfError, "Unsupported Liquid"):

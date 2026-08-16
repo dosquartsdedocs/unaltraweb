@@ -23,6 +23,11 @@ on:
         required: false
         type: boolean
         default: true
+      check-web-captures:
+        description: Reject stale selector-based screenshot artefacts before building.
+        required: false
+        type: boolean
+        default: true
       build-command:
         description: Optional custom command that builds the site into the output folder.
         required: false
@@ -57,7 +62,7 @@ jobs:
           bundler-cache: true
 
       - name: Setup Python
-        if: ${{ inputs.install-python-requirements || inputs.check-computations }}
+        if: ${{ inputs.install-python-requirements || inputs.check-computations || inputs.check-web-captures }}
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ inputs.python-version }}
@@ -78,6 +83,13 @@ jobs:
           python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
           make -C "$core_dir" manual-compute-check PROJECT="$GITHUB_WORKSPACE"
+
+      - name: Check web capture freshness
+        if: ${{ inputs.check-web-captures }}
+        run: |
+          python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
+          core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
+          make -C "$core_dir" web-capture-check PROJECT="$GITHUB_WORKSPACE"
 
       - name: Build
         env:

@@ -28,6 +28,7 @@ The opened workspace is the consumer website repository. Factory logic remains i
 | `web://prompts` | Reusable website workflow prompts. |
 | `web://manual-writing-guidance` | Generic drafting and style-review prompts combined with the site's `context/writing-profile.md` when available. |
 | `web://manual-authoring-components` | Supported prose structures and component syntax, including callouts, definition lists, figure layouts, tables, diagrams, citations, and web/PDF compatibility. |
+| `web://web-captures` | Selector-based screenshot recipes, original PNGs, editable SVG layers, edited overrides, and freshness. |
 
 ## Tools
 
@@ -41,6 +42,9 @@ The opened workspace is the consumer website repository. Factory logic remains i
 | `manual_source_quality_check` | For `unaltremanual`, check captioned table blocks, captioned figures, and external Mermaid/PlantUML diagram sources. |
 | `manual_editorial_quality_check` | Reject non-publishable metatext, user/agent instructions, workflow markers, drafting notes, and placeholders in manual bodies; return the editorial review checklist and local writing-profile path. |
 | `manual_authoring_capabilities` | Return the paragraph-development model and structured component catalogue an MCP writing assistant must use. |
+| `web_capture_status` | Inspect `.capture.yml` recipes, PNG/SVG artefacts, edited overrides, and freshness without starting Chromium. |
+| `web_capture_check` | Reject missing, modified, stale, orphaned, or obsolete edited capture artefacts. |
+| `web_capture_render` | Start Jekyll and Chromium on an ephemeral internal Docker network, then publish original PNG plus editable annotated SVG from declared CSS selectors. |
 | `manual_pdf_status` | Inspect PDF configuration, sources, generated artefacts, published paths, and freshness without writing files. |
 | `manual_pdf_build` | Build one or all configured language PDFs and first-page cover previews under `tmp/`. |
 | `manual_pdf_publish` | Copy built PDFs and covers to configured public assets. Defaults to dry-run; real publication requires explicit confirmation. |
