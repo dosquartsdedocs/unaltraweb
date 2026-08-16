@@ -121,6 +121,7 @@ Multi-panel figures use a fenced subfigure block:
 ```
 
 The layout string uses `/` for rows and `+` for columns. The example above renders panels `a`, `b` and `c` as one numbered figure.
+Use this component when juxtaposition is the teaching task: before/after states, controlled alternatives, a short sequence, or complementary views that need one shared caption. Prefer compact layouts such as `a+b` and `a+b/c`, and use them selectively. Images that merely share a topic should normally remain separate figures.
 
 ## Numbered Tables
 
