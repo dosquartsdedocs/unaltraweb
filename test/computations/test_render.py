@@ -33,6 +33,21 @@ def write_qmd(path: Path, *, engine: str = "python", inputs: list[str] | None = 
     )
 
 
+def write_figure_qmd(path: Path, output: str = "assets/img/generated/en/figure.svg") -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    front = {
+        "title": "Computed figure",
+        "lang": "en",
+        "ref": "computed-figure",
+        "format": "gfm",
+        "unaltraweb_compute": {"engine": "python", "mode": "figure", "outputs": [output]},
+    }
+    path.write_text(
+        "---\n" + yaml.safe_dump(front, sort_keys=False) + "---\n\nFigure source.\n",
+        encoding="utf-8",
+    )
+
+
 class ComputationRendererTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
@@ -67,6 +82,77 @@ class ComputationRendererTests(unittest.TestCase):
         self.assertEqual(records[0]["engine"], "python")
         self.assertEqual(records[0]["output_path"], "_chapters/en/05-computed.md")
         self.assertEqual(records[0]["figures_path"], "assets/img/generated/en/computed-chapter")
+
+    def test_discovers_figure_mode_outputs(self) -> None:
+        write_figure_qmd(self.project / "_chapters/en/figure.qmd")
+        config, _ = computations.load_config(self.project)
+
+        records = computations.discover_sources(self.project, config)
+
+        self.assertEqual(records[0]["mode"], "figure")
+        self.assertEqual(records[0]["output_paths"], ["assets/img/generated/en/figure.svg"])
+
+    def test_figure_mode_status_uses_declared_output_signature(self) -> None:
+        source = self.project / "_chapters/en/figure.qmd"
+        write_figure_qmd(source)
+        output = self.project / "assets/img/generated/en/figure.svg"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text("<svg></svg>\n", encoding="utf-8")
+        self.write_config({"python": {"image": "project:python"}})
+        config, config_path = computations.load_config(self.project)
+        record = computations.discover_sources(self.project, config)[0]
+        digest, dependencies, image = computations.fingerprint(self.project, config, config_path, record)
+        computations.write_lock(
+            self.project,
+            {
+                "records": {
+                    record["source_path"]: {
+                        "mode": "figure",
+                        "fingerprint": digest,
+                        "dependencies": dependencies,
+                        "image": image,
+                        "outputs": [{"path": record["output_paths"][0], **computations.file_signature(output)}],
+                    }
+                }
+            },
+        )
+
+        self.assertTrue(computations.status(self.project)["ok"])
+        output.write_text("<svg><text>changed</text></svg>\n", encoding="utf-8")
+
+        self.assertEqual(computations.status(self.project)["sources"][0]["reason"], "output_modified")
+
+    def test_figure_mode_publishes_staged_declared_output(self) -> None:
+        source = self.project / "_chapters/en/figure.qmd"
+        write_figure_qmd(source)
+        config, _ = computations.load_config(self.project)
+        record = computations.discover_sources(self.project, config)[0]
+        stage = self.project / "tmp/stage"
+        staged = stage / "figure.svg"
+        staged.parent.mkdir(parents=True)
+        staged.write_text("<svg><text>new</text></svg>\n", encoding="utf-8")
+
+        computations.publish_figure_outputs(record, stage, confirm_overwrite=False, owned=False)
+
+        self.assertEqual((self.project / record["output_paths"][0]).read_text(encoding="utf-8"), "<svg><text>new</text></svg>\n")
+
+    def test_figure_mode_refuses_unmanaged_staged_replacement(self) -> None:
+        source = self.project / "_chapters/en/figure.qmd"
+        write_figure_qmd(source)
+        config, _ = computations.load_config(self.project)
+        record = computations.discover_sources(self.project, config)[0]
+        output = self.project / record["output_paths"][0]
+        output.parent.mkdir(parents=True)
+        output.write_text("<svg><text>author</text></svg>\n", encoding="utf-8")
+        stage = self.project / "tmp/stage"
+        staged = stage / "figure.svg"
+        staged.parent.mkdir(parents=True)
+        staged.write_text("<svg><text>new</text></svg>\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(computations.ComputationError, "unmanaged generated figure"):
+            computations.publish_figure_outputs(record, stage, confirm_overwrite=False, owned=False)
+
+        self.assertEqual(output.read_text(encoding="utf-8"), "<svg><text>author</text></svg>\n")
 
     def test_rejects_generated_paths_outside_managed_roots(self) -> None:
         source = self.project / "_chapters/en/05-computed.qmd"
@@ -118,6 +204,33 @@ class ComputationRendererTests(unittest.TestCase):
 
                 self.assertEqual(front["execute"], {"echo": False})
                 self.assertIn(front["unaltraweb_compute"]["engine"], {"r", "python"})
+
+    def test_status_yaml_fallback_supports_compute_config_without_pyyaml(self) -> None:
+        source = self.project / "assets/quarto/color/figure.qmd"
+        write_figure_qmd(source, output="assets/img/color/figure.svg")
+        path = self.project / ".unaltraweb/computations.yml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            """version: 1
+source_roots:
+  - _chapters
+  - assets/quarto
+engines:
+  python:
+    local_image: tigit-compute-python:local
+    lockfiles:
+      - requirements-compute.txt
+""",
+            encoding="utf-8",
+        )
+        (self.project / "requirements-compute.txt").write_text("matplotlib\n", encoding="utf-8")
+
+        with patch.object(computations, "yaml", None):
+            config, _ = computations.load_config(self.project)
+            records = computations.discover_sources(self.project, config)
+
+        self.assertEqual(config["source_roots"], ["_chapters", "assets/quarto"])
+        self.assertEqual(records[0]["output_paths"], ["assets/img/color/figure.svg"])
 
     def test_environment_image_override_wins_over_project_configuration(self) -> None:
         self.write_config({"python": {"image": "registry/project:main"}})
@@ -309,9 +422,37 @@ class ComputationRendererTests(unittest.TestCase):
         )
 
         with patch.object(computations, "render_stage", return_value=("generated\n", [], {"available": "true", "id": "image", "digest": ""})):
-            computations.render(self.project)
+            computations.render(self.project, confirm_overwrite=True)
 
         self.assertNotIn("_chapters/en/deleted.qmd", computations.load_lock(self.project)["records"])
+
+    def test_full_render_prunes_orphan_record_when_new_source_owns_paths(self) -> None:
+        source = self.project / "_chapters/en/05-computed.qmd"
+        write_qmd(source)
+        output = self.project / "_chapters/en/05-computed.md"
+        figures = self.project / "assets/img/generated/en/computed-chapter"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text("previous generated\n", encoding="utf-8")
+        figures.mkdir(parents=True, exist_ok=True)
+        computations.write_lock(
+            self.project,
+            {
+                "records": {
+                    "_chapters/en/05-computed.R": {
+                        "output": {"path": "_chapters/en/05-computed.md", **computations.file_signature(output)},
+                        "figures": "assets/img/generated/en/computed-chapter",
+                        "assets": [],
+                    }
+                }
+            },
+        )
+
+        with patch.object(computations, "render_stage", return_value=("generated\n", [], {"available": "true", "id": "image", "digest": ""})):
+            computations.render(self.project, confirm_overwrite=True)
+
+        records = computations.load_lock(self.project)["records"]
+        self.assertIn("_chapters/en/05-computed.qmd", records)
+        self.assertNotIn("_chapters/en/05-computed.R", records)
 
     def test_explicit_prune_removes_absent_orphan_after_engine_renders(self) -> None:
         source = self.project / "_chapters/en/05-computed.qmd"

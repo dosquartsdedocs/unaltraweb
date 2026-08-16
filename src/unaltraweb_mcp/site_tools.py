@@ -50,6 +50,8 @@ DIAGRAM_FENCE_RE = re.compile(r"^\s*(```|~~~)\s*(mermaid|plantuml|puml|uml)\b", 
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
 MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)\n]+)\)")
 STANDALONE_BOLD_LABEL_RE = re.compile(r"^\s*\*\*[^*\n]+\.\*\*\s*$")
+H2_RE = re.compile(r"^##\s+(.+?)\s*$")
+LEARNING_OBJECTIVE_CALLOUT_RE = re.compile(r"^>{5}(?!>)\s*(.*)$")
 MANUAL_EDITORIAL_RULES = [
     (
         "workflow_status",
@@ -690,6 +692,7 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
     inline_diagrams: list[dict[str, Any]] = []
     figures_without_title: list[dict[str, Any]] = []
     standalone_bold_labels: list[dict[str, Any]] = []
+    learning_objective_callouts: list[dict[str, Any]] = []
 
     for path in paths:
         try:
@@ -697,18 +700,40 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
         except OSError:
             continue
 
+        in_front_matter = bool(lines and lines[0].strip() == "---")
         in_fence = False
         fence_marker = ""
         in_table_block = False
         in_bare_table = False
+        current_section = "chapter opening"
+        current_section_line = 1
+        section_opening_blocks = 0
+        section_seen_subheading = False
+        previous_opening_block_kind = ""
+        in_learning_objective_callout = False
         for lineno, line in enumerate(lines, start=1):
             stripped = line.strip()
+
+            if in_front_matter:
+                if lineno > 1 and stripped == "---":
+                    in_front_matter = False
+                    current_section_line = lineno + 1
+                continue
+
+            if not stripped:
+                previous_opening_block_kind = ""
+                if in_learning_objective_callout:
+                    in_learning_objective_callout = False
+                continue
 
             if in_table_block:
                 if stripped == ":::":
                     in_table_block = False
                 continue
             if stripped.startswith("::: table"):
+                if not previous_opening_block_kind:
+                    section_opening_blocks += 1
+                previous_opening_block_kind = "table"
                 in_table_block = True
                 in_bare_table = False
                 continue
@@ -739,7 +764,46 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
                 in_fence = True
                 fence_marker = fence_match.group(1)
                 in_bare_table = False
+                in_learning_objective_callout = False
                 continue
+
+            h2_match = H2_RE.match(line)
+            if h2_match:
+                current_section = h2_match.group(1).strip()
+                current_section_line = lineno
+                section_opening_blocks = 0
+                section_seen_subheading = False
+                previous_opening_block_kind = ""
+                in_learning_objective_callout = False
+                in_bare_table = False
+                continue
+
+            if stripped.startswith("###"):
+                section_seen_subheading = True
+                previous_opening_block_kind = ""
+
+            objective_match = LEARNING_OBJECTIVE_CALLOUT_RE.match(line)
+            if objective_match:
+                if not in_learning_objective_callout:
+                    learning_objective_callouts.append(
+                        {
+                            "path": rel(project, path),
+                            "line": lineno,
+                            "section": current_section,
+                            "section_line": current_section_line,
+                            "opening_blocks_before": section_opening_blocks,
+                            "after_subheading": section_seen_subheading,
+                            "message": "Use learning-objective callouts sparingly, normally after a brief introduction at a chapter or major-section opening.",
+                        }
+                    )
+                    in_learning_objective_callout = True
+                continue
+            in_learning_objective_callout = False
+
+            opening_block_kind = "list" if re.match(r"^\s*(?:[-*+]\s+|\d+\.\s+)", line) else "paragraph"
+            if not previous_opening_block_kind:
+                section_opening_blocks += 1
+            previous_opening_block_kind = opening_block_kind
 
             if MARKDOWN_TABLE_ROW_RE.match(line):
                 if not in_bare_table:
@@ -814,6 +878,45 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
                 "sample": standalone_bold_labels[:20],
             }
         )
+    dense_learning_objective_callouts: list[dict[str, Any]] = []
+    for path_name in sorted({item["path"] for item in learning_objective_callouts}):
+        path_items = [item for item in learning_objective_callouts if item["path"] == path_name]
+        for section_line in sorted({item["section_line"] for item in path_items}):
+            section_items = [item for item in path_items if item["section_line"] == section_line]
+            if len(section_items) > 1:
+                dense_learning_objective_callouts.append(
+                    {
+                        "path": path_name,
+                        "section": section_items[0]["section"],
+                        "section_line": section_line,
+                        "count": len(section_items),
+                        "lines": [item["line"] for item in section_items],
+                        "message": "A section contains multiple learning-objective callout blocks; keep objectives after the brief opening and use prose, tables, or ordinary notes for intermediate criteria.",
+                    }
+                )
+            for item in section_items:
+                opening_blocks_before = int(item.get("opening_blocks_before", 0))
+                if item.get("after_subheading") or opening_blocks_before == 0 or opening_blocks_before > 2:
+                    dense_learning_objective_callouts.append(
+                        {
+                            "path": path_name,
+                            "section": item["section"],
+                            "section_line": item["section_line"],
+                            "line": item["line"],
+                            "opening_blocks_before": opening_blocks_before,
+                            "after_subheading": item.get("after_subheading", False),
+                            "message": "A learning-objective callout appears before or beyond the brief opening of a section; place it after one or two introductory paragraphs, or use normal prose for mid-section emphasis.",
+                        }
+                    )
+    if dense_learning_objective_callouts:
+        warnings.append(
+            {
+                "severity": "warning",
+                "message": "Some learning-objective callouts are repeated or placed away from section openings.",
+                "count": len(dense_learning_objective_callouts),
+                "sample": dense_learning_objective_callouts[:20],
+            }
+        )
 
     return {
         "ok": not issues,
@@ -823,6 +926,8 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
         "inline_diagrams": inline_diagrams,
         "figures_without_title": figures_without_title,
         "standalone_bold_labels": standalone_bold_labels,
+        "learning_objective_callouts": learning_objective_callouts,
+        "dense_learning_objective_callouts": dense_learning_objective_callouts,
     }
 
 
@@ -956,7 +1061,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "syntax": ["> quotation", ">> note", ">>> example", ">>>> warning", ">>>>> learning objectives", ">>>>>> caution"],
                 "web": "supported with localized labels and nested-blockquote styling",
                 "pdf": "partial: preserved as blockquotes without equivalent web labels or styling",
-                "guidance": "Do not type the generated callout label in the body.",
+                "guidance": "Do not type the generated callout label in the body. Use learning-objective callouts sparingly, normally once after a brief chapter or major-section introduction; use prose, tables, or ordinary notes for mid-section criteria.",
             },
             {
                 "id": "definition_lists",
@@ -987,7 +1092,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "syntax": ['::: table "Caption"', "| Column | Column |", "| --- | --- |", ":::"] ,
                 "web": "supported with localized numbering",
                 "pdf": "supported through Pandoc table captions",
-                "guidance": "Bare pipe tables are rejected by manual_source_quality_check.",
+                "guidance": "Bare pipe tables are rejected by manual_source_quality_check. Inline code spans in cells are rendered by the core table parser; update the consumer lock file if literal backticks appear in numbered tables.",
             },
             {
                 "id": "diagrams",
@@ -1012,10 +1117,10 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
             },
             {
                 "id": "executable_sources",
-                "syntax": ["chapter.qmd -> chapter.md", "analysis.py -> analysis.md", "analysis.R -> analysis.md"],
-                "web": "the versioned generated Markdown and figures are published; executable sources are excluded",
+                "syntax": ["chapter.qmd -> chapter.md", "analysis.py -> analysis.md", "analysis.R -> analysis.md", "mode: figure -> declared SVG/PNG outputs"],
+                "web": "the versioned generated Markdown and/or declared figure outputs are published; executable sources are excluded",
                 "pdf": "uses the same checked generated Markdown and figures as the web build",
-                "guidance": "When an executable source exists, edit it rather than the generated .md. Declare one r or python engine per source, list non-code inputs, render explicitly, and never publish while manual_computation_check reports stale outputs.",
+                "guidance": "When an executable source exists, edit it rather than generated artefacts. Declare one r or python engine per source, use mode: figure for reusable figures without generated chapter Markdown, list non-code inputs, render explicitly, and never publish while manual_computation_check reports stale outputs.",
             },
         ],
         "web_only_or_pdf_review_required": ["tabs", "details", "interactive charts", "interactive maps", "galleries", "audio", "video", "arbitrary Liquid figure includes"],

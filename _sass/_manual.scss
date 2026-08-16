@@ -616,6 +616,17 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   vertical-align: top;
 }
 
+.manual-content .md-table code {
+  display: inline-block;
+  border: 1px solid color-mix(in srgb, var(--global-theme-color) 34%, var(--global-divider-color));
+  border-radius: 0.18rem;
+  background: color-mix(in srgb, var(--global-theme-color) 15%, var(--global-card-bg-color));
+  color: var(--global-text-color);
+  padding: 0.1rem 0.32rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
 .manual-chapter-header {
   margin-bottom: 1.4rem;
   padding-bottom: 1rem;
@@ -1096,7 +1107,6 @@ html[data-theme="dark"] .manual-teacher-links a[aria-label="X"] i {
 }
 
 .md-figure {
-  width: var(--md-figure-width, auto);
   max-width: 100%;
   margin: 1.8rem auto;
 }
@@ -1125,6 +1135,9 @@ html[data-theme="dark"] .md-table {
 .md-figure-inner {
   display: flex;
   justify-content: center;
+  width: var(--md-figure-width, auto);
+  max-width: 100%;
+  margin-inline: auto;
   border: 1px solid var(--global-divider-color);
   border-radius: 0;
   background: var(--global-card-bg-color);

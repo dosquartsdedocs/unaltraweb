@@ -55,6 +55,10 @@ make manual-compute-images
 
 An image already available locally is reused. Otherwise the target pulls a selected published image or builds a configured project extension.
 
+Template and child repositories expose the same `manual-compute-*` targets. When a local `unaltraweb` factory checkout is available through `../unaltraweb`, `LOCAL_CORE`, or `COMPUTE_CORE`, routine `manual-compute-status` and `manual-compute-check` use that checkout and avoid pulling the small control image. Rendering and project image preparation still run through the factory checkout because they need the core scripts and Docker contracts.
+
+Do not use host `quarto render` for publishable manual computations. Missing Jupyter packages, read-only runtime directories such as `/run/user/...`, and local socket restrictions are host-environment failures; run `make manual-compute-render` instead so the selected computation image supplies Quarto/Jupyter and records provenance.
+
 ### Select An Image
 
 Image resolution uses this precedence:
@@ -101,6 +105,23 @@ RUN python3 -m pip install --no-cache-dir -r /tmp/requirements-compute.txt
 ```
 
 The builder passes `BASE_IMAGE`, defaults the context to the project root, and builds a lowercase, Docker-safe `<project>-compute-<engine>:local` name when `local_image` is omitted. Pin the base image by digest when reproducible project-image builds matter. The Dockerfile and declared lockfiles participate in freshness checks. Extend the base image instead of copying the core renderer.
+
+### Figure-Only Sources
+
+Use `unaltraweb_compute.mode: figure` when a Quarto, R, Python, or notebook source owns reusable figures but not a generated manual chapter. Declare every versioned output explicitly:
+
+```yaml
+title: Palette reference
+lang: en
+ref: palette_reference
+unaltraweb_compute:
+  engine: python
+  mode: figure
+  outputs:
+    - assets/img/generated/en/palette-reference.svg
+```
+
+The renderer executes the source in the selected computation image, verifies the declared outputs exist, records their signatures in `.unaltraweb/computations.lock.json`, and marks them stale if source code, inputs, Dockerfiles, lockfiles, image identity, or output bytes change.
 
 If a local Docker installation cannot reach package repositories through its default bridge, select another build network explicitly rather than hard-coding it in the Dockerfile:
 

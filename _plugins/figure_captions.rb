@@ -612,6 +612,12 @@ module Unaltraweb
         code_spans << %(<code class="language-plaintext highlighter-rouge">#{h(Regexp.last_match(1))}</code>)
         "\u0000INLINE_CODE_#{index}\u0000"
       end
+      math_spans = []
+      html.gsub!(/(^|[^\\$])\$(?!\$)((?:\\.|[^\n$\\])+?)\$(?!\$)/) do
+        index = math_spans.length
+        math_spans << %($#{Regexp.last_match(2)}$)
+        "#{Regexp.last_match(1)}\u0000INLINE_MATH_#{index}\u0000"
+      end
       html.gsub!(/\[([^\]]+)\]\((\S+?)(?:\s+"([^"]*)")?\)/) do
         label = Regexp.last_match(1)
         url = Regexp.last_match(2)
@@ -621,6 +627,9 @@ module Unaltraweb
       end
       html.gsub!(/\*\*([^*]+)\*\*/, '<strong>\1</strong>')
       html.gsub!(/\*([^*]+)\*/, '<em>\1</em>')
+      math_spans.each_with_index do |math, index|
+        html.gsub!("\u0000INLINE_MATH_#{index}\u0000", math)
+      end
       code_spans.each_with_index do |code, index|
         html.gsub!("\u0000INLINE_CODE_#{index}\u0000", code)
       end

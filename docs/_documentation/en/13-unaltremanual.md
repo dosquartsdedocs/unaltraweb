@@ -102,6 +102,16 @@ engines:
 
 `unaltraweb_compute.inputs` declares source-specific non-code inputs. Engine `lockfiles` and `fingerprint_paths` describe shared environment dependencies. Files and directories are fingerprinted recursively. Changing a source, declared input, Dockerfile, lockfile, fingerprint path, configuration, or available selected-image identity makes its results stale.
 
+Use `unaltraweb_compute.mode: figure` for executable sources that only generate reusable figures, such as an SVG chart referenced from a hand-written chapter. In that mode, declare every versioned output under `unaltraweb_compute.outputs`; the renderer checks the declared files and records their signatures without creating a generated Markdown chapter.
+
+```yaml
+unaltraweb_compute:
+  engine: python
+  mode: figure
+  outputs:
+    - assets/img/generated/en/palette-reference.svg
+```
+
 The execution container has no network, a read-only root filesystem, dropped capabilities, and resource limits, but the entire project is mounted read-write so Quarto can stage results. Declared inputs provide provenance and freshness checks; they are not a filesystem access policy. Run only trusted chapter code and review the working tree after rendering.
 
 ### Render And Check
