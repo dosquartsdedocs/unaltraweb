@@ -38,6 +38,32 @@ class ManualComputationsMcpTests(unittest.TestCase):
             env={"COMPUTE_CONFIRM_OVERWRITE": "1"},
         )
 
+    @patch("unaltraweb_mcp.site_tools.run_factory_make")
+    def test_render_stale_only_sets_compute_stale_only(self, run_factory_make) -> None:
+        run_factory_make.return_value = {"ok": True}
+
+        site_tools.manual_computation_render(Path("/tmp/site"), Path("/tmp/factory"), stale_only=True, confirm_overwrite=True)
+
+        run_factory_make.assert_called_once_with(
+            Path("/tmp/factory"),
+            Path("/tmp/site"),
+            "manual-compute-render",
+            env={"COMPUTE_STALE_ONLY": "1", "COMPUTE_CONFIRM_OVERWRITE": "1"},
+        )
+
+    @patch("unaltraweb_mcp.site_tools.run_factory_make")
+    def test_render_figures_target_uses_recipe_command(self, run_factory_make) -> None:
+        run_factory_make.return_value = {"ok": True}
+
+        site_tools.manual_computation_render_figures(Path("/tmp/site"), Path("/tmp/factory"))
+
+        run_factory_make.assert_called_once_with(
+            Path("/tmp/factory"),
+            Path("/tmp/site"),
+            "manual-compute-render-figures",
+            env={},
+        )
+
     def test_source_cannot_escape_project(self) -> None:
         with self.assertRaisesRegex(ValueError, "project-relative"):
             site_tools.manual_computation_status(Path("/tmp/site"), Path("/tmp/factory"), source="../outside.qmd")

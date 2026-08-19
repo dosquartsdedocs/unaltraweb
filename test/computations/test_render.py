@@ -355,6 +355,7 @@ engines:
                         "dependencies": dependencies,
                         "image": image,
                         "output": {"path": record["output_path"], **computations.file_signature(record["output"])},
+                        "figures": record["figures_path"],
                         "assets": [],
                     }
                 },
@@ -367,6 +368,128 @@ engines:
 
         self.assertFalse(stale["ok"])
         self.assertEqual(stale["sources"][0]["reason"], "source_or_environment_changed")
+
+    def test_stale_only_skips_current_figure_output(self) -> None:
+        source = self.project / "_chapters/en/05-figure.qmd"
+        write_figure_qmd(source)
+        output = self.project / "assets/img/generated/en/figure.svg"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text("<svg />", encoding="utf-8")
+        self.write_config({"python": {"image": "project:python", "lockfiles": ["requirements-compute.txt"]}})
+        lockfile = self.project / "requirements-compute.txt"
+        lockfile.write_text("matplotlib==3.10.5\n", encoding="utf-8")
+        config, config_path = computations.load_config(self.project)
+        record = computations.discover_sources(self.project, config)[0]
+        digest, dependencies, image = computations.fingerprint(self.project, config, config_path, record)
+        computations.write_lock(
+            self.project,
+            {
+                "records": {
+                    record["source_path"]: {
+                        "mode": "figure",
+                        "fingerprint": digest,
+                        "dependencies": dependencies,
+                        "image": image,
+                        "image_identity": {"id": "", "digest": ""},
+                        "outputs": [{"path": record["output_paths"][0], **computations.file_signature(output)}],
+                    }
+                },
+            },
+        )
+
+        with patch.object(computations, "render_figure_outputs", return_value={"available": "true", "id": "", "digest": ""}) as render_call:
+            result = computations.render(self.project, stale_only=True)
+
+        render_call.assert_not_called()
+        self.assertEqual(result["rendered_count"], 0)
+
+    def test_stale_only_renders_source_changed_figure(self) -> None:
+        source = self.project / "_chapters/en/05-figure.qmd"
+        write_figure_qmd(source)
+        output = self.project / "assets/img/generated/en/figure.svg"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text("<svg />", encoding="utf-8")
+        self.write_config({"python": {"image": "project:python", "lockfiles": ["requirements-compute.txt"]}})
+        lockfile = self.project / "requirements-compute.txt"
+        lockfile.write_text("matplotlib==3.10.5\n", encoding="utf-8")
+        config, config_path = computations.load_config(self.project)
+        record = computations.discover_sources(self.project, config)[0]
+        digest, dependencies, image = computations.fingerprint(self.project, config, config_path, record)
+        computations.write_lock(
+            self.project,
+            {
+                "records": {
+                    record["source_path"]: {
+                        "mode": "figure",
+                        "fingerprint": digest,
+                        "dependencies": dependencies,
+                        "image": image,
+                        "image_identity": {"id": "", "digest": ""},
+                        "outputs": [{"path": record["output_paths"][0], **computations.file_signature(output)}],
+                    }
+                },
+            },
+        )
+        source.write_text(source.read_text(encoding="utf-8").replace("Computed figure", "Computed figure v2"), encoding="utf-8")
+
+        with patch.object(computations, "render_figure_outputs", return_value={"available": "true", "id": "", "digest": ""}) as render_call:
+            result = computations.render(self.project, stale_only=True)
+
+        render_call.assert_called_once()
+        self.assertEqual(result["rendered_count"], 1)
+
+    def test_stale_only_never_replaces_unmanaged_existing_figure(self) -> None:
+        source = self.project / "_chapters/en/05-figure.qmd"
+        write_figure_qmd(source)
+        output = self.project / "assets/img/generated/en/figure.svg"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text("<svg />", encoding="utf-8")
+        self.write_config({"python": {"image": "project:python"}})
+
+        with patch.object(computations, "render_figure_outputs", return_value={"available": "true", "id": "", "digest": ""}) as render_call:
+            result = computations.render(self.project, stale_only=True)
+
+        render_call.assert_not_called()
+        self.assertEqual(result["rendered_count"], 0)
+
+    def test_stale_only_skips_current_and_renders_stale_chapter(self) -> None:
+        source = self.project / "_chapters/en/05-computed.qmd"
+        write_qmd(source, inputs=["data/input.csv"])
+        data = self.project / "data/input.csv"
+        data.parent.mkdir(parents=True)
+        data.write_text("value\n1\n", encoding="utf-8")
+        self.write_config({"python": {"image": "project:python"}})
+        config, config_path = computations.load_config(self.project)
+        record = computations.discover_sources(self.project, config)[0]
+        output = self.project / record["output_path"]
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text("generated\n", encoding="utf-8")
+        record["figures"].mkdir(parents=True)
+        digest, dependencies, image = computations.fingerprint(self.project, config, config_path, record)
+        computations.write_lock(
+            self.project,
+            {
+                "records": {
+                    record["source_path"]: {
+                        "fingerprint": digest,
+                        "dependencies": dependencies,
+                        "image": image,
+                        "output": {"path": record["output_path"], **computations.file_signature(record["output"])},
+                        "figures": record["figures_path"],
+                        "assets": [],
+                    }
+                },
+            },
+        )
+
+        with patch.object(computations, "render_stage", return_value=("generated\n", [], {"available": "true", "id": "image", "digest": ""})) as render_call:
+            computations.render(self.project, stale_only=True)
+        render_call.assert_not_called()
+
+        data.write_text("value\n2\n", encoding="utf-8")
+        with patch.object(computations, "render_stage", return_value=("generated\n", [], {"available": "true", "id": "image", "digest": ""})) as render_call:
+            computations.render(self.project, stale_only=True)
+        render_call.assert_called_once()
 
     def test_source_scoped_status_does_not_report_other_sources_as_orphans(self) -> None:
         first = self.project / "_chapters/en/first.qmd"
@@ -492,6 +615,7 @@ engines:
                         "fingerprint": digest,
                         "dependencies": dependencies,
                         "output": {"path": record["output_path"], **computations.file_signature(record["output"])},
+                        "figures": record["figures_path"],
                         "assets": [],
                     }
                 }

@@ -56,7 +56,8 @@ def run_server(project: Path, factory: Path) -> None:
         instructions=(
             "For unaltremanual work, inspect manual_authoring_capabilities before editing. "
             "When a chapter has an executable .qmd, .Rmd, .R, .py, or .ipynb source, edit that source rather than its generated .md. "
-            "Run manual_computation_status and render explicitly after source or input changes; builds must not proceed with stale generated Markdown or figures. "
+            "A figure can be referenced from Markdown by its compute source (for example assets/quarto/figures/boxplot.qmd); the build rewrites the reference to the declared mode:figure output and prefers an author-owned *.edited.svg. "
+            "Run manual_computation_status and render explicitly after source or input changes; builds must not proceed with stale generated Markdown or figures, and make build/serve auto-render stale figures first. "
             "For selector-based screenshots, edit the .capture.yml recipe, preserve the original PNG, and never overwrite .capture.edited.svg without approval."
         ),
     )
@@ -254,9 +255,14 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.manual_computation_check(project, factory, source=source)
 
     @mcp.tool()
-    def manual_computation_render(source: str = "", confirm_overwrite: bool = False) -> dict[str, Any]:
-        """Execute trusted manual sources in network-disabled containers and update versioned Markdown and figures."""
-        return tools.manual_computation_render(project, factory, source=source, confirm_overwrite=confirm_overwrite)
+    def manual_computation_render(source: str = "", confirm_overwrite: bool = False, stale_only: bool = False) -> dict[str, Any]:
+        """Execute trusted manual sources in network-disabled containers and update versioned Markdown and figures. Set stale_only=True to render only stale figures without touching fresh outputs or unmanaged existing files."""
+        return tools.manual_computation_render(project, factory, source=source, confirm_overwrite=confirm_overwrite, stale_only=stale_only)
+
+    @mcp.tool()
+    def manual_computation_render_figures() -> dict[str, Any]:
+        """Render all stale figure-only computation sources (mode: figure) declared in the project. Skips figures whose outputs are already present and never auto-replaces unmanaged existing outputs."""
+        return tools.manual_computation_render_figures(project, factory)
 
     @mcp.tool()
     def web_capture_status(source: str = "") -> dict[str, Any]:

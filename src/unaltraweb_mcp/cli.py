@@ -77,7 +77,9 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "manual-computation-check":
         return print_json(tools.manual_computation_check(project, factory, source=args.source), enforce_ok=True)
     if command == "manual-computation-render":
-        return print_json(tools.manual_computation_render(project, factory, source=args.source, confirm_overwrite=args.confirm_overwrite))
+        return print_json(tools.manual_computation_render(project, factory, source=args.source, confirm_overwrite=args.confirm_overwrite, stale_only=args.stale_only))
+    if command == "manual-computation-render-figures":
+        return print_json(tools.manual_computation_render_figures(project, factory))
     if command == "web-capture-status":
         return print_json(tools.web_capture_status(project, factory, source=args.source))
     if command == "web-capture-check":
@@ -154,6 +156,9 @@ def build_parser() -> argparse.ArgumentParser:
     computation_render = mcp_sub.add_parser("manual-computation-render")
     computation_render.add_argument("--source", default="")
     computation_render.add_argument("--confirm-overwrite", action="store_true")
+    computation_render.add_argument("--stale-only", action="store_true")
+
+    mcp_sub.add_parser("manual-computation-render-figures")
 
     for name in ["web-capture-status", "web-capture-check"]:
         web_capture = mcp_sub.add_parser(name)

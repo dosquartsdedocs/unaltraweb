@@ -130,6 +130,28 @@ page.capture.edited.svg  # optional author-owned override
 
 Reference `page.capture.yml` as the captioned image source. Jekyll and the PDF builder prefer `page.capture.edited.svg` when it exists, otherwise `page.capture.svg`. The PNG is the untouched browser capture; annotations remain editable vector layers in the self-contained SVG. Never overwrite an edited SVG without approval, and do not publish while `web_capture_check` reports it stale.
 
+## Computed figures
+
+Use a computation source in `mode: figure` when a chapter must show a figure produced by R or Python code. Store the source under a configured `source_roots` directory (for example `assets/quarto/`), declare its outputs, and reference the source the same way you reference a diagram:
+
+```markdown
+![Alt text](assets/quarto/data-visualization/boxplot.qmd "Caption"){: data-figure-width="48rem"}
+```
+
+The source declares `mode: figure` and its generated assets:
+
+```yaml
+---
+unaltraweb_compute:
+  engine: r
+  mode: figure
+  outputs:
+    - assets/img/data-visualization/boxplot-housing.svg
+---
+```
+
+`make build` and `make serve` first render only stale figures (`manual-compute-render-figures`), then Jekyll rewrites the reference to the declared output. An author-owned override named like the output with `.edited.svg` (for example `boxplot-housing.edited.svg`) wins over the regenerated figure and is never overwritten. Keep figure outputs deterministic: regenerate them from the source instead of editing the generated SVG, and ask before replacing an existing `.edited.svg`.
+
 ## Citations, code, and math
 
 Use verified bibliography keys:
@@ -157,7 +179,7 @@ Tabs, details, interactive charts and maps, galleries, audio, video, and arbitra
 
 ## Executable sources
 
-When a `.qmd`, `.Rmd`, `.R`, `.py`, or `.ipynb` source owns a chapter, edit that source rather than its generated `.md`. Keep one R or Python engine per source, declare non-code inputs, render explicitly, and review source, Markdown, figures, and `.unaltraweb/computations.lock.json` together. Never publish while `manual_computation_check` reports stale output.
+When a `.qmd`, `.Rmd`, `.R`, `.py`, or `.ipynb` source owns a chapter, edit that source rather than its generated `.md`. Keep one R or Python engine per source, declare non-code inputs, render explicitly, and review source, Markdown, figures, and `.unaltraweb/computations.lock.json` together. Never publish while `manual_computation_check` reports stale output. For single figures, prefer `mode: figure` sources referenced from Markdown (see "Computed figures" above) instead of chapter-mode sources, because figure sources are rendered on `make build` and keep each figure reproducible on its own.
 
 ## Required checks
 

@@ -14,6 +14,7 @@ COMPUTE_PYTHON_IMAGE ?=
 COMPUTE_R_IMAGE ?=
 COMPUTE_SOURCE ?=
 COMPUTE_CONFIRM_OVERWRITE ?= 0
+COMPUTE_STALE_ONLY ?= 0
 COMPUTE_SCRIPT := $(CURDIR)/scripts/computations/render.py
 COMPUTE_PYTHON_LOCAL_IMAGE ?= unaltraweb-compute-python:local
 COMPUTE_R_LOCAL_IMAGE ?= unaltraweb-compute-r:local
@@ -50,7 +51,7 @@ SCIMAGO_ARGS += --input $(SCIMAGO_INPUT)
 endif
 
 .PHONY: docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check manual-pdf-image manual-pdf-status manual-pdf-build manual-pdf-publish manual-compute-status manual-compute-check manual-compute-render manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio compute-base-image-python compute-base-image-r web-capture-status web-capture-check web-capture-render web-capture-image
-.PHONY: mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
+.PHONY: mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
 
 mcp-build: ## Validate the lightweight Python MCP control plane
 	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m compileall -q src/unaltraweb_mcp
@@ -106,7 +107,10 @@ mcp-manual-computation-check: ## Fail when executable manual results are stale
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-computation-check --source "$(COMPUTE_SOURCE)"
 
 mcp-manual-computation-render: ## Execute and publish versioned manual computation outputs
-	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-computation-render --source "$(COMPUTE_SOURCE)" $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_CONFIRM_OVERWRITE)),--confirm-overwrite,)
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-computation-render --source "$(COMPUTE_SOURCE)" $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_CONFIRM_OVERWRITE)),--confirm-overwrite,) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_STALE_ONLY)),--stale-only,)
+
+mcp-manual-computation-render-figures: ## Render all stale figure-only computation outputs without touching fresh or unmanaged files
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-computation-render-figures
 
 mcp-web-capture-status: ## Inspect web capture recipes and generated artefacts
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp web-capture-status --source "$(WEB_CAPTURE_SOURCE)"
@@ -177,7 +181,7 @@ manual-compute-render: ## Execute sources and atomically publish Markdown and fi
 	    -e HOME=/tmp -e COMPUTE_PYTHON_IMAGE="$$python_image" -e COMPUTE_R_IMAGE="$$r_image" \
 	    -e UNALTRAWEB_COMPUTE_IMAGE_ID="$$identity" -e UNALTRAWEB_COMPUTE_IMAGE_DIGEST="$$digest" \
 	    -v "$(abspath $(PROJECT)):/project:rw" -v "$(COMPUTE_SCRIPT):/opt/unaltraweb/computations/render.py:ro" -w /project --entrypoint python3 "$$image" \
-	    /opt/unaltraweb/computations/render.py render --project /project --engine "$$engine" $(if $(strip $(COMPUTE_SOURCE)),--source "$(COMPUTE_SOURCE)",) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_CONFIRM_OVERWRITE)),--confirm-overwrite,) >> "$$results"; \
+	    /opt/unaltraweb/computations/render.py render --project /project --engine "$$engine" $(if $(strip $(COMPUTE_SOURCE)),--source "$(COMPUTE_SOURCE)",) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_CONFIRM_OVERWRITE)),--confirm-overwrite,) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_STALE_ONLY)),--stale-only,) >> "$$results"; \
 	done; \
 	if test -z "$(strip $(COMPUTE_SOURCE))"; then $(PYTHON) "$(COMPUTE_SCRIPT)" prune --project "$(abspath $(PROJECT))" >/dev/null; fi; \
 	$(PYTHON) -c 'import json,sys; text=open(sys.argv[1], encoding="utf-8").read(); decoder=json.JSONDecoder(); items=[]; index=0; exec("while index < len(text):\n index += len(text[index:]) - len(text[index:].lstrip())\n if index >= len(text): break\n item,index = decoder.raw_decode(text,index)\n items.append(item)"); rendered=[entry for item in items for entry in item.get("rendered", [])]; print(json.dumps({"project":"$(abspath $(PROJECT))","rendered":rendered,"rendered_count":len(rendered),"ok":all(item.get("ok",False) for item in items)}, indent=2))' "$$results"

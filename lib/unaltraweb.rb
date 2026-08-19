@@ -3,6 +3,7 @@
 require_relative "unaltraweb/version"
 
 %w[
+  computation_figure_images
   computation_sources
   details
   external-posts

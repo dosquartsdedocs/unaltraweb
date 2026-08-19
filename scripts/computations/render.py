@@ -643,6 +643,69 @@ def inspect_image(image: str) -> dict[str, str]:
     return {"available": "true", "id": image_id, "digest": digest}
 
 
+def status_item(project: Path, config: dict[str, Any], config_path: Path, record: dict[str, Any], saved: dict[str, Any]) -> dict[str, Any]:
+    current_fingerprint, dependencies, image = fingerprint(project, config, config_path, record, saved)
+    if record.get("mode") == "figure":
+        saved_outputs = saved.get("outputs") if isinstance(saved.get("outputs"), list) else []
+        outputs_exist = all(output.is_file() for output in record["outputs"])
+        outputs_valid = bool(outputs_exist and saved_outputs and signatures_match(project, saved_outputs))
+        current = bool(outputs_exist and not saved) or bool(saved and saved.get("fingerprint") == current_fingerprint and outputs_valid)
+        reason = "current"
+        if not saved and outputs_exist:
+            reason = "present_unmanaged"
+        elif not saved:
+            reason = "not_rendered"
+        elif saved.get("fingerprint") != current_fingerprint:
+            reason = "source_or_environment_changed"
+        elif not outputs_exist:
+            reason = "output_missing"
+        elif not outputs_valid:
+            reason = "output_modified"
+        return {
+            "source": record["source_path"],
+            "mode": "figure",
+            "outputs": record["output_paths"],
+            "engine": record["engine"],
+            "image": image,
+            "local_image": inspect_image(image["image"]),
+            "fingerprint": current_fingerprint,
+            "dependencies": dependencies,
+            "current": current,
+            "reason": reason,
+        }
+    output_exists = record["output"].is_file()
+    output_valid = bool(output_exists and saved.get("output") and signatures_match(project, [saved["output"]]))
+    saved_assets = saved.get("assets", [])
+    assets_valid = signatures_match(project, saved_assets) and no_unexpected_assets(project, record["figures"], saved_assets)
+    current = bool(output_exists and not saved) or bool(saved and saved.get("fingerprint") == current_fingerprint and output_valid and assets_valid)
+    reason = "current"
+    if not saved and output_exists:
+        reason = "present_unmanaged"
+    elif not saved:
+        reason = "not_rendered"
+    elif saved.get("fingerprint") != current_fingerprint:
+        reason = "source_or_environment_changed"
+    elif not output_exists:
+        reason = "output_missing"
+    elif not output_valid:
+        reason = "output_modified"
+    elif not assets_valid:
+        reason = "assets_missing_or_modified"
+    return {
+        "source": record["source_path"],
+        "mode": "chapter",
+        "output": record["output_path"],
+        "figures": record["figures_path"],
+        "engine": record["engine"],
+        "image": image,
+        "local_image": inspect_image(image["image"]),
+        "fingerprint": current_fingerprint,
+        "dependencies": dependencies,
+        "current": current,
+        "reason": reason,
+    }
+
+
 def status(project: Path, source: str = "", engine: str = "") -> dict[str, Any]:
     config, config_path = load_config(project)
     all_records = discover_sources(project, config)
@@ -654,67 +717,7 @@ def status(project: Path, source: str = "", engine: str = "") -> dict[str, Any]:
             raise ComputationError(f"Selected file is not an enabled computation source: {source}")
     lock = load_lock(project)
     lock_records = lock["records"]
-    items: list[dict[str, Any]] = []
-    for record in records:
-        saved = lock_records.get(record["source_path"], {})
-        current_fingerprint, dependencies, image = fingerprint(project, config, config_path, record, saved)
-        if record.get("mode") == "figure":
-            saved_outputs = saved.get("outputs") if isinstance(saved.get("outputs"), list) else []
-            outputs_exist = all(output.is_file() for output in record["outputs"])
-            outputs_valid = bool(outputs_exist and saved_outputs and signatures_match(project, saved_outputs))
-            current = bool(saved and saved.get("fingerprint") == current_fingerprint and outputs_valid)
-            reason = "current"
-            if not saved:
-                reason = "not_rendered"
-            elif saved.get("fingerprint") != current_fingerprint:
-                reason = "source_or_environment_changed"
-            elif not outputs_exist:
-                reason = "output_missing"
-            elif not outputs_valid:
-                reason = "output_modified"
-            item = {
-                "source": record["source_path"],
-                "mode": "figure",
-                "outputs": record["output_paths"],
-                "engine": record["engine"],
-                "image": image,
-                "local_image": inspect_image(image["image"]),
-                "fingerprint": current_fingerprint,
-                "dependencies": dependencies,
-                "current": current,
-                "reason": reason,
-            }
-        else:
-            output_exists = record["output"].is_file()
-            output_valid = bool(output_exists and saved.get("output") and signatures_match(project, [saved["output"]]))
-            saved_assets = saved.get("assets", [])
-            assets_valid = signatures_match(project, saved_assets) and no_unexpected_assets(project, record["figures"], saved_assets)
-            current = bool(saved and saved.get("fingerprint") == current_fingerprint and output_valid and assets_valid)
-            reason = "current"
-            if not saved:
-                reason = "not_rendered"
-            elif saved.get("fingerprint") != current_fingerprint:
-                reason = "source_or_environment_changed"
-            elif not output_exists:
-                reason = "output_missing"
-            elif not output_valid:
-                reason = "output_modified"
-            elif not assets_valid:
-                reason = "assets_missing_or_modified"
-            item = {
-                "source": record["source_path"],
-                "mode": "chapter",
-                "output": record["output_path"],
-                "figures": record["figures_path"],
-                "engine": record["engine"],
-                "image": image,
-                "local_image": inspect_image(image["image"]),
-                "fingerprint": current_fingerprint,
-                "dependencies": dependencies,
-                "current": current,
-                "reason": reason,
-            }
-        items.append(item)
+    items = [status_item(project, config, config_path, record, lock_records.get(record["source_path"], {})) for record in records]
     known = {item["source_path"] for item in all_records}
     orphaned = sorted(path for path in lock_records if path not in known)
     return {
@@ -1097,7 +1100,7 @@ def project_render_lock(project: Path):
         yield
 
 
-def _render(project: Path, source: str = "", engine: str = "", confirm_overwrite: bool = False) -> dict[str, Any]:
+def _render(project: Path, source: str = "", engine: str = "", confirm_overwrite: bool = False, stale_only: bool = False) -> dict[str, Any]:
     config, config_path = load_config(project)
     all_records = discover_sources(project, config)
     records = [item for item in all_records if not engine or item["engine"] == engine]
@@ -1109,7 +1112,14 @@ def _render(project: Path, source: str = "", engine: str = "", confirm_overwrite
     lock = load_lock(project)
     results: list[dict[str, Any]] = []
     for record in records:
-        current_fingerprint, dependencies, image = fingerprint(project, config, config_path, record)
+        saved = lock["records"].get(record["source_path"], {})
+        if stale_only:
+            if status_item(project, config, config_path, record, saved)["current"]:
+                continue
+            managed_paths = list(record["outputs"]) if record.get("mode") == "figure" else [record["output"], record["figures"]]
+            if not saved and all(path.exists() for path in managed_paths):
+                continue
+        current_fingerprint, dependencies, image = fingerprint(project, config, config_path, record, saved)
         saved = lock["records"].get(record["source_path"], {})
         if record.get("mode") == "figure":
             build_root = project / "tmp" / "manual-computations"
@@ -1156,9 +1166,9 @@ def _render(project: Path, source: str = "", engine: str = "", confirm_overwrite
     return {"project": str(project), "rendered": results, "rendered_count": len(results), "ok": True}
 
 
-def render(project: Path, source: str = "", engine: str = "", confirm_overwrite: bool = False) -> dict[str, Any]:
+def render(project: Path, source: str = "", engine: str = "", confirm_overwrite: bool = False, stale_only: bool = False) -> dict[str, Any]:
     with project_render_lock(project):
-        return _render(project, source=source, engine=engine, confirm_overwrite=confirm_overwrite)
+        return _render(project, source=source, engine=engine, confirm_overwrite=confirm_overwrite, stale_only=stale_only)
 
 
 def prune(project: Path) -> dict[str, Any]:
@@ -1213,6 +1223,7 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--source", default="")
     root.add_argument("--engine", choices=["r", "python"], default="")
     root.add_argument("--confirm-overwrite", action="store_true")
+    root.add_argument("--stale-only", action="store_true")
     return root
 
 
@@ -1223,7 +1234,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command in {"status", "check"}:
             result = status(project, source=args.source, engine=args.engine)
         elif args.command == "render":
-            result = render(project, source=args.source, engine=args.engine, confirm_overwrite=args.confirm_overwrite)
+            result = render(project, source=args.source, engine=args.engine, confirm_overwrite=args.confirm_overwrite, stale_only=args.stale_only)
         elif args.command == "prune":
             result = prune(project)
         elif args.command == "resolve":

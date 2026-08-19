@@ -1080,7 +1080,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 ],
                 "web": "supported with localized numbering; data-figure-width narrows and centres an individual figure container",
                 "pdf": "supported; custom web container width requires rendered PDF review",
-                "guidance": "Always provide meaningful alt text and an explicit Markdown title caption. Use data-figure-width only when the natural content is substantially narrower than the reading column; it does not set a fixed height.",
+                "guidance": "Always provide meaningful alt text and an explicit Markdown title caption. Use data-figure-width only when the natural content is substantially narrower than the reading column; it does not set a fixed height. To publish a figure computed with R or Python, reference the executable source instead of its SVG and let the build rewrite it to the declared mode:figure output (see executable_sources).",
             },
             {
                 "id": "subfigures",
@@ -1601,13 +1601,16 @@ def run_factory_make(factory: Path, project: Path, target: str, *, extra_args: l
     return payload
 
 
-def _computation_env(source: str) -> dict[str, str]:
+def _computation_env(source: str = "", stale_only: bool = False) -> dict[str, str]:
+    env: dict[str, str] = {}
     value = source.strip()
-    if not value:
-        return {}
-    if Path(value).is_absolute() or ".." in Path(value).parts or not re.fullmatch(r"[A-Za-z0-9_./-]+", value):
-        raise ValueError("Computation source must be a safe project-relative path.")
-    return {"COMPUTE_SOURCE": value}
+    if value:
+        if Path(value).is_absolute() or ".." in Path(value).parts or not re.fullmatch(r"[A-Za-z0-9_./-]+", value):
+            raise ValueError("Computation source must be a safe project-relative path.")
+        env["COMPUTE_SOURCE"] = value
+    if stale_only:
+        env["COMPUTE_STALE_ONLY"] = "1"
+    return env
 
 
 def manual_computation_status(project: Path, factory: Path, source: str = "") -> dict[str, Any]:
@@ -1618,11 +1621,15 @@ def manual_computation_check(project: Path, factory: Path, source: str = "") -> 
     return run_factory_make(factory, project, "manual-compute-check", env=_computation_env(source))
 
 
-def manual_computation_render(project: Path, factory: Path, source: str = "", *, confirm_overwrite: bool = False) -> dict[str, Any]:
-    env = _computation_env(source)
+def manual_computation_render(project: Path, factory: Path, source: str = "", *, confirm_overwrite: bool = False, stale_only: bool = False) -> dict[str, Any]:
+    env = _computation_env(source, stale_only=stale_only)
     if confirm_overwrite:
         env["COMPUTE_CONFIRM_OVERWRITE"] = "1"
     return run_factory_make(factory, project, "manual-compute-render", env=env)
+
+
+def manual_computation_render_figures(project: Path, factory: Path) -> dict[str, Any]:
+    return run_factory_make(factory, project, "manual-compute-render-figures", env={})
 
 
 def _web_capture_env(source: str = "") -> dict[str, str]:
