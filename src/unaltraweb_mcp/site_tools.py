@@ -29,6 +29,28 @@ CONTENT_DIRS = [
     "_theses",
 ]
 COMPUTATION_SUFFIXES = {".qmd", ".rmd", ".r", ".py", ".ipynb"}
+DIAGRAM_SOURCE_SUFFIXES = {".mmd", ".mermaid", ".puml", ".plantuml", ".uml"}
+MANUAL_PDF_BODY_FONT_POINTS = 11.0
+MANUAL_PDF_TEXT_WIDTH_POINTS = 462.0
+DIAGRAM_PDF_FONT_MIN_POINTS = 8.0
+DIAGRAM_PDF_FONT_MAX_POINTS = 11.0
+DIAGRAM_PDF_HEIGHT_MAX_POINTS = 600.0
+MANUAL_WEB_ROOT_FONT_PIXELS = 16.0
+MANUAL_WEB_BODY_FONT_PIXELS = 16.32
+MANUAL_WEB_TEXT_WIDTH_PIXELS = 920.0
+FIGURE_WEB_FONT_MIN_PIXELS = MANUAL_WEB_BODY_FONT_PIXELS * 0.75
+FIGURE_WEB_FONT_MAX_PIXELS = MANUAL_WEB_BODY_FONT_PIXELS
+VEGA_SOURCE_SUFFIXES = (".vl.json", ".vg.json")
+WEB_CAPTURE_SUFFIXES = (".capture.yml", ".capture.yaml")
+RASTER_VISUAL_SUFFIXES = {".gif", ".jpeg", ".jpg", ".png", ".tiff", ".webp"}
+VISUAL_LOCALIZATION_SUFFIXES = tuple(sorted({
+    ".capture.edited.svg", ".capture.yaml", ".capture.yml", ".capture.svg",
+    ".mermaid.edited.svg", ".mermaid.svg", ".plantuml.edited.svg", ".plantuml.svg",
+    ".mmd.edited.svg", ".mmd.svg", ".puml.edited.svg", ".puml.svg", ".uml.edited.svg", ".uml.svg",
+    ".vl.json", ".vg.json", ".edited.svg",
+    ".qmd", ".rmd", ".ipynb", ".mermaid", ".plantuml", ".mmd", ".puml", ".uml", ".py", ".r",
+    ".jpeg", ".tiff", ".webp", ".gif", ".jpg", ".png", ".svg", ".pdf",
+}, key=len, reverse=True))
 
 TRANSLATABLE_CONTENT_DIRS = {
     "_pages",
@@ -52,6 +74,14 @@ MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(([^)\n]+)\)")
 STANDALONE_BOLD_LABEL_RE = re.compile(r"^\s*\*\*[^*\n]+\.\*\*\s*$")
 H2_RE = re.compile(r"^##\s+(.+?)\s*$")
 LEARNING_OBJECTIVE_CALLOUT_RE = re.compile(r"^>{5}(?!>)\s*(.*)$")
+FIGURE_DIMENSION_RE = re.compile(
+    r'''(?:\A|\s)(?P<name>data-figure-(?:width|height)(?:-(?:web|pdf))?)\s*=\s*'''
+    r'''(?:"(?P<double>[^"]*)"|'(?P<single>[^']*)'|(?P<bare>[^\s}]+))''',
+    re.IGNORECASE,
+)
+SVG_VIEWBOX_RE = re.compile(r'''\bviewBox=["']([^"']+)["']''', re.IGNORECASE)
+SVG_CSS_FONT_SIZE_RE = re.compile(r"font-size\s*:\s*([0-9]+(?:\.[0-9]+)?)(px|pt|rem)?", re.IGNORECASE)
+SVG_ATTRIBUTE_FONT_SIZE_RE = re.compile(r'''font-size=["']([0-9]+(?:\.[0-9]+)?)(px|pt|rem)?["']''', re.IGNORECASE)
 MANUAL_EDITORIAL_RULES = [
     (
         "workflow_status",
@@ -348,7 +378,17 @@ def content_inventory(project: Path) -> dict[str, Any]:
         for path in (project / directory).rglob("*")
         if (project / directory).is_dir() and path.is_file() and path.suffix.lower() in COMPUTATION_SUFFIXES
     )
-    web_capture_sources = sorted((project / "assets").rglob("*.capture.yml")) if (project / "assets").is_dir() else []
+    web_capture_sources = sorted(
+        path
+        for path in (project / "assets").rglob("*")
+        if path.is_file() and path.name.lower().endswith(WEB_CAPTURE_SUFFIXES)
+    ) if (project / "assets").is_dir() else []
+    visualization_sources = sorted(
+        path
+        for path in (project / "assets").rglob("*")
+        if path.is_file() and path.name.lower().endswith((".vl.json", ".vg.json"))
+    ) if (project / "assets").is_dir() else []
+    visualization_manifest = project / ".vegavisuals.yml"
     return {
         "project": str(project),
         "generated_at": utc_now(),
@@ -357,6 +397,8 @@ def content_inventory(project: Path) -> dict[str, Any]:
         "assets_present": (project / "assets").is_dir(),
         "computation_sources": [rel(project, path) for path in computation_sources],
         "web_capture_sources": [rel(project, path) for path in web_capture_sources],
+        "visualization_manifest": rel(project, visualization_manifest) if visualization_manifest.is_file() else "",
+        "visualization_sources": [rel(project, path) for path in visualization_sources],
     }
 
 
@@ -686,8 +728,501 @@ def _manual_markdown_paths(project: Path) -> list[Path]:
     return sorted(set(paths))
 
 
+def _computation_front_matter_for_typography(source: Path) -> dict[str, Any]:
+    if source.suffix.lower() in {".qmd", ".rmd"}:
+        return read_front_matter(source)
+    if source.suffix.lower() == ".ipynb":
+        try:
+            notebook = json.loads(source.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            return {}
+        value = notebook.get("metadata", {}).get("unaltraweb_front_matter")
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, str):
+            parsed = load_yaml_text(value)
+            return parsed if isinstance(parsed, dict) else {}
+        return {}
+
+    prefix = "#'" if source.suffix.lower() == ".r" else "#"
+    try:
+        lines = source.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return {}
+    yaml_lines: list[str] = []
+    in_front_matter = False
+    for line in lines:
+        stripped = line.lstrip()
+        if not stripped.startswith(prefix):
+            if in_front_matter:
+                break
+            continue
+        content = stripped[len(prefix):].lstrip()
+        if content == "---":
+            if in_front_matter:
+                break
+            in_front_matter = True
+            continue
+        if in_front_matter:
+            yaml_lines.append(content)
+    parsed = load_yaml_text("\n".join(yaml_lines)) if yaml_lines else {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _visual_output_for_typography(project: Path, reference: str) -> tuple[Path | None, str]:
+    source = (project / reference).resolve()
+    try:
+        source.relative_to(project)
+    except ValueError:
+        return None, "outside_project"
+    if not source.is_file():
+        return None, "missing_source"
+
+    lower = source.as_posix().lower()
+    if any(lower.endswith(suffix) for suffix in DIAGRAM_SOURCE_SUFFIXES):
+        candidates = [Path(str(source) + ".edited.svg"), Path(str(source) + ".svg")]
+        return next((candidate for candidate in candidates if candidate.is_file()), None), "diagram"
+    if lower.endswith(WEB_CAPTURE_SUFFIXES):
+        base = str(source).rsplit(".", 1)[0]
+        candidates = [Path(base + ".edited.svg"), Path(base + ".svg")]
+        return next((candidate for candidate in candidates if candidate.is_file()), None), "web_capture"
+    if lower.endswith(VEGA_SOURCE_SUFFIXES):
+        manifest = load_yaml_file(project / ".vegavisuals.yml")
+        items = manifest.get("visualizations") if isinstance(manifest, dict) else None
+        source_relative = source.relative_to(project).as_posix()
+        matches = [item for item in items or [] if isinstance(item, dict) and str(item.get("source") or "") == source_relative]
+        if len(matches) != 1:
+            return None, "vega_manifest"
+        output = (project / str(matches[0].get("output") or "")).resolve()
+        try:
+            output.relative_to(project)
+        except ValueError:
+            return None, "outside_project"
+        return (output if output.is_file() else None), "vega"
+    if source.suffix.lower() in COMPUTATION_SUFFIXES:
+        front = _computation_front_matter_for_typography(source)
+        metadata = front.get("unaltraweb_compute") if isinstance(front, dict) else None
+        if not isinstance(metadata, dict) or str(metadata.get("mode") or "").strip().lower() != "figure":
+            return None, "computation_metadata"
+        outputs = metadata.get("outputs")
+        if outputs is None and metadata.get("output"):
+            outputs = [metadata["output"]]
+        if not isinstance(outputs, list) or not outputs:
+            return None, "computation_metadata"
+        output = (project / str(outputs[0])).resolve()
+        try:
+            output.relative_to(project)
+        except ValueError:
+            return None, "outside_project"
+        edited = output.with_suffix(".edited.svg")
+        if edited.is_file():
+            return edited, "computation"
+        return (output if output.is_file() else None), "computation"
+    if source.suffix.lower() == ".svg":
+        return source, "svg"
+    if source.suffix.lower() in RASTER_VISUAL_SUFFIXES:
+        return source, "raster"
+    return source, "unsupported"
+
+
+def _localized_visual_reference(
+    project: Path,
+    reference: str,
+    *,
+    language: str,
+    default_lang: str,
+    languages: list[str],
+) -> str:
+    current = language.strip()
+    default = default_lang.strip()
+    if not current or current == default:
+        return reference
+    suffix = next((candidate for candidate in VISUAL_LOCALIZATION_SUFFIXES if reference.lower().endswith(candidate)), "")
+    if not suffix:
+        return reference
+    stem = reference[:-len(suffix)]
+    configured = {str(value).strip().lower() for value in languages if str(value).strip()}
+    configured.update({current.lower(), default.lower()})
+    if any(stem.lower().endswith(f".{code}") for code in configured):
+        return reference
+    localized = f"{stem}.{current}{suffix}"
+    candidate = (project / localized).resolve()
+    try:
+        candidate.relative_to(project)
+    except ValueError:
+        return reference
+    return localized if candidate.is_file() else reference
+
+
+def _figure_dimensions(line: str) -> dict[str, str]:
+    normalized = line.translate({0x2018: ord("'"), 0x2019: ord("'"), 0x201C: ord('"'), 0x201D: ord('"')})
+    values: dict[str, str] = {}
+    for match in FIGURE_DIMENSION_RE.finditer(normalized):
+        values[match.group("name").lower()] = next(
+            value for value in match.group("double", "single", "bare") if value is not None
+        ).strip()
+    return {
+        "web_width": values.get("data-figure-width-web") or values.get("data-figure-width") or "",
+        "web_height": values.get("data-figure-height-web") or values.get("data-figure-height") or "",
+        "pdf_width": values.get("data-figure-width-pdf") or values.get("data-figure-width") or "",
+        "pdf_height": values.get("data-figure-height-pdf") or values.get("data-figure-height") or "",
+    }
+
+
+def _dimension_value(value: str, *, support: str, axis: str, percentage_base: float | None = None) -> float | None:
+    match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)(%|px|pt|rem|em|in|cm|mm)", value.strip(), re.IGNORECASE)
+    if not match:
+        return None
+    number = float(match.group(1))
+    unit = match.group(2).lower()
+    if support == "web":
+        if unit == "%":
+            return percentage_base * number / 100.0 if percentage_base is not None else None
+        if unit == "px":
+            return number
+        if unit == "pt":
+            return number * 96.0 / 72.0
+        if unit == "rem":
+            return number * MANUAL_WEB_ROOT_FONT_PIXELS
+        if unit == "em":
+            return number * MANUAL_WEB_BODY_FONT_PIXELS
+        if unit == "in":
+            return number * 96.0
+        if unit == "cm":
+            return number * 96.0 / 2.54
+        if unit == "mm":
+            return number * 96.0 / 25.4
+    else:
+        if unit == "%":
+            base = percentage_base or (MANUAL_PDF_TEXT_WIDTH_POINTS if axis == "width" else DIAGRAM_PDF_HEIGHT_MAX_POINTS)
+            return base * number / 100.0
+        if unit == "px":
+            return number * 72.0 / 96.0
+        if unit == "pt":
+            return number
+        if unit in {"rem", "em"}:
+            if axis == "width" and unit == "rem":
+                return min(number / 60.0, 1.0) * MANUAL_PDF_TEXT_WIDTH_POINTS
+            return number * MANUAL_PDF_BODY_FONT_POINTS
+        if unit == "in":
+            return number * 72.0
+        if unit == "cm":
+            return number * 72.0 / 2.54
+        if unit == "mm":
+            return number * 72.0 / 25.4
+    return None
+
+
+def _support_typography(
+    *,
+    support: str,
+    viewbox_width: float,
+    viewbox_height: float,
+    font_pixels: float,
+    width: str,
+    height: str,
+    width_factor: float = 1.0,
+) -> dict[str, Any] | None:
+    maximum_width = (MANUAL_WEB_TEXT_WIDTH_PIXELS if support == "web" else MANUAL_PDF_TEXT_WIDTH_POINTS) * width_factor
+    if width:
+        display_width = _dimension_value(width, support=support, axis="width", percentage_base=maximum_width)
+        if display_width is None:
+            return None
+        display_width = min(display_width, maximum_width)
+    elif support == "web":
+        display_width = min(viewbox_width, maximum_width)
+    else:
+        display_width = min(viewbox_width * 72.0 / 96.0, maximum_width)
+
+    scale = display_width / viewbox_width
+    if height:
+        display_height_limit = _dimension_value(height, support=support, axis="height")
+        if display_height_limit is None:
+            return None
+        scale = min(scale, display_height_limit / viewbox_height)
+    display_width = viewbox_width * scale
+    display_height = viewbox_height * scale
+    effective_font = font_pixels * scale
+
+    if support == "web":
+        if effective_font < FIGURE_WEB_FONT_MIN_PIXELS:
+            state = "undersized"
+        elif effective_font > FIGURE_WEB_FONT_MAX_PIXELS:
+            state = "oversized"
+        else:
+            state = "ok"
+        return {
+            "state": state,
+            "display_width_pixels": round(display_width, 2),
+            "display_height_pixels": round(display_height, 2),
+            "font_pixels": round(effective_font, 2),
+            "font_to_body_ratio": round(effective_font / MANUAL_WEB_BODY_FONT_PIXELS, 3),
+        }
+
+    if display_height > DIAGRAM_PDF_HEIGHT_MAX_POINTS:
+        state = "too_tall"
+    elif effective_font < DIAGRAM_PDF_FONT_MIN_POINTS:
+        state = "undersized"
+    elif effective_font > DIAGRAM_PDF_FONT_MAX_POINTS:
+        state = "oversized"
+    else:
+        state = "ok"
+    return {
+        "state": state,
+        "display_width_points": round(display_width, 2),
+        "display_height_points": round(display_height, 2),
+        "font_points": round(effective_font, 2),
+        "font_to_body_ratio": round(effective_font / MANUAL_PDF_BODY_FONT_POINTS, 3),
+    }
+
+
+def _recommended_figure_dimensions(
+    viewbox_width: float,
+    viewbox_height: float,
+    font_pixels: float,
+    *,
+    web_width_factor: float = 1.0,
+    pdf_width_factor: float = 1.0,
+) -> dict[str, Any]:
+    web_target_font = MANUAL_WEB_BODY_FONT_PIXELS * 0.85
+    web_width_pixels = web_target_font * viewbox_width / font_pixels
+    web_minimum_width = FIGURE_WEB_FONT_MIN_PIXELS * viewbox_width / font_pixels
+    web_width_limit = MANUAL_WEB_TEXT_WIDTH_PIXELS * web_width_factor
+    if web_width_pixels <= web_width_limit:
+        web_width_rem = round(web_width_pixels / MANUAL_WEB_ROOT_FONT_PIXELS * 2.0) / 2.0
+        web = {
+            "width": f"{web_width_rem:g}rem",
+            "height": "auto",
+            "estimated_height_pixels": round(viewbox_height * web_width_pixels / viewbox_width, 1),
+        }
+    elif web_minimum_width <= web_width_limit:
+        web = {
+            "width": "100%",
+            "height": "auto",
+            "estimated_height_pixels": round(viewbox_height * web_width_limit / viewbox_width, 1),
+            "message": "Use the full available web panel; embedded text reaches the minimum target but not the preferred 85% of body text.",
+        }
+    else:
+        web = {
+            "width": None,
+            "height": "auto",
+            "message": "The source text cannot reach 85% of body text within the web reading column; increase source font size or split the figure.",
+        }
+
+    pdf_target_font = 9.5
+    pdf_width_points = pdf_target_font * viewbox_width / font_pixels
+    pdf_minimum_width = DIAGRAM_PDF_FONT_MIN_POINTS * viewbox_width / font_pixels
+    pdf_width_limit = min(
+        MANUAL_PDF_TEXT_WIDTH_POINTS * pdf_width_factor,
+        DIAGRAM_PDF_HEIGHT_MAX_POINTS * viewbox_width / viewbox_height,
+    )
+    if pdf_width_points <= pdf_width_limit:
+        pdf_percentage = round(pdf_width_points / MANUAL_PDF_TEXT_WIDTH_POINTS * 100.0)
+        pdf = {
+            "width": f"{pdf_percentage}%",
+            "height": "auto",
+            "estimated_height_points": round(viewbox_height * pdf_width_points / viewbox_width, 1),
+        }
+    elif pdf_minimum_width <= pdf_width_limit:
+        pdf = {
+            "width": "100%",
+            "height": "auto",
+            "estimated_height_points": round(viewbox_height * pdf_width_limit / viewbox_width, 1),
+            "message": "Use the full available PDF panel; embedded text reaches 8 pt but not the preferred 9.5 pt target.",
+        }
+    else:
+        pdf = {
+            "width": None,
+            "height": "auto",
+            "message": "The source cannot reach 9.5 pt text within both the PDF width and 600 pt height limits; increase source font size or split the figure.",
+        }
+    return {"web": web, "pdf": pdf}
+
+
+def _figure_typography(
+    project: Path,
+    markdown_path: Path,
+    line: str,
+    lineno: int,
+    raw: str,
+    *,
+    web_width_factor: float = 1.0,
+    pdf_width_factor: float = 1.0,
+    language: str = "",
+    default_lang: str = "",
+    languages: list[str] | None = None,
+) -> dict[str, Any] | None:
+    undecorated = re.sub(r"\{\{\s*site\.baseurl\s*\}\}", "", raw).strip()
+    path_match = re.match(r"([^\s?#]+)", undecorated)
+    if not path_match:
+        return None
+    reference = path_match.group(1).lstrip("/")
+    if re.match(r"^(?:[a-z][a-z0-9+.-]*:)?//", reference, re.IGNORECASE):
+        return {
+            "path": rel(project, markdown_path),
+            "line": lineno,
+            "source": reference,
+            "output": "",
+            "state": "unverified",
+            "message": "Remote figures require a rendered visual review; embedded text metrics are not locally inspectable.",
+        }
+
+    selected_reference = _localized_visual_reference(
+        project,
+        reference,
+        language=language,
+        default_lang=default_lang,
+        languages=languages or [],
+    )
+    output, visual_kind = _visual_output_for_typography(project, selected_reference)
+    if output is None:
+        return {
+            "path": rel(project, markdown_path),
+            "line": lineno,
+            "source": reference,
+            "localized_source": selected_reference if selected_reference != reference else None,
+            "output": "",
+            "state": "unverified",
+            "message": "Render or restore the local visual before checking embedded text size on web and PDF.",
+        }
+    if output.suffix.lower() != ".svg":
+        return {
+            "path": rel(project, markdown_path),
+            "line": lineno,
+            "source": reference,
+            "localized_source": selected_reference if selected_reference != reference else None,
+            "output": rel(project, output),
+            "visual_kind": visual_kind,
+            "state": "unverified",
+            "message": "Raster figures do not expose reliable embedded text metrics; prefer SVG for text-bearing figures or review the rendered web and PDF at final size.",
+        }
+
+    try:
+        svg = output.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    viewbox_match = SVG_VIEWBOX_RE.search(svg)
+    if not re.search(r"<(?:text|foreignObject)\b", svg, re.IGNORECASE):
+        return {
+            "path": rel(project, markdown_path),
+            "line": lineno,
+            "source": reference,
+            "localized_source": selected_reference if selected_reference != reference else None,
+            "output": rel(project, output),
+            "visual_kind": visual_kind,
+            "state": "no_text",
+            "message": "The SVG contains no inspectable text; no inside/outside text comparison is needed.",
+        }
+    font_matches: list[float] = []
+    for pattern in (SVG_CSS_FONT_SIZE_RE, SVG_ATTRIBUTE_FONT_SIZE_RE):
+        for match in pattern.finditer(svg):
+            value = float(match.group(1))
+            unit = (match.group(2) or "px").lower()
+            if unit == "pt":
+                value *= 96.0 / 72.0
+            elif unit == "rem":
+                value *= MANUAL_WEB_ROOT_FONT_PIXELS
+            font_matches.append(value)
+    if not viewbox_match or not font_matches:
+        return {
+            "path": rel(project, markdown_path),
+            "line": lineno,
+            "source": reference,
+            "output": rel(project, output),
+            "state": "unverified",
+            "message": "The rendered SVG does not expose a measurable viewBox and font size.",
+        }
+    try:
+        viewbox = [float(value) for value in viewbox_match.group(1).replace(",", " ").split()]
+    except ValueError:
+        return None
+    if len(viewbox) != 4 or viewbox[2] <= 0:
+        return None
+
+    font_size = min(font_matches)
+    dimensions = _figure_dimensions(line)
+    web = _support_typography(
+        support="web",
+        viewbox_width=viewbox[2],
+        viewbox_height=viewbox[3],
+        font_pixels=font_size,
+        width=dimensions["web_width"],
+        height=dimensions["web_height"],
+        width_factor=web_width_factor,
+    )
+    pdf = _support_typography(
+        support="pdf",
+        viewbox_width=viewbox[2],
+        viewbox_height=viewbox[3],
+        font_pixels=font_size,
+        width=dimensions["pdf_width"],
+        height=dimensions["pdf_height"],
+        width_factor=pdf_width_factor,
+    )
+    if web is None or pdf is None:
+        state = "unverified"
+        message = "One or more figure dimensions use a value that cannot be converted into a reliable web/PDF text-size estimate."
+    else:
+        states = {web["state"], pdf["state"]}
+        if states == {"ok"}:
+            state = "ok"
+            message = "Embedded text is proportionate to body text in the base web layout and within the 8-11 pt PDF target."
+        elif "too_tall" in states:
+            state = "too_tall"
+            message = "The figure is estimated to exceed the 600 pt PDF height target at its configured print dimensions."
+        elif len(states) == 1:
+            state = next(iter(states))
+            message = "Embedded text or figure height falls outside the target on both supports."
+        else:
+            state = "mixed"
+            message = "Web and PDF need different figure dimensions to keep embedded text proportionate to body text."
+    return {
+        "path": rel(project, markdown_path),
+        "line": lineno,
+        "source": reference,
+        "localized_source": selected_reference if selected_reference != reference else None,
+        "output": rel(project, output),
+        "visual_kind": visual_kind,
+        "source_minimum_font_pixels": round(font_size, 2),
+        "data_figure_width_web": dimensions["web_width"] or None,
+        "data_figure_height_web": dimensions["web_height"] or None,
+        "data_figure_width_pdf": dimensions["pdf_width"] or None,
+        "data_figure_height_pdf": dimensions["pdf_height"] or None,
+        "web_panel_width_factor": web_width_factor,
+        "pdf_panel_width_factor": pdf_width_factor,
+        "web": web,
+        "pdf": pdf,
+        "estimated_pdf_font_points": pdf["font_points"] if pdf else None,
+        "estimated_pdf_height_points": pdf["display_height_points"] if pdf else None,
+        "suggested_dimensions": _recommended_figure_dimensions(
+            viewbox[2],
+            viewbox[3],
+            font_size,
+            web_width_factor=web_width_factor,
+            pdf_width_factor=pdf_width_factor,
+        ),
+        "state": state,
+        "message": message,
+    }
+
+
+def _subfigure_width_factors(layout: str) -> list[tuple[float, float]]:
+    factors: list[tuple[float, float]] = []
+    for row in layout.split("/"):
+        count = len([token for token in row.split("+") if token.strip()])
+        if not count:
+            continue
+        web_factor = {1: 1.0, 2: 0.49, 3: 0.32, 4: 0.24}.get(count, 0.96 / count)
+        pdf_factor = {1: 0.92, 2: 0.48, 3: 0.31, 4: 0.23}.get(count, 0.92 / count)
+        factors.extend((web_factor, pdf_factor) for _ in range(count))
+    return factors
+
+
 def manual_source_quality_check(project: Path) -> dict[str, Any]:
     project = project_path(project)
+    config = site_config(project)
+    configured_language_values = configured_languages(config)
+    configured_default_language = default_language(config)
     paths = _manual_markdown_paths(project)
 
     bare_tables: list[dict[str, Any]] = []
@@ -695,17 +1230,24 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
     figures_without_title: list[dict[str, Any]] = []
     standalone_bold_labels: list[dict[str, Any]] = []
     learning_objective_callouts: list[dict[str, Any]] = []
+    figure_typography: list[dict[str, Any]] = []
 
     for path in paths:
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except OSError:
             continue
+        front = read_front_matter(path)
+        path_parts = path.relative_to(project).as_posix().split("/")
+        document_language = str(front.get("lang") or (path_parts[1] if len(path_parts) > 2 else "") or configured_default_language)
+        document_default_language = configured_default_language or document_language
 
         in_front_matter = bool(lines and lines[0].strip() == "---")
         in_fence = False
         fence_marker = ""
         in_table_block = False
+        in_subfigures_block = False
+        subfigure_factors: list[tuple[float, float]] = []
         in_bare_table = False
         current_section = "chapter opening"
         current_section_line = 1
@@ -731,6 +1273,15 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
             if in_table_block:
                 if stripped == ":::":
                     in_table_block = False
+                continue
+            if in_subfigures_block and stripped == ":::":
+                in_subfigures_block = False
+                subfigure_factors = []
+                continue
+            subfigures_match = re.match(r'^:::\s*subfigures(?:\s+([^\s"]+))?', stripped)
+            if subfigures_match:
+                in_subfigures_block = True
+                subfigure_factors = _subfigure_width_factors(subfigures_match.group(1) or "")
                 continue
             if stripped.startswith("::: table"):
                 if not previous_opening_block_kind:
@@ -831,6 +1382,21 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
 
             for image_match in MARKDOWN_IMAGE_RE.finditer(line):
                 raw = image_match.group(1).strip()
+                web_width_factor, pdf_width_factor = subfigure_factors.pop(0) if subfigure_factors else (1.0, 1.0)
+                typography = _figure_typography(
+                    project,
+                    path,
+                    line,
+                    lineno,
+                    raw,
+                    web_width_factor=web_width_factor,
+                    pdf_width_factor=pdf_width_factor,
+                    language=document_language,
+                    default_lang=document_default_language,
+                    languages=configured_language_values,
+                )
+                if typography:
+                    figure_typography.append(typography)
                 if ".no-figure" in line or "data-no-figure" in line:
                     continue
                 if not re.search(r'''\s+(?:"[^"]+"|'[^']+')\s*$''', raw):
@@ -919,6 +1485,16 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
                 "sample": dense_learning_objective_callouts[:20],
             }
         )
+    figure_typography_findings = [item for item in figure_typography if item["state"] in {"oversized", "undersized", "too_tall", "mixed"}]
+    if figure_typography_findings:
+        warnings.append(
+            {
+                "severity": "warning",
+                "message": "Some figures need different web/PDF dimensions to keep embedded text proportionate to body text and within the 8-11 pt PDF target.",
+                "count": len(figure_typography_findings),
+                "sample": figure_typography_findings[:20],
+            }
+        )
 
     return {
         "ok": not issues,
@@ -930,6 +1506,28 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
         "standalone_bold_labels": standalone_bold_labels,
         "learning_objective_callouts": learning_objective_callouts,
         "dense_learning_objective_callouts": dense_learning_objective_callouts,
+        "figure_typography": {
+            "web_body_font_pixels": MANUAL_WEB_BODY_FONT_PIXELS,
+            "web_minimum_font_pixels": round(FIGURE_WEB_FONT_MIN_PIXELS, 2),
+            "web_maximum_font_pixels": round(FIGURE_WEB_FONT_MAX_PIXELS, 2),
+            "body_font_points": MANUAL_PDF_BODY_FONT_POINTS,
+            "minimum_font_points": DIAGRAM_PDF_FONT_MIN_POINTS,
+            "maximum_font_points": DIAGRAM_PDF_FONT_MAX_POINTS,
+            "maximum_height_points": DIAGRAM_PDF_HEIGHT_MAX_POINTS,
+            "references": figure_typography,
+            "findings": figure_typography_findings,
+        },
+        "diagram_typography": {
+            "web_body_font_pixels": MANUAL_WEB_BODY_FONT_PIXELS,
+            "web_minimum_font_pixels": round(FIGURE_WEB_FONT_MIN_PIXELS, 2),
+            "web_maximum_font_pixels": round(FIGURE_WEB_FONT_MAX_PIXELS, 2),
+            "body_font_points": MANUAL_PDF_BODY_FONT_POINTS,
+            "minimum_font_points": DIAGRAM_PDF_FONT_MIN_POINTS,
+            "maximum_font_points": DIAGRAM_PDF_FONT_MAX_POINTS,
+            "maximum_height_points": DIAGRAM_PDF_HEIGHT_MAX_POINTS,
+            "references": [item for item in figure_typography if item.get("visual_kind") == "diagram"],
+            "findings": [item for item in figure_typography_findings if item.get("visual_kind") == "diagram"],
+        },
     }
 
 
@@ -1062,7 +1660,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "id": "callouts",
                 "syntax": ["> quotation", ">> note", ">>> example", ">>>> warning", ">>>>> learning objectives", ">>>>>> caution"],
                 "web": "supported with localized labels and nested-blockquote styling",
-                "pdf": "partial: preserved as blockquotes without equivalent web labels or styling",
+                "pdf": "supported with the same localized labels and styled callout boxes",
                 "guidance": "Do not type the generated callout label in the body. Use learning-objective callouts sparingly, normally once after a brief chapter or major-section introduction; use prose, tables, or ordinary notes for mid-section criteria.",
             },
             {
@@ -1077,16 +1675,17 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "syntax": [
                     '![Alt text](assets/img/example.png "Explicit caption")',
                     '![Alt text](assets/img/example.png "Explicit caption"){: data-figure-width="22rem"}',
+                    '![Alt text](assets/img/example.svg "Explicit caption"){: data-figure-width-web="44rem" data-figure-width-pdf="82%"}',
                 ],
-                "web": "supported with localized numbering; data-figure-width narrows and centres an individual figure container",
-                "pdf": "supported; custom web container width requires rendered PDF review",
-                "guidance": "Always provide meaningful alt text and an explicit Markdown title caption. Use data-figure-width only when the natural content is substantially narrower than the reading column; it does not set a fixed height. To publish a figure computed with R or Python, reference the executable source instead of its SVG and let the build rewrite it to the declared mode:figure output (see executable_sources).",
+                "web": "supported with localized numbering; data-figure-width-web and data-figure-height-web control the web box independently",
+                "pdf": "supported; data-figure-width-pdf and data-figure-height-pdf become Pandoc print constraints with aspect ratio preserved",
+                "guidance": "Always provide meaningful alt text and an explicit Markdown title caption. Keep height auto unless a real support limit requires a maximum. Use data-figure-width as a compatible shared fallback, or support-specific attributes when web and PDF need different visible sizes. Run manual_source_quality_check after inserting a text-bearing SVG: it compares the smallest embedded text with body text on both supports and returns suggested dimensions. For localized visuals, reference the unsuffixed default-language source; add .<lang> before the complete suffix only when a translated visual is needed. Missing localized variants fall back to the default source. To publish a figure computed with R or Python, reference the executable source instead of its SVG and let the build rewrite it to the declared mode:figure output (see executable_sources).",
             },
             {
                 "id": "subfigures",
                 "syntax": ['::: subfigures a+b/c "Overall caption"', '![Panel A](a.png "Panel caption")', ":::"] ,
                 "web": "supported; + joins panels in a row and / starts a new row",
-                "pdf": "not yet layout-equivalent; inspect rendered PDF or use separate figures",
+                "pdf": "supported with the declared rows, panel captions, and shared caption; inspect the rendered PDF for legibility",
                 "guidance": "Use when direct comparison is the teaching task: before/after states, controlled alternatives, a short sequence, or complementary views that benefit from one shared caption and number. Prefer compact layouts such as a+b or a+b/c, keep panel captions specific, and use the component selectively. Do not group images only because they share a topic, and avoid consecutive multi-panel blocks that weaken emphasis or legibility.",
             },
             {
@@ -1100,22 +1699,40 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "id": "diagrams",
                 "syntax": ['![Flow](assets/diagrams/flow.mmd "Flow caption")', '![Folders](assets/diagrams/folders.puml "Folder layout")'],
                 "web": "supported through diavisuals-generated SVGs",
-                "pdf": "supported for .mmd, .puml, and .plantuml when a printable SVG exists",
-                "guidance": "Keep source files under assets/diagrams, prefer PlantUML @startfiles for file trees, and never overwrite *.edited.svg without approval.",
+                "pdf": "supported for .mmd, .mermaid, .puml, .plantuml, and .uml when a printable SVG exists",
+                "guidance": "Keep source files under assets/diagrams, prefer PlantUML @startfiles for file trees, and never overwrite *.edited.svg without approval. Use manual_source_quality_check to compare embedded diagram text with body text on web and PDF, keep effective PDF text between 8 pt and the 11 pt body size, and keep print height at or below 600 pt. Apply its separate web/PDF width suggestions when feasible; simplify or split diagrams when no legible dimensions fit.",
+            },
+            {
+                "id": "vega_visualizations",
+                "syntax": [
+                    '![Bars](assets/charts/bars.vl.json "Quarterly bars")',
+                    '![Network](assets/charts/network.vg.json "Network overview"){: data-figure-width="42rem"}',
+                    ".vegavisuals.yml: source -> output",
+                ],
+                "web": "the source reference is rewritten to its single manifest-declared SVG or PNG output; PDF cannot be embedded in an HTML img",
+                "pdf": "uses the same checked manifest output; SVG is recommended for web/PDF parity",
+                "guidance": "Declare each referenced .vl.json or .vg.json source exactly once in .vegavisuals.yml, render with the companion vegavisuals factory, commit the output and lock, and never publish while visualization_check reports stale or modified output.",
             },
             {
                 "id": "citations",
                 "syntax": ["{% cite key %}", "{% cite key1 key2 %}"],
                 "web": "supported through Jekyll Scholar",
-                "pdf": "supported through Pandoc citeproc",
-                "guidance": "Use verified bibliography keys and manual_references: true when a chapter needs its references section.",
+                "pdf": "supported through linked Pandoc citeproc citations",
+                "guidance": "Use verified bibliography keys and manual_references: true when a chapter needs its references section. Bibliographic citations use the citation color, distinct from external URLs and internal links.",
+            },
+            {
+                "id": "links_and_cross_references",
+                "syntax": ["[External](https://example.org/)", "## Stable heading {#stable-heading}", "[Internal](#stable-heading)"],
+                "web": "external and internal links are supported with distinct semantic colors",
+                "pdf": "external URLs and internal links are supported with distinct hyperref colors",
+                "guidance": "Use explicit stable heading identifiers for cross-section links. Link text should name the destination; automatic figure and table number references are not currently generated.",
             },
             {
                 "id": "code_and_math",
-                "syntax": ["```python ... ```", "$x_i$", "$$\nE = mc^2\n$$"],
-                "web": "supported",
-                "pdf": "ordinary fenced code and LaTeX-compatible math supported",
-                "guidance": "Use $...$ for inline math and $$ on separate lines for display math. Do not use inline code for mathematical variables or \\(...\\) directly in Markdown sources. Prefer ordinary fenced code with an explicit language and avoid PDF-unsupported Liquid widgets.",
+                "syntax": ["`inline_code()`", "```python ... ```", "$x_i$", "$$\nE = mc^2\n\\label{eq:model}\n$$", "$\\eqref{eq:model}$", "\\begin{equation*} ... \\end{equation*}"],
+                "web": "inline code and Rouge-highlighted language fences; MathJax math with display equations numbered by default",
+                "pdf": "styled inline code and Pandoc Skylighting language fences; LaTeX math with display equations numbered by default",
+                "guidance": "Use explicit language names on fences. Use $...$ for inline math and $$ on separate lines for display math; display equations are numbered by default. Add \\label{eq:...} inside the display block and use $\\eqref{eq:...}$ for a cross-reference. Use equation* only when a displayed expression explicitly does not need a number. Do not use inline code for mathematical variables or \\(...\\) directly in Markdown sources.",
             },
             {
                 "id": "executable_sources",
@@ -1133,7 +1750,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
             },
         ],
         "web_only_or_pdf_review_required": ["tabs", "details", "interactive charts", "interactive maps", "galleries", "audio", "video", "arbitrary Liquid figure includes"],
-        "quality_tools": ["manual_source_quality_check", "manual_editorial_quality_check", "manual_computation_check", "web_capture_check", "build_site", "manual_pdf_build"],
+        "quality_tools": ["manual_source_quality_check", "manual_editorial_quality_check", "manual_computation_check", "web_capture_check", "visualization_check", "build_site", "manual_pdf_build"],
         "source_guides": [
             "docs/agents/manual-authoring-components.md",
             "plugins/unaltraweb-site/skills/manual-pedagogical-writing/SKILL.md",
@@ -1298,6 +1915,11 @@ def language_policy(project: Path) -> dict[str, Any]:
             "Keep lang and ref stable across localized versions.",
             "Use translation_plan before publication to find missing or premature translations.",
         ],
+        "visual_assets": {
+            "default_source": "Use an unsuffixed visual source for the configured default language.",
+            "localized_variant": "Insert .<lang> before the complete recognized suffix, for example map.ca.svg, plot.ca.qmd, bars.ca.vl.json, or flow.ca.puml.",
+            "fallback": "When a localized source is absent, web and PDF use the unsuffixed default source. A present localized source with a missing or invalid generated output remains an error.",
+        },
         "ok": not issues,
         "issues": issues,
         "warnings": warnings,
@@ -1636,8 +2258,8 @@ def _web_capture_env(source: str = "") -> dict[str, str]:
     env: dict[str, str] = {}
     value = source.strip()
     if value:
-        if Path(value).is_absolute() or ".." in Path(value).parts or not re.fullmatch(r"[A-Za-z0-9_./-]+\.capture\.yml", value):
-            raise ValueError("Web capture source must be a safe project-relative *.capture.yml path.")
+        if Path(value).is_absolute() or ".." in Path(value).parts or not re.fullmatch(r"[A-Za-z0-9_./-]+\.capture\.ya?ml", value):
+            raise ValueError("Web capture source must be a safe project-relative *.capture.yml or *.capture.yaml path.")
         env["WEB_CAPTURE_SOURCE"] = value
     return env
 
@@ -1655,6 +2277,10 @@ def web_capture_render(project: Path, factory: Path, source: str = "", *, confir
     if confirm_overwrite:
         env["WEB_CAPTURE_CONFIRM_OVERWRITE"] = "1"
     return run_make(project_path(project), "web-capture-render", env=env)
+
+
+def visualization_status(project: Path, factory: Path) -> dict[str, Any]:
+    return run_factory_make(factory, project, "visualization-status", env={})
 
 
 def build_site(project: Path, site_profile: str = "") -> dict[str, Any]:
@@ -1757,7 +2383,7 @@ def list_tools() -> dict[str, Any]:
     return {
         "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "manual_structure_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
-        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
+        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
     }
 
 

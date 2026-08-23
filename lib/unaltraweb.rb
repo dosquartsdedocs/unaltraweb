@@ -3,7 +3,10 @@
 require_relative "unaltraweb/version"
 
 %w[
+  localized_visual_sources
+  callouts
   computation_figure_images
+  vega_visual_images
   computation_sources
   details
   external-posts

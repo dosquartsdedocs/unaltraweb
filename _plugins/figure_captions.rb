@@ -507,10 +507,14 @@ module Unaltraweb
       styles = []
       width = kramdown_attr_value(raw, "data-subfigure-width") || kramdown_attr_value(raw, "width")
       height = kramdown_attr_value(raw, "data-subfigure-height") || kramdown_attr_value(raw, "height")
+      figure_width = kramdown_attr_value(raw, "data-figure-width-web") || kramdown_attr_value(raw, "data-figure-width")
+      figure_height = kramdown_attr_value(raw, "data-figure-height-web") || kramdown_attr_value(raw, "data-figure-height")
       inline_style = kramdown_attr_value(raw, "style")
 
       styles << "--md-subfigure-width: #{width};" unless width.to_s.strip.empty?
       styles << "--md-subfigure-image-height: #{height};" unless height.to_s.strip.empty?
+      styles << "--md-subfigure-image-width: #{figure_width};" unless figure_width.to_s.strip.empty?
+      styles << "--md-subfigure-image-max-height: #{figure_height};" unless figure_height.to_s.strip.empty?
       inline_style.to_s.scan(/--md-subfigure-[\w-]+\s*:\s*[^;]+/) do |declaration|
         styles << "#{declaration.strip};"
       end
@@ -559,7 +563,8 @@ module Unaltraweb
           label: label,
           lang: lang,
           count: count,
-          classes: figure_classes_for(extract_attr(img_tag, "src"))
+          classes: figure_classes_for(extract_attr(img_tag, "src")),
+          attrs: figure_container_attrs(img_tag)
         )
       end
     end
@@ -589,10 +594,17 @@ module Unaltraweb
     end
 
     def figure_container_attrs(raw)
-      width = kramdown_attr_value(raw, "data-figure-width")
-      return "" if width.to_s.strip.empty?
+      styles = []
+      width = kramdown_attr_value(raw, "data-figure-width-web") || kramdown_attr_value(raw, "data-figure-width")
+      height = kramdown_attr_value(raw, "data-figure-height-web") || kramdown_attr_value(raw, "data-figure-height")
+      unless width.to_s.strip.empty?
+        styles << "--md-figure-width: #{width.strip};"
+        styles << "--md-figure-image-width: 100%;"
+      end
+      styles << "--md-figure-height: #{height.strip};" unless height.to_s.strip.empty?
+      return "" if styles.empty?
 
-      %( style="--md-figure-width: #{h(width.strip)};")
+      %( style="#{h(styles.join(' '))}")
     end
 
     def diagram_path?(path)

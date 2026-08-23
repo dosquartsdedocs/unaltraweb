@@ -39,6 +39,10 @@ Typical content:
 
 The profile includes a sticky chapter sidebar, right-hand table of contents, reader font controls and search index.
 
+Figures can use independent display constraints for each support. `data-figure-width-web` and `data-figure-height-web` control the browser presentation; `data-figure-width-pdf` and `data-figure-height-pdf` become print constraints while preserving the intrinsic aspect ratio. The older `data-figure-width` remains a shared fallback. Run `manual_source_quality_check` after adding a text-bearing SVG so the MCP can compare its effective text with body text and suggest separate web/PDF widths.
+
+In multilingual manuals, keep the default-language visual unsuffixed and insert `.<lang>` before the complete suffix for translated variants, such as `map.ca.svg`, `plot.ca.qmd`, `bars.ca.vl.json`, or `flow.ca.puml`. The requested language falls back to the unsuffixed source when its variant is absent; an existing localized source with a broken generated output remains a build error.
+
 The manual home lists chapter cards by default. Set `unaltraweb.manual.show_chapter_index: false` globally, or `show_chapter_index: false` in a manual home page's front matter, when the sidebar is sufficient and the home should contain only introductory material.
 
 Unlike `unaltredocs`, `unaltremanual` keeps linear reading affordances such as previous/next chapter navigation. Use it when the primary path through the content is sequential.
@@ -122,10 +126,11 @@ The consumer Makefile exposes the stable workflow:
 make manual-compute-status
 make manual-compute-check
 make manual-compute-render
+make manual-compute-render-figures
 make manual-compute-render COMPUTE_SOURCE=_chapters/en/chapter.qmd
 ```
 
-`status` prints JSON and remains informational even when `ok` is false. `check` exits nonzero for missing, stale, modified, or orphaned results. `render` executes explicitly, stages output, serializes publication per project, and replaces managed Markdown and figures with rollback on ordinary errors. Rendering runs without network access and with Quarto caches disabled.
+`status` prints JSON and remains informational even when `ok` is false. `check` exits nonzero for missing, stale, modified, or orphaned results. `render` executes explicitly, stages output, serializes publication per project, and replaces managed Markdown and figures with rollback on ordinary errors. `manual-compute-render-figures` renders only stale `mode: figure` sources and never executes chapter-mode sources. Rendering runs without network access and with Quarto caches disabled.
 
 The first render refuses to overwrite an existing same-stem Markdown file or figure directory that is not recorded in the computation lock. Review the collision before an intentional takeover:
 
@@ -137,11 +142,17 @@ Do not use that confirmation as a permanent default. Do not edit `.unaltraweb/co
 
 Deleting or disabling a source leaves its lock record and generated artifacts as an orphan, so publication remains blocked. Review and remove the old generated Markdown and figure directory, then run a full `manual-compute-render`; the renderer removes an orphan lock record only after both managed paths are absent.
 
-`make serve`, `make build`, profile previews, Playwright checks, PDF operations, and the reusable Pages workflow reject stale results. CI checks committed artifacts without recalculating them. Equivalent MCP tools are `manual_computation_status`, `manual_computation_check`, and `manual_computation_render`.
+`make serve`, `make build`, profile previews, Playwright checks, PDF operations, and the reusable Pages workflow reject stale results. CI checks committed artifacts without recalculating them. Equivalent MCP tools are `manual_computation_status`, `manual_computation_check`, `manual_computation_render`, and `manual_computation_render_figures`.
+
+### Static Vega Figures
+
+Static Vega-Lite and Vega figures use `*.vl.json` and `*.vg.json` sources declared in `.vegavisuals.yml`. A chapter references the specification as a captioned Markdown image; Jekyll and the PDF builder resolve it to the same single manifest output without changing the caption or figure attributes. Prefer SVG when the figure must work identically on the web and in print.
+
+Use `make visualization-status`, `make visualization-render`, and `make visualization-check` for the source-to-output lifecycle. These targets are no-ops in projects without `.vegavisuals.yml`. PDF status, build, and publication require `visualization-check` when a manifest exists, so commit the manifest, lock, source data, and generated outputs together.
 
 ## PDF Edition
 
-The optional PDF builder runs in a dedicated Docker image containing Pandoc, XeLaTeX, multilingual TeX packages, SVG conversion and Poppler. It reads the same localized manual home and chapter sources as Jekyll, orders chapters by `weight`, resolves rendered Mermaid and PlantUML SVGs, converts Jekyll Scholar citations, and extracts the first PDF page as the web cover.
+The optional PDF builder runs in a dedicated Docker image containing Pandoc, XeLaTeX, multilingual TeX packages, SVG conversion and Poppler. It reads the same localized manual home and chapter sources as Jekyll, orders chapters by `weight`, resolves rendered Mermaid, PlantUML and manifest-backed Vega outputs, converts Jekyll Scholar citations, and extracts the first PDF page as the web cover.
 
 ```yaml
 unaltraweb:
@@ -151,6 +162,15 @@ unaltraweb:
     metadata:
       short_title: COURSE
       series: Course materials
+      series_subtitle: Learning resources
+      publisher: Example Press
+      edition: First digital edition
+      publication_date:
+        en: August 22, 2026
+      identifier: "urn:isbn:9780000000000"
+      license: CC BY 4.0
+      source: https://example.edu/manual/
+      rights: © The authors
       subject: Full course name
       teaching_guides:
         - degree: First degree name
@@ -174,7 +194,9 @@ unaltraweb:
         band_color: "990000"
 ```
 
-The cover deliberately contains only structural publication elements: series, title, instructors, main image, institutional logo, and bands. Course codes, teaching guides, department, faculty, academic year, revision date, and other consumer metadata are rendered on a localized details page inside the PDF.
+The cover deliberately contains only structural publication elements: series, title, instructors, main image, institutional logo, and bands. Bibliographic fields, course context, authorship, rights, and any declared source or license are rendered on a compact localized editorial-credits page inside the PDF. `publisher`, `edition`, `publication_date`, `identifier`, `license`, and `source` are optional and accept either a scalar or a language map. The builder does not infer them from the institution, revision date, site URL, or other fields; omit values that are not authoritative.
+
+The default template is a two-sided, open-right book: inner and outer margins mirror, folios sit at the outer edge, numbered and unnumbered chapters begin on recto pages, and inserted blank versos carry no headers or folios. Main matter starts at chapter 0.
 
 The PDF workflow checks executable chapters before reading their generated Markdown:
 
@@ -183,6 +205,8 @@ make manual-pdf-status
 make manual-pdf-build
 make manual-pdf-publish                 # dry-run by default
 make manual-pdf-publish MANUAL_PDF_PUBLISH_DRY_RUN=0
+make manual-pdf-sync                    # build and publish before rendering the site
+make manual-pdf-check                   # public copies match the fresh build
 ```
 
-Builds remain under `tmp/manual-pdf/<lang>/`. Each language build creates both the PDF and a PNG extracted from its first page. Publication copies those reviewed artefacts together into the configured project-relative public paths; it does not commit, push, deploy, or write outside the site. The download button appears automatically when the configured PDF exists among the site's static files, so it cannot point to a missing build. Chapters can opt out with `pdf: false`.
+Builds remain under `tmp/manual-pdf/<lang>/`. Each language build creates both the PDF and a PNG extracted from its first page. The default template derives XeTeX's trailer ID from the build fingerprint, and the builder canonicalizes the lossless PDF streams with qpdf, so identical inputs produce byte-identical PDFs. A custom template must put `\special{pdf:trailerid [<$trailer-id$><$trailer-id$>]}` on its first output page to preserve that property. Publication copies those reviewed artefacts together into the configured project-relative public paths; it does not commit, push, deploy, or write outside the site. `manual-pdf-status` accepts a fresh reviewed build that is still waiting to be copied, while `manual-pdf-check` rejects missing or obsolete public copies. The download button appears automatically when the configured PDF exists among the site's static files, so it cannot point to a missing build. Chapters can opt out with `pdf: false`.

@@ -28,6 +28,26 @@ on:
         required: false
         type: boolean
         default: true
+      check-visualizations:
+        description: Reject stale manifest-backed Vega visualization artefacts before building.
+        required: false
+        type: boolean
+        default: true
+      check-manual-pdf:
+        description: Rebuild manual PDFs and reject public copies that do not match.
+        required: false
+        type: boolean
+        default: false
+      sync-manual-pdf:
+        description: Build and copy enabled manual PDFs before rendering the website.
+        required: false
+        type: boolean
+        default: true
+      vegavisuals-sha:
+        description: Full reviewed vegavisuals commit SHA; required when the site has .vegavisuals.yml.
+        required: false
+        type: string
+        default: ""
       build-command:
         description: Optional custom command that builds the site into the output folder.
         required: false
@@ -41,8 +61,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages-${{ github.repository }}
@@ -51,6 +69,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -62,7 +83,7 @@ jobs:
           bundler-cache: true
 
       - name: Setup Python
-        if: ${{ inputs.install-python-requirements || inputs.check-computations || inputs.check-web-captures }}
+        if: ${{ inputs.install-python-requirements || inputs.check-computations || inputs.check-web-captures || inputs.check-visualizations || inputs.check-manual-pdf || inputs.sync-manual-pdf }}
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ inputs.python-version }}
@@ -77,6 +98,21 @@ jobs:
             python -m pip install -r requirements.txt
           fi
 
+      - name: Install Vega visualization tooling
+        if: ${{ inputs.check-visualizations || inputs.check-manual-pdf || inputs.sync-manual-pdf }}
+        env:
+          VEGAVISUALS_SHA: ${{ inputs.vegavisuals-sha }}
+        run: |
+          if test ! -f .vegavisuals.yml; then
+            echo "No .vegavisuals.yml; skipping vegavisuals installation."
+            exit 0
+          fi
+          if [[ ! "$VEGAVISUALS_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "vegavisuals-sha must be a full lowercase 40-character commit SHA." >&2
+            exit 1
+          fi
+          python -m pip install "vegavisuals @ git+https://github.com/dosquartsdedocs/vegavisuals.git@${VEGAVISUALS_SHA}"
+
       - name: Check computation freshness
         if: ${{ inputs.check-computations }}
         run: |
@@ -90,6 +126,33 @@ jobs:
           python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
           make -C "$core_dir" web-capture-check PROJECT="$GITHUB_WORKSPACE"
+
+      - name: Check Vega visualization freshness
+        if: ${{ inputs.check-visualizations }}
+        run: |
+          core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
+          vegavisuals_cli="$(command -v vegavisuals || true)"
+          make -C "$core_dir" visualization-check PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli"
+
+      - name: Check published manual PDFs
+        if: ${{ inputs.check-manual-pdf }}
+        run: |
+          core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
+          vegavisuals_cli="$(command -v vegavisuals || true)"
+          make -C "$core_dir" manual-pdf-build PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
+          make -C "$core_dir" manual-pdf-check PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
+
+      - name: Sync manual PDFs
+        if: ${{ inputs.sync-manual-pdf }}
+        run: |
+          python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
+          if python -c 'import sys,yaml; data=yaml.safe_load(open("_config.yml", encoding="utf-8")) or {}; sys.exit(0 if data.get("unaltraweb", {}).get("manual", {}).get("pdf", {}).get("enabled") is True else 1)'; then
+            core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
+            vegavisuals_cli="$(command -v vegavisuals || true)"
+            make -C "$core_dir" manual-pdf-sync PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
+          else
+            echo "Manual PDF generation is disabled; skipping synchronization."
+          fi
 
       - name: Build
         env:
@@ -114,6 +177,9 @@ jobs:
     if: ${{ github.event_name != 'pull_request' }}
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

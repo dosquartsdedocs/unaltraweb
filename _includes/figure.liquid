@@ -1,5 +1,6 @@
-{% assign img_path = include.path | remove: '.jpg' | remove: '.jpeg' | remove: '.png' | remove: '.tiff' | remove: '.gif' %}
-{% assign parts = include.path | split: '.' %}
+{% assign figure_path = include.path | localized_visual %}
+{% assign img_path = figure_path | remove: '.jpg' | remove: '.jpeg' | remove: '.png' | remove: '.tiff' | remove: '.gif' %}
+{% assign parts = figure_path | split: '.' %}
 {% assign ext = parts.last %}
 
 <figure
@@ -21,7 +22,7 @@
             srcset="{% for i in site.imagemagick.widths %}{{ img_path | relative_url }}-{{ i }}.webp {{ i }}w,{% endfor %}"
             type="image/webp"
           {% else %}
-            srcset="{{ include.path | relative_url }}"
+            srcset="{{ figure_path | relative_url }}"
           {% endif %}
           {% if include.sizes %}
             sizes="{{ include.sizes }}"
@@ -32,7 +33,7 @@
       {% endunless %}
     {% endif %}
     <img
-      src="{% if include.url %}{{ include.url }}{% elsif include.cache_bust %}{{ include.path | relative_url | bust_file_cache }}{% else %}{{ include.path | relative_url }}{% endif %}"
+      src="{% if include.url %}{{ include.url }}{% elsif include.cache_bust %}{{ figure_path | relative_url | bust_file_cache }}{% else %}{{ figure_path | relative_url }}{% endif %}"
       {% if include.class %}
         class="{{ include.class }}"
       {% endif %}

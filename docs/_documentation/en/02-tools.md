@@ -48,6 +48,9 @@ make screenshots
 make web-capture-status
 make web-capture-render WEB_CAPTURE_SOURCE=assets/captures/chapter.capture.yml
 make web-capture-check
+make visualization-status
+make visualization-render
+make visualization-check
 make metrics-update
 make cv-preview CV_PDF=assets/pdf/cv.pdf CV_PREVIEW=assets/img/cv-preview.jpg
 make down
@@ -93,6 +96,7 @@ When the core docs and all template profiles are running together, use this conv
 - Playwright is pulled through its Docker image by the template tests; users do not need to install browsers manually.
 - Python dependencies are installed inside the local workflow for metrics and bibliography tooling.
 - Diagram rendering is delegated to the shared `diavisuals` MCP/CLI renderer. Jekyll rewrites diagram text sources to SVG and keeps `*.edited.svg` files as author-owned overrides.
+- Static Vega-Lite and Vega rendering is delegated to the shared `vegavisuals` MCP/CLI factory. Set `VEGAVISUALS_PATH` to a sibling checkout or `VEGAVISUALS_CLI` to an installed executable when a project contains `.vegavisuals.yml`; projects without a manifest skip these commands.
 
 ## Publishing Checklist
 

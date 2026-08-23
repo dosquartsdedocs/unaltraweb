@@ -31,11 +31,11 @@ except ImportError as exc:  # pragma: no cover - supplied by project tooling
 
 
 LOCK_PATH = Path(".unaltraweb/web-captures.lock.json")
-SOURCE_SUFFIX = ".capture.yml"
+SOURCE_SUFFIXES = (".capture.yml", ".capture.yaml")
 DEFAULT_IMAGE = "ghcr.io/dosquartsdedocs/unaltraweb-web-capture:main"
 DEFAULT_VIEWPORT = {"width": 1440, "height": 900, "device_scale_factor": 1}
 CAPTURE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,79}$")
-SAFE_SOURCE_RE = re.compile(r"^[A-Za-z0-9_./-]+\.capture\.yml$")
+SAFE_SOURCE_RE = re.compile(r"^[A-Za-z0-9_./-]+\.capture\.ya?ml$")
 SVG_METADATA_RE = re.compile(r'<metadata\s+id="unaltraweb-capture">(.*?)</metadata>', re.DOTALL)
 SVG_ALLOWED_ELEMENTS = {
     "svg", "g", "defs", "metadata", "title", "desc", "image", "rect", "path", "text", "tspan",
@@ -301,15 +301,16 @@ def read_recipe(project: Path, source: Path) -> dict[str, Any]:
 
 
 def output_paths(source: Path) -> tuple[Path, Path, Path]:
-    if not source.name.endswith(SOURCE_SUFFIX):
-        raise WebCaptureError(f"Capture source must end with {SOURCE_SUFFIX}: {source}")
+    if not source.name.endswith(SOURCE_SUFFIXES):
+        raise WebCaptureError(f"Capture source must end with .capture.yml or .capture.yaml: {source}")
     return source.with_suffix(".png"), source.with_suffix(".svg"), source.with_suffix(".edited.svg")
 
 
 def discover(project: Path) -> list[dict[str, Any]]:
     assets = project / "assets"
     records = []
-    for source in sorted(assets.rglob(f"*{SOURCE_SUFFIX}")) if assets.is_dir() else []:
+    sources = sorted({source for suffix in SOURCE_SUFFIXES for source in assets.rglob(f"*{suffix}")}) if assets.is_dir() else []
+    for source in sources:
         if any(part.startswith(".") for part in source.relative_to(project).parts):
             continue
         recipe = read_recipe(project, source)
@@ -323,7 +324,7 @@ def selected_records(project: Path, source: str = "") -> tuple[list[dict[str, An
     if not source:
         return records, records
     if not SAFE_SOURCE_RE.fullmatch(source) or source.startswith("/") or ".." in Path(source).parts:
-        raise WebCaptureError("Selected capture source must be a safe project-relative *.capture.yml path.")
+        raise WebCaptureError("Selected capture source must be a safe project-relative *.capture.yml or *.capture.yaml path.")
     selected = safe_relative(project, source, label="selected capture source", must_exist=True)
     matches = [record for record in records if record["source"] == selected]
     if not matches:

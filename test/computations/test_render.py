@@ -300,7 +300,7 @@ engines:
             selected = computations.resolve_image(config, "python")
             result = computations.build_engine_image(self.project, config, "python")
 
-        expected = f"{self.project.name}-compute-python:local"
+        expected = computations.default_local_image(config, "python")
         self.assertEqual(selected["image"], expected)
         self.assertEqual(result["action"], "build")
         self.assertIn(expected, run_command.call_args.args[0])
@@ -437,6 +437,31 @@ engines:
 
         render_call.assert_called_once()
         self.assertEqual(result["rendered_count"], 1)
+
+    def test_figure_mode_filter_renders_stale_figure_without_executing_stale_chapter(self) -> None:
+        chapter = self.project / "_chapters/en/01-chapter.qmd"
+        figure = self.project / "_chapters/en/02-figure.qmd"
+        write_qmd(chapter)
+        write_figure_qmd(figure)
+
+        def render_figure(record, _stage, _confirm_overwrite, _owned):
+            output = record["outputs"][0]
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text("<svg />\n", encoding="utf-8")
+            return {"available": "true", "id": "image", "digest": ""}
+
+        unavailable = {"available": "false", "id": "", "digest": ""}
+        with patch.object(computations, "inspect_image", return_value=unavailable):
+            filtered = computations.status(self.project, mode="figure")
+            with patch.object(computations, "render_figure_outputs", side_effect=render_figure) as figure_render:
+                with patch.object(computations, "render_stage") as chapter_render:
+                    result = computations.render(self.project, mode="figure", stale_only=True)
+
+        self.assertEqual([item["source"] for item in filtered["sources"]], ["_chapters/en/02-figure.qmd"])
+        figure_render.assert_called_once()
+        chapter_render.assert_not_called()
+        self.assertEqual([item["source"] for item in result["rendered"]], ["_chapters/en/02-figure.qmd"])
+        self.assertFalse(chapter.with_suffix(".md").exists())
 
     def test_stale_only_never_replaces_unmanaged_existing_figure(self) -> None:
         source = self.project / "_chapters/en/05-figure.qmd"

@@ -2,7 +2,7 @@
 name: unaltraweb
 kind: codex-mcp-factory
 version: 0.1.0
-description: Reusable Jekyll website factory with MCP tooling for content, profiles, captures, bibliography, bibliometrics, and build checks.
+description: Reusable Jekyll website factory with MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, and build checks.
 install_scope: user
 workspace_rule:
   consumer_root: .
@@ -32,12 +32,14 @@ workspace_rule:
     - _bibliography
     - _data
     - assets
+    - .vegavisuals.yml
   generated_paths:
     - _site
     - tmp
     - .cache/scimago
     - assets/diagrams/**/*.svg from Mermaid or PlantUML sources
     - assets/**/*.capture.png and assets/**/*.capture.svg from selector-based web capture recipes
+    - .vegavisuals.lock.json and outputs declared by .vegavisuals.yml
   allowed_external_writes: []
 runtime:
   kind: python
@@ -138,4 +140,22 @@ mcp_dependencies:
       - render_diagram_text
     suggested_path: ../diavisuals
     reason: Mermaid and PlantUML rendering/styles are owned by diavisuals.
+  - name: vegavisuals
+    role: shared-vega-renderer
+    required: true
+    install: true
+    build: true
+    init: true
+    remote: git@github.com:dosquartsdedocs/vegavisuals.git
+    package: vegavisuals
+    extras:
+      - mcp
+    required_tools:
+      - validate_visualization
+      - render_visualization
+      - visualization_status
+      - visualization_check
+      - render_visualizations
+    suggested_path: ../vegavisuals
+    reason: Vega-Lite and Vega validation, rendering, themes, and freshness are owned by vegavisuals.
 ---

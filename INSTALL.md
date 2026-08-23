@@ -46,11 +46,12 @@ For a configured `unaltremanual` PDF edition, Docker remains the only runtime pr
 
 ```bash
 make manual-pdf-status LOCAL_CORE=../unaltraweb
+make manual-pdf-check LOCAL_CORE=../unaltraweb
 make manual-pdf-build LOCAL_CORE=../unaltraweb
 make manual-pdf-publish LOCAL_CORE=../unaltraweb
 ```
 
-The publication command is a local dry-run by default. A real copy into the configured `assets/pdf/` and cover paths requires `MANUAL_PDF_PUBLISH_DRY_RUN=0`; review the generated files under `tmp/manual-pdf/` first.
+The publication command is a local dry-run by default. A real copy into the configured `assets/pdf/` and cover paths requires `MANUAL_PDF_PUBLISH_DRY_RUN=0`; review the generated files under `tmp/manual-pdf/` first. `manual-pdf-check` fails unless those public files match the latest fresh build.
 
 ## Core Development Workflow
 

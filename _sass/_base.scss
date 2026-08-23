@@ -37,10 +37,10 @@ table {
 
 a,
 table.table a {
-  color: var(--global-theme-color);
+  color: var(--global-internal-link-color);
 
   &:hover {
-    color: var(--global-theme-color);
+    color: var(--global-internal-link-color);
     text-decoration: underline;
   }
 
@@ -190,7 +190,19 @@ ul.task-list input[type="checkbox"] {
 
 .citation,
 .citation-number {
-  color: var(--global-theme-color);
+  color: var(--global-citation-color);
+
+  &:hover {
+    color: var(--global-citation-color);
+  }
+}
+
+a[rel~="external"] {
+  color: var(--global-external-link-color);
+
+  &:hover {
+    color: var(--global-external-link-color);
+  }
 }
 
 // Profile
@@ -288,6 +300,25 @@ ul.task-list input[type="checkbox"] {
   &:hover {
     color: var(--global-hover-text-color);
   }
+}
+
+.language-option {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.language-option-label {
+  flex: 1 1 auto;
+}
+
+.language-default-badge {
+  border: 1px solid currentColor;
+  padding: 0.08rem 0.32rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  opacity: 0.78;
 }
 
 .navbar.navbar-light {
@@ -683,6 +714,13 @@ body.profile-navbar-drawer-open.site-profile-unaltreselfie #navbar::before {
   gap: 0.45rem;
   align-items: center;
   justify-content: center;
+}
+
+.footer-product-credit {
+  display: inline-flex;
+  gap: 0.28rem;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .footer-logo-stack {
@@ -1190,8 +1228,9 @@ figure.highlight {
 }
 
 pre {
-  color: var(--global-theme-color);
+  color: var(--global-code-text-color);
   background-color: var(--global-code-bg-color);
+  border: 1px solid var(--global-code-border-color);
   border-radius: 6px;
   padding: 6px 12px;
 
@@ -1204,6 +1243,7 @@ pre {
   pre,
   code {
     background-color: transparent;
+    border: 0;
     border-radius: 0;
     margin-bottom: 0;
     padding: 0;
@@ -1212,8 +1252,9 @@ pre {
 }
 
 code {
-  color: var(--global-theme-color);
+  color: var(--global-code-text-color);
   background-color: var(--global-code-bg-color);
+  border: 1px solid var(--global-code-border-color);
   border-radius: 3px;
   padding: 3px 3px;
 

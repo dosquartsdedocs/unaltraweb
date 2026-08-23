@@ -1145,8 +1145,11 @@ html[data-theme="dark"] .md-table {
 }
 
 .md-figure img {
+  width: var(--md-figure-image-width, auto);
   max-width: 100%;
+  max-height: var(--md-figure-height, none);
   height: auto;
+  object-fit: contain;
 }
 
 .md-figure-inner:has(img.printable-page) {
@@ -1681,6 +1684,7 @@ html[data-theme="cafe"] .manual-brand-logo-default {
   display: block;
   width: var(--md-subfigure-image-width, 100%);
   max-width: 100%;
+  max-height: var(--md-subfigure-image-max-height, none);
   height: var(--md-subfigure-image-height, auto);
   border-radius: 0;
   object-fit: contain;

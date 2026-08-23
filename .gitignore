@@ -17,6 +17,6 @@ tmp/
 .venv
 __pycache__/
 *.pyc
-.cache/scimago/
+.cache/
 tmp/metrics-report*.json
 tmp/metrics-unmatched*.tsv

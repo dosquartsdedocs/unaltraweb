@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import hashlib
+import html
 import json
 import os
 import re
@@ -24,15 +25,84 @@ except ImportError as exc:  # pragma: no cover - supplied by the builder image
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
+DEFAULT_DOCKERFILE = SCRIPT_ROOT / "Dockerfile"
 DEFAULT_TEMPLATE = SCRIPT_ROOT / "templates" / "manual.tex"
-FRONT_MATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
+FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)^---[ \t]*(?:\r?\n|\Z)", re.MULTILINE | re.DOTALL)
 CITE_RE = re.compile(r"{%\s*cite\s+([^%]+?)\s*%}")
 INCLUDE_RE = re.compile(r"{%\s*include\s+([^%]+?)\s*%}")
 LIQUID_RE = re.compile(r"({[{%].*?[}%]})", re.DOTALL)
-IMAGE_RE = re.compile(r"!\[([^\]]*)\]\((\S+?)(?:\s+[\"']([^\"']+)[\"'])?\)")
+INLINE_CODE_RE = re.compile(r"<code>(.*?)</code>", re.IGNORECASE | re.DOTALL)
+FENCED_CODE_BLOCK_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$", re.MULTILINE | re.DOTALL)
+MARKDOWN_INLINE_CODE_RE = re.compile(r"(`+)[^\n]*?\1")
+DISPLAY_MATH_BLOCK_RE = re.compile(
+    r"^[ \t]*\$\$[ \t]*\r?\n(?P<body>.*?)^[ \t]*\$\$[ \t]*$",
+    re.MULTILINE | re.DOTALL,
+)
+BASEURL_RE = re.compile(r"\{\{\s*site\.baseurl\s*\}\}")
+IMAGE_RE = re.compile(
+    r"!\[(?P<alt>[^\]]*)\]\((?P<path>\S+?)(?:\s+(?:\"(?P<double_title>[^\"]*)\"|'(?P<single_title>[^']*)'))?\)"
+    r"(?P<attrs>\{:[^}\n]*\})?"
+)
 TABLE_DIV_RE = re.compile(r'^::: table\s+["\'](.+?)["\']\s*\n(.*?)^:::\s*$', re.MULTILINE | re.DOTALL)
+SUBFIGURES_DIV_RE = re.compile(
+    r'^:::\s*subfigures(?:\s+(?P<layout>[^\s"]+))?(?:\s+"(?P<caption>[^"]*)")?\s*\n'
+    r'(?P<body>.*?)^:::\s*$',
+    re.MULTILINE | re.DOTALL,
+)
+CALLOUT_BLOCK_RE = re.compile(r"^(?P<block>(?P<marks>>{2,})[^\n]*(?:\n(?P=marks)[^\n]*)*)", re.MULTILINE)
+FIGURE_DIMENSION_ATTR_RE = re.compile(
+    r"(?:\A|\s)(?P<name>data-figure-(?:width|height)(?:-(?:web|pdf))?)\s*=\s*"
+    r"(?:\"(?P<double>[^\"]*)\"|'(?P<single>[^']*)'|(?P<bare>[^\s}]+))"
+)
 LANGUAGE_NAMES = {"ca": "catalan", "es": "spanish", "en": "english"}
 LANGUAGE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
+COMPUTATION_SUFFIXES = {".qmd", ".rmd", ".r", ".py", ".ipynb"}
+DIAGRAM_SUFFIXES = {".mmd", ".mermaid", ".puml", ".plantuml", ".uml"}
+GENERATED_MEDIA_SUFFIXES = {".gif", ".jpeg", ".jpg", ".pdf", ".png", ".svg", ".webp"}
+VEGA_SOURCE_SUFFIXES = (".vl.json", ".vg.json")
+VEGA_OUTPUT_SUFFIXES = {".svg", ".png", ".pdf"}
+VEGA_MANIFEST_NAME = ".vegavisuals.yml"
+VEGA_SAFE_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*\Z")
+REMOTE_PATH_RE = re.compile(r"^(?:[a-z][a-z0-9+.-]*:)?//", re.IGNORECASE)
+VISUAL_LOCALIZATION_SUFFIXES = tuple(sorted({
+    ".capture.edited.svg", ".capture.yaml", ".capture.yml", ".capture.svg",
+    ".mermaid.edited.svg", ".mermaid.svg", ".plantuml.edited.svg", ".plantuml.svg",
+    ".mmd.edited.svg", ".mmd.svg", ".puml.edited.svg", ".puml.svg", ".uml.edited.svg", ".uml.svg",
+    ".vl.json", ".vg.json", ".edited.svg",
+    ".qmd", ".rmd", ".ipynb", ".mermaid", ".plantuml", ".mmd", ".puml", ".uml", ".py", ".r",
+    ".jpeg", ".tiff", ".webp", ".gif", ".jpg", ".png", ".svg", ".pdf",
+}, key=len, reverse=True))
+REPRODUCIBLE_BUILD_EPOCH = "0"
+CALLOUT_STYLES = {
+    2: ("ManualCalloutInfo", "info"),
+    3: ("ManualCalloutExample", "example"),
+    4: ("ManualCalloutWarning", "warning"),
+    5: ("ManualCalloutObjectives", "objectives"),
+    6: ("ManualCalloutDanger", "danger"),
+}
+CALLOUT_LABELS = {
+    "ca": {
+        "info": "NOTA",
+        "example": "EXEMPLE",
+        "warning": "ADVERTÈNCIA",
+        "objectives": "OBJECTIUS D'APRENENTATGE",
+        "danger": "ATENCIÓ",
+    },
+    "es": {
+        "info": "NOTA",
+        "example": "EJEMPLO",
+        "warning": "ADVERTENCIA",
+        "objectives": "OBJETIVOS DE APRENDIZAJE",
+        "danger": "ATENCIÓN",
+    },
+    "en": {
+        "info": "NOTE",
+        "example": "EXAMPLE",
+        "warning": "WARNING",
+        "objectives": "LEARNING OBJECTIVES",
+        "danger": "CAUTION",
+    },
+}
 CAPTURE_SVG_ALLOWED_ELEMENTS = {
     "svg", "g", "defs", "metadata", "title", "desc", "image", "rect", "path", "text", "tspan",
     "marker", "polygon", "polyline", "line", "circle", "ellipse", "clippath", "mask", "lineargradient",
@@ -57,7 +127,11 @@ CAPTURE_SVG_ALLOWED_STYLE_PROPERTIES = {
 }
 METADATA_LABELS = {
     "ca": {
-        "title": "Fitxa del manual",
+        "title": "Crèdits editorials",
+        "series": "Col·lecció",
+        "publisher": "Editorial",
+        "edition": "Edició",
+        "publication_date": "Data de publicació",
         "subject": "Assignatura",
         "teaching_guides": "Guies docents",
         "academic_year": "Curs acadèmic",
@@ -66,10 +140,18 @@ METADATA_LABELS = {
         "institution": "Institució",
         "location": "Localització",
         "revision_date": "Data de revisió",
-        "instructors": "Professorat",
+        "instructors": "Autoria",
+        "identifier": "Identificador",
+        "license": "Llicència",
+        "source": "Edició web",
+        "rights": "Drets",
     },
     "es": {
-        "title": "Ficha del manual",
+        "title": "Créditos editoriales",
+        "series": "Colección",
+        "publisher": "Editorial",
+        "edition": "Edición",
+        "publication_date": "Fecha de publicación",
         "subject": "Asignatura",
         "teaching_guides": "Guías docentes",
         "academic_year": "Curso académico",
@@ -78,10 +160,18 @@ METADATA_LABELS = {
         "institution": "Institución",
         "location": "Localización",
         "revision_date": "Fecha de revisión",
-        "instructors": "Profesorado",
+        "instructors": "Autoría",
+        "identifier": "Identificador",
+        "license": "Licencia",
+        "source": "Edición web",
+        "rights": "Derechos",
     },
     "en": {
-        "title": "Manual details",
+        "title": "Editorial credits",
+        "series": "Series",
+        "publisher": "Publisher",
+        "edition": "Edition",
+        "publication_date": "Publication date",
         "subject": "Course",
         "teaching_guides": "Teaching guides",
         "academic_year": "Academic year",
@@ -90,13 +180,43 @@ METADATA_LABELS = {
         "institution": "Institution",
         "location": "Location",
         "revision_date": "Revision date",
-        "instructors": "Instructors",
+        "instructors": "Authors",
+        "identifier": "Identifier",
+        "license": "License",
+        "source": "Web edition",
+        "rights": "Rights",
     },
 }
 
 
 class ManualPdfError(RuntimeError):
     pass
+
+
+class UniqueKeySafeLoader(yaml.SafeLoader):
+    def construct_mapping(self, node: yaml.nodes.MappingNode, deep: bool = False) -> dict[Any, Any]:
+        self.flatten_mapping(node)
+        mapping: dict[Any, Any] = {}
+        for key_node, value_node in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            try:
+                duplicate = key in mapping
+            except TypeError as exc:
+                raise yaml.constructor.ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    "found an unhashable mapping key",
+                    key_node.start_mark,
+                ) from exc
+            if duplicate:
+                raise yaml.constructor.ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    f"found duplicate key: {key}",
+                    key_node.start_mark,
+                )
+            mapping[key] = self.construct_object(value_node, deep=deep)
+        return mapping
 
 
 def read_yaml(path: Path) -> dict[str, Any]:
@@ -146,6 +266,49 @@ def validate_language(value: str) -> str:
     if not language or not LANGUAGE_RE.fullmatch(language):
         raise ManualPdfError(f"Invalid PDF language: {value!r}")
     return language
+
+
+def normalize_callout_language(value: Any) -> str:
+    normalized = str(value or "").lower().split("-", 1)[0]
+    return normalized or "en"
+
+
+def resolve_callout_labels(project: Path, config: dict[str, Any], language: str) -> tuple[dict[str, str], list[Path]]:
+    normalized_language = normalize_callout_language(language)
+    default_language = normalize_callout_language(config.get("default_lang") or config.get("lang") or "en")
+    data_root = safe_relative(project, str(config.get("data_dir") or "_data"), label="Jekyll data directory")
+
+    def language_data(lang: str) -> tuple[dict[str, Any], Path | None]:
+        if not LANGUAGE_RE.fullmatch(lang):
+            return {}, None
+        for suffix in (".yml", ".yaml"):
+            path = data_root / "i18n" / f"{lang}{suffix}"
+            if not path.is_file():
+                continue
+            parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+            return (parsed if isinstance(parsed, dict) else {}), path
+        return {}, None
+
+    localized_data, localized_path = language_data(normalized_language)
+    if default_language == normalized_language:
+        default_data, default_path = localized_data, localized_path
+    else:
+        default_data, default_path = language_data(default_language)
+
+    localized_callouts = localized_data.get("callouts")
+    default_callouts = default_data.get("callouts")
+    if isinstance(localized_callouts, dict):
+        configured = localized_callouts
+    elif isinstance(default_callouts, dict):
+        configured = default_callouts
+    else:
+        configured = {}
+
+    defaults = CALLOUT_LABELS.get(normalized_language) or CALLOUT_LABELS.get(default_language) or CALLOUT_LABELS["en"]
+    labels = dict(defaults)
+    labels.update({str(key): "" if value is None else str(value) for key, value in configured.items()})
+    dependencies = list(dict.fromkeys(path for path in (localized_path, default_path) if path is not None))
+    return labels, dependencies
 
 
 def language_list(config: dict[str, Any], pdf: dict[str, Any], requested: str = "") -> list[str]:
@@ -285,8 +448,227 @@ def validate_capture_svg(path: Path) -> None:
                         raise ManualPdfError(f"Unsupported CSS property in web capture SVG {path}: {property_name.strip()}")
 
 
-def resolve_visual_source(project: Path, raw_path: str) -> str:
-    path = raw_path.lstrip("/")
+def commented_front_matter(path: Path, prefix: str) -> str:
+    marker = f"{prefix} ---"
+    active = False
+    lines: list[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip() == marker:
+            if active:
+                return "\n".join(lines)
+            active = True
+            continue
+        if active:
+            if not line.startswith(prefix):
+                break
+            value = line[len(prefix):]
+            lines.append(value[1:] if value.startswith(" ") else value)
+    return ""
+
+
+def computation_front_matter(path: Path) -> dict[str, Any]:
+    suffix = path.suffix.lower()
+    text = ""
+    if suffix in {".qmd", ".rmd"}:
+        match = FRONT_MATTER_RE.match(path.read_text(encoding="utf-8"))
+        text = match.group(1) if match else ""
+    elif suffix == ".r":
+        text = commented_front_matter(path, "#'")
+    elif suffix == ".py":
+        text = commented_front_matter(path, "#")
+    elif suffix == ".ipynb":
+        try:
+            notebook = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ManualPdfError(f"Invalid notebook JSON in computation source {path}: {exc}") from exc
+        if not isinstance(notebook, dict):
+            raise ManualPdfError(f"Computation notebook must contain a JSON object: {path}")
+        metadata = notebook.get("metadata")
+        if isinstance(metadata, dict) and isinstance(metadata.get("unaltraweb_front_matter"), dict):
+            return metadata["unaltraweb_front_matter"]
+        for cell in notebook.get("cells", []):
+            if not isinstance(cell, dict) or cell.get("cell_type") not in {"raw", "markdown"}:
+                continue
+            source = cell.get("source", "")
+            cell_text = "".join(source) if isinstance(source, list) else str(source)
+            match = FRONT_MATTER_RE.match(cell_text)
+            text = match.group(1) if match else ""
+            break
+    if not text:
+        return {}
+    try:
+        parsed = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise ManualPdfError(f"Invalid computation front matter in {path}: {exc}") from exc
+    if parsed is None:
+        return {}
+    if not isinstance(parsed, dict):
+        raise ManualPdfError(f"Computation front matter must be a YAML mapping: {path}")
+    return parsed
+
+
+def split_url_decoration(raw: str) -> tuple[str, str]:
+    indexes = [index for token in ("?", "#") if (index := raw.find(token)) >= 0]
+    if not indexes:
+        return raw, ""
+    index = min(indexes)
+    return raw[:index], raw[index:]
+
+
+def load_vega_manifest(project: Path) -> list[dict[str, str]]:
+    project = project.resolve()
+    manifest_path = project / VEGA_MANIFEST_NAME
+    if not manifest_path.is_file():
+        raise ManualPdfError(f"Missing required Vega visualization manifest: {VEGA_MANIFEST_NAME}")
+    if manifest_path.stat().st_size > 1024 * 1024:
+        raise ManualPdfError(f"Vega visualization manifest exceeds 1048576 bytes: {VEGA_MANIFEST_NAME}")
+    try:
+        text = manifest_path.read_text(encoding="utf-8")
+        if any(isinstance(token, yaml.tokens.AliasToken) for token in yaml.scan(text)):
+            raise ManualPdfError(f"YAML aliases are not allowed in {VEGA_MANIFEST_NAME}")
+        manifest = yaml.load(text, Loader=UniqueKeySafeLoader)
+    except ManualPdfError:
+        raise
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise ManualPdfError(f"Invalid Vega visualization manifest {VEGA_MANIFEST_NAME}: {exc}") from exc
+
+    if not isinstance(manifest, dict):
+        raise ManualPdfError(f"Vega visualization manifest must be a mapping: {VEGA_MANIFEST_NAME}")
+    if type(manifest.get("version")) is not int or manifest.get("version") != 1:
+        raise ManualPdfError("Vega visualization manifest version must be 1")
+    for field in ("profile", "family"):
+        if not isinstance(manifest.get(field), str) or not manifest[field]:
+            raise ManualPdfError(f"Vega visualization manifest requires a {field}")
+    visualizations = manifest.get("visualizations")
+    if not isinstance(visualizations, list):
+        raise ManualPdfError("Vega visualization manifest visualizations must be a list")
+
+    names: set[str] = set()
+    sources: set[str] = set()
+    outputs: set[str] = set()
+    normalized: list[dict[str, str]] = []
+    for index, item in enumerate(visualizations):
+        if not isinstance(item, dict):
+            raise ManualPdfError(f"Vega visualization at index {index} must be a mapping")
+        name = item.get("name")
+        if not isinstance(name, str) or not VEGA_SAFE_NAME_RE.fullmatch(name):
+            raise ManualPdfError(f"Vega visualization at index {index} has an invalid name")
+        if name in names:
+            raise ManualPdfError(f"Duplicate Vega visualization name: {name}")
+        source_raw = item.get("source")
+        output_raw = item.get("output")
+        if not isinstance(source_raw, str) or not source_raw:
+            raise ManualPdfError(f"Vega visualization {name} requires a source")
+        if not isinstance(output_raw, str) or not output_raw:
+            raise ManualPdfError(f"Vega visualization {name} requires an output")
+
+        source = safe_relative(project, source_raw, label=f"source for Vega visualization {name}", must_exist=True)
+        output = safe_relative(project, output_raw, label=f"output for Vega visualization {name}")
+        if not source.is_file():
+            raise ManualPdfError(f"Source for Vega visualization {name} is not a file: {source_raw}")
+        source_relative = source.relative_to(project).as_posix()
+        output_relative = output.relative_to(project).as_posix()
+        if source == output:
+            raise ManualPdfError(f"Vega visualization {name} output cannot replace its source")
+        if source_relative in sources:
+            raise ManualPdfError(f"Duplicate Vega visualization source: {source_relative}")
+        if output_relative in outputs:
+            raise ManualPdfError(f"Duplicate Vega visualization output: {output_relative}")
+
+        output_suffix = output.suffix.lower()
+        if output_suffix not in VEGA_OUTPUT_SUFFIXES:
+            raise ManualPdfError(f"Vega visualization {name} output must use .svg, .png, or .pdf")
+        item_format = item.get("format")
+        if item_format is not None and not isinstance(item_format, str):
+            raise ManualPdfError(f"Vega visualization {name} format must be a string")
+        if item_format and f".{item_format.strip().lower()}" != output_suffix:
+            raise ManualPdfError(f"Vega visualization {name} output suffix does not match format {item_format}")
+        if not isinstance(item.get("engine", "auto"), str):
+            raise ManualPdfError(f"Vega visualization {name} engine must be a string")
+        inputs = item.get("inputs", [])
+        if not isinstance(inputs, list) or not all(isinstance(entry, str) and entry for entry in inputs):
+            raise ManualPdfError(f"Vega visualization {name} inputs must be a list of paths")
+
+        names.add(name)
+        sources.add(source_relative)
+        outputs.add(output_relative)
+        normalized.append({"name": name, "source": source_relative, "output": output_relative})
+    return normalized
+
+
+def resolve_vega_source(project: Path, source_path: str) -> str:
+    project = project.resolve()
+    if REMOTE_PATH_RE.match(source_path):
+        raise ManualPdfError(f"Vega visualization source must be a local project path: {source_path}")
+    source = safe_relative(project, source_path, label="Vega visualization source", must_exist=True)
+    if not source.is_file():
+        raise ManualPdfError(f"Vega visualization source is not a file: {source_path}")
+    source_relative = source.relative_to(project).as_posix()
+    matches = [item for item in load_vega_manifest(project) if item["source"] == source_relative]
+    if not matches:
+        raise ManualPdfError(f"Vega visualization source is not declared in {VEGA_MANIFEST_NAME}: {source_relative}")
+    if len(matches) > 1:
+        raise ManualPdfError(f"Vega visualization source is ambiguous in {VEGA_MANIFEST_NAME}: {source_relative}")
+    output_relative = matches[0]["output"]
+    output = safe_relative(project, output_relative, label="Vega visualization output")
+    if not output.is_file():
+        raise ManualPdfError(f"Missing rendered Vega visualization output: {output_relative}")
+    return output.relative_to(project).as_posix()
+
+
+def localized_visual_source(
+    project: Path,
+    path: str,
+    *,
+    language: str = "",
+    default_language: str = "",
+    languages: list[str] | None = None,
+) -> str:
+    current = language.strip()
+    default = default_language.strip()
+    if not current or current == default:
+        return path
+    suffix = next((candidate for candidate in VISUAL_LOCALIZATION_SUFFIXES if path.lower().endswith(candidate)), "")
+    if not suffix:
+        return path
+    stem = path[:-len(suffix)]
+    configured = {str(value).strip().lower() for value in (languages or []) if str(value).strip()}
+    configured.update({current.lower(), default.lower()})
+    if any(stem.lower().endswith(f".{code}") for code in configured):
+        return path
+    localized = f"{stem}.{current}{suffix}"
+    candidate = (project.resolve() / localized.lstrip("/")).resolve()
+    try:
+        candidate.relative_to(project.resolve())
+    except ValueError:
+        return path
+    return localized if candidate.is_file() else path
+
+
+def resolve_visual_source(
+    project: Path,
+    raw_path: str,
+    *,
+    language: str = "",
+    default_language: str = "",
+    languages: list[str] | None = None,
+) -> str:
+    undecorated, _ = split_url_decoration(raw_path)
+    if REMOTE_PATH_RE.match(undecorated):
+        if undecorated.lower().endswith(VEGA_SOURCE_SUFFIXES):
+            raise ManualPdfError(f"Vega visualization source must be a local project path: {undecorated}")
+        return raw_path
+    path = localized_visual_source(
+        project,
+        undecorated.lstrip("/"),
+        language=language,
+        default_language=default_language,
+        languages=languages,
+    )
+    vega_path = path.lstrip("/")
+    if vega_path.lower().endswith(VEGA_SOURCE_SUFFIXES):
+        return resolve_vega_source(project, vega_path)
+    path = path.lstrip("/")
     if path.lower().endswith((".capture.yml", ".capture.yaml")):
         source = safe_relative(project, path, label="web capture source", must_exist=True)
         base = str(source).rsplit(".", 1)[0]
@@ -296,7 +678,32 @@ def resolve_visual_source(project: Path, raw_path: str) -> str:
                 validate_capture_svg(candidate)
                 return str(candidate.relative_to(project))
         raise ManualPdfError(f"No printable SVG found for web capture source: {path}")
-    if not path.lower().endswith((".mmd", ".puml", ".plantuml")):
+    suffix = Path(path).suffix.lower()
+    if suffix in COMPUTATION_SUFFIXES:
+        source = safe_relative(project, path, label="computation figure source", must_exist=True)
+        front = computation_front_matter(source)
+        metadata = front.get("unaltraweb_compute")
+        if not isinstance(metadata, dict) or str(metadata.get("mode") or "").strip().lower() != "figure":
+            raise ManualPdfError(f"Computation source is not declared as unaltraweb_compute.mode: figure: {path}")
+        outputs = metadata.get("outputs")
+        if outputs is None and metadata.get("output"):
+            outputs = [metadata["output"]]
+        if not isinstance(outputs, list) or not outputs or not str(outputs[0] or "").strip():
+            raise ManualPdfError(f"Figure computation source declares no outputs: {path}")
+        output_raw = str(outputs[0]).strip()
+        output = safe_relative(project, output_raw, label="computed figure output")
+        if output.suffix.lower() not in GENERATED_MEDIA_SUFFIXES:
+            raise ManualPdfError(f"Unsupported computed figure output type for {path}: {output_raw}")
+        edited = output.with_suffix(".edited.svg")
+        if edited.is_file():
+            return str(edited.relative_to(project))
+        if output.is_file():
+            return str(output.relative_to(project))
+        raise ManualPdfError(
+            f"Missing rendered figure {output_raw} for computation source {path}. "
+            "Run `make manual-compute-render-figures` before building the PDF."
+        )
+    if suffix not in DIAGRAM_SUFFIXES:
         return path
     source = safe_relative(project, path, label="diagram source", must_exist=True)
     candidates = [Path(str(source) + ".edited.svg"), Path(str(source) + ".svg")]
@@ -306,9 +713,97 @@ def resolve_visual_source(project: Path, raw_path: str) -> str:
     raise ManualPdfError(f"No printable SVG found for diagram source: {path}")
 
 
-def transform_markdown(project: Path, text: str, source: Path) -> str:
-    text = text.replace("{{ site.baseurl }}", "")
-    text = text.replace("{% include manual-bibliography.liquid %}", "::: {#refs}\n:::")
+def pandoc_image_attributes(raw: str) -> str:
+    source = raw.strip()
+    if not source:
+        return ""
+    source = source.removeprefix("{: ").removeprefix("{:").removesuffix("}").strip()
+    source = source.translate({0x2018: ord("'"), 0x2019: ord("'"), 0x201C: ord('"'), 0x201D: ord('"')})
+    dimensions: dict[str, str] = {}
+    while dimension_match := FIGURE_DIMENSION_ATTR_RE.search(source):
+        dimensions[dimension_match.group("name")] = next(
+            value for value in dimension_match.group("double", "single", "bare") if value is not None
+        ).strip()
+        source = f"{source[:dimension_match.start()]} {source[dimension_match.end():]}".strip()
+
+    width = dimensions.get("data-figure-width-pdf") or dimensions.get("data-figure-width") or ""
+    height = dimensions.get("data-figure-height-pdf") or dimensions.get("data-figure-height") or ""
+    rem_width = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)rem", width, re.IGNORECASE)
+    if rem_width:
+        percentage = min(100.0, float(rem_width.group(1)) / 60.0 * 100.0)
+        width = f"{percentage:.4f}".rstrip("0").rstrip(".") + "%"
+    rem_height = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)rem", height, re.IGNORECASE)
+    if rem_height:
+        height = f"{float(rem_height.group(1)) * 11.0:.4f}".rstrip("0").rstrip(".") + "pt"
+
+    attributes = [
+        value
+        for value in (
+            source,
+            f"width={width}" if width else "",
+            f"height={height}" if height else "",
+        )
+        if value
+    ]
+    return "{" + " ".join(attributes) + "}" if attributes else ""
+
+
+def latex_escape(value: str) -> str:
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "{": r"\{",
+        "}": r"\}",
+        "$": r"\$",
+        "&": r"\&",
+        "#": r"\#",
+        "_": r"\_",
+        "%": r"\%",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+    }
+    return "".join(replacements.get(character, character) for character in value)
+
+
+def transform_markdown(
+    project: Path,
+    text: str,
+    source: Path,
+    language: str = "en",
+    config: dict[str, Any] | None = None,
+) -> str:
+    callout_labels, _ = resolve_callout_labels(project, config or {}, language)
+    visual_default_language = str((config or {}).get("default_lang") or (config or {}).get("lang") or language)
+    configured_visual_languages = (config or {}).get("languages")
+    if not isinstance(configured_visual_languages, list):
+        configured_visual_languages = [visual_default_language]
+    token_prefix = "UNALTRAWEBMANUALPROTECTED"
+    while token_prefix in text:
+        token_prefix += "X"
+    protected: list[str] = []
+
+    def protect(value: str) -> str:
+        token = f"{token_prefix}_{len(protected)}_"
+        protected.append(value)
+        return token
+
+    protected_token_re = re.compile(rf"{re.escape(token_prefix)}_(\d+)_")
+
+    def latex_caption(value: str) -> str:
+        chunks: list[str] = []
+        position = 0
+        for token in protected_token_re.finditer(value):
+            chunks.append(latex_escape(value[position:token.start()]))
+            protected_value = protected[int(token.group(1))]
+            inline_match = MARKDOWN_INLINE_CODE_RE.fullmatch(protected_value)
+            if inline_match:
+                fence_length = len(inline_match.group(1))
+                code = protected_value[fence_length:-fence_length]
+                chunks.append(r"\texttt{" + latex_escape(code) + "}")
+            else:
+                chunks.append(latex_escape(protected_value))
+            position = token.end()
+        chunks.append(latex_escape(value[position:]))
+        return "".join(chunks)
 
     def citations(match: re.Match[str]) -> str:
         keys = [key.lstrip("@").strip() for key in match.group(1).split() if key.strip()]
@@ -317,21 +812,135 @@ def transform_markdown(project: Path, text: str, source: Path) -> str:
     def table(match: re.Match[str]) -> str:
         return f"Table: {match.group(1).strip()}\n\n{match.group(2).strip()}"
 
-    def image(match: re.Match[str]) -> str:
-        alt, raw_path, title = match.groups()
-        printable = resolve_visual_source(project, raw_path)
-        caption = title or alt
-        return f"![{caption}]({printable})"
+    def inline_code(match: re.Match[str]) -> str:
+        value = html.unescape(match.group(1))
+        longest_fence = max((len(run) for run in re.findall(r"`+", value)), default=0) + 1
+        fence = "`" * longest_fence
+        padding = " " if value.startswith("`") or value.endswith("`") else ""
+        return f"{fence}{padding}{value}{padding}{fence}"
 
-    text = CITE_RE.sub(citations, text)
-    text = TABLE_DIV_RE.sub(table, text)
-    text = IMAGE_RE.sub(image, text)
-    unknown_includes = [item for item in INCLUDE_RE.findall(text) if item.strip()]
-    unknown_liquid = [item for item in LIQUID_RE.findall(text) if item.strip()]
+    def display_math(match: re.Match[str]) -> str:
+        body = match.group("body").rstrip("\r\n")
+        return f"\\begin{{equation}}\n{body}\n\\end{{equation}}"
+
+    def image(match: re.Match[str]) -> str:
+        alt = match.group("alt")
+        raw_path = match.group("path")
+        title = match.group("double_title") or match.group("single_title")
+        printable = resolve_visual_source(
+            project,
+            raw_path,
+            language=language,
+            default_language=visual_default_language,
+            languages=[str(value) for value in configured_visual_languages],
+        )
+        caption = title or alt
+        attributes = pandoc_image_attributes(match.group("attrs") or "")
+        return f"![{caption}]({printable}){attributes}"
+
+    def callout(match: re.Match[str]) -> str:
+        marks = match.group("marks")
+        depth = min(len(marks), max(CALLOUT_STYLES))
+        color, callout_type = CALLOUT_STYLES[depth]
+        body = "\n".join(line[len(marks):].lstrip(" \t") for line in match.group("block").splitlines()).strip()
+        if not body:
+            raise ManualPdfError(f"Empty callout in {source.relative_to(project)}")
+        label = latex_escape(callout_labels[callout_type])
+        return (
+            "```{=latex}\n"
+            f"\\begin{{manualcallout}}{{{color}}}{{{label}}}\n"
+            "```\n\n"
+            f"{body}\n\n"
+            "```{=latex}\n"
+            "\\end{manualcallout}\n"
+            "```"
+        )
+
+    def subfigures(match: re.Match[str]) -> str:
+        def raw_latex_inline(value: str) -> str:
+            fence = "`" * (max((len(run) for run in re.findall(r"`+", value)), default=0) + 1)
+            padding = " " if value.startswith("`") or value.endswith("`") else ""
+            return f"{fence}{padding}{value}{padding}{fence}{{=latex}}"
+
+        images = list(IMAGE_RE.finditer(match.group("body")))
+        if not images:
+            raise ManualPdfError(f"Subfigures block contains no images in {source.relative_to(project)}")
+
+        layout = match.group("layout") or ""
+        row_sizes = [len([token for token in row.split("+") if token.strip()]) for row in layout.split("/") if row.strip()]
+        if not row_sizes:
+            row_sizes = [min(2, len(images))]
+            while sum(row_sizes) < len(images):
+                row_sizes.append(min(2, len(images) - sum(row_sizes)))
+        if sum(row_sizes) != len(images):
+            raise ManualPdfError(
+                f"Subfigures layout '{layout}' declares {sum(row_sizes)} panels but contains {len(images)} images "
+                f"in {source.relative_to(project)}"
+            )
+
+        rendered = ["```{=latex}\n\\begin{figure}[H]\n\\centering\n```"]
+        image_index = 0
+        max_image_height = f"{0.52 / len(row_sizes):.3f}".rstrip("0").rstrip(".")
+        for row_index, row_size in enumerate(row_sizes):
+            panel_width = {1: "0.92", 2: "0.48", 3: "0.31", 4: "0.23"}.get(row_size, f"{0.92 / row_size:.3f}")
+            row: list[str] = []
+            for column_index in range(row_size):
+                item = images[image_index]
+                image_index += 1
+                caption = item.group("double_title") or item.group("single_title") or item.group("alt")
+                printable = resolve_visual_source(
+                    project,
+                    item.group("path"),
+                    language=language,
+                    default_language=visual_default_language,
+                    languages=[str(value) for value in configured_visual_languages],
+                )
+                attributes = pandoc_image_attributes(item.group("attrs") or "")
+                row.extend([
+                    raw_latex_inline(
+                        f"\\begin{{subfigure}}[t]{{{panel_width}\\linewidth}}"
+                        "\\centering"
+                        f"\\def\\maxheight{{{max_image_height}\\textheight}}"
+                    ),
+                    f"![]({printable}){attributes}",
+                ])
+                separator = r"\hfill" if column_index < row_size - 1 else ""
+                row.append(raw_latex_inline(
+                    f"\\caption{{{latex_caption(caption)}}}"
+                    f"\\end{{subfigure}}{separator}"
+                ))
+            rendered.append("".join(row))
+            if row_index < len(row_sizes) - 1:
+                rendered.append("```{=latex}\n\\par\\medskip\n```")
+
+        overall_caption = latex_caption(match.group("caption") or "")
+        caption_command = f"\\caption{{{overall_caption}}}\n" if overall_caption else ""
+        rendered.append(f"```{{=latex}}\n{caption_command}\\end{{figure}}\n```")
+        return "\n\n".join(rendered)
+
+    transformed = FENCED_CODE_BLOCK_RE.sub(lambda match: protect(match.group(0)), text)
+    transformed = MARKDOWN_INLINE_CODE_RE.sub(lambda match: protect(match.group(0)), transformed)
+    transformed = INLINE_CODE_RE.sub(lambda match: protect(inline_code(match)), transformed)
+    transformed = DISPLAY_MATH_BLOCK_RE.sub(display_math, transformed)
+    transformed = transformed.replace(r"\begin{equation\*}", r"\begin{equation*}")
+    transformed = transformed.replace(r"\end{equation\*}", r"\end{equation*}")
+    transformed = BASEURL_RE.sub("", transformed)
+    transformed = transformed.replace("{% include manual-bibliography.liquid %}", "::: {#refs}\n:::")
+    transformed = CITE_RE.sub(citations, transformed)
+    transformed = CALLOUT_BLOCK_RE.sub(callout, transformed)
+    transformed = TABLE_DIV_RE.sub(table, transformed)
+    transformed = SUBFIGURES_DIV_RE.sub(subfigures, transformed)
+    transformed = IMAGE_RE.sub(image, transformed)
+    if re.search(r"^:::\s*subfigures\b", transformed, re.MULTILINE):
+        raise ManualPdfError(f"Malformed subfigures block in {source.relative_to(project)}")
+    unknown_includes = [item for item in INCLUDE_RE.findall(transformed) if item.strip()]
+    unknown_liquid = [item for item in LIQUID_RE.findall(transformed) if item.strip()]
     if unknown_includes or unknown_liquid:
         token = (unknown_includes or unknown_liquid)[0]
         raise ManualPdfError(f"Unsupported Liquid in {source.relative_to(project)}: {token}")
-    return text.strip()
+    for index in range(len(protected) - 1, -1, -1):
+        transformed = transformed.replace(f"{token_prefix}_{index}_", protected[index])
+    return transformed.strip()
 
 
 def localized(value: Any, lang: str) -> str:
@@ -380,6 +989,7 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         return str(safe_relative(project, str(raw), label="cover asset", must_exist=True).relative_to(project))
 
     title = localized(metadata.get("title"), source_lang) or localized(home_front.get("title"), source_lang) or str(config.get("title") or "Manual")
+    copyright_holder = str(config.get("copyright_holder") or "").strip()
     return {
         "title": title,
         "short-title": localized(metadata.get("short_title"), source_lang) or str(config.get("short_title") or title),
@@ -388,6 +998,12 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         "instructors": instructors,
         "series": localized(metadata.get("series"), source_lang) or "unaltremanual",
         "series-subtitle": localized(metadata.get("series_subtitle"), source_lang),
+        "publisher": localized(metadata.get("publisher"), source_lang),
+        "edition": localized(metadata.get("edition"), source_lang),
+        "publication-date": localized(metadata.get("publication_date"), source_lang),
+        "identifier": localized(metadata.get("identifier"), source_lang),
+        "license": localized(metadata.get("license"), source_lang),
+        "source": localized(metadata.get("source"), source_lang),
         "subject": localized(metadata.get("subject"), source_lang),
         "subject-code": str(metadata.get("subject_code") or ""),
         "degree": localized(metadata.get("degree"), source_lang),
@@ -398,8 +1014,12 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         "location": localized(metadata.get("location"), source_lang) or localized(author.get(f"location_{source_lang}") or author.get("location"), source_lang),
         "academic-year": str(metadata.get("academic_year") or ""),
         "revision-date": localized(metadata.get("revision_date"), source_lang),
-        "rights": localized(metadata.get("rights"), source_lang) or f"© {config.get('copyright_holder') or ''}".strip(),
+        "rights": localized(metadata.get("rights"), source_lang) or (f"© {copyright_holder}" if copyright_holder else ""),
         "metadata-page-title": metadata_labels["title"],
+        "metadata-series-label": metadata_labels["series"],
+        "metadata-publisher-label": metadata_labels["publisher"],
+        "metadata-edition-label": metadata_labels["edition"],
+        "metadata-publication-date-label": metadata_labels["publication_date"],
         "metadata-subject-label": metadata_labels["subject"],
         "metadata-teaching-guides-label": metadata_labels["teaching_guides"],
         "metadata-academic-year-label": metadata_labels["academic_year"],
@@ -409,10 +1029,15 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         "metadata-location-label": metadata_labels["location"],
         "metadata-revision-date-label": metadata_labels["revision_date"],
         "metadata-instructors-label": metadata_labels["instructors"],
+        "metadata-identifier-label": metadata_labels["identifier"],
+        "metadata-license-label": metadata_labels["license"],
+        "metadata-source-label": metadata_labels["source"],
+        "metadata-rights-label": metadata_labels["rights"],
         "lang": lang,
         "babel-lang": LANGUAGE_NAMES.get(source_lang, "english"),
         "toc": bool(pdf.get("toc", True)),
         "nocite": "@*" if manual.get("bibliography", True) and bool(pdf.get("include_bibliography", True)) else "",
+        "link-citations": bool(pdf.get("link_citations", True)),
         "draft": draft and bool(pdf.get("mark_drafts", True)),
         "draft-label": localized(pdf.get("draft_label"), source_lang) or {"ca": "ESBORRANY", "es": "BORRADOR", "en": "DRAFT"}.get(source_lang, "DRAFT"),
         "draft-description": localized(pdf.get("draft_description"), source_lang) or {"ca": "Material en revisió. No és una versió final.", "es": "Material en revisión. No es una versión final.", "en": "Material under review. This is not a final version."}.get(source_lang, "Material under review."),
@@ -420,6 +1045,10 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         "band-color": str(cover.get("band_color") or cover.get("primary_color") or "990000").lstrip("#"),
         "secondary-color": str(cover.get("secondary_color") or "003366").lstrip("#"),
         "muted-color": str(cover.get("muted_color") or "666666").lstrip("#"),
+        "internal-link-color": str(pdf.get("internal_link_color") or cover.get("secondary_color") or "003366").lstrip("#"),
+        "external-link-color": str(pdf.get("external_link_color") or cover.get("primary_color") or "990000").lstrip("#"),
+        "citation-link-color": str(pdf.get("citation_link_color") or "C2185B").lstrip("#"),
+        "inline-code-color": str(pdf.get("inline_code_color") or "5A1F5F").lstrip("#"),
         "cover-image": asset(cover.get("image")),
         "cover-logo": asset(cover.get("institution_logo")),
         "series-logo": asset(cover.get("series_logo")),
@@ -432,11 +1061,14 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
     home, chapters, source_lang = manual_sources(project, config, lang)
     home_front: dict[str, Any] = {}
     chunks: list[str] = []
-    source_paths: list[Path] = []
+    _, callout_label_sources = resolve_callout_labels(project, config, source_lang)
+    source_paths: list[Path] = list(callout_label_sources)
+    includes_home = bool(home and pdf.get("include_home", True))
 
-    if home and bool(pdf.get("include_home", True)):
+    if includes_home:
+        assert home is not None
         home_front, body = read_source(home)
-        body = transform_markdown(project, body, home)
+        body = transform_markdown(project, body, home, source_lang, config)
         home_title = localized(pdf.get("home_title"), source_lang) or {"ca": "Inici i presentació del curs", "es": "Inicio y presentación del curso", "en": "Course introduction"}.get(source_lang, "Introduction")
         first_heading = re.compile(rf"^##\s+{re.escape(home_title)}\s*$", re.MULTILINE)
         body = first_heading.sub("", body, count=1).strip()
@@ -452,11 +1084,12 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
         heading = f"# {title}"
         if front.get("manual_numbered") is False:
             heading += " {-}"
-        chunks.append(f"{heading}\n\n{transform_markdown(project, body, path)}")
+        chunks.append(f"{heading}\n\n{transform_markdown(project, body, path, source_lang, config)}")
         included_chapters.append((path, front, body))
         source_paths.append(path)
 
     metadata = build_metadata(project, config, lang, source_lang, home_front, included_chapters)
+    metadata["include-home"] = includes_home
     return metadata, source_paths, "\n\n\\newpage\n\n".join(chunks) + "\n"
 
 
@@ -494,6 +1127,7 @@ def build_dependencies(project: Path, metadata: dict[str, Any], source_paths: li
     dependencies: list[tuple[str, Path]] = [
         ("config:_config.yml", project / "_config.yml"),
         ("builder:build_pdf.py", Path(__file__).resolve()),
+        ("toolchain:Dockerfile", DEFAULT_DOCKERFILE),
         (f"template:{template.name}", template),
     ]
     for path in source_paths:
@@ -504,11 +1138,14 @@ def build_dependencies(project: Path, metadata: dict[str, Any], source_paths: li
         if metadata.get(key):
             path = safe_relative(project, str(metadata[key]), label=key, must_exist=True)
             dependencies.append((f"asset:{path.relative_to(project)}", path))
-    for match in IMAGE_RE.finditer(markdown):
-        raw = match.group(2)
+    dependency_markdown = FENCED_CODE_BLOCK_RE.sub("", markdown)
+    dependency_markdown = MARKDOWN_INLINE_CODE_RE.sub("", dependency_markdown)
+    for match in IMAGE_RE.finditer(dependency_markdown):
+        raw = match.group("path")
         if raw.startswith(("http://", "https://", "data:", "#")):
             continue
-        path = safe_relative(project, raw, label="manual image", must_exist=True)
+        local_path, _ = split_url_decoration(raw)
+        path = safe_relative(project, local_path, label="manual image", must_exist=True)
         dependencies.append((f"asset:{path.relative_to(project)}", path))
     unique: dict[str, Path] = {}
     for label, path in dependencies:
@@ -539,6 +1176,7 @@ def prepare_build(project: Path, config: dict[str, Any], lang: str) -> tuple[dic
     csl = configured_csl(project, config, bibliography)
     dependencies = build_dependencies(project, metadata, source_paths, markdown, template, csl)
     fingerprint = dependency_fingerprint(dependencies)
+    metadata["trailer-id"] = fingerprint[:32]
     return metadata, source_paths, markdown, template, bibliography, csl, dependencies, fingerprint
 
 
@@ -551,7 +1189,17 @@ def paths_in_build_dir(paths: dict[str, Path], build_dir: Path) -> dict[str, Pat
 
 
 def run_command(command: list[str], project: Path) -> None:
-    completed = subprocess.run(command, cwd=project, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    environment = os.environ.copy()
+    environment.update({"SOURCE_DATE_EPOCH": REPRODUCIBLE_BUILD_EPOCH, "FORCE_SOURCE_DATE": "1", "TZ": "UTC"})
+    completed = subprocess.run(
+        command,
+        cwd=project,
+        env=environment,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
         raise ManualPdfError(f"Command failed ({completed.returncode}): {' '.join(command)}\n{detail}")
@@ -575,7 +1223,7 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
             "--standalone",
             "--top-level-division=chapter",
             "--number-sections",
-            "--no-highlight",
+            "--highlight-style=pygments",
             f"--metadata-file={staged['metadata']}",
             f"--template={template}",
             "--pdf-engine=xelatex",
@@ -587,6 +1235,20 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
             if csl:
                 command.append(f"--csl={csl}")
         run_command(command, project)
+        normalized_pdf = staged["pdf"].with_suffix(".normalized.pdf")
+        run_command(
+            [
+                "qpdf",
+                "--deterministic-id",
+                "--object-streams=generate",
+                "--recompress-flate",
+                "--compression-level=9",
+                str(staged["pdf"]),
+                str(normalized_pdf),
+            ],
+            project,
+        )
+        os.replace(normalized_pdf, staged["pdf"])
         cover_prefix = staged["cover"].with_suffix("")
         run_command(["pdftoppm", "-f", "1", "-singlefile", "-png", "-r", "150", str(staged["pdf"]), str(cover_prefix)], project)
         manifest = {
@@ -746,9 +1408,28 @@ def publish_language(project: Path, config: dict[str, Any], lang: str, dry_run: 
     return {"language": lang, "dry_run": dry_run, "operations": operations}
 
 
+def sync_language(project: Path, config: dict[str, Any], lang: str) -> dict[str, Any]:
+    status = status_language(project, config, lang)
+    built = False
+    published = False
+    if not status["ready_to_publish"]:
+        build_language(project, config, lang)
+        built = True
+        status = status_language(project, config, lang)
+    if not status["published_current"]:
+        publish_language(project, config, lang, False)
+        published = True
+    return {
+        "language": lang,
+        "state": "updated" if built or published else "current",
+        "built": built,
+        "published": published,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="unaltraweb-manual-pdf")
-    parser.add_argument("command", choices=["status", "build", "publish"])
+    parser.add_argument("command", choices=["status", "check", "build", "publish", "sync"])
     parser.add_argument("--project", default=".")
     parser.add_argument("--language", default="")
     parser.add_argument("--dry-run", action="store_true")
@@ -759,9 +1440,12 @@ def main(argv: list[str] | None = None) -> int:
         config = read_yaml(project / "_config.yml")
         pdf = nested(config, "unaltraweb", "manual", "pdf")
         languages = language_list(config, pdf, args.language)
-        if args.command != "status" and not bool(pdf.get("enabled", False)):
+        if args.command == "sync" and not bool(pdf.get("enabled", False)):
+            print(json.dumps({"project": str(project), "ok": True, "enabled": False, "skipped": True}, ensure_ascii=False, indent=2))
+            return 0
+        if args.command not in {"status", "check"} and not bool(pdf.get("enabled", False)):
             raise ManualPdfError("Manual PDF generation is disabled in unaltraweb.manual.pdf.enabled.")
-        if args.command == "status":
+        if args.command in {"status", "check"}:
             payload: dict[str, Any] = {
                 "project": str(project),
                 "enabled": bool(pdf.get("enabled", False)),
@@ -769,13 +1453,17 @@ def main(argv: list[str] | None = None) -> int:
             }
             payload["configuration_ok"] = payload["enabled"] and all(not item["error"] for item in payload["languages"])
             payload["ready_to_publish"] = payload["configuration_ok"] and all(item["ready_to_publish"] for item in payload["languages"])
-            payload["ok"] = payload["ready_to_publish"]
+            payload["published_current"] = payload["configuration_ok"] and all(item["published_current"] for item in payload["languages"])
+            payload["ok"] = payload["published_current"] if args.command == "check" else payload["ready_to_publish"]
         elif args.command == "build":
             results = [build_language(project, config, lang) for lang in languages]
             payload = {"project": str(project), "ok": True, "built": results}
-        else:
+        elif args.command == "publish":
             results = [publish_language(project, config, lang, args.dry_run) for lang in languages]
             payload = {"project": str(project), "ok": True, "dry_run": args.dry_run, "published": results}
+        else:
+            results = [sync_language(project, config, lang) for lang in languages]
+            payload = {"project": str(project), "ok": True, "synced": results}
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0 if payload["ok"] else 1
     except (ManualPdfError, OSError, yaml.YAMLError) as exc:

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-import sys
 import argparse
+import json
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -9,6 +12,9 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from unaltraweb_mcp import site_tools
 from unaltraweb_mcp import cli
+
+
+FACTORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 class ManualComputationsMcpTests(unittest.TestCase):
@@ -63,6 +69,50 @@ class ManualComputationsMcpTests(unittest.TestCase):
             "manual-compute-render-figures",
             env={},
         )
+
+    def test_render_figures_core_target_exists_and_skips_stale_chapter(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary).resolve()
+            source = project / "_chapters/en/chapter.qmd"
+            source.parent.mkdir(parents=True)
+            source.write_text(
+                """---
+title: Stale chapter
+lang: en
+ref: stale-chapter
+unaltraweb_compute:
+  engine: python
+---
+
+Chapter source.
+""",
+                encoding="utf-8",
+            )
+
+            completed = subprocess.run(
+                [
+                    "make",
+                    "--silent",
+                    "--no-print-directory",
+                    "-C",
+                    str(FACTORY_ROOT),
+                    "manual-compute-render-figures",
+                    f"PROJECT={project}",
+                    "COMPUTE_MODE=chapter",
+                    "COMPUTE_STALE_ONLY=0",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+                timeout=30,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            self.assertEqual(json.loads(completed.stdout)["rendered_count"], 0)
+            self.assertFalse(source.with_suffix(".md").exists())
+            lock = json.loads((project / ".unaltraweb/computations.lock.json").read_text(encoding="utf-8"))
+            self.assertEqual(lock["records"], {})
 
     def test_source_cannot_escape_project(self) -> None:
         with self.assertRaisesRegex(ValueError, "project-relative"):

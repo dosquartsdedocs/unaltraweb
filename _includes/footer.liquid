@@ -4,6 +4,8 @@
 {% capture made_with_text %}{% include t.liquid key='footer.made_with' default='Made with' %}{% endcapture %}
 {% assign copyright_holder = site.copyright_holder | default: 'dosquartsdedocs' %}
 {% assign footer_config = site.unaltraweb.footer %}
+{% assign footer_brand_name = footer_config.brand_name | default: 'dosquartsdedocs' %}
+{% assign footer_brand_url = footer_config.brand_url | default: 'https://github.com/dosquartsdedocs' %}
 {% assign footer_logo_light = footer_config.logo_light | default: site.unaltraweb.logos.inverse %}
 {% assign footer_logo_dark = footer_config.logo_dark | default: site.unaltraweb.logos.default %}
 {% assign footer_logo_cafe = footer_config.logo_cafe | default: footer_logo_light %}
@@ -22,9 +24,16 @@
   &copy; {{ site.time | date: '%Y' }}
   {{ copyright_holder }}.
   {% if site.footer_text %}
+    {{ footer_logo }}
     {{ site.footer_text }}
   {% else %}
-    {{ made_with_text | strip }} <a href="https://github.com/dosquartsdedocs/unaltraweb">unaltraweb</a>.
+    {{ made_with_text | strip }}
+    <span class="footer-product-credit">
+      <a class="footer-product-link" href="https://github.com/dosquartsdedocs/unaltraweb">unaltraweb</a>
+      <span class="footer-product-separator" aria-hidden="true">&middot;</span>
+      {{ footer_logo }}
+      <a class="footer-brand-link" href="{{ footer_brand_url }}">{{ footer_brand_name }}</a>
+    </span>.
   {% endif %}
   {% if site.impressum_path %}
     <a href="{{ site.url }}{{ site.baseurl }}{{ site.impressum_path }}">{{ impressum_text | strip }}</a>.
@@ -38,7 +47,6 @@
   <footer class="fixed-bottom" role="contentinfo">
     <div class="container mt-0">
       <div class="footer-content">
-        {{ footer_logo }}
         <span>{{ footer_contents }}</span>
       </div>
     </div>
@@ -51,7 +59,6 @@
 
     <div class="container">
       <div class="footer-content">
-        {{ footer_logo }}
         <span>{{ footer_contents }}</span>
       </div>
     </div>

@@ -706,10 +706,13 @@ def status_item(project: Path, config: dict[str, Any], config_path: Path, record
     }
 
 
-def status(project: Path, source: str = "", engine: str = "") -> dict[str, Any]:
+def status(project: Path, source: str = "", engine: str = "", mode: str = "") -> dict[str, Any]:
     config, config_path = load_config(project)
     all_records = discover_sources(project, config)
-    records = [item for item in all_records if not engine or item["engine"] == engine]
+    records = [
+        item for item in all_records
+        if (not engine or item["engine"] == engine) and (not mode or item["mode"] == mode)
+    ]
     if source:
         selected = safe_relative(project, source, label="selected computation source", must_exist=True)
         records = [item for item in records if item["source"] == selected]
@@ -1100,10 +1103,13 @@ def project_render_lock(project: Path):
         yield
 
 
-def _render(project: Path, source: str = "", engine: str = "", confirm_overwrite: bool = False, stale_only: bool = False) -> dict[str, Any]:
+def _render(project: Path, source: str = "", engine: str = "", confirm_overwrite: bool = False, stale_only: bool = False, mode: str = "") -> dict[str, Any]:
     config, config_path = load_config(project)
     all_records = discover_sources(project, config)
-    records = [item for item in all_records if not engine or item["engine"] == engine]
+    records = [
+        item for item in all_records
+        if (not engine or item["engine"] == engine) and (not mode or item["mode"] == mode)
+    ]
     if source:
         selected = safe_relative(project, source, label="selected computation source", must_exist=True)
         records = [item for item in records if item["source"] == selected]
@@ -1166,9 +1172,9 @@ def _render(project: Path, source: str = "", engine: str = "", confirm_overwrite
     return {"project": str(project), "rendered": results, "rendered_count": len(results), "ok": True}
 
 
-def render(project: Path, source: str = "", engine: str = "", confirm_overwrite: bool = False, stale_only: bool = False) -> dict[str, Any]:
+def render(project: Path, source: str = "", engine: str = "", confirm_overwrite: bool = False, stale_only: bool = False, mode: str = "") -> dict[str, Any]:
     with project_render_lock(project):
-        return _render(project, source=source, engine=engine, confirm_overwrite=confirm_overwrite, stale_only=stale_only)
+        return _render(project, source=source, engine=engine, mode=mode, confirm_overwrite=confirm_overwrite, stale_only=stale_only)
 
 
 def prune(project: Path) -> dict[str, Any]:
@@ -1222,6 +1228,7 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--project", default=".")
     root.add_argument("--source", default="")
     root.add_argument("--engine", choices=["r", "python"], default="")
+    root.add_argument("--mode", choices=["chapter", "figure"], default="")
     root.add_argument("--confirm-overwrite", action="store_true")
     root.add_argument("--stale-only", action="store_true")
     return root
@@ -1232,9 +1239,9 @@ def main(argv: list[str] | None = None) -> int:
     project = Path(args.project).expanduser().resolve()
     try:
         if args.command in {"status", "check"}:
-            result = status(project, source=args.source, engine=args.engine)
+            result = status(project, source=args.source, engine=args.engine, mode=args.mode)
         elif args.command == "render":
-            result = render(project, source=args.source, engine=args.engine, confirm_overwrite=args.confirm_overwrite, stale_only=args.stale_only)
+            result = render(project, source=args.source, engine=args.engine, mode=args.mode, confirm_overwrite=args.confirm_overwrite, stale_only=args.stale_only)
         elif args.command == "prune":
             result = prune(project)
         elif args.command == "resolve":

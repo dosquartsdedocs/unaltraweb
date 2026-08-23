@@ -65,6 +65,15 @@ class WebCaptureRendererTests(unittest.TestCase):
         self.assertEqual(captures.relative(self.project, records[0]["svg"]), "assets/captures/manual.capture.svg")
         self.assertEqual(captures.relative(self.project, records[0]["edited"]), "assets/captures/manual.capture.edited.svg")
 
+    def test_discovers_yaml_source_suffix(self) -> None:
+        yaml_source = self.project / "assets/captures/alternate.capture.yaml"
+        write_recipe(yaml_source)
+
+        records = captures.discover(self.project)
+        alternate = next(record for record in records if record["source"] == yaml_source)
+
+        self.assertEqual(captures.relative(self.project, alternate["svg"]), "assets/captures/alternate.capture.svg")
+
     def test_rejects_remote_recipe_url(self) -> None:
         write_recipe(self.source, path="https://example.com/manual/")
 

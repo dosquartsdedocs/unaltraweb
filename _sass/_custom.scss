@@ -21,7 +21,7 @@
   
     /* Inline code styling in light mode (this removes the light purple highlight) */
     --custom-inline-code-bg: rgba(26, 115, 232, 0.10);
-    --custom-inline-code-text: inherit;
+    --custom-inline-code-text: #5a1f5f;
     --custom-inline-code-border: rgba(26, 115, 232, 0.25);
   
     /* Text selection styling in light mode (optional) */
@@ -67,6 +67,23 @@
     color: var(--custom-link-hover-color);
     text-decoration: underline;
   }
+
+  html[data-theme="light"] a[rel~="external"],
+  html[data-theme="light"] a[rel~="external"]:hover {
+    color: var(--global-external-link-color);
+  }
+
+  html[data-theme="light"] footer.fixed-bottom .footer-content a,
+  html[data-theme="light"] footer.fixed-bottom .footer-content a:hover {
+    color: var(--global-footer-link-color);
+  }
+
+  html[data-theme="light"] a.citation,
+  html[data-theme="light"] a.citation:hover,
+  html[data-theme="light"] a.citation-number,
+  html[data-theme="light"] a.citation-number:hover {
+    color: var(--global-citation-color);
+  }
   
   /* =============================================================================
      Navbar overrides (light mode)
@@ -105,7 +122,7 @@
   
   html[data-theme="light"] code {
     background: var(--custom-inline-code-bg);
-    /* border: 1px solid var(--custom-inline-code-border); */
+    border: 1px solid var(--custom-inline-code-border);
     color: var(--custom-inline-code-text);
   }
   

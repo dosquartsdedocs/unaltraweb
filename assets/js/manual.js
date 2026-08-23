@@ -64,13 +64,13 @@
   }
 
   function addNumbering() {
-    var root = document.querySelector(".manual-chapter");
+    var root = document.querySelector(".manual-main[data-chapter]");
     if (!root) return;
     root.querySelectorAll(".hd-num").forEach(function (node) { node.remove(); });
     if (root.getAttribute("data-manual-numbered") === "false") return;
 
     var chapter = parseInt(root.getAttribute("data-chapter"), 10);
-    if (!Number.isFinite(chapter) || chapter < 1) chapter = 1;
+    if (!Number.isFinite(chapter) || chapter < 0) chapter = 1;
     var section = 0;
     var subsection = 0;
     var subsubsection = 0;

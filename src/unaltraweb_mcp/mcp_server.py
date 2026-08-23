@@ -58,7 +58,10 @@ def run_server(project: Path, factory: Path) -> None:
             "When a chapter has an executable .qmd, .Rmd, .R, .py, or .ipynb source, edit that source rather than its generated .md. "
             "A figure can be referenced from Markdown by its compute source (for example assets/quarto/figures/boxplot.qmd); the build rewrites the reference to the declared mode:figure output and prefers an author-owned *.edited.svg. "
             "Run manual_computation_status and render explicitly after source or input changes; builds must not proceed with stale generated Markdown or figures, and make build/serve auto-render stale figures first. "
-            "For selector-based screenshots, edit the .capture.yml recipe, preserve the original PNG, and never overwrite .capture.edited.svg without approval."
+            "For selector-based screenshots, edit the .capture.yml recipe, preserve the original PNG, and never overwrite .capture.edited.svg without approval. "
+            "For static Vega figures, reference a .vl.json or .vg.json source declared once in .vegavisuals.yml and use the companion vegavisuals tools to render and check its declared output."
+            " After inserting a text-bearing figure or diagram, run manual_source_quality_check and use its separate web/PDF dimension suggestions; do not distort the intrinsic aspect ratio."
+            " For multilingual visuals, keep the default-language source unsuffixed and add .<lang> before the complete suffix only for translated variants; missing variants fall back to the default source."
         ),
     )
 
@@ -222,7 +225,7 @@ def run_server(project: Path, factory: Path) -> None:
     @mcp.tool()
     def site_check(max_bibliometrics_age_days: int = 180) -> dict[str, Any]:
         """Run local profile, freshness, bibliography, bibliometrics, and build-state checks without network access."""
-        return {"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project, max_bibliometrics_age_days), "computations": tools.manual_computation_status(project, factory), "web_captures": tools.web_capture_status(project, factory), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)}
+        return {"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project, max_bibliometrics_age_days), "computations": tools.manual_computation_status(project, factory), "web_captures": tools.web_capture_status(project, factory), "visualizations": tools.visualization_status(project, factory), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)}
 
     @mcp.tool()
     def profile_check() -> dict[str, Any]:
@@ -231,7 +234,7 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def manual_source_quality_check() -> dict[str, Any]:
-        """Check unaltremanual source hygiene: captioned tables, captioned figures, and external diagram sources."""
+        """Check captions and compare embedded figure text with body text on web/PDF, including suggested support-specific dimensions."""
         return tools.manual_source_quality_check(project)
 
     @mcp.tool()
@@ -256,7 +259,7 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def manual_computation_render(source: str = "", confirm_overwrite: bool = False, stale_only: bool = False) -> dict[str, Any]:
-        """Execute trusted manual sources in network-disabled containers and update versioned Markdown and figures. Set stale_only=True to render only stale figures without touching fresh outputs or unmanaged existing files."""
+        """Execute trusted manual sources in network-disabled containers and update versioned Markdown and figures. Set stale_only=True to render only stale sources without touching fresh outputs or unmanaged existing files."""
         return tools.manual_computation_render(project, factory, source=source, confirm_overwrite=confirm_overwrite, stale_only=stale_only)
 
     @mcp.tool()

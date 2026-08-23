@@ -44,7 +44,7 @@ Nested blockquote depth selects the callout type. The browser inserts the locali
 >>>>>> Caution or danger
 ```
 
-Web rendering is fully styled. PDF output currently preserves these as blockquotes without equivalent labels or styling, so review both formats.
+Web and PDF rendering use the same callout type and localized label. The PDF uses a compact, breakable framed box so multi-paragraph notes and objective lists can continue across pages; review both formats for fit and emphasis.
 
 Use `>>>>>` learning objectives sparingly, normally once after a short chapter or major-section introduction. They should orient the section after the reader has enough context, not replace the opening explanation, and they should not recur as mid-section reminders.
 
@@ -69,13 +69,34 @@ Use an explicit Markdown title as the caption:
 
 Every teaching figure needs meaningful alt text and a caption. The manual numbers figures automatically on the web; the same image and caption are available to the PDF builder.
 
-When the content is substantially narrower than the reading column, narrow and centre the complete figure container without setting a fixed height:
+When the same width works on both supports, narrow and centre the complete figure container without setting a fixed height:
 
 ```markdown
 ![Project folders](assets/diagrams/folders.puml "Recommended project structure"){: data-figure-width="22rem"}
 ```
 
-The value accepts a CSS width and remains limited by the available column. Review the PDF because this is primarily a web layout control.
+`data-figure-width` is a compatible shared fallback. When the web and printed page need different visible sizes, declare them independently:
+
+```markdown
+![Text-bearing map](assets/img/map.svg "Distribution by municipality"){: data-figure-width-web="44rem" data-figure-width-pdf="82%"}
+```
+
+The web value accepts a CSS width and remains limited by the reading column. The PDF value accepts a Pandoc length or percentage. Optional `data-figure-height-web` and `data-figure-height-pdf` values act as maximum constraints; width and height are always combined with the intrinsic aspect ratio, so the image is not stretched. Keep height automatic unless the support imposes a real limit.
+
+After inserting or regenerating a text-bearing SVG figure or diagram, run `manual_source_quality_check`. It estimates the smallest visible SVG text at the declared web and PDF sizes, compares it with the surrounding body text, and returns separate suggested widths. Raster images do not expose dependable text metrics; use SVG for charts and diagrams when possible, and still inspect both rendered supports at final size.
+
+For multilingual manuals, reference the default-language visual with an unsuffixed logical name. Add `.<lang>` immediately before the complete suffix only when the visual itself needs translation:
+
+```text
+map.svg              # default-language source
+map.ca.svg           # Catalan static variant
+boxplot.ca.qmd       # Catalan computation source
+quarterly.ca.vl.json # Catalan Vega-Lite source
+flow.ca.mmd          # Catalan Mermaid source
+folders.ca.puml      # Catalan PlantUML source
+```
+
+Web and PDF first try the requested language and fall back to the unsuffixed default source when that variant is absent. If a localized source exists but its declared output is absent, stale, or invalid, fix that source lifecycle rather than silently using the default output. Localized computation and Vega sources must declare distinct localized outputs.
 
 ## Figure layouts
 
@@ -89,7 +110,7 @@ Use `subfigures` when panels form one direct comparison or explanation, such as 
 :::
 ```
 
-`+` places panels in one row and `/` starts a new row. Prefer compact layouts such as `a+b` or `a+b/c`, write one caption that states the shared comparison, and give each panel a specific caption. This is a high-value teaching device when juxtaposition carries the argument, but it should remain selective: do not group images only because they share a topic, and avoid consecutive multi-panel figures that reduce emphasis or make evidence too small. Web layout is supported. PDF layout is not yet equivalent, so inspect the PDF and use separate captioned figures when print composition matters.
+`+` places panels in one row and `/` starts a new row. Prefer compact layouts such as `a+b` or `a+b/c`, write one caption that states the shared comparison, and give each panel a specific caption. This is a high-value teaching device when juxtaposition carries the argument, but it should remain selective: do not group images only because they share a topic, and avoid consecutive multi-panel figures that reduce emphasis or make evidence too small. Web and PDF preserve the declared rows, panel labels and captions; always inspect dense layouts at the final page size.
 
 ## Tables
 
@@ -117,6 +138,16 @@ Store reusable sources under `assets/diagrams/` and reference them as captioned 
 
 Use Mermaid `.mmd` for flows and PlantUML `.puml` or `.plantuml` for structured diagrams. Prefer PlantUML `@startfiles` for file trees. `diavisuals` generates the SVG; preserve an existing `*.edited.svg` unless the author explicitly approves replacement. Do not use inline Mermaid or PlantUML fences in manuals.
 
+## Static Vega visualizations
+
+Store Vega-Lite specifications as `*.vl.json` and raw Vega specifications as `*.vg.json`. Declare each source exactly once in `.vegavisuals.yml`, including its generated output, then reference the source as a normal captioned image:
+
+```markdown
+![Quarterly totals](assets/charts/quarterly.vl.json "Quarterly totals"){: data-figure-width-web="42rem" data-figure-width-pdf="78%"}
+```
+
+The web and PDF builders resolve the source through the manifest and use the same declared output. A source used as a web image must produce SVG or PNG; prefer SVG for web/PDF parity. Render with `make visualization-render`, commit the specification, output, manifest, and `.vegavisuals.lock.json`, and do not publish while `make visualization-check` or the companion `visualization_check` MCP tool reports stale, missing, unmanaged, or modified output. Reference a generated output directly when one source intentionally has multiple render variants.
+
 ## Web captures
 
 Use a versioned `.capture.yml` recipe when a teaching figure must show a rendered website. The recipe stores a local preview path, viewport, theme, waits, declared inputs, and CSS selectors for annotations. Rendering creates:
@@ -135,7 +166,7 @@ Reference `page.capture.yml` as the captioned image source. Jekyll and the PDF b
 Use a computation source in `mode: figure` when a chapter must show a figure produced by R or Python code. Store the source under a configured `source_roots` directory (for example `assets/quarto/`), declare its outputs, and reference the source the same way you reference a diagram:
 
 ```markdown
-![Alt text](assets/quarto/data-visualization/boxplot.qmd "Caption"){: data-figure-width="48rem"}
+![Alt text](assets/quarto/data-visualization/boxplot.qmd "Caption"){: data-figure-width-web="48rem" data-figure-width-pdf="88%"}
 ```
 
 The source declares `mode: figure` and its generated assets:
@@ -161,17 +192,38 @@ Use verified bibliography keys:
 {% cite firstKey secondKey %}
 ```
 
-Use ordinary fenced code with an explicit language. For mathematics in Markdown sources, use single dollar delimiters for inline expressions and double dollar delimiters on separate lines for display expressions. These forms survive the Jekyll Markdown pipeline and have the clearest web and PDF path:
+Bibliographic citations, external URLs, and internal links are separate semantic categories in both outputs: citations use pink, external links use the external-link color, and links to headings or numbered equations use the internal-link color. Give headings stable explicit identifiers when another passage links to them:
+
+```markdown
+## Normalization {#normalization}
+
+See [the normalization criteria](#normalization) and the [OGC standards](https://www.ogc.org/).
+```
+
+Use ordinary fenced code with an explicit language. Rouge highlights web code and Pandoc Skylighting highlights PDF code; inline code remains monospaced and visually distinct in both. Common identifiers include `bash`, `powershell`, `sql`, `python`, `r`, `haskell`, `javascript`, `yaml`, and `json`.
+
+For mathematics in Markdown sources, use single dollar delimiters for inline expressions and double dollar delimiters on separate lines for displayed equations. Displayed equations are numbered by default on the web and in the PDF:
 
 ```markdown
 The density is $D_i=P_i/A_i$ for territory $i$.
 
 $$
 D_i = \frac{P_i}{A_i}
+\label{eq:density}
 $$
+
+Equation $\eqref{eq:density}$ defines density.
 ```
 
-Do not mark mathematical variables as inline code: `` `P_i` `` renders literally instead of typesetting the subscript. Do not use `\(...\)` directly in Markdown sources because Kramdown consumes those backslashes before MathJax runs.
+Add a stable `eq:` label inside a display block when the text needs to refer to it, then place `\eqref` inside inline-math delimiters so MathJax and LaTeX follow the same source. When a displayed expression explicitly does not need a number, opt out with `equation*`:
+
+```markdown
+\begin{equation*}
+\bar{x}_w = \frac{\sum_i w_i x_i}{\sum_i w_i}
+\end{equation*}
+```
+
+Do not place a label inside `equation*`, because an unnumbered expression has no stable equation number to retrieve. Do not mark mathematical variables as inline code: `` `P_i` `` renders literally instead of typesetting the subscript. Do not use `\(...\)` directly in Markdown sources because Kramdown consumes those backslashes before MathJax runs.
 
 ## Web-only components
 
@@ -189,6 +241,7 @@ Run these checks after drafting or structural revision:
 manual_source_quality_check
 manual_editorial_quality_check
 manual_computation_check when executable sources exist
+visualization_check when .vegavisuals.yml exists
 build_site
 manual_pdf_build when PDF output is enabled
 ```

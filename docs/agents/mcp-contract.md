@@ -10,6 +10,8 @@ make -C ${factoryRoot} mcp-stdio PROJECT=${workspaceFolder}
 
 The opened workspace is the consumer website repository. Factory logic remains in the `unaltraweb` checkout.
 
+Static Vega-Lite and Vega rendering remains owned by the required companion `vegavisuals` MCP dependency. Use its `visualization_status`, `visualization_check`, `render_visualizations`, and `vegavisuals://project/*` resources directly; `unaltraweb` exposes the authoring syntax but does not proxy those tools into the `web://` server.
+
 ## Resources
 
 | Resource | Description |
@@ -39,7 +41,7 @@ The opened workspace is the consumer website repository. Factory logic remains i
 | `site_context` | Read the main local state for an agent session. |
 | `site_check` | Run profile, freshness, bibliography, bibliometrics, and build-state checks without network. |
 | `profile_check` | Check current profile and expected content/config paths. |
-| `manual_source_quality_check` | For `unaltremanual`, check captioned table blocks, captioned figures, and external Mermaid/PlantUML diagram sources. |
+| `manual_source_quality_check` | For `unaltremanual`, check captioned tables and figures, resolve local visual sources, compare embedded SVG text with body text on web/PDF, and suggest support-specific dimensions. |
 | `manual_editorial_quality_check` | Reject non-publishable metatext, user/agent instructions, workflow markers, drafting notes, and placeholders in manual bodies; return the editorial review checklist and local writing-profile path. |
 | `manual_authoring_capabilities` | Return the paragraph-development model and structured component catalogue an MCP writing assistant must use. |
 | `web_capture_status` | Inspect `.capture.yml` recipes, PNG/SVG artefacts, edited overrides, and freshness without starting Chromium. |
@@ -81,6 +83,8 @@ Use `profile_prune_plan` after initialization when the starter should be reduced
 ## Language And Translation Discipline
 
 Each website should have an explicit default language in `_config.yml`, using `default_lang` and usually `lang` as the HTML fallback. `languages` lists the language variants that are actively maintained.
+
+The language selector is hidden when `languages` contains one language. With multiple languages, the current item is exposed through `aria-current` and the configured default is visibly identified. Visual assets use the same language policy: the unsuffixed source belongs to the default language, a translated source inserts `.<lang>` before its complete suffix, and a missing translated source falls back to the unsuffixed one on web and PDF.
 
 Agents should draft and edit meaningful content in the default language first. Use `content_status: draft`, `content_status: review`, or `content_status: approved` to make editorial state visible. `translation_plan` treats only default-language files with the approved value as ready for translation, then reports missing target-language files by shared `ref`.
 

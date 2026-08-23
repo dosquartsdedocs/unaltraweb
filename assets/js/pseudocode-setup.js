@@ -1,5 +1,6 @@
 window.MathJax = {
   tex: {
+    tags: "all",
     inlineMath: [
       ["$", "$"],
       ["\\(", "\\)"],

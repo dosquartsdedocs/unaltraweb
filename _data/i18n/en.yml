@@ -5,6 +5,7 @@ header:
   search: Search
   change_theme: Change theme
   language: Language
+  default_language: default
 
 footer:
   impressum: Impressum

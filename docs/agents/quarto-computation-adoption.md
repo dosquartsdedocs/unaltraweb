@@ -94,7 +94,7 @@ or through equivalent child-repo `make` targets once the template Makefile expos
 Items 3 and 4 are closed in TIGIT and the factory:
 
 - `computation_figure_images` (Jekyll plugin) rewrites Markdown/HTML image references that point at a compute source (`.qmd`, `.rmd`, `.r`, `.py`, `.ipynb`) into the source's declared `mode: figure` output. An author-owned `*.edited.svg` override wins and is never overwritten. Builds fail when the referenced source is missing or its output has not been rendered.
-- `render.py` gained `--stale-only` (wired as `manual-compute-render-figures`): `make build` and `make serve` render only stale figures before Jekyll runs. Present-but-unrecorded outputs are treated as author-managed and are never auto-replaced.
+- `render.py` supports `--mode figure --stale-only` (wired as `manual-compute-render-figures`): `make build` and `make serve` render only stale figures before Jekyll runs. Present-but-unrecorded outputs are treated as author-managed and are never auto-replaced.
 - TIGIT chapter `03` demonstrates the workflow with R `mode: figure` sources under `assets/quarto/data-visualization/`.
 
 ## Open design question

@@ -41,6 +41,7 @@
 {% capture search_text %}{% include t.liquid key='header.search' default='Search' %}{% endcapture %}
 {% capture change_theme_text %}{% include t.liquid key='header.change_theme' default='Change theme' %}{% endcapture %}
 {% capture language_text %}{% include t.liquid key='header.language' default='Language' %}{% endcapture %}
+{% capture default_language_text %}{% include t.liquid key='header.default_language' default='default' %}{% endcapture %}
 {% if documentation_profile %}
   {% capture documentation_toggle_contents_text %}{% include t.liquid key='documentation.toggle_contents' default='Show or hide table of contents' %}{% endcapture %}
 {% endif %}
@@ -372,9 +373,17 @@
                       {% assign lang_flag = '🇦🇩' %}
                   {% endcase %}
 
-                  <a class="dropdown-item {% if current_lang == lang_code %}active{% endif %}" href="{{ lang_url | relative_url }}">
+                  <a
+                    class="dropdown-item language-option {% if current_lang == lang_code %}active{% endif %}"
+                    href="{{ lang_url | relative_url }}"
+                    hreflang="{{ lang_code }}"
+                    lang="{{ lang_code }}"
+                    {% if current_lang == lang_code %}aria-current="page"{% endif %}
+                    {% if default_lang == lang_code %}data-default-language="true"{% endif %}
+                  >
                     <span aria-hidden="true">{{ lang_flag }}</span>
-                    <span>{{ lang_label }}</span>
+                    <span class="language-option-label">{{ lang_label }}</span>
+                    {% if default_lang == lang_code %}<span class="language-default-badge">{{ default_language_text | strip }}</span>{% endif %}
                   </a>
                 {% endfor %}
               </div>
@@ -478,9 +487,17 @@
                       {% assign lang_flag = '🇦🇩' %}
                   {% endcase %}
 
-                  <a class="dropdown-item {% if current_lang == lang_code %}active{% endif %}" href="{{ lang_url | relative_url }}">
+                  <a
+                    class="dropdown-item language-option {% if current_lang == lang_code %}active{% endif %}"
+                    href="{{ lang_url | relative_url }}"
+                    hreflang="{{ lang_code }}"
+                    lang="{{ lang_code }}"
+                    {% if current_lang == lang_code %}aria-current="page"{% endif %}
+                    {% if default_lang == lang_code %}data-default-language="true"{% endif %}
+                  >
                     <span aria-hidden="true">{{ lang_flag }}</span>
-                    <span>{{ lang_label }}</span>
+                    <span class="language-option-label">{{ lang_label }}</span>
+                    {% if default_lang == lang_code %}<span class="language-default-badge">{{ default_language_text | strip }}</span>{% endif %}
                   </a>
                 {% endfor %}
               </div>

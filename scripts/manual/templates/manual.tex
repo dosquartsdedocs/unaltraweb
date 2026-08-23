@@ -1,10 +1,13 @@
-\documentclass[11pt,a4paper,oneside]{book}
+\documentclass[11pt,a4paper,twoside,openright]{book}
 
 \usepackage{amsmath,amssymb}
 \usepackage{booktabs}
+\usepackage{cancel}
+\usepackage{emptypage}
 \usepackage{enumitem}
 \usepackage{fontspec}
 \usepackage{fancyvrb}
+\usepackage{float}
 \usepackage{framed}
 \usepackage{graphicx}
 \usepackage{grffile}
@@ -14,13 +17,16 @@
 \usepackage{geometry}
 \usepackage{microtype}
 \usepackage{setspace}
+\usepackage{subcaption}
 \usepackage{tikz}
+\usepackage[most]{tcolorbox}
 \usepackage{xcolor}
+\usepackage{xurl}
 \usepackage{hyperref}
 \usepackage{bookmark}
 \usepackage[$babel-lang$]{babel}
 
-\geometry{left=25mm,right=22mm,top=24mm,bottom=26mm}
+\geometry{inner=25mm,outer=22mm,top=24mm,bottom=26mm}
 \setmainfont{DejaVu Serif}
 \setsansfont{DejaVu Sans}
 \setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]
@@ -36,12 +42,51 @@
 \definecolor{ManualBand}{HTML}{$band-color$}
 \definecolor{ManualSecondary}{HTML}{$secondary-color$}
 \definecolor{ManualMuted}{HTML}{$muted-color$}
+\definecolor{ManualInternalLink}{HTML}{$internal-link-color$}
+\definecolor{ManualExternalLink}{HTML}{$external-link-color$}
+\definecolor{ManualCitationLink}{HTML}{$citation-link-color$}
+\definecolor{ManualInlineCode}{HTML}{$inline-code-color$}
+\captionsetup{font=small,labelfont=bf}
+\captionsetup[subfigure]{font=small,labelfont=bf}
+\definecolor{ManualCalloutInfo}{HTML}{2A5FB8}
+\definecolor{ManualCalloutExample}{HTML}{13795B}
+\definecolor{ManualCalloutWarning}{HTML}{A65D03}
+\definecolor{ManualCalloutObjectives}{HTML}{2F6FD6}
+\definecolor{ManualCalloutDanger}{HTML}{A12929}
+
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+\let\ManualOriginalTexttt\texttt
+\renewcommand{\texttt}[1]{{\color{ManualInlineCode}\ManualOriginalTexttt{#1}}}
+
+\newenvironment{manualcallout}[2]{%
+  \begin{tcolorbox}[
+    enhanced,
+    breakable,
+    colback=#1!6!white,
+    colframe=#1,
+    boxrule=0.55pt,
+    leftrule=2.6pt,
+    arc=1.2pt,
+    left=8pt,
+    right=8pt,
+    top=7pt,
+    bottom=7pt,
+    before skip=0.8em,
+    after skip=0.8em
+  ]%
+  {\bfseries\sffamily\color{#1}#2}\par\smallskip
+}{%
+  \end{tcolorbox}
+}
 
 \hypersetup{
   colorlinks=true,
-  linkcolor=ManualSecondary,
-  urlcolor=ManualPrimary,
-  citecolor=ManualSecondary,
+  linkcolor=ManualInternalLink,
+  urlcolor=ManualExternalLink,
+  citecolor=ManualCitationLink,
   pdftitle={$title$},
   pdfauthor={$author$}
 }
@@ -49,13 +94,21 @@
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \providecommand{\pandocbounded}[1]{#1}
+\providecommand{\cm}{\,\mathrm{cm}}
+\providecommand{\mm}{\,\mathrm{mm}}
+\providecommand{\m}{\,\mathrm{m}}
+\providecommand{\km}{\,\mathrm{km}}
+\providecommand{\cms}{\,\mathrm{cm^2}}
+\providecommand{\squarekilometre}{\,\mathrm{km^2}}
+\providecommand{\hectare}{\,\mathrm{ha}}
+\providecommand{\ha}{\,\mathrm{ha}}
 \newcommand{\passthrough}[1]{#1}
 \newlength{\cslhangindent}
 \setlength{\cslhangindent}{1.5em}
 \newlength{\csllabelwidth}
 \setlength{\csllabelwidth}{3em}
-\newcommand{\citeproctext}{}
-\newcommand{\citeproc}[2]{\begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{\begingroup\def\citeproctext{#2}\cite{#1}\endgroup}
 \makeatletter
 \let\@cite@ofmt\@firstofone
 \def\@biblabel#1{}
@@ -82,16 +135,26 @@
 \def\maxheight{\ifdim\Gin@nat@height>0.82\textheight 0.82\textheight\else\Gin@nat@height\fi}
 \makeatother
 \setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\floatplacement{figure}{H}
 
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[LE,RO]{\small\sffamily\color{ManualMuted}{$short-title$}}
 \fancyhead[RE,LO]{\small\sffamily\color{ManualMuted}\leftmark}
-\fancyfoot[C]{\small\sffamily\thepage}
+\fancyfoot[LE,RO]{\small\sffamily\thepage}
 \renewcommand{\headrulewidth}{0.2pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[LE,RO]{\small\sffamily\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+  \renewcommand{\footrulewidth}{0pt}%
+}
 
 \begin{document}
+\special{pdf:trailerid [<$trailer-id$><$trailer-id$>]}
 \frontmatter
 
 \begin{titlepage}
@@ -130,14 +193,44 @@ $endif$
 \end{titlepage}
 
 \thispagestyle{empty}
-\vspace*{1.1cm}
-{\Huge\bfseries\sffamily\color{ManualSecondary}$metadata-page-title$}\par
-\vspace{0.45cm}
+\vspace*{0.7cm}
+{\LARGE\bfseries\sffamily\color{ManualSecondary}$metadata-page-title$}\par
+\vspace{0.35cm}
+{\large\bfseries\sffamily $title$}\par
 $if(description)$
-{\large\color{ManualMuted}$description$}\par
-\vspace{0.7cm}
+\vspace{0.2cm}
+{\small\color{ManualMuted}$description$}\par
 $endif$
-\begin{description}[style=nextline,leftmargin=0pt,labelindent=0pt,itemsep=0.75em,topsep=0pt,font=\normalfont\bfseries\sffamily\color{ManualSecondary}]
+\vspace{0.55cm}
+\small
+\begin{description}[style=multiline,leftmargin=4.95cm,labelwidth=4.5cm,labelsep=0.45cm,itemsep=0.34em,parsep=0pt,topsep=0pt,font=\normalfont\bfseries\sffamily\color{ManualSecondary}]
+$if(series)$
+  \item[$metadata-series-label$] $series$$if(series-subtitle)$ · $series-subtitle$$endif$
+$endif$
+$if(edition)$
+  \item[$metadata-edition-label$] $edition$
+$endif$
+$if(publication-date)$
+  \item[$metadata-publication-date-label$] $publication-date$
+$endif$
+$if(publisher)$
+  \item[$metadata-publisher-label$] $publisher$
+$endif$
+$if(instructors)$
+  \item[$metadata-instructors-label$] $for(instructors)$$instructors$$sep$, $endfor$
+$endif$
+$if(institution)$
+  \item[$metadata-institution-label$] $institution$
+$endif$
+$if(department)$
+  \item[$metadata-department-label$] $department$
+$endif$
+$if(faculty)$
+  \item[$metadata-faculty-label$] $faculty$
+$endif$
+$if(location)$
+  \item[$metadata-location-label$] $location$
+$endif$
 $if(subject)$
   \item[$metadata-subject-label$] $subject$
 $endif$
@@ -149,27 +242,22 @@ $endif$
 $if(academic-year)$
   \item[$metadata-academic-year-label$] $academic-year$
 $endif$
-$if(department)$
-  \item[$metadata-department-label$] $department$
-$endif$
-$if(faculty)$
-  \item[$metadata-faculty-label$] $faculty$
-$endif$
-$if(institution)$
-  \item[$metadata-institution-label$] $institution$
-$endif$
-$if(location)$
-  \item[$metadata-location-label$] $location$
-$endif$
 $if(revision-date)$
   \item[$metadata-revision-date-label$] $revision-date$
 $endif$
-$if(instructors)$
-  \item[$metadata-instructors-label$] $for(instructors)$$instructors$$sep$, $endfor$
+$if(identifier)$
+  \item[$metadata-identifier-label$] $identifier$
+$endif$
+$if(source)$
+  \item[$metadata-source-label$] $source$
+$endif$
+$if(license)$
+  \item[$metadata-license-label$] $license$
+$endif$
+$if(rights)$
+  \item[$metadata-rights-label$] $rights$
 $endif$
 \end{description}
-\vfill
-{\small\sffamily\color{ManualMuted}$rights$}
 \clearpage
 
 $if(draft)$
@@ -185,11 +273,21 @@ $endif$
 
 $if(toc)$
 \tableofcontents
+\label{manual:toc-end}
 \clearpage
 $endif$
 
 \mainmatter
+$if(include-home)$
 \setcounter{chapter}{-1}
+$endif$
+\makeatletter
+\let\ManualOriginalStarredChapter\@schapter
+\renewcommand{\@schapter}[1]{%
+  \markboth{\MakeUppercase{#1}}{}%
+  \ManualOriginalStarredChapter{#1}%
+}
+\makeatother
 $body$
 
 \end{document}

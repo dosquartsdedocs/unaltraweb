@@ -5,6 +5,7 @@ header:
   search: Cerca
   change_theme: Canvia el tema
   language: Idioma
+  default_language: predeterminat
 
 footer:
   impressum: Avís legal

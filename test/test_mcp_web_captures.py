@@ -49,6 +49,19 @@ class WebCapturesMcpTests(unittest.TestCase):
             with self.subTest(source=source), self.assertRaises(ValueError):
                 site_tools.web_capture_status(Path("/tmp/site"), Path("/tmp/factory"), source=source)
 
+    @patch("unaltraweb_mcp.site_tools.run_factory_make")
+    def test_accepts_yaml_source_suffix(self, run_factory_make) -> None:
+        run_factory_make.return_value = {"ok": True}
+
+        site_tools.web_capture_status(Path("/tmp/site"), Path("/tmp/factory"), source="assets/captures/home.capture.yaml")
+
+        run_factory_make.assert_called_once_with(
+            Path("/tmp/factory"),
+            Path("/tmp/site"),
+            "web-capture-status",
+            env={"WEB_CAPTURE_SOURCE": "assets/captures/home.capture.yaml"},
+        )
+
     @patch("unaltraweb_mcp.cli.tools.web_capture_check", return_value={"ok": False})
     def test_cli_check_returns_nonzero_when_stale(self, _check) -> None:
         args = argparse.Namespace(project="/tmp/site", mcp_command="web-capture-check", source="")

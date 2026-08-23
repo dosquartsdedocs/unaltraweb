@@ -104,7 +104,8 @@ For pages with figure captions enabled, use the Markdown image title as the capt
 
 To narrow the space assigned to one figure without changing its height, set a
 CSS width with `data-figure-width`. The figure remains centred and cannot exceed
-the available width:
+the available width. The PDF builder maps `rem` values against its 60-rem
+reading column and caps the result at the printable width:
 
 ```markdown
 ![Project folders](assets/diagrams/folders.puml "Recommended project structure"){: data-figure-width="22rem"}
@@ -120,7 +121,7 @@ Multi-panel figures use a fenced subfigure block:
 :::
 ```
 
-The layout string uses `/` for rows and `+` for columns. The example above renders panels `a`, `b` and `c` as one numbered figure.
+The layout string uses `/` for rows and `+` for columns. The example above renders panels `a`, `b` and `c` as one numbered figure on the web and in the PDF.
 Use this component when juxtaposition is the teaching task: before/after states, controlled alternatives, a short sequence, or complementary views that need one shared caption. Prefer compact layouts such as `a+b` and `a+b/c`, and use them selectively. Images that merely share a topic should normally remain separate figures.
 
 ## Numbered Tables
@@ -160,6 +161,16 @@ When `*.edited.svg` exists, the build keeps using it and does not overwrite it.
 Agents changing the diagram source should ask whether to keep the edited SVG or
 replace it with a regenerated version.
 
+## Static Vega Sources
+
+Reference a manifest-backed Vega-Lite (`*.vl.json`) or Vega (`*.vg.json`) specification as a captioned image:
+
+```markdown
+![Quarterly totals](assets/charts/quarterly.vl.json "Quarterly totals"){: data-figure-width="42rem"}
+```
+
+`.vegavisuals.yml` must declare that source exactly once and name its generated output. A source referenced as a web image must produce SVG or PNG; PDF output is valid only for PDF-specific use and cannot be placed in an HTML `img`. Jekyll and the manual PDF builder replace only the image URL, preserving the title caption and Kramdown attributes. SVG is recommended for web/PDF parity. Run `make visualization-render` after source or data changes and `make visualization-check` before publication; rendering and freshness remain owned by the companion `vegavisuals` factory.
+
 ## Selector-Based Web Captures
 
 Store a web capture recipe under `assets/` and reference the recipe as the image source:
@@ -191,7 +202,7 @@ annotations:
 
 ## Code Fences
 
-Use language names for syntax highlighting. Common teaching languages are supported through Rouge:
+Use language names for syntax highlighting. Rouge renders code on the web and Pandoc Skylighting renders the same fenced blocks in manual PDFs. Inline code uses single backticks and is styled separately from prose. Common teaching languages include `bash`, `powershell`, `sql`, `python`, `r`, `haskell`, `javascript`, `yaml`, and `json`:
 
 ````markdown
 ```bash
@@ -215,6 +226,29 @@ import geopandas as gpd
 library(sf)
 ```
 ````
+
+## Links, Citations, And Equations
+
+The web and manual PDF distinguish bibliographic citations, external URLs, and internal links by color. Use Jekyll Scholar for citations, ordinary Markdown for external links, and stable heading identifiers for internal links:
+
+```markdown
+{% raw %}{% cite sourceKey %}{% endraw %}
+[OGC standards](https://www.ogc.org/)
+
+## Normalization {#normalization}
+See [the normalization criteria](#normalization).
+```
+
+Inline mathematics uses `$...$`; displayed equations use `$$...$$` on separate lines and are numbered by default. Add a stable `eq:` label when the text refers to an equation; use `equation*` explicitly for an unnumbered display:
+
+```markdown
+\begin{equation}
+\bar{x}_w = \frac{\sum_i w_i x_i}{\sum_i w_i}
+\label{eq:weighted-mean}
+\end{equation}
+
+Equation $\eqref{eq:weighted-mean}$ defines the weighted mean.
+```
 
 ## Hero Images
 

@@ -52,7 +52,7 @@ layout: default
     {% include manual-sidebar.liquid chapters=manual_chapters reference_pages=manual_reference_pages %}
   </div>
 
-  <article class="manual-main manual-home">
+  <article class="manual-main manual-home" data-chapter="0" data-manual-numbered="true" data-lang="{{ current_lang }}">
     <header class="manual-cover">
       <div class="manual-cover-copy">
          {% if manual_kicker %}<p class="manual-kicker">{{ manual_kicker }}</p>{% endif %}
