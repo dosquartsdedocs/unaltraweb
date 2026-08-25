@@ -99,6 +99,27 @@ make down
 
 The template tests are intentionally heavier because they run browser smoke tests and screenshots. On constrained machines, prefer `make build` first and run Playwright only when needed.
 
+## Global Dockerized MCP
+
+`unaltraweb` provides one global, on-demand stdio MCP whose container is scoped to the current consumer workspace. The launcher pulls the pinned public image `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0` when it is not available locally. To build and test the same image from this checkout instead:
+
+```bash
+make mcp-build
+make mcp-smoke
+```
+
+Register a global client command that preserves the workspace before `make -C` changes directory. For OpenCode, use the following `command` array and restart OpenCode after changing its configuration:
+
+```json
+[
+  "/bin/sh",
+  "-c",
+  "exec env PROJECT=\"$PWD\" make --silent --no-print-directory -C /path/to/unaltraweb mcp-stdio"
+]
+```
+
+Replace `/path/to/unaltraweb` with this checkout's absolute path. Do not use `PROJECT=.` in a global registration. Each session mounts its resolved project at `/workspace` and at its canonical host path, so Docker-backed authoring tools pass valid bind paths to the host daemon. `build_site` runs Jekyll directly in that MCP runtime. `preview_start`, `preview_status`, and `preview_stop` manage one labelled preview container per project, while `make mcp-down` removes only containers labelled `io.context.mcp-factory=unaltraweb`.
+
 ## Bibliometrics
 
 Normal Jekyll builds must stay static. External metrics are fetched only through explicit update commands and written back to local data files before build time.

@@ -1,0 +1,20 @@
+ARG UNALTRAWEB_RUNTIME_IMAGE=unaltraweb/runtime:latest
+FROM ${UNALTRAWEB_RUNTIME_IMAGE}
+
+LABEL org.opencontainers.image.source="https://github.com/dosquartsdedocs/unaltraweb"
+
+ENV PYTHONUNBUFFERED=1 \
+    UNALTRAWEB_FACTORY_DIR=/opt/unaltraweb \
+    UNALTRAWEB_DOCKER_ROOT=/workspace
+
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends docker-cli \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+COPY . /opt/unaltraweb
+RUN python3 -m pip install --no-cache-dir --break-system-packages "/opt/unaltraweb[mcp]" \
+    && chmod -R a+rX /opt/unaltraweb
+
+WORKDIR /workspace
+ENTRYPOINT ["unaltraweb-mcp"]
+CMD ["--project", "/workspace", "mcp", "serve"]

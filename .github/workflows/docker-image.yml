@@ -43,6 +43,7 @@ jobs:
           tags: |
             type=raw,value=main,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
             type=ref,event=tag
 
       - name: Build and publish
@@ -53,6 +54,30 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: MCP Docker metadata
+        id: mcp-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/dosquartsdedocs/unaltraweb-mcp
+          tags: |
+            type=raw,value=main,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=ref,event=tag
+
+      - name: Build and publish MCP image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.mcp
+          build-args: UNALTRAWEB_RUNTIME_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb:${{ steps.meta.outputs.version }}
+          push: true
+          tags: ${{ steps.mcp-meta.outputs.tags }}
+          labels: ${{ steps.mcp-meta.outputs.labels }}
+          cache-from: type=gha,scope=mcp
+          cache-to: type=gha,mode=max,scope=mcp
 
       - name: Manual PDF Docker metadata
         id: manual-meta
@@ -62,6 +87,7 @@ jobs:
           tags: |
             type=raw,value=main,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
             type=ref,event=tag
 
       - name: Build and publish manual PDF image

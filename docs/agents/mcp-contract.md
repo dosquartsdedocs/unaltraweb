@@ -1,16 +1,24 @@
 # MCP Contract
 
-`unaltraweb` exposes an on-demand stdio MCP server for website workspaces. The MCP is a protocol front end over the same files and Make targets used by child sites; it does not replace Jekyll, and it does not need to run as an HTTP MCP service.
+`unaltraweb` exposes one global, on-demand stdio MCP server for website workspaces. Every client session starts a Dockerized MCP process and mounts its current consumer project at `/workspace` and at its canonical host path. The image includes both FastMCP and the Jekyll runtime, so the host does not need Python, the optional `mcp` package, Ruby, or Bundler.
 
 The client registration should launch:
 
 ```bash
-make -C ${factoryRoot} mcp-stdio PROJECT=${workspaceFolder}
+make --silent --no-print-directory -C ${factoryRoot} mcp-stdio 'PROJECT=${workspaceFolder}'
 ```
 
-The opened workspace is the consumer website repository. Factory logic remains in the `unaltraweb` checkout.
+The opened workspace is the consumer website repository. Factory logic is embedded in `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0`. The launcher pulls that public image when it is not already present. Global clients that do not substitute `${workspaceFolder}` must preserve their startup directory before `make -C` runs:
+
+```bash
+/bin/sh -c 'exec env PROJECT="$PWD" make --silent --no-print-directory -C /path/to/unaltraweb mcp-stdio'
+```
+
+Replace `/path/to/unaltraweb` with the checkout's absolute path. `PROJECT=.` is invalid in that global form because it resolves to the factory checkout after `make -C`. Restart clients such as OpenCode after changing their MCP registration.
 
 Static Vega-Lite and Vega rendering remains owned by the required companion `vegavisuals` MCP dependency. Use its `visualization_status`, `visualization_check`, `render_visualizations`, and `vegavisuals://project/*` resources directly; `unaltraweb` exposes the authoring syntax but does not proxy those tools into the `web://` server.
+
+When `.vegavisuals.yml` exists, `site_check` reports the delegated `visualization_check` requirement without trying to execute the companion CLI inside the unaltraweb container. Run that check through the separately registered `vegavisuals` MCP before `build_site`.
 
 ## Resources
 
@@ -38,6 +46,7 @@ Static Vega-Lite and Vega rendering remains owned by the required companion `veg
 | --- | --- |
 | `starter_templates` | Discover available starter templates, usually `../unaltraweb-template`. |
 | `initialize_site` | Copy a starter site into the workspace and set profile/title/baseurl/url. Existing files are skipped unless overwrite is explicitly forced and confirmed. |
+| `detect_site` | Detect an unaltraweb consumer from `_config.yml` and `Gemfile`, and report whether its Makefile exposes the native build/serve contract. |
 | `site_context` | Read the main local state for an agent session. |
 | `site_check` | Run profile, freshness, bibliography, bibliometrics, and build-state checks without network. |
 | `profile_check` | Check current profile and expected content/config paths. |
@@ -62,8 +71,11 @@ Static Vega-Lite and Vega rendering remains owned by the required companion `veg
 | `bibliometrics_check` | Run `make metrics-check` in the consumer site. |
 | `bibliometrics_fetch_scimago` | Run `make metrics-scimago-fetch`. |
 | `bibliometrics_update` | Run `make metrics-update` or `make metrics-update-all`. |
-| `build_site` | Run `make build`, optionally with `SITE_PROFILE`. |
+| `build_site` | Run `make build-native LOCAL_CORE=/opt/unaltraweb` inside the current MCP container, optionally with `SITE_PROFILE`; this never launches a nested Jekyll container. |
 | `build_health` | Inspect existing `_site` artefacts without running Jekyll. |
+| `preview_start` | Start the single labelled preview container for the current project and wait for HTTP readiness. |
+| `preview_status` | Inspect that project's preview, including browser and container-internal URLs and optional recent logs. |
+| `preview_stop` | Remove only that project's labelled preview container. |
 | `http_check` | Probe an already-running Jekyll preview over HTTP. |
 
 The tool names use `bibliometrics_*` even though existing Make targets still use `metrics-*` for backwards compatibility.
@@ -90,11 +102,17 @@ Agents should draft and edit meaningful content in the default language first. U
 
 Translations are a pre-publication task. They should preserve `ref`, citations, bibliography keys, figures, links, code, data field names, and routing metadata. Existing translations should not be silently rewritten while the default-language source is still changing; mark or report them as stale instead.
 
-## HTTP Preview
+## Docker Runtime And Preview
 
-Jekyll may serve a local HTTP preview, but the MCP itself should stay stdio for now. Agents can build from files, inspect `_site`, or call `http_check` against a preview started by the normal site workflow. This avoids persistent MCP services, port collisions, and `mcp-up`/`mcp-down` complexity.
+`make mcp-build` builds `ghcr.io/dosquartsdedocs/unaltraweb:0.2.0` and then `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0` locally. `make mcp-smoke` runs a real MCP client/server stdio exchange, compiles a temporary minimal site, and exercises preview start/status/stop. `mcp-stdio` remains dormant until a client launches it.
 
-If a future workflow needs a persistent preview controller, add explicit Make targets such as `mcp-up`, `mcp-down`, and `mcp-status`, and use `context.toggle_mode: service` in `mcp-factory.yml`.
+Run `site_check` and resolve any blocking validation result before compiling. `build_site` then reuses the active MCP container and the consumer's `build-native` target. This is intentionally different from the consumer's normal host-side `make build`, which starts a Jekyll container and would create a nested runtime when called from MCP.
+
+A preview must outlive one MCP tool invocation, so it runs in a separate container made from the same MCP/Jekyll image. Its deterministic name is derived from the canonical host project path and it carries the factory, role, and project labels. Starting an already-running preview probes it again instead of creating a duplicate; changing its port or profile requires stopping it first. Stop and cleanup operations verify ownership labels before removing anything.
+
+`preview_status.url` is the browser URL published on host loopback. `preview_status.internal_url` is reachable from the MCP container and can be passed to `http_check`. `make mcp-down` force-removes all and only containers selected by `label=io.context.mcp-factory=unaltraweb`; it does not delete images or touch ordinary site containers.
+
+The Docker socket gives the MCP container authority equivalent to the host Docker user. Enable this factory only for trusted unaltraweb repositories and trusted local images; project Makefiles execute as part of explicit build and authoring tools.
 
 ## Bibliography And Bibliometrics Discipline
 
