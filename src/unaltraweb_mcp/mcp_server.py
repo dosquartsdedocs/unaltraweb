@@ -55,6 +55,7 @@ def run_server(project: Path, factory: Path) -> None:
         "unaltraweb",
         instructions=(
             "For unaltremanual work, inspect manual_authoring_capabilities before editing. "
+            "Run site_check and resolve blocking validation failures before build_site. "
             "When a chapter has an executable .qmd, .Rmd, .R, .py, or .ipynb source, edit that source rather than its generated .md. "
             "A figure can be referenced from Markdown by its compute source (for example assets/quarto/figures/boxplot.qmd); the build rewrites the reference to the declared mode:figure output and prefers an author-owned *.edited.svg. "
             "Run manual_computation_status and render explicitly after source or input changes; builds must not proceed with stale generated Markdown or figures, and make build/serve auto-render stale figures first. "
@@ -218,6 +219,11 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.initialize_site(project, factory, template_path=template_path, site_profile_value=site_profile, title=title, baseurl=baseurl, url=url, default_lang=default_lang, languages=languages, force=force, confirm_overwrite=confirm_overwrite)
 
     @mcp.tool()
+    def detect_site() -> dict[str, Any]:
+        """Detect whether the mounted workspace is an unaltraweb consumer site and report its runtime contract."""
+        return tools.detect_site(project)
+
+    @mcp.tool()
     def site_context() -> dict[str, Any]:
         """Return site profile, features, content, bibliography, bibliometrics, and build state."""
         return tools.site_context(project, factory)
@@ -225,7 +231,7 @@ def run_server(project: Path, factory: Path) -> None:
     @mcp.tool()
     def site_check(max_bibliometrics_age_days: int = 180) -> dict[str, Any]:
         """Run local profile, freshness, bibliography, bibliometrics, and build-state checks without network access."""
-        return {"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project, max_bibliometrics_age_days), "computations": tools.manual_computation_status(project, factory), "web_captures": tools.web_capture_status(project, factory), "visualizations": tools.visualization_status(project, factory), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)}
+        return tools.site_check(project, factory, max_bibliometrics_age_days)
 
     @mcp.tool()
     def profile_check() -> dict[str, Any]:
@@ -359,13 +365,28 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def build_site(site_profile: str = "") -> dict[str, Any]:
-        """Run make build in the website workspace, optionally overriding SITE_PROFILE."""
-        return tools.build_site(project, site_profile=site_profile)
+        """Build the website directly inside the MCP Jekyll runtime without launching a nested site container."""
+        return tools.build_site(project, factory, site_profile=site_profile)
 
     @mcp.tool()
     def build_health() -> dict[str, Any]:
         """Inspect existing _site build artefacts without running Jekyll."""
         return tools.build_health(project)
+
+    @mcp.tool()
+    def preview_start(port: int = 4000, site_profile: str = "", timeout_seconds: float = 60.0) -> dict[str, Any]:
+        """Start the single labelled Jekyll preview container for this project and wait for HTTP readiness."""
+        return tools.preview_start(project, port=port, site_profile=site_profile, timeout_seconds=timeout_seconds)
+
+    @mcp.tool()
+    def preview_status(include_logs: bool = False) -> dict[str, Any]:
+        """Inspect only the labelled Jekyll preview container associated with this project."""
+        return tools.preview_status(project, include_logs=include_logs)
+
+    @mcp.tool()
+    def preview_stop() -> dict[str, Any]:
+        """Remove only the labelled Jekyll preview container associated with this project."""
+        return tools.preview_stop(project)
 
     @mcp.tool()
     def http_check(base_url: str = "http://127.0.0.1:4000", paths: list[str] | None = None, timeout_seconds: float = 5.0) -> dict[str, Any]:

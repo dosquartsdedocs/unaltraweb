@@ -1,5 +1,8 @@
 PYTHON ?= python3
 PROJECT ?= .
+MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.2.0
+MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0
+MCP_DOCKER_BUILD_NETWORK ?= default
 TEMPLATE_PATH ?=
 INIT_SITE_PROFILE ?= unaltreselfie
 SITE_PROFILE ?=
@@ -54,30 +57,40 @@ SCIMAGO_ARGS += --input $(SCIMAGO_INPUT)
 endif
 
 .PHONY: docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check manual-pdf-image manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio compute-base-image-python compute-base-image-r web-capture-status web-capture-check web-capture-render web-capture-image visualization-status visualization-check visualization-render
-.PHONY: mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
+.PHONY: mcp-runtime-image mcp-image mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-down mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
 
-mcp-build: ## Validate the lightweight Python MCP control plane
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m compileall -q src/unaltraweb_mcp
+mcp-runtime-image: ## Build the reusable Jekyll runtime used by the MCP
+	docker build --network "$(MCP_DOCKER_BUILD_NETWORK)" -t "$(MCP_RUNTIME_IMAGE)" .
+
+mcp-image: mcp-runtime-image ## Build the Dockerized FastMCP control plane
+	docker build --network "$(MCP_DOCKER_BUILD_NETWORK)" --build-arg "UNALTRAWEB_RUNTIME_IMAGE=$(MCP_RUNTIME_IMAGE)" -t "$(MCP_IMAGE)" -f Dockerfile.mcp .
+
+mcp-build: mcp-image ## Prepare the Docker images used by MCP sessions, builds, and previews
 
 mcp-init: mcp-build ## Initialize reusable MCP dependencies without starting services
 
-mcp-check: ## Verify the source checkout can serve the MCP CLI contract
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli version
+mcp-check: mcp-image ## Verify the Dockerized MCP CLI contract
+	docker run --rm --entrypoint unaltraweb-mcp "$(MCP_IMAGE)" version
 
-mcp-smoke: mcp-check ## Run a fast deterministic MCP smoke check against PROJECT
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp starter-templates >/dev/null
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp site-context >/dev/null
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-check >/dev/null
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-source-quality-check >/dev/null
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-editorial-quality-check >/dev/null
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-authoring-capabilities >/dev/null
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-computation-status >/dev/null
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp web-capture-status >/dev/null
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp translation-plan >/dev/null
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp bibliography-inventory >/dev/null
+mcp-smoke: mcp-build ## Prove a real MCP stdio connection against a minimal website
+	docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp --entrypoint python3 "$(MCP_IMAGE)" /opt/unaltraweb/test/mcp_smoke.py
+	@mkdir -p "$(CURDIR)/tmp/mcp-preview-smoke"
+	@docker_socket="$${UNALTRAWEB_DOCKER_SOCKET:-/var/run/docker.sock}"; socket_group=$$(stat -c '%g' "$$docker_socket"); \
+	image_id=$$(docker image inspect --format '{{.Id}}' "$(MCP_IMAGE)"); \
+	preview_port=$$(docker run --rm --network host --entrypoint python3 "$$image_id" -c 'import socket; listener=socket.socket(); listener.bind(("127.0.0.1", 0)); print(listener.getsockname()[1]); listener.close()'); \
+	docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" --group-add "$$socket_group" \
+	  -e HOME=/tmp -e "UNALTRAWEB_DOCKER_ROOT=$(CURDIR)/tmp/mcp-preview-smoke" \
+	  -e "UNALTRAWEB_PROJECT_USER=$(LOCAL_UID):$(LOCAL_GID)" -e "UNALTRAWEB_MCP_IMAGE=$$image_id" \
+	  -e "UNALTRAWEB_PREVIEW_PORT=$$preview_port" \
+	  -v "$$docker_socket:/var/run/docker.sock" -v "$(CURDIR)/tmp/mcp-preview-smoke:/workspace" -w /workspace \
+	  --entrypoint python3 "$$image_id" /opt/unaltraweb/test/mcp_preview_smoke.py
 
-mcp-stdio: ## Serve the unaltraweb MCP through the standard stdio launcher
-	PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp serve
+mcp-stdio: ## Serve the current PROJECT through the Dockerized stdio MCP
+	@exec "$(CURDIR)/scripts/unaltraweb-mcp-bootstrap.sh" --image "$(MCP_IMAGE)"
+
+mcp-down: ## Remove only containers owned by this MCP factory
+	@containers="$$(docker ps -aq --filter "label=io.context.mcp-factory=unaltraweb")" || exit $$?; \
+	if [ -n "$$containers" ]; then docker rm -f $$containers; fi
 
 mcp-list-tools: ## List MCP resources, prompts, and tools exposed by this factory
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp list-tools
@@ -168,7 +181,9 @@ manual-compute-check: ## Fail when executable manual results are stale
 
 manual-compute-render: ## Execute sources and atomically publish Markdown and figures
 	@set -e; \
-	results=$$(mktemp); trap 'rm -f "$$results"' EXIT; \
+	runtime_dir="$(abspath $(PROJECT))/tmp/.unaltraweb/computations"; \
+	mkdir -p "$$runtime_dir"; runtime_script=$$(mktemp "$$runtime_dir/render.XXXXXX"); cp "$(COMPUTE_SCRIPT)" "$$runtime_script"; \
+	results=$$(mktemp); trap 'rm -f "$$results" "$$runtime_script"' EXIT; \
 	status=$$(COMPUTE_PYTHON_IMAGE="$(COMPUTE_PYTHON_IMAGE)" COMPUTE_R_IMAGE="$(COMPUTE_R_IMAGE)" $(PYTHON) "$(COMPUTE_SCRIPT)" status --project "$(abspath $(PROJECT))" $(if $(strip $(COMPUTE_SOURCE)),--source "$(COMPUTE_SOURCE)",) $(if $(strip $(COMPUTE_MODE)),--mode "$(COMPUTE_MODE)",)); \
 	engines=$$(printf '%s' "$$status" | $(PYTHON) -c 'import json,sys; data=json.load(sys.stdin); print(" ".join(f"{engine}={image}" for engine,image in sorted({(item["engine"], item["image"]["image"]) for item in data["sources"]})))'); \
 	for selection in $$engines; do \
@@ -183,7 +198,7 @@ manual-compute-render: ## Execute sources and atomically publish Markdown and fi
 	  docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit "$(COMPUTE_PIDS_LIMIT)" --cpus "$(COMPUTE_CPUS)" --memory "$(COMPUTE_MEMORY)" --tmpfs /tmp:rw,noexec,nosuid,size=1g \
 	    -e HOME=/tmp -e COMPUTE_PYTHON_IMAGE="$$python_image" -e COMPUTE_R_IMAGE="$$r_image" \
 	    -e UNALTRAWEB_COMPUTE_IMAGE_ID="$$identity" -e UNALTRAWEB_COMPUTE_IMAGE_DIGEST="$$digest" \
-	    -v "$(abspath $(PROJECT)):/project:rw" -v "$(COMPUTE_SCRIPT):/opt/unaltraweb/computations/render.py:ro" -w /project --entrypoint python3 "$$image" \
+	    -v "$(abspath $(PROJECT)):/project:rw" -v "$$runtime_script:/opt/unaltraweb/computations/render.py:ro" -w /project --entrypoint python3 "$$image" \
 	    /opt/unaltraweb/computations/render.py render --project /project --engine "$$engine" $(if $(strip $(COMPUTE_SOURCE)),--source "$(COMPUTE_SOURCE)",) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_CONFIRM_OVERWRITE)),--confirm-overwrite,) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_STALE_ONLY)),--stale-only,) $(if $(strip $(COMPUTE_MODE)),--mode "$(COMPUTE_MODE)",) >> "$$results"; \
 	done; \
 	if test -z "$(strip $(COMPUTE_SOURCE))"; then $(PYTHON) "$(COMPUTE_SCRIPT)" prune --project "$(abspath $(PROJECT))" >/dev/null; fi; \

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -10,6 +11,18 @@ from . import site_tools as tools
 
 def source_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def factory_dir() -> Path:
+    candidates = []
+    configured = os.environ.get("UNALTRAWEB_FACTORY_DIR", "").strip()
+    if configured:
+        candidates.append(Path(configured))
+    candidates.append(source_root())
+    for candidate in candidates:
+        if (candidate / "mcp-factory.yml").is_file():
+            return candidate.expanduser().resolve()
+    raise SystemExit("unaltraweb factory assets not found; set UNALTRAWEB_FACTORY_DIR")
 
 
 def project_dir(raw: str | None) -> Path:
@@ -27,13 +40,13 @@ def cmd_version(_: argparse.Namespace) -> int:
 
 
 def cmd_factory_dir(_: argparse.Namespace) -> int:
-    print(source_root())
+    print(factory_dir())
     return 0
 
 
 def cmd_mcp(args: argparse.Namespace) -> int:
     project = project_dir(args.project)
-    factory = source_root()
+    factory = factory_dir()
     command = args.mcp_command
     if command == "serve":
         from .mcp_server import run_server
@@ -44,6 +57,8 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return print_json(tools.list_tools())
     if command == "starter-templates":
         return print_json(tools.starter_templates(factory))
+    if command == "detect-site":
+        return print_json(tools.detect_site(project))
     if command == "initialize-site":
         return print_json(
             tools.initialize_site(
@@ -63,7 +78,7 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "site-context":
         return print_json(tools.site_context(project, factory))
     if command == "site-check":
-        return print_json({"profile": tools.profile_check(project), "language": tools.language_policy(project), "approval": tools.content_approval_inventory(project), "translation": tools.translation_plan(project), "freshness": tools.content_freshness_check(project), "computations": tools.manual_computation_status(project, factory), "web_captures": tools.web_capture_status(project, factory), "bibliography": tools.bibliography_inventory(project), "build_health": tools.build_health(project)})
+        return print_json(tools.site_check(project, factory))
     if command == "profile-check":
         return print_json(tools.profile_check(project))
     if command == "manual-source-quality-check":
@@ -126,9 +141,15 @@ def cmd_mcp(args: argparse.Namespace) -> int:
             )
         )
     if command == "build-site":
-        return print_json(tools.build_site(project, site_profile=args.site_profile))
+        return print_json(tools.build_site(project, factory, site_profile=args.site_profile))
     if command == "build-health":
         return print_json(tools.build_health(project))
+    if command == "preview-start":
+        return print_json(tools.preview_start(project, port=args.port, site_profile=args.site_profile, timeout_seconds=args.timeout_seconds))
+    if command == "preview-status":
+        return print_json(tools.preview_status(project, include_logs=args.include_logs))
+    if command == "preview-stop":
+        return print_json(tools.preview_stop(project))
     if command == "http-check":
         return print_json(tools.http_check(args.base_url, paths=args.paths, timeout_seconds=args.timeout_seconds))
     if command == "prompts":
@@ -146,7 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp = sub.add_parser("mcp", help="MCP server and JSON helper commands")
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
-    for name in ["serve", "list-tools", "starter-templates", "site-context", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "prompts"]:
+    for name in ["serve", "list-tools", "starter-templates", "detect-site", "site-context", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "preview-stop", "prompts"]:
         mcp_sub.add_parser(name)
 
     for name in ["manual-computation-status", "manual-computation-check"]:
@@ -225,6 +246,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     build = mcp_sub.add_parser("build-site")
     build.add_argument("--site-profile", default="")
+
+    preview_start = mcp_sub.add_parser("preview-start")
+    preview_start.add_argument("--port", type=int, default=4000)
+    preview_start.add_argument("--site-profile", default="")
+    preview_start.add_argument("--timeout-seconds", type=float, default=60.0)
+
+    preview_status = mcp_sub.add_parser("preview-status")
+    preview_status.add_argument("--include-logs", action="store_true")
 
     http = mcp_sub.add_parser("http-check")
     http.add_argument("--base-url", default="http://127.0.0.1:4000")

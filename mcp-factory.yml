@@ -1,7 +1,7 @@
 ---
 name: unaltraweb
 kind: codex-mcp-factory
-version: 0.1.0
+version: 0.2.0
 description: Reusable Jekyll website factory with MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, and build checks.
 install_scope: user
 workspace_rule:
@@ -42,17 +42,17 @@ workspace_rule:
     - .vegavisuals.lock.json and outputs declared by .vegavisuals.yml
   allowed_external_writes: []
 runtime:
-  kind: python
-  package_manager: pip
+  kind: container
+  package_manager: docker
+  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0
+  package: unaltraweb-mcp
   module: unaltraweb_mcp
 transport:
   type: stdio
   command:
-    - make
-    - -C
-    - '${factoryRoot}'
-    - mcp-stdio
-    - 'PROJECT=${workspaceFolder}'
+    - /bin/sh
+    - -c
+    - 'exec env PROJECT="$PWD" make --silent --no-print-directory -C "${factoryRoot}" mcp-stdio'
 commands:
   build:
     - make
@@ -66,15 +66,16 @@ commands:
   smoke:
     - make
     - mcp-smoke
-  serve:
+  down:
     - make
-    - mcp-stdio
+    - mcp-down
 discovery:
   suggested_scan_roots:
     - ~/git
   notes:
     - Consumer website repositories remain the workspace root.
-    - The MCP is on-demand stdio; Jekyll preview remains a separate local HTTP server started by normal Make targets.
+    - The on-demand stdio launcher mounts the current workspace into the Dockerized MCP runtime.
+    - Site builds execute inside the MCP runtime; previews use one labelled container per consumer project.
     - Durable website state belongs in versioned site files, not in chat history.
 mcp:
   server_name: unaltraweb
@@ -97,6 +98,7 @@ mcp:
     - initialize_site
     - starter_templates
     - site_context
+    - detect_site
     - site_check
     - profile_check
     - manual_source_quality_check
@@ -123,6 +125,9 @@ mcp:
     - bibliometrics_update
     - build_site
     - build_health
+    - preview_start
+    - preview_status
+    - preview_stop
     - http_check
 mcp_dependencies:
   - name: diavisuals

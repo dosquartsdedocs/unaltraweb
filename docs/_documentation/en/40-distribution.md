@@ -76,7 +76,7 @@ For that reason:
 
 ## Docker Runtime
 
-The shared runtime image is published from the core repository as `ghcr.io/dosquartsdedocs/unaltraweb:main` and `ghcr.io/dosquartsdedocs/unaltraweb:latest` by the manual Docker image workflow. Release tags are available when the workflow is run from a `v*` tag. The workflow avoids default SHA image tags and does not write a GitHub Actions build cache. The image carries Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local builds. The GHCR package must be public before unauthenticated template users can pull it.
+The shared runtime image is published from the core repository as `ghcr.io/dosquartsdedocs/unaltraweb:main` and `ghcr.io/dosquartsdedocs/unaltraweb:latest` by the manual Docker image workflow. Release tags are available when the workflow is run from a `v*` tag. The workflow avoids default SHA image tags and uses GitHub Actions caches for repeat builds. The image carries Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local builds. The GHCR package must be public before unauthenticated template users can pull it.
 
 The image is not the source of layouts or styles. Child sites still get those from the `unaltraweb` gem declared in their `Gemfile`. This keeps updates centralized in two places:
 
@@ -85,10 +85,12 @@ The image is not the source of layouts or styles. Child sites still get those fr
 
 Before recommending the local Docker workflow to unauthenticated users, complete this first-publish checklist:
 
-- Run the manual `.github/workflows/docker-image.yml` workflow from `main` to publish the image.
+- Create the release tag, then run the manual `.github/workflows/docker-image.yml` workflow from `v0.2.0` to publish both versioned images.
 - Open the `ghcr.io/dosquartsdedocs/unaltraweb` package settings in GitHub.
 - Make the package public.
 - Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb:main` works without `docker login`.
+- Make the `ghcr.io/dosquartsdedocs/unaltraweb-mcp` package public after its first publication.
+- Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0` works without `docker login`.
 
 ## Verification
 

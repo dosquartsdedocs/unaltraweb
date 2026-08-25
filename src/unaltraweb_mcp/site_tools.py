@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -280,6 +282,41 @@ def site_config(project: Path) -> dict[str, Any]:
     return load_yaml_file(project / "_config.yml")
 
 
+def detect_site(project: Path) -> dict[str, Any]:
+    project = project_path(project)
+    config_path = project / "_config.yml"
+    gemfile_path = project / "Gemfile"
+    makefile_path = project / "Makefile"
+    config = site_config(project)
+    plugins = config.get("plugins")
+    plugin_names = [str(item) for item in plugins] if isinstance(plugins, list) else []
+    gemfile = gemfile_path.read_text(encoding="utf-8", errors="ignore") if gemfile_path.is_file() else ""
+    makefile = makefile_path.read_text(encoding="utf-8", errors="ignore") if makefile_path.is_file() else ""
+
+    markers = {
+        "theme": str(config.get("theme") or "") == "unaltraweb",
+        "plugin": "unaltraweb" in plugin_names,
+        "config_namespace": isinstance(config.get("unaltraweb"), dict),
+        "gem": bool(re.search(r"(?m)^\s*gem\s+['\"]unaltraweb['\"]", gemfile)),
+    }
+    runtime_targets = {
+        "build_native": bool(re.search(r"(?m)^build-native(?:\s+[^:]*)?:", makefile)),
+        "serve_native": bool(re.search(r"(?m)^serve-native(?:\s+[^:]*)?:", makefile)),
+    }
+    return {
+        "project": str(project),
+        "is_unaltraweb_site": config_path.is_file() and any(markers.values()),
+        "markers": markers,
+        "runtime_targets": runtime_targets,
+        "profile": site_profile(config),
+        "paths": {
+            "config": config_path.is_file(),
+            "gemfile": gemfile_path.is_file(),
+            "makefile": makefile_path.is_file(),
+        },
+    }
+
+
 def unaltraweb_config(config: dict[str, Any]) -> dict[str, Any]:
     value = config.get("unaltraweb")
     return value if isinstance(value, dict) else {}
@@ -404,13 +441,19 @@ def content_inventory(project: Path) -> dict[str, Any]:
 
 def starter_templates(factory: Path) -> dict[str, Any]:
     factory = project_path(factory)
-    candidates = [
-        factory.parent / "unaltraweb-template",
+    configured = os.environ.get("UNALTRAWEB_TEMPLATE_PATH", "").strip()
+    candidates = ([Path(configured).expanduser()] if configured else []) + [
         factory / "templates" / "site",
         factory / "templates" / "project",
+        factory.parent / "unaltraweb-template",
     ]
     templates = []
+    seen: set[Path] = set()
     for candidate in candidates:
+        candidate = candidate.resolve()
+        if candidate in seen:
+            continue
+        seen.add(candidate)
         templates.append(
             {
                 "path": str(candidate),
@@ -2280,12 +2323,253 @@ def web_capture_render(project: Path, factory: Path, source: str = "", *, confir
 
 
 def visualization_status(project: Path, factory: Path) -> dict[str, Any]:
-    return run_factory_make(factory, project, "visualization-status", env={})
+    project = project_path(project)
+    configured = (project / ".vegavisuals.yml").is_file()
+    return {
+        "ok": True,
+        "configured": configured,
+        "delegated": configured,
+        "owner": "vegavisuals",
+        "required_tool": "visualization_check" if configured else "",
+        "message": (
+            "Run visualization_check through the required vegavisuals MCP before building."
+            if configured
+            else "No .vegavisuals.yml; no Vega visualization check is required."
+        ),
+    }
 
 
-def build_site(project: Path, site_profile: str = "") -> dict[str, Any]:
-    args = [f"SITE_PROFILE={site_profile}"] if site_profile else []
-    return run_make(project_path(project), "build", extra_args=args)
+def _require_site_runtime(project: Path, target: str) -> tuple[Path, dict[str, Any]]:
+    project = project_path(project)
+    detection = detect_site(project)
+    if not detection["is_unaltraweb_site"]:
+        raise RuntimeError(f"Not an unaltraweb consumer site: {project}")
+    if not detection["runtime_targets"].get(target, False):
+        make_target = target.replace("_", "-")
+        raise RuntimeError(f"The consumer Makefile does not expose the required {make_target} target: {project}")
+    return project, detection
+
+
+def _site_profile_arg(site_profile_value: str) -> list[str]:
+    value = site_profile_value.strip()
+    if value and not re.fullmatch(r"[A-Za-z0-9_-]+", value):
+        raise ValueError("Site profile must contain only letters, numbers, underscores, or hyphens.")
+    return [f"SITE_PROFILE={value}"] if value else []
+
+
+def build_site(project: Path, factory: Path, site_profile: str = "") -> dict[str, Any]:
+    project, detection = _require_site_runtime(project, "build_native")
+    args = [f"LOCAL_CORE={project_path(factory)}", *_site_profile_arg(site_profile)]
+    result = run_make(project, "build-native", extra_args=args, env={"UNALTRAWEB_MCP_RUNTIME": "1"})
+    return {**result, "runtime": "mcp-container", "nested_container": False, "site": detection}
+
+
+PREVIEW_FACTORY_LABEL = "io.context.mcp-factory"
+PREVIEW_ROLE_LABEL = "io.context.mcp-role"
+PREVIEW_PROJECT_LABEL = "io.context.mcp-project"
+PREVIEW_PORT_LABEL = "io.context.mcp-port"
+PREVIEW_PROFILE_LABEL = "io.context.mcp-profile"
+PREVIEW_BASEURL_LABEL = "io.context.mcp-baseurl"
+PREVIEW_PATH_LABEL = "io.context.mcp-path"
+
+
+def _docker(args: list[str]) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(["docker", *args], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    except OSError as exc:
+        raise RuntimeError(f"Docker is not available to the MCP runtime: {exc}") from exc
+
+
+def _preview_identity(project: Path) -> tuple[str, str, str]:
+    host_project = os.environ.get("UNALTRAWEB_DOCKER_ROOT", "").strip() or str(project_path(project))
+    if not Path(host_project).is_absolute():
+        raise RuntimeError("UNALTRAWEB_DOCKER_ROOT must be an absolute host path.")
+    project_id = hashlib.sha256(host_project.encode("utf-8")).hexdigest()[:16]
+    return host_project, project_id, f"unaltraweb-preview-{project_id}"
+
+
+def _preview_inspect(name: str) -> dict[str, Any] | None:
+    completed = _docker(["inspect", name])
+    if completed.returncode != 0:
+        message = (completed.stderr or completed.stdout).strip()
+        if "no such object" in message.lower() or "no such container" in message.lower():
+            return None
+        raise RuntimeError(message or f"Docker could not inspect {name}")
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Docker returned invalid inspect data for {name}") from exc
+    return payload[0] if isinstance(payload, list) and payload and isinstance(payload[0], dict) else None
+
+
+def _preview_owned(info: dict[str, Any], project_id: str) -> bool:
+    labels = info.get("Config", {}).get("Labels", {}) or {}
+    return (
+        labels.get(PREVIEW_FACTORY_LABEL) == "unaltraweb"
+        and labels.get(PREVIEW_ROLE_LABEL) == "preview"
+        and labels.get(PREVIEW_PROJECT_LABEL) == project_id
+    )
+
+
+def _preview_logs(name: str) -> str:
+    completed = _docker(["logs", "--tail", "40", name])
+    return (completed.stdout + completed.stderr).strip()
+
+
+def _preview_payload(project: Path, info: dict[str, Any], *, include_logs: bool = False) -> dict[str, Any]:
+    host_project, project_id, name = _preview_identity(project)
+    labels = info.get("Config", {}).get("Labels", {}) or {}
+    state = info.get("State", {}) or {}
+    networks = info.get("NetworkSettings", {}).get("Networks", {}) or {}
+    ip_address = next(
+        (str(network.get("IPAddress") or "") for network in networks.values() if network.get("IPAddress")),
+        "",
+    )
+    port = int(labels.get(PREVIEW_PORT_LABEL) or 0)
+    route = str(labels.get(PREVIEW_PATH_LABEL) or "/")
+    payload = {
+        "project": str(project_path(project)),
+        "host_project": host_project,
+        "project_id": project_id,
+        "container": name,
+        "owned": _preview_owned(info, project_id),
+        "running": bool(state.get("Running")),
+        "status": str(state.get("Status") or ""),
+        "exit_code": state.get("ExitCode"),
+        "port": port,
+        "profile": str(labels.get(PREVIEW_PROFILE_LABEL) or ""),
+        "url": f"http://127.0.0.1:{port}{route}" if port else "",
+        "internal_url": f"http://{ip_address}:{port}{route}" if ip_address and port else "",
+    }
+    if include_logs:
+        payload["logs"] = _preview_logs(name)
+    return payload
+
+
+def preview_status(project: Path, *, include_logs: bool = False) -> dict[str, Any]:
+    project = project_path(project)
+    host_project, project_id, name = _preview_identity(project)
+    info = _preview_inspect(name)
+    if info is None:
+        return {
+            "ok": True,
+            "project": str(project),
+            "host_project": host_project,
+            "project_id": project_id,
+            "container": name,
+            "running": False,
+            "status": "absent",
+        }
+    payload = _preview_payload(project, info, include_logs=include_logs)
+    return {"ok": bool(payload["owned"]), **payload}
+
+
+def _wait_for_preview(project: Path, name: str, timeout_seconds: float) -> tuple[bool, dict[str, Any]]:
+    deadline = time.monotonic() + timeout_seconds
+    latest: dict[str, Any] = {}
+    ready = False
+    while True:
+        info = _preview_inspect(name)
+        if info is None:
+            break
+        latest = _preview_payload(project, info)
+        if not latest["running"]:
+            break
+        internal_url = str(latest.get("internal_url") or "")
+        if internal_url and http_check(internal_url, timeout_seconds=1.0)["ok"]:
+            ready = True
+            break
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.5)
+
+    info = _preview_inspect(name)
+    if info is not None:
+        latest = _preview_payload(project, info, include_logs=not ready)
+    return ready, latest
+
+
+def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", timeout_seconds: float = 60.0) -> dict[str, Any]:
+    project, detection = _require_site_runtime(project, "serve_native")
+    if not 1024 <= port <= 65535:
+        raise ValueError("Preview port must be between 1024 and 65535.")
+    if not 0 <= timeout_seconds <= 300:
+        raise ValueError("Preview timeout must be between 0 and 300 seconds.")
+    profile_args = _site_profile_arg(site_profile)
+    host_project, project_id, name = _preview_identity(project)
+    existing = _preview_inspect(name)
+    if existing is not None:
+        if not _preview_owned(existing, project_id):
+            raise RuntimeError(f"Refusing to replace unowned Docker container: {name}")
+        status = _preview_payload(project, existing, include_logs=True)
+        if status["running"]:
+            requested_profile = site_profile.strip()
+            if status["port"] != port or status["profile"] != requested_profile:
+                raise RuntimeError(
+                    f"Preview {name} is already running on port {status['port']} with profile "
+                    f"{status['profile'] or '(default)'}. Stop it before changing preview settings."
+                )
+            ready, latest = _wait_for_preview(project, name, timeout_seconds)
+            return {"ok": ready, "already_running": True, "ready": ready, "site": detection, **latest}
+        removed = _docker(["rm", name])
+        if removed.returncode != 0:
+            raise RuntimeError(removed.stderr or removed.stdout)
+
+    config = site_config(project)
+    baseurl = str(config.get("baseurl") or "").strip()
+    if baseurl == "/":
+        baseurl = ""
+    prefix = "/" + baseurl.strip("/") if baseurl else ""
+    lang = default_language(config).strip("/")
+    route = f"{prefix}/{lang}/" if lang else f"{prefix}/"
+    image = os.environ.get("UNALTRAWEB_MCP_IMAGE", "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0")
+    owner = os.environ.get("UNALTRAWEB_PROJECT_USER", "").strip()
+    if owner and not re.fullmatch(r"\d+:\d+", owner):
+        raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
+
+    command = [
+        "run", "-d", "--name", name,
+        "--label", f"{PREVIEW_FACTORY_LABEL}=unaltraweb",
+        "--label", f"{PREVIEW_ROLE_LABEL}=preview",
+        "--label", f"{PREVIEW_PROJECT_LABEL}={project_id}",
+        "--label", f"{PREVIEW_PORT_LABEL}={port}",
+        "--label", f"{PREVIEW_PROFILE_LABEL}={site_profile.strip()}",
+        "--label", f"{PREVIEW_BASEURL_LABEL}={baseurl}",
+        "--label", f"{PREVIEW_PATH_LABEL}={route}",
+        "-e", "HOME=/tmp",
+        "-e", "JEKYLL_ENV=development",
+        "-p", f"127.0.0.1:{port}:{port}",
+        "-v", f"{host_project}:/workspace",
+        "-w", "/workspace",
+    ]
+    if owner:
+        command.extend(["--user", owner])
+    command.extend([
+        "--entrypoint", "make", image,
+        "--no-print-directory", "serve-native", "LOCAL_CORE=/opt/unaltraweb",
+        "HOST=0.0.0.0", f"PORT={port}", "LIVERELOAD=", "DEVELOPER_MODE=false",
+        "PROFILE_DEMO_TITLES=0", *profile_args,
+    ])
+    started = _docker(command)
+    if started.returncode != 0:
+        raise RuntimeError(started.stderr or started.stdout)
+
+    ready, latest = _wait_for_preview(project, name, timeout_seconds)
+    return {"ok": ready, "already_running": False, "ready": ready, "site": detection, **latest}
+
+
+def preview_stop(project: Path) -> dict[str, Any]:
+    project = project_path(project)
+    host_project, project_id, name = _preview_identity(project)
+    info = _preview_inspect(name)
+    if info is None:
+        return {"ok": True, "project": str(project), "host_project": host_project, "container": name, "stopped": False}
+    if not _preview_owned(info, project_id):
+        raise RuntimeError(f"Refusing to remove unowned Docker container: {name}")
+    removed = _docker(["rm", "-f", name])
+    if removed.returncode != 0:
+        raise RuntimeError(removed.stderr or removed.stdout)
+    return {"ok": True, "project": str(project), "host_project": host_project, "container": name, "stopped": True}
 
 
 def _manual_pdf_args(language: str) -> list[str]:
@@ -2358,12 +2642,33 @@ def prompt_inventory(factory: Path) -> dict[str, Any]:
     return {"factory": str(factory), "prompts": [path.name for path in prompts]}
 
 
+def site_check(project: Path, factory: Path, max_bibliometrics_age_days: int = 180) -> dict[str, Any]:
+    project = project_path(project)
+    checks = {
+        "detection": detect_site(project),
+        "profile": profile_check(project),
+        "language": language_policy(project),
+        "approval": content_approval_inventory(project),
+        "translation": translation_plan(project),
+        "freshness": content_freshness_check(project, max_bibliometrics_age_days),
+        "computations": manual_computation_status(project, factory),
+        "web_captures": web_capture_status(project, factory),
+        "visualizations": visualization_status(project, factory),
+        "bibliography": bibliography_inventory(project),
+        "build_health": build_health(project),
+    }
+    ok = bool(checks["detection"]["is_unaltraweb_site"])
+    ok = ok and all(not isinstance(check, dict) or check.get("ok") is not False for check in checks.values())
+    return {"project": str(project), "ok": ok, **checks}
+
+
 def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
     project = project_path(project)
     config = site_config(project)
     return {
         "project": str(project),
         "generated_at": utc_now(),
+        "detection": detect_site(project),
         "title": str(config.get("title") or ""),
         "profile": site_profile(config),
         "language_policy": language_policy(project),
@@ -2383,7 +2688,7 @@ def list_tools() -> dict[str, Any]:
     return {
         "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "manual_structure_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
-        "tools": ["initialize_site", "starter_templates", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "http_check"],
+        "tools": ["initialize_site", "starter_templates", "detect_site", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
 
 
