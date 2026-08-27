@@ -273,16 +273,26 @@ def site_config(project: Path) -> dict[str, Any]:
     return load_yaml_file(project / "_config.yml")
 
 
+def _make_target_available(project: Path, target: str) -> bool:
+    makefile = project / "Makefile"
+    text = makefile.read_text(encoding="utf-8", errors="ignore") if makefile.is_file() else ""
+    return bool(re.search(rf"(?m)^{re.escape(target)}(?:\s+[^:#=\s]+)*\s*::?(?!=)", text))
+
+
+def _capture_runtime_available(project: Path) -> bool:
+    makefile = project / "Makefile"
+    text = makefile.read_text(encoding="utf-8", errors="ignore") if makefile.is_file() else ""
+    return bool(re.search(r"(?m)^UNALTRAWEB_CAPTURE_RUNTIME\s*:=\s*1\s*$", text))
+
+
 def detect_site(project: Path) -> dict[str, Any]:
     project = project_path(project)
     config_path = project / "_config.yml"
     gemfile_path = project / "Gemfile"
-    makefile_path = project / "Makefile"
     config = site_config(project)
     plugins = config.get("plugins")
     plugin_names = [str(item) for item in plugins] if isinstance(plugins, list) else []
     gemfile = gemfile_path.read_text(encoding="utf-8", errors="ignore") if gemfile_path.is_file() else ""
-    makefile = makefile_path.read_text(encoding="utf-8", errors="ignore") if makefile_path.is_file() else ""
 
     markers = {
         "theme": str(config.get("theme") or "") == "unaltraweb",
@@ -291,8 +301,8 @@ def detect_site(project: Path) -> dict[str, Any]:
         "gem": bool(re.search(r"(?m)^\s*gem\s+['\"]unaltraweb['\"]", gemfile)),
     }
     runtime_targets = {
-        "build_native": bool(re.search(r"(?m)^build-native(?:\s+[^:]*)?:", makefile)),
-        "serve_native": bool(re.search(r"(?m)^serve-native(?:\s+[^:]*)?:", makefile)),
+        "build_native": _make_target_available(project, "build-native"),
+        "serve_native": _make_target_available(project, "serve-native"),
     }
     return {
         "project": str(project),
@@ -303,7 +313,7 @@ def detect_site(project: Path) -> dict[str, Any]:
         "paths": {
             "config": config_path.is_file(),
             "gemfile": gemfile_path.is_file(),
-            "makefile": makefile_path.is_file(),
+            "makefile": (project / "Makefile").is_file(),
         },
     }
 
@@ -2343,7 +2353,7 @@ def run_make(project: Path, target: str, *, extra_args: list[str] | None = None,
 def run_factory_make(factory: Path, project: Path, target: str, *, extra_args: list[str] | None = None, env: dict[str, str] | None = None) -> dict[str, Any]:
     factory_root = project_path(factory)
     project_root = project_path(project)
-    unsafe = set("$`\"'\\\r\n \t")
+    unsafe = set("$`\"'\\\r\n")
     if any(character in str(path) for path in [factory_root, project_root] for character in unsafe):
         raise ValueError("Factory and project paths contain characters that are unsafe for Make delegation.")
     command = ["make", "--silent", "--no-print-directory", "-C", str(factory_root), target, f"PROJECT={project_root}", *(extra_args or [])]
@@ -2423,7 +2433,7 @@ def web_capture_render(project: Path, factory: Path, source: str = "", *, confir
     env = _web_capture_env(source)
     if confirm_overwrite:
         env["WEB_CAPTURE_CONFIRM_OVERWRITE"] = "1"
-    return run_make(project_path(project), "web-capture-render", env=env)
+    return _web_capture_render_isolated(project, factory, env)
 
 
 def visualization_status(project: Path, factory: Path) -> dict[str, Any]:
@@ -2482,6 +2492,76 @@ def _docker(args: list[str]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(["docker", *args], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     except OSError as exc:
         raise RuntimeError(f"Docker is not available to the MCP runtime: {exc}") from exc
+
+
+def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, str]) -> dict[str, Any]:
+    project = project_path(project)
+    if not _capture_runtime_available(project):
+        return run_make(project, "web-capture-render", env=env)
+    host_project, project_id, _ = _preview_identity(project)
+    token = hashlib.sha256(f"{host_project}:{time.time_ns()}".encode("utf-8")).hexdigest()[:12]
+    network = f"unaltraweb-capture-{token}"
+    service = f"unaltraweb-capture-site-{token}"
+    image = os.environ.get("UNALTRAWEB_MCP_IMAGE", "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0")
+    owner = os.environ.get("UNALTRAWEB_PROJECT_USER", f"{os.getuid()}:{os.getgid()}").strip()
+    if not re.fullmatch(r"\d+:\d+", owner):
+        raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
+
+    created = _docker([
+        "network", "create", "--internal",
+        "--label", f"{PREVIEW_FACTORY_LABEL}=unaltraweb",
+        "--label", f"{PREVIEW_ROLE_LABEL}=web-capture",
+        "--label", f"{PREVIEW_PROJECT_LABEL}={project_id}",
+        network,
+    ])
+    if created.returncode != 0:
+        raise RuntimeError(created.stderr or created.stdout or "Could not create the isolated web capture network.")
+
+    try:
+        started = _docker([
+            "run", "-d", "--name", service,
+            "--label", f"{PREVIEW_FACTORY_LABEL}=unaltraweb",
+            "--label", f"{PREVIEW_ROLE_LABEL}=web-capture-site",
+            "--label", f"{PREVIEW_PROJECT_LABEL}={project_id}",
+            "--user", owner,
+            "--network", network,
+            "--network-alias", service,
+            "-e", "HOME=/tmp",
+            "-e", "JEKYLL_ENV=development",
+            "-v", f"{host_project}:/workspace",
+            "-w", "/workspace",
+            "--entrypoint", "make", image,
+            "--no-print-directory", "serve-capture-native", "LOCAL_CORE=/opt/unaltraweb",
+            "HOST=0.0.0.0", "PORT=4000", "LIVERELOAD=", "DEVELOPER_MODE=false", "PROFILE_DEMO_TITLES=0",
+        ])
+        if started.returncode != 0:
+            raise RuntimeError(started.stderr or started.stdout or "Could not start the isolated web capture site.")
+
+        ready = False
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline:
+            probe = _docker(["exec", service, "curl", "--silent", "--output", "/dev/null", "http://127.0.0.1:4000/"])
+            if probe.returncode == 0:
+                ready = True
+                break
+            running = _docker(["inspect", service, "--format", "{{.State.Running}}"])
+            if running.returncode != 0 or running.stdout.strip().lower() != "true":
+                break
+            time.sleep(0.5)
+        if not ready:
+            logs = _preview_logs(service)
+            raise RuntimeError(f"The isolated web capture site did not become ready.\n{logs}".strip())
+
+        capture_env = {
+            **env,
+            "WEB_CAPTURE_BASE_URL": f"http://{service}:4000",
+            "WEB_CAPTURE_DOCKER_NETWORK": network,
+            "WEB_CAPTURE_SERVICE_HOST": service,
+        }
+        return run_factory_make(factory, project, "web-capture-render", env=capture_env)
+    finally:
+        _docker(["rm", "-f", service])
+        _docker(["network", "rm", network])
 
 
 def _preview_identity(project: Path) -> tuple[str, str, str]:
@@ -2683,33 +2763,37 @@ def _manual_pdf_args(language: str) -> list[str]:
     return [f"MANUAL_PDF_LANG={value}"] if value else []
 
 
-def manual_pdf_status(project: Path, language: str = "") -> dict[str, Any]:
-    return run_make(project_path(project), "manual-pdf-status", extra_args=_manual_pdf_args(language))
+def manual_pdf_status(project: Path, factory: Path, language: str = "") -> dict[str, Any]:
+    return run_factory_make(factory, project, "manual-pdf-status", extra_args=_manual_pdf_args(language))
 
 
-def manual_pdf_build(project: Path, language: str = "") -> dict[str, Any]:
-    return run_make(project_path(project), "manual-pdf-build", extra_args=_manual_pdf_args(language))
+def manual_pdf_build(project: Path, factory: Path, language: str = "") -> dict[str, Any]:
+    return run_factory_make(factory, project, "manual-pdf-build", extra_args=_manual_pdf_args(language))
 
 
-def manual_pdf_publish(project: Path, language: str = "", *, dry_run: bool = True, confirm_publish: bool = False) -> dict[str, Any]:
+def manual_pdf_publish(project: Path, factory: Path, language: str = "", *, dry_run: bool = True, confirm_publish: bool = False) -> dict[str, Any]:
     if not dry_run and not confirm_publish:
         raise RuntimeError("A real manual PDF publication requires confirm_publish=True after reviewing the dry-run.")
     args = _manual_pdf_args(language)
     args.append(f"MANUAL_PDF_PUBLISH_DRY_RUN={1 if dry_run else 0}")
-    result = run_make(project_path(project), "manual-pdf-publish", extra_args=args)
+    result = run_factory_make(factory, project, "manual-pdf-publish", extra_args=args)
     return {**result, "dry_run": dry_run, "confirmed": confirm_publish}
 
 
-def bibliometrics_check(project: Path) -> dict[str, Any]:
-    return run_make(project_path(project), "metrics-check")
+def bibliometrics_check(project: Path, factory: Path) -> dict[str, Any]:
+    return run_factory_make(factory, project, "metrics-check")
 
 
-def bibliometrics_fetch_scimago(project: Path, scimago_input: str = "") -> dict[str, Any]:
-    args = [f"SCIMAGO_INPUT={scimago_input}"] if scimago_input else []
-    return run_make(project_path(project), "metrics-scimago-fetch", extra_args=args)
+def bibliometrics_fetch_scimago(project: Path, factory: Path, scimago_input: str = "") -> dict[str, Any]:
+    value = scimago_input.strip()
+    path = Path(value)
+    if value and (path.is_absolute() or ".." in path.parts or not re.fullmatch(r"[A-Za-z0-9_./-]+\.(?:csv|rda)", value, flags=re.IGNORECASE)):
+        raise ValueError("Scimago input must be a safe project-relative .csv or .rda path.")
+    args = [f"SCIMAGO_INPUT={value}"] if value else []
+    return run_factory_make(factory, project, "metrics-scimago-fetch", extra_args=args)
 
 
-def bibliometrics_update(project: Path, *, fetch_scimago: bool = False, offline: bool = False, dry_run: bool = False, strict_external: bool = False, require_scimago: bool = False) -> dict[str, Any]:
+def bibliometrics_update(project: Path, factory: Path, *, fetch_scimago: bool = False, offline: bool = False, dry_run: bool = False, strict_external: bool = False, require_scimago: bool = False) -> dict[str, Any]:
     metrics_args: list[str] = []
     if offline:
         metrics_args.append("--offline")
@@ -2721,7 +2805,7 @@ def bibliometrics_update(project: Path, *, fetch_scimago: bool = False, offline:
         metrics_args.append("--require-scimago")
     target = "metrics-update-all" if fetch_scimago else "metrics-update"
     extra = ["METRICS_ARGS=" + " ".join(metrics_args)] if metrics_args else []
-    return run_make(project_path(project), target, extra_args=extra)
+    return run_factory_make(factory, project, target, extra_args=extra)
 
 
 def http_check(base_url: str, paths: list[str] | None = None, timeout_seconds: float = 5.0) -> dict[str, Any]:

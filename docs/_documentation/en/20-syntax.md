@@ -198,7 +198,7 @@ annotations:
     text: Chapter navigation
 ```
 
-`make web-capture-render` keeps the untouched `*.capture.png` and generates a self-contained `*.capture.svg` with editable vector layers. A manually reviewed `*.capture.edited.svg` wins over the generated SVG and is never overwritten. Commit the recipe, PNG, SVG, and `.unaltraweb/web-captures.lock.json` together. `web-capture-check` blocks stale output and stale edited overrides. Ordinary Jekyll and PDF builds consume only the selected SVG and do not run Chromium.
+`web_capture_render` starts an ephemeral site and browser on an internal Docker network, keeps the untouched `*.capture.png`, and generates a self-contained `*.capture.svg` with editable vector layers. A manually reviewed `*.capture.edited.svg` wins over the generated SVG and is never overwritten. Commit the recipe, PNG, SVG, and `.unaltraweb/web-captures.lock.json` together. `web_capture_check` blocks stale output and stale edited overrides. Ordinary Jekyll and PDF builds consume only the selected SVG and do not run Chromium.
 
 ## Code Fences
 
@@ -335,7 +335,7 @@ documentation_profiles: [local-authors]
 
 Publication metrics are updated before builds and written to local files. Jekyll builds do not call OpenAlex, Crossref, Scimago or Google Scholar.
 
-```bash
-make metrics-update
-make metrics-check METRICS_ARGS="--offline --dry-run"
+```text
+bibliometrics_update
+bibliometrics_check
 ```

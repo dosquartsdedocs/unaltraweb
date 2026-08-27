@@ -38,6 +38,7 @@ When `.vegavisuals.yml` exists, `site_check` reports the delegated `visualizatio
 | `web://prompts` | Reusable website workflow prompts. |
 | `web://manual-writing-guidance` | Generic drafting and style-review prompts combined with the site's `context/writing-profile.md` when available. |
 | `web://manual-authoring-components` | Supported prose structures and component syntax, including callouts, definition lists, figure layouts, tables, diagrams, citations, and web/PDF compatibility. |
+| `web://manual-computations` | Executable manual sources, selected runtime images, generated outputs, and freshness state. |
 | `web://web-captures` | Selector-based screenshot recipes, original PNGs, editable SVG layers, edited overrides, and freshness. |
 | `web://new-web-scaffolds` | Package-owned scaffold availability and contract paths for every supported site profile. |
 
@@ -55,6 +56,10 @@ When `.vegavisuals.yml` exists, `site_check` reports the delegated `visualizatio
 | `manual_source_quality_check` | For `unaltremanual`, check captioned tables and figures, resolve local visual sources, compare embedded SVG text with body text on web/PDF, and suggest support-specific dimensions. |
 | `manual_editorial_quality_check` | Reject non-publishable metatext, user/agent instructions, workflow markers, drafting notes, and placeholders in manual bodies; return the editorial review checklist and local writing-profile path. |
 | `manual_authoring_capabilities` | Return the paragraph-development model and structured component catalogue an MCP writing assistant must use. |
+| `manual_computation_status` | Inspect executable manual sources, selected images, generated outputs, and freshness without executing code. |
+| `manual_computation_check` | Reject missing, modified, orphaned, or stale generated Markdown and figures. |
+| `manual_computation_render` | Execute trusted sources in network-disabled containers and atomically publish declared outputs. |
+| `manual_computation_render_figures` | Render only stale figure-mode computation sources without touching fresh outputs. |
 | `web_capture_status` | Inspect `.capture.yml` recipes, PNG/SVG artefacts, edited overrides, and freshness without starting Chromium. |
 | `web_capture_check` | Reject missing, modified, stale, orphaned, or obsolete edited capture artefacts. |
 | `web_capture_render` | Start Jekyll and Chromium on an ephemeral internal Docker network, then publish original PNG plus editable annotated SVG from declared CSS selectors. |
@@ -70,9 +75,9 @@ When `.vegavisuals.yml` exists, `site_check` reports the delegated `visualizatio
 | `content_freshness_check` | Detect stale bibliometrics and future-dated posts/news from local files. |
 | `bibliography_inventory` | Inspect BibTeX files and duplicate citekeys. |
 | `bibliography_add_entry` | Append a verified BibTeX entry under `_bibliography/`. |
-| `bibliometrics_check` | Run `make metrics-check` in the consumer site. |
-| `bibliometrics_fetch_scimago` | Run `make metrics-scimago-fetch`. |
-| `bibliometrics_update` | Run `make metrics-update` or `make metrics-update-all`. |
+| `bibliometrics_check` | Run the factory's offline metrics check against the consumer project. |
+| `bibliometrics_fetch_scimago` | Fetch or validate Scimago input through the factory against the consumer project. |
+| `bibliometrics_update` | Run the factory's metrics update against the consumer project. |
 | `build_site` | Run `make build-native LOCAL_CORE=/opt/unaltraweb` inside the current MCP container, optionally with `SITE_PROFILE`; this never launches a nested Jekyll container. |
 | `build_health` | Inspect existing `_site` artefacts without running Jekyll. |
 | `preview_start` | Start the single labelled preview container for the current project and wait for HTTP readiness. |
@@ -80,7 +85,7 @@ When `.vegavisuals.yml` exists, `site_check` reports the delegated `visualizatio
 | `preview_stop` | Remove only that project's labelled preview container. |
 | `http_check` | Probe an already-running Jekyll preview over HTTP. |
 
-The tool names use `bibliometrics_*` even though existing Make targets still use `metrics-*` for backwards compatibility.
+Advanced computation, capture, PDF, and bibliometrics tools delegate to factory-owned Make targets against the consumer project. Fresh package scaffolds therefore do not need to copy those implementation targets into each website. The tool names use `bibliometrics_*` even though factory Make targets retain `metrics-*` for backwards compatibility.
 
 Manual PDF publication is a local workspace operation: it copies reviewed artefacts from `tmp/manual-pdf/` to configured paths such as `assets/pdf/` and `assets/img/`. It never commits, pushes, creates releases, or writes outside the consumer workspace. Run `manual_source_quality_check`, `manual_editorial_quality_check`, `manual_pdf_status`, `manual_pdf_build`, and a `manual_pdf_publish` dry-run before calling `manual_pdf_publish(dry_run=false, confirm_publish=true)`.
 

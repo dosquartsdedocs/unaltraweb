@@ -181,7 +181,7 @@ unaltraweb_compute:
 ---
 ```
 
-`make build` and `make serve` first render only stale figures (`manual-compute-render-figures`), then Jekyll rewrites the reference to the declared output. An author-owned override named like the output with `.edited.svg` (for example `boxplot-housing.edited.svg`) wins over the regenerated figure and is never overwritten. Keep figure outputs deterministic: regenerate them from the source instead of editing the generated SVG, and ask before replacing an existing `.edited.svg`.
+Run `manual_computation_status` and explicitly render stale figures with `manual_computation_render_figures` before building. `site_check` prevents package-scaffolded build/test/serve runs while generated outputs are stale; only the internal capture preview bypasses that gate so it can render the stale capture itself. Jekyll then rewrites the source reference to the declared output. An author-owned override named like the output with `.edited.svg` (for example `boxplot-housing.edited.svg`) wins over the regenerated figure and is never overwritten. Keep figure outputs deterministic: regenerate them from the source instead of editing the generated SVG, and ask before replacing an existing `.edited.svg`.
 
 ## Citations, code, and math
 
@@ -231,7 +231,7 @@ Tabs, details, interactive charts and maps, galleries, audio, video, and arbitra
 
 ## Executable sources
 
-When a `.qmd`, `.Rmd`, `.R`, `.py`, or `.ipynb` source owns a chapter, edit that source rather than its generated `.md`. Keep one R or Python engine per source, declare non-code inputs, render explicitly, and review source, Markdown, figures, and `.unaltraweb/computations.lock.json` together. Never publish while `manual_computation_check` reports stale output. For single figures, prefer `mode: figure` sources referenced from Markdown (see "Computed figures" above) instead of chapter-mode sources, because figure sources are rendered on `make build` and keep each figure reproducible on its own.
+When a `.qmd`, `.Rmd`, `.R`, `.py`, or `.ipynb` source owns a chapter, edit that source rather than its generated `.md`. Keep one R or Python engine per source, declare non-code inputs, render explicitly, and review source, Markdown, figures, and `.unaltraweb/computations.lock.json` together. Never publish while `manual_computation_check` reports stale output. For single figures, prefer `mode: figure` sources referenced from Markdown (see "Computed figures" above) instead of chapter-mode sources; render them explicitly with `manual_computation_render_figures` so each figure remains reproducible on its own.
 
 ## Required checks
 

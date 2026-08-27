@@ -60,7 +60,7 @@ def run_server(project: Path, factory: Path) -> None:
             "Run site_check and resolve blocking validation failures before build_site. "
             "When a chapter has an executable .qmd, .Rmd, .R, .py, or .ipynb source, edit that source rather than its generated .md. "
             "A figure can be referenced from Markdown by its compute source (for example assets/quarto/figures/boxplot.qmd); the build rewrites the reference to the declared mode:figure output and prefers an author-owned *.edited.svg. "
-            "Run manual_computation_status and render explicitly after source or input changes; builds must not proceed with stale generated Markdown or figures, and make build/serve auto-render stale figures first. "
+            "Run manual_computation_status and render explicitly after source or input changes; site_check blocks build/test/serve when generated Markdown, figures, or web captures are stale. "
             "For selector-based screenshots, edit the .capture.yml recipe, preserve the original PNG, and never overwrite .capture.edited.svg without approval. "
             "For static Vega figures, reference a .vl.json or .vg.json source declared once in .vegavisuals.yml and use the companion vegavisuals tools to render and check its declared output."
             " After inserting a text-bearing figure or diagram, run manual_source_quality_check and use its separate web/PDF dimension suggestions; do not distort the intrinsic aspect ratio."
@@ -308,17 +308,17 @@ def run_server(project: Path, factory: Path) -> None:
     @mcp.tool()
     def manual_pdf_status(language: str = "") -> dict[str, Any]:
         """Inspect manual PDF configuration, source availability, and artefact freshness without changing files."""
-        return tools.manual_pdf_status(project, language=language)
+        return tools.manual_pdf_status(project, factory, language=language)
 
     @mcp.tool()
     def manual_pdf_build(language: str = "") -> dict[str, Any]:
         """Build configured unaltremanual PDFs and first-page cover previews under the site's temporary directory."""
-        return tools.manual_pdf_build(project, language=language)
+        return tools.manual_pdf_build(project, factory, language=language)
 
     @mcp.tool()
     def manual_pdf_publish(language: str = "", dry_run: bool = True, confirm_publish: bool = False) -> dict[str, Any]:
         """Copy built PDFs and covers to public site assets. Defaults to dry-run; real publication requires confirmation."""
-        return tools.manual_pdf_publish(project, language=language, dry_run=dry_run, confirm_publish=confirm_publish)
+        return tools.manual_pdf_publish(project, factory, language=language, dry_run=dry_run, confirm_publish=confirm_publish)
 
     @mcp.tool()
     def profile_prune_plan(site_profile: str = "") -> dict[str, Any]:
@@ -368,17 +368,17 @@ def run_server(project: Path, factory: Path) -> None:
     @mcp.tool()
     def bibliometrics_check() -> dict[str, Any]:
         """Run the site's offline bibliometrics check target."""
-        return tools.bibliometrics_check(project)
+        return tools.bibliometrics_check(project, factory)
 
     @mcp.tool()
     def bibliometrics_fetch_scimago(scimago_input: str = "") -> dict[str, Any]:
         """Fetch or validate local Scimago data through the site Make contract."""
-        return tools.bibliometrics_fetch_scimago(project, scimago_input=scimago_input)
+        return tools.bibliometrics_fetch_scimago(project, factory, scimago_input=scimago_input)
 
     @mcp.tool()
     def bibliometrics_update(fetch_scimago: bool = False, offline: bool = False, dry_run: bool = False, strict_external: bool = False, require_scimago: bool = False) -> dict[str, Any]:
         """Update static bibliography and bibliometrics outputs through the site Make contract."""
-        return tools.bibliometrics_update(project, fetch_scimago=fetch_scimago, offline=offline, dry_run=dry_run, strict_external=strict_external, require_scimago=require_scimago)
+        return tools.bibliometrics_update(project, factory, fetch_scimago=fetch_scimago, offline=offline, dry_run=dry_run, strict_external=strict_external, require_scimago=require_scimago)
 
     @mcp.tool()
     def build_site(site_profile: str = "") -> dict[str, Any]:

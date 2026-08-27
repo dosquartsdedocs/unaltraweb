@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import yaml
+
 from unaltraweb_mcp import cli
 from unaltraweb_mcp import site_tools
 
@@ -35,6 +37,19 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertTrue(status["markers"]["theme"])
         self.assertTrue(status["markers"]["gem"])
         self.assertEqual(status["runtime_targets"], {"build_native": True, "serve_native": True})
+
+    def test_make_target_detection_does_not_execute_makefile(self) -> None:
+        marker = self.project / "executed"
+        (self.project / "Makefile").write_text(
+            f"SIDE_EFFECT := $(shell touch {marker})\n"
+            "serve-capture-native := disabled\n"
+            "build-native build-local:\n\t@true\n",
+            encoding="utf-8",
+        )
+
+        self.assertFalse(site_tools._make_target_available(self.project, "serve-capture-native"))
+        self.assertTrue(site_tools._make_target_available(self.project, "build-native"))
+        self.assertFalse(marker.exists())
 
     def test_rejects_directory_without_unaltraweb_markers(self) -> None:
         (self.project / "_config.yml").write_text("title: Plain Jekyll\n", encoding="utf-8")
@@ -81,7 +96,9 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertEqual(site_tools.site_profile(site_tools.site_config(project)), profile)
                 self.assertIn(f"layout: {layout}", (project / "_pages/en/index.md").read_text(encoding="utf-8"))
                 self.assertTrue((project / ".github/workflows/deploy.yml").is_file())
-                self.assertIn("docker run", (project / "Makefile").read_text(encoding="utf-8"))
+                makefile = (project / "Makefile").read_text(encoding="utf-8")
+                self.assertIn("docker run", makefile)
+                self.assertIn("serve-native: site-check-native serve-capture-native", makefile)
                 self.assertIn("unaltraweb (= 0.3.0)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
                 for path in site_tools.PROFILE_CONTRACTS[profile]["recommended_paths"]:
                     self.assertTrue((project / path).exists(), path)
@@ -219,6 +236,13 @@ class McpRuntimeTests(unittest.TestCase):
 
         with patch("builtins.print"):
             returncode = cli.main(["--project", str(self.project), "mcp", "profile-check"])
+
+        self.assertEqual(returncode, 1)
+
+    @patch("unaltraweb_mcp.cli.tools.site_check", return_value={"ok": False})
+    def test_site_check_cli_exits_nonzero_for_failed_preflight(self, _site_check) -> None:
+        with patch("builtins.print"):
+            returncode = cli.main(["--project", str(self.project), "mcp", "site-check"])
 
         self.assertEqual(returncode, 1)
 
@@ -371,6 +395,36 @@ class McpRuntimeTests(unittest.TestCase):
 
         for name in ["new_web", "detect_site", "build_site", "preview_start", "preview_status", "preview_stop"]:
             self.assertIn(name, tools)
+
+    def test_factory_manifest_matches_runtime_inventory(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        manifest = next(yaml.safe_load_all((root / "mcp-factory.yml").read_text(encoding="utf-8")))
+        inventory = site_tools.list_tools()
+
+        self.assertEqual(set(manifest["mcp"]["resources"]), set(inventory["resources"]))
+        self.assertEqual(set(manifest["mcp"]["required_tools"]), set(inventory["tools"]))
+
+    @patch("unaltraweb_mcp.site_tools.run_factory_make")
+    def test_bibliometrics_update_delegates_to_factory(self, run_factory_make) -> None:
+        run_factory_make.return_value = {"ok": True}
+        factory = Path("/tmp/factory")
+
+        site_tools.bibliometrics_update(self.project, factory, offline=True, dry_run=True)
+
+        run_factory_make.assert_called_once_with(
+            factory,
+            self.project,
+            "metrics-update",
+            extra_args=["METRICS_ARGS=--offline --dry-run"],
+        )
+
+    def test_scimago_input_rejects_make_expansion(self) -> None:
+        with self.assertRaisesRegex(ValueError, "safe project-relative"):
+            site_tools.bibliometrics_fetch_scimago(
+                self.project,
+                Path("/tmp/factory"),
+                scimago_input="$(shell touch /tmp/pwned).csv",
+            )
 
 
 if __name__ == "__main__":

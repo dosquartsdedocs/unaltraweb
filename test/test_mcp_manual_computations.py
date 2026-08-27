@@ -127,10 +127,31 @@ Chapter source.
             with self.assertRaisesRegex(ValueError, "unsafe for Make delegation"):
                 site_tools.run_factory_make(Path("/tmp/factory"), Path("/tmp/site"), "manual-compute-status")
 
-    def test_factory_delegation_rejects_whitespace_in_project_path(self) -> None:
+    @patch("unaltraweb_mcp.site_tools.subprocess.run")
+    def test_factory_delegation_accepts_spaces_in_project_path(self, run) -> None:
+        run.return_value = subprocess.CompletedProcess([], 0, "", "")
         with patch("unaltraweb_mcp.site_tools.project_path", side_effect=[Path("/tmp/factory"), Path("/tmp/My Site")]):
-            with self.assertRaisesRegex(ValueError, "unsafe for Make delegation"):
-                site_tools.run_factory_make(Path("/tmp/factory"), Path("/tmp/site"), "manual-compute-status")
+            result = site_tools.run_factory_make(Path("/tmp/factory"), Path("/tmp/site"), "manual-compute-status")
+
+        self.assertTrue(result["ok"])
+        self.assertIn("PROJECT=/tmp/My Site", run.call_args.args[0])
+
+    def test_factory_make_preserves_project_path_with_spaces(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "My Site"
+            project.mkdir()
+
+            completed = subprocess.run(
+                ["make", "--silent", "--no-print-directory", "-C", str(root), "manual-compute-status", f"PROJECT={project}"],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(json.loads(completed.stdout)["project"], str(project))
 
     @patch("unaltraweb_mcp.cli.tools.manual_computation_check", return_value={"ok": False})
     def test_cli_check_returns_nonzero_when_make_check_fails(self, _check) -> None:

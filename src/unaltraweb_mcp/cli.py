@@ -95,7 +95,7 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "site-context":
         return print_json(tools.site_context(project, factory))
     if command == "site-check":
-        return print_json(tools.site_check(project, factory))
+        return print_json(tools.site_check(project, factory), enforce_ok=True)
     if command == "profile-check":
         return print_json(tools.profile_check(project), enforce_ok=True)
     if command == "manual-source-quality-check":
@@ -119,11 +119,11 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "web-capture-render":
         return print_json(tools.web_capture_render(project, factory, source=args.source, confirm_overwrite=args.confirm_overwrite))
     if command == "manual-pdf-status":
-        return print_json(tools.manual_pdf_status(project, language=args.language))
+        return print_json(tools.manual_pdf_status(project, factory, language=args.language))
     if command == "manual-pdf-build":
-        return print_json(tools.manual_pdf_build(project, language=args.language))
+        return print_json(tools.manual_pdf_build(project, factory, language=args.language))
     if command == "manual-pdf-publish":
-        return print_json(tools.manual_pdf_publish(project, language=args.language, dry_run=not args.apply, confirm_publish=args.confirm_publish))
+        return print_json(tools.manual_pdf_publish(project, factory, language=args.language, dry_run=not args.apply, confirm_publish=args.confirm_publish))
     if command == "profile-prune-plan":
         return print_json(tools.profile_prune_plan(project, site_profile_value=args.site_profile))
     if command == "profile-prune":
@@ -143,13 +143,14 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "bibliography-add-entry":
         return print_json(tools.bibliography_add_entry(project, args.bibtex, path=args.path, replace=args.replace))
     if command == "bibliometrics-check":
-        return print_json(tools.bibliometrics_check(project))
+        return print_json(tools.bibliometrics_check(project, factory))
     if command == "bibliometrics-fetch-scimago":
-        return print_json(tools.bibliometrics_fetch_scimago(project, scimago_input=args.scimago_input))
+        return print_json(tools.bibliometrics_fetch_scimago(project, factory, scimago_input=args.scimago_input))
     if command == "bibliometrics-update":
         return print_json(
             tools.bibliometrics_update(
                 project,
+                factory,
                 fetch_scimago=args.fetch_scimago,
                 offline=args.offline,
                 dry_run=args.dry_run,

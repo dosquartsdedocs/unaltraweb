@@ -99,6 +99,9 @@ mcp:
     - web://web-captures
     - web://profile-prune-plan
     - web://content-inventory
+    - web://language-policy
+    - web://content-approval
+    - web://translation-plan
     - web://bibliography
     - web://bibliometrics
     - web://build-health
@@ -127,6 +130,9 @@ mcp:
     - profile_prune_plan
     - profile_prune
     - content_inventory
+    - language_policy
+    - content_approval_inventory
+    - translation_plan
     - content_freshness_check
     - bibliography_inventory
     - bibliography_add_entry
