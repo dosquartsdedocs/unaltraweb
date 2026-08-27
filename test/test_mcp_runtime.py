@@ -100,6 +100,7 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertIn("docker run", makefile)
                 self.assertIn("serve-native: site-check-native serve-capture-native", makefile)
                 self.assertIn("unaltraweb (= 0.3.0)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
+                self.assertEqual((project / "context/writing-profile.md").is_file(), profile == "unaltremanual")
                 for path in site_tools.PROFILE_CONTRACTS[profile]["recommended_paths"]:
                     self.assertTrue((project / path).exists(), path)
 
@@ -396,6 +397,18 @@ class McpRuntimeTests(unittest.TestCase):
         for name in ["new_web", "detect_site", "build_site", "preview_start", "preview_status", "preview_stop"]:
             self.assertIn(name, tools)
 
+    def test_prompt_inventory_is_structured_and_complete(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+
+        inventory = site_tools.prompt_inventory(root)
+
+        self.assertTrue(inventory["all_available"])
+        self.assertEqual(inventory["prompt_count"], len(site_tools.PROMPT_SPECS))
+        self.assertEqual([prompt["name"] for prompt in inventory["prompts"]], list(site_tools.PROMPT_SPECS))
+        structure = next(prompt for prompt in inventory["prompts"] if prompt["name"] == "manual_structure_audit")
+        self.assertEqual([argument["name"] for argument in structure["arguments"]], ["target", "revision_mode"])
+        self.assertEqual(site_tools.list_tools()["prompts"], list(site_tools.PROMPT_SPECS))
+
     def test_factory_manifest_matches_runtime_inventory(self) -> None:
         root = Path(__file__).resolve().parents[1]
         manifest = next(yaml.safe_load_all((root / "mcp-factory.yml").read_text(encoding="utf-8")))
@@ -403,6 +416,14 @@ class McpRuntimeTests(unittest.TestCase):
 
         self.assertEqual(set(manifest["mcp"]["resources"]), set(inventory["resources"]))
         self.assertEqual(set(manifest["mcp"]["required_tools"]), set(inventory["tools"]))
+        self.assertIn("context", manifest["workspace_rule"]["init_creates"])
+        self.assertIn("context", manifest["workspace_rule"]["source_paths"])
+
+    def test_writing_profile_is_excluded_from_published_site(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        config = yaml.safe_load((root / "_config.yml").read_text(encoding="utf-8"))
+
+        self.assertIn("context/", config["exclude"])
 
     @patch("unaltraweb_mcp.site_tools.run_factory_make")
     def test_bibliometrics_update_delegates_to_factory(self, run_factory_make) -> None:

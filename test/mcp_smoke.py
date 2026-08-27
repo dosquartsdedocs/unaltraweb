@@ -9,6 +9,7 @@ from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from unaltraweb_mcp import site_tools
 
 
 def tool_payload(result: object) -> dict[str, object]:
@@ -48,10 +49,12 @@ async def smoke() -> None:
                 assert "web://new-web-scaffolds" in resources
                 assert "web://content-inventory" in resources
 
-                prompts = {prompt.name for prompt in (await session.list_prompts()).prompts}
-                assert "start_site_session" in prompts
-                assert "create_new_web" in prompts
-                assert "build_and_review" in prompts
+                prompt_items = (await session.list_prompts()).prompts
+                prompts = {prompt.name: prompt for prompt in prompt_items}
+                assert set(prompts) == set(site_tools.PROMPT_SPECS)
+                for name, spec in site_tools.PROMPT_SPECS.items():
+                    assert prompts[name].description == spec["description"]
+                    assert [argument.name for argument in (prompts[name].arguments or [])] == [argument["name"] for argument in spec["arguments"]]
 
                 initialized = tool_payload(await session.call_tool("new_web", {}))
                 assert initialized["ok"] is True, initialized

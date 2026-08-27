@@ -23,6 +23,7 @@ workspace_rule:
     - _bibliography
     - _data
     - assets
+    - context
     - .github/workflows
   source_paths:
     - _config.yml
@@ -39,6 +40,7 @@ workspace_rule:
     - _bibliography
     - _data
     - assets
+    - context
     - .github/workflows
     - .vegavisuals.yml
   generated_paths:

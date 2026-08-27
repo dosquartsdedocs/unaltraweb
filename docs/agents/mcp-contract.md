@@ -35,7 +35,7 @@ When `.vegavisuals.yml` exists, `site_check` reports the delegated `visualizatio
 | `web://bibliography` | BibTeX files, entry counts, types, duplicate citekeys, and update dates. |
 | `web://bibliometrics` | Static bibliometrics summary state and bibliography update dates. |
 | `web://build-health` | Existing `_site` build artefacts without starting a server. |
-| `web://prompts` | Reusable website workflow prompts. |
+| `web://prompts` | Registered prompt names, descriptions, arguments, source files, and availability. |
 | `web://manual-writing-guidance` | Generic drafting and style-review prompts combined with the site's `context/writing-profile.md` when available. |
 | `web://manual-authoring-components` | Supported prose structures and component syntax, including callouts, definition lists, figure layouts, tables, diagrams, citations, and web/PDF compatibility. |
 | `web://manual-computations` | Executable manual sources, selected runtime images, generated outputs, and freshness state. |
@@ -92,6 +92,8 @@ Manual PDF publication is a local workspace operation: it copies reviewed artefa
 ## New Site Initialization
 
 `new_web` is intended for empty or nearly-empty website repositories. It creates common runtime files, profile-specific configuration, localized home pages, and the content paths required by the selected profile. All scaffold assets are shipped inside the `unaltraweb_mcp` Python package and MCP Docker image; environment variables, sibling checkouts, and arbitrary template paths are not consulted.
+
+The `unaltremanual` scaffold also creates `context/writing-profile.md` with a usable default editorial policy. Customize that local file for the manual's audience, voice, terminology, evidence policy, language workflow, and review requirements.
 
 It sets `lang`, `default_lang`, and `languages` so a new site has an explicit source language from the first commit. The default is a single English home page; every configured language gets a localized home-page source and route.
 

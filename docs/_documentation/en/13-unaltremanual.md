@@ -36,8 +36,9 @@ Typical content:
 - Chapters under `_chapters/<lang>/`.
 - Callouts, figures, subfigures, numbered tables and Mermaid diagrams.
 - Optional manual bibliography.
+- A local `context/writing-profile.md` for audience, voice, terminology, evidence, language, and review rules.
 
-The profile includes a sticky chapter sidebar, right-hand table of contents, reader font controls and search index.
+The package scaffold provides a usable default writing profile; revise it before substantial drafting when the manual has project-specific editorial requirements. The site profile also includes a sticky chapter sidebar, right-hand table of contents, reader font controls and search index.
 
 Figures can use independent display constraints for each support. `data-figure-width-web` and `data-figure-height-web` control the browser presentation; `data-figure-width-pdf` and `data-figure-height-pdf` become print constraints while preserving the intrinsic aspect ratio. The older `data-figure-width` remains a shared fallback. Run `manual_source_quality_check` after adding a text-bearing SVG so the MCP can compare its effective text with body text and suggest separate web/PDF widths.
 
