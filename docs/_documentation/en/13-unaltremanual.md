@@ -94,13 +94,13 @@ source_roots:
 generated_assets_root: assets/img/generated
 engines:
   python:
-    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python:main
+    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0
     lockfiles:
       - requirements-compute.txt
     fingerprint_paths:
       - analysis/helpers
   r:
-    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-r:main
+    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0
     lockfiles:
       - renv.lock
 ```

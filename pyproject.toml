@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "unaltraweb-mcp"
-version = "0.3.0"
+dynamic = ["version"]
 description = "MCP control plane for unaltraweb website workspaces"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -16,6 +16,7 @@ dependencies = [
   "bibtexparser>=1.4,<2",
   "PyYAML>=6,<7",
   "requests>=2.31,<3",
+  "tomli>=2,<3; python_version < '3.11'",
 ]
 
 [project.optional-dependencies]
@@ -27,11 +28,16 @@ unaltraweb-mcp = "unaltraweb_mcp.cli:main"
 [tool.setuptools]
 package-dir = {"" = "src"}
 
+[tool.setuptools.dynamic]
+version = {attr = "unaltraweb_mcp.__version__"}
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
 unaltraweb_mcp = [
+  "component-contract.json",
+  "component-contract.schema.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore",
   "scaffolds/common/.github/workflows/*.yml",

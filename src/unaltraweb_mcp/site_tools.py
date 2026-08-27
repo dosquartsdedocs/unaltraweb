@@ -1,16 +1,23 @@
 from __future__ import annotations
 
 import datetime as dt
+import difflib
+import fcntl
 import hashlib
 import json
 import os
 import re
-import subprocess
+import stat
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+
+from .distribution import component, component_reference
+from .processes import ProcessResult, run_process
 
 try:
     import yaml  # type: ignore
@@ -43,6 +50,36 @@ FIGURE_WEB_FONT_MIN_PIXELS = MANUAL_WEB_BODY_FONT_PIXELS * 0.75
 FIGURE_WEB_FONT_MAX_PIXELS = MANUAL_WEB_BODY_FONT_PIXELS
 VEGA_SOURCE_SUFFIXES = (".vl.json", ".vg.json")
 WEB_CAPTURE_SUFFIXES = (".capture.yml", ".capture.yaml")
+MAKE_TIMEOUTS = {
+    "build-native": 900.0,
+    "manual-compute-status": 60.0,
+    "manual-compute-check": 120.0,
+    "manual-compute-render": 1800.0,
+    "manual-compute-render-figures": 1800.0,
+    "web-capture-status": 60.0,
+    "web-capture-check": 120.0,
+    "manual-pdf-build": 1800.0,
+    "manual-pdf-status": 60.0,
+    "manual-pdf-publish": 300.0,
+    "web-capture-render": 900.0,
+    "metrics-check": 120.0,
+    "metrics-scimago-fetch": 900.0,
+    "metrics-update": 900.0,
+    "metrics-update-all": 900.0,
+}
+DEFAULT_MAKE_TIMEOUT = 300.0
+WORKER_FACTORY_LABEL = "io.context.mcp-factory"
+WORKER_ROLE_LABEL = "io.context.mcp-role"
+WORKER_PROJECT_LABEL = "io.context.mcp-project"
+WORKER_TOKEN_LABEL = "io.context.mcp-worker-token"
+WORKER_TARGET_ROLES = {
+    "manual-compute-render": "computation",
+    "manual-compute-render-figures": "computation",
+    "web-capture-render": "web-capture",
+    "manual-pdf-status": "manual-pdf",
+    "manual-pdf-build": "manual-pdf",
+    "manual-pdf-publish": "manual-pdf",
+}
 PROMPT_SPECS: dict[str, dict[str, Any]] = {
     "start_site_session": {
         "source": "00-start-site-session.txt",
@@ -233,8 +270,28 @@ PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     },
 }
 
-SCAFFOLD_TEMPLATE_FILES = {"_config.yml.tmpl", "home.md.tmpl"}
+SCAFFOLD_TEMPLATE_FILES = {"Gemfile.lock.tmpl", "Gemfile.tmpl", "Makefile.tmpl", "_config.yml.tmpl", "home.md.tmpl"}
+SCAFFOLD_MANIFEST_PATH = Path(".unaltraweb/scaffold.json")
+SCAFFOLD_MANAGED_PATHS = (
+    Path(".gitignore"),
+    Path("Makefile"),
+    Path("Gemfile"),
+    Path("Gemfile.lock"),
+    Path(".github/workflows/deploy.yml"),
+)
 LANGUAGE_RE = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
+SITE_SOURCE_MAX_BYTES = 1024 * 1024
+SCAFFOLD_FILE_MAX_BYTES = 4 * 1024 * 1024
+HTML_AUDIT_FILE_MAX_BYTES = 32 * 1024 * 1024
+HTTP_RESPONSE_MAX_BYTES = 64 * 1024
+COMPANION_FILE_MAX_BYTES = 16 * 1024 * 1024
+COMPANION_JSON_MAX_DEPTH = 64
+COMPANION_JSON_MAX_NODES = 100_000
+SITE_SOURCE_DIFF_MAX_LINES = 200
+SITE_SOURCE_DIFF_MAX_BYTES = 32 * 1024
+SITE_SOURCE_CONTENT_SUFFIXES = {".md", ".markdown", ".html"}
+SITE_SOURCE_DATA_SUFFIXES = {".yml", ".yaml", ".json", ".csv"}
+SITE_SOURCE_CONTEXT_SUFFIXES = {".md", ".markdown"}
 
 
 def project_path(raw: str | Path | None) -> Path:
@@ -292,6 +349,8 @@ def _fallback_config_yaml(text: str) -> dict[str, Any]:
         while stack and indent <= stack[-1][0]:
             stack.pop()
         parent = stack[-1][1]
+        if key in parent:
+            raise ValueError(f"duplicate YAML key: {key}")
         if value:
             parent[key] = _parse_scalar(value)
         else:
@@ -301,27 +360,57 @@ def _fallback_config_yaml(text: str) -> dict[str, Any]:
     return data
 
 
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-finite JSON number is not allowed: {value}")
+
+
+def _strict_json_loads(text: str) -> Any:
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError(f"duplicate JSON key: {key}")
+            value[key] = item
+        return value
+
+    return json.loads(text, parse_constant=_reject_json_constant, object_pairs_hook=unique_object)
+
+
 def load_yaml_text(text: str) -> Any:
-    if yaml is not None:
-        parsed = yaml.safe_load(text)
-        return parsed if parsed is not None else {}
-    return _fallback_config_yaml(text)
+    if yaml is None:
+        return _fallback_config_yaml(text)
+
+    class UniqueKeyLoader(yaml.SafeLoader):
+        pass
+
+    def construct_mapping(loader, node, deep=False):
+        mapping: dict[Any, Any] = {}
+        for key_node, value_node in node.value:
+            key = loader.construct_object(key_node, deep=deep)
+            if key in mapping:
+                raise ValueError(f"duplicate YAML key: {key}")
+            mapping[key] = loader.construct_object(value_node, deep=deep)
+        return mapping
+
+    UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, construct_mapping)
+    parsed = yaml.load(text, Loader=UniqueKeyLoader)
+    return parsed if parsed is not None else {}
 
 
 def load_yaml_file(path: Path) -> dict[str, Any]:
     if not path.is_file():
         return {}
     try:
-        parsed = load_yaml_text(path.read_text(encoding="utf-8"))
-    except Exception:
+        parsed = load_yaml_text(_read_regular_path(path, max_bytes=SITE_SOURCE_MAX_BYTES, description=f"YAML file {path}").decode("utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError, RuntimeError):
         return {}
     return parsed if isinstance(parsed, dict) else {}
 
 
 def read_front_matter(path: Path) -> dict[str, Any]:
     try:
-        text = path.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
+        text = _read_regular_path(path, max_bytes=COMPANION_FILE_MAX_BYTES, description=f"Content source {path}").decode("utf-8", errors="ignore")
+    except (OSError, ValueError, RuntimeError):
         return {}
     if not text.startswith("---"):
         return {}
@@ -530,14 +619,14 @@ def scaffold_inventory() -> dict[str, Any]:
     return {
         "source": "unaltraweb_mcp package",
         "default": "unaltreselfie",
-        "common_available": (root / "common" / "Makefile").is_file() and (root / "common" / "Gemfile").is_file(),
+        "common_available": (root / "common" / "Makefile.tmpl").is_file() and (root / "common" / "Gemfile.tmpl").is_file(),
         "profiles": profiles,
     }
 
 
-def starter_templates(factory: Path) -> dict[str, Any]:
+def starter_templates(factory: Path | None = None) -> dict[str, Any]:
     """Return the package-owned scaffolds exposed by the legacy inventory name."""
-    return {"factory": str(project_path(factory)), **scaffold_inventory()}
+    return {"factory": str(project_path(factory)) if factory else "", **scaffold_inventory()}
 
 
 def _yaml_scalar(value: str) -> str:
@@ -574,7 +663,7 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
     root = _scaffold_root()
     common_root = root / "common"
     profile_root = root / "profiles" / profile
-    required = [common_root / "Makefile", common_root / "Gemfile", profile_root / "_config.yml.tmpl", profile_root / "home.md.tmpl"]
+    required = [common_root / "Makefile.tmpl", common_root / "Gemfile.tmpl", common_root / "Gemfile.lock.tmpl", profile_root / "_config.yml.tmpl", profile_root / "home.md.tmpl"]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise RuntimeError(f"Package-owned new-web scaffold is incomplete: {', '.join(missing)}")
@@ -598,6 +687,12 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
         "DEFAULT_LANG": _yaml_scalar(default_lang),
         "LANGUAGES": _yaml_inline_list(languages),
     }
+    common_replacements = {
+        "GEM_VERSION": str(component("gem")["version"]),
+        "MCP_IMAGE": component_reference("mcp"),
+    }
+    for name in ["Makefile", "Gemfile", "Gemfile.lock"]:
+        payloads[Path(name)] = _render_scaffold_template(common_root / f"{name}.tmpl", common_replacements)
     payloads[Path("_config.yml")] = _render_scaffold_template(profile_root / "_config.yml.tmpl", replacements)
     for language in languages:
         home_replacements = {
@@ -606,7 +701,40 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
             "PERMALINK": _yaml_scalar("/" if language == default_lang else f"/{language}/"),
         }
         payloads[Path("_pages") / language / "index.md"] = _render_scaffold_template(profile_root / "home.md.tmpl", home_replacements)
+    payloads[SCAFFOLD_MANIFEST_PATH] = _scaffold_manifest_bytes(
+        {path.as_posix(): _source_hash(payloads[path]) for path in SCAFFOLD_MANAGED_PATHS}
+    )
     return payloads
+
+
+def _managed_scaffold_payloads() -> dict[Path, bytes]:
+    common_root = _scaffold_root() / "common"
+    payloads = {
+        Path(".gitignore"): (common_root / ".gitignore").read_bytes(),
+        Path(".github/workflows/deploy.yml"): (common_root / ".github/workflows/deploy.yml").read_bytes(),
+    }
+    replacements = {
+        "GEM_VERSION": str(component("gem")["version"]),
+        "MCP_IMAGE": component_reference("mcp"),
+    }
+    for name in ["Makefile", "Gemfile", "Gemfile.lock"]:
+        payloads[Path(name)] = _render_scaffold_template(common_root / f"{name}.tmpl", replacements)
+    return payloads
+
+
+def _scaffold_manifest_bytes(files: dict[str, str]) -> bytes:
+    return (
+        json.dumps(
+            {
+                "schema_version": 1,
+                "source": "unaltraweb_mcp package",
+                "files": dict(sorted(files.items())),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
 
 
 def _scaffold_preflight(project: Path, payloads: dict[Path, bytes], required_directories: set[Path]) -> tuple[list[Path], list[Path]]:
@@ -655,10 +783,16 @@ def _scaffold_preflight(project: Path, payloads: dict[Path, bytes], required_dir
         if target.exists():
             if not target.is_file():
                 conflicts.append(f"expected a file but found a directory: {relative}")
-            elif target.read_bytes() == content:
-                unchanged.append(relative)
             else:
-                conflicts.append(f"existing file differs from the package scaffold: {relative}")
+                try:
+                    current = _read_regular_path(target, max_bytes=SCAFFOLD_FILE_MAX_BYTES, description=f"Scaffold target {relative}")
+                except (OSError, ValueError, RuntimeError) as exc:
+                    conflicts.append(f"existing file is unsafe or unreadable: {relative}: {exc}")
+                else:
+                    if current == content:
+                        unchanged.append(relative)
+                    else:
+                        conflicts.append(f"existing file differs from the package scaffold: {relative}")
         else:
             create.append(relative)
 
@@ -748,19 +882,56 @@ def _create_scaffold_file(root_fd: int, relative: Path, content: bytes) -> None:
         os.close(parent_fd)
 
 
-def _read_scaffold_file(root_fd: int, relative: Path) -> bytes:
-    parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
+def _read_regular_at(parent_fd: int, name: str, *, max_bytes: int, description: str) -> tuple[bytes, os.stat_result]:
     file_fd: int | None = None
     try:
-        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-        file_fd = os.open(relative.name, flags, dir_fd=parent_fd)
-        chunks = []
-        while chunk := os.read(file_fd, 65536):
-            chunks.append(chunk)
-        return b"".join(chunks)
+        flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
+        file_fd = os.open(name, flags, dir_fd=parent_fd)
+        metadata = os.fstat(file_fd)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError(f"{description} must be a regular file, not a directory or special file.")
+        if metadata.st_size > max_bytes:
+            raise ValueError(f"{description} exceeds the {max_bytes}-byte limit.")
+        content = bytearray()
+        while len(content) <= max_bytes:
+            chunk = os.read(file_fd, min(65536, max_bytes + 1 - len(content)))
+            if not chunk:
+                break
+            content.extend(chunk)
+        if len(content) > max_bytes:
+            raise ValueError(f"{description} exceeds the {max_bytes}-byte limit.")
+        final_metadata = os.fstat(file_fd)
+        before = (metadata.st_dev, metadata.st_ino, metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns)
+        after = (final_metadata.st_dev, final_metadata.st_ino, final_metadata.st_size, final_metadata.st_mtime_ns, final_metadata.st_ctime_ns)
+        if before != after:
+            raise RuntimeError(f"{description} changed while it was being read.")
+        return bytes(content), final_metadata
     finally:
         if file_fd is not None:
             os.close(file_fd)
+
+
+def _read_regular_path(path: Path, *, max_bytes: int, description: str) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    parent_fd = os.open(path.parent, flags)
+    try:
+        content, _ = _read_regular_at(parent_fd, path.name, max_bytes=max_bytes, description=description)
+        return content
+    finally:
+        os.close(parent_fd)
+
+
+def _read_scaffold_file(root_fd: int, relative: Path) -> bytes:
+    parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
+    try:
+        content, _ = _read_regular_at(
+            parent_fd,
+            relative.name,
+            max_bytes=SCAFFOLD_FILE_MAX_BYTES,
+            description=f"Scaffold file {relative}",
+        )
+        return content
+    finally:
         os.close(parent_fd)
 
 
@@ -798,7 +969,10 @@ def new_web(
         for relative in sorted(required_directories):
             directory_fd = _open_scaffold_directory(root_fd, relative, create=True)
             os.close(directory_fd)
-        for relative in create:
+        ordered_create = [relative for relative in create if relative != SCAFFOLD_MANIFEST_PATH]
+        if SCAFFOLD_MANIFEST_PATH in create:
+            ordered_create.append(SCAFFOLD_MANIFEST_PATH)
+        for relative in ordered_create:
             _create_scaffold_file(root_fd, relative, payloads[relative])
         for relative, content in sorted(payloads.items()):
             if _read_scaffold_file(root_fd, relative) != content:
@@ -824,6 +998,348 @@ def new_web(
         "profile_check": check,
         "next_steps": ["Edit the generated configuration and home page", "Run site_check", "Run build_site"],
     }
+
+
+def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
+    root_fd = _open_project_root(project)
+    try:
+        try:
+            manifest_content = _read_scaffold_file(root_fd, SCAFFOLD_MANIFEST_PATH)
+        except (OSError, ValueError, RuntimeError) as exc:
+            raise RuntimeError(
+                "Scaffold baseline is missing or unsafe; scaffold_sync only manages sites created with a package baseline."
+            ) from exc
+        if len(manifest_content) > SITE_SOURCE_MAX_BYTES or b"\x00" in manifest_content:
+            raise RuntimeError("Scaffold baseline exceeds the text manifest safety limits.")
+        try:
+            manifest = _strict_json_loads(manifest_content.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
+            raise RuntimeError("Scaffold baseline is not valid UTF-8 JSON.") from exc
+        files = manifest.get("files") if isinstance(manifest, dict) else None
+        if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or not isinstance(files, dict):
+            raise RuntimeError("Unsupported or invalid scaffold baseline schema.")
+        baseline: dict[str, str] = {}
+        for raw_path, raw_hash in files.items():
+            path = str(raw_path)
+            digest = str(raw_hash)
+            relative = Path(path)
+            if not path or relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+                raise RuntimeError(f"Invalid scaffold baseline path: {path}.")
+            if not re.fullmatch(r"[0-9a-f]{64}", digest):
+                raise RuntimeError(f"Invalid scaffold baseline SHA-256 for {path}.")
+            baseline[path] = digest
+
+        payloads = _managed_scaffold_payloads()
+        creates: list[dict[str, str]] = []
+        updates: list[dict[str, str]] = []
+        unchanged: list[str] = []
+        adopted: list[str] = []
+        conflicts: list[dict[str, str]] = []
+        for relative in SCAFFOLD_MANAGED_PATHS:
+            path = relative.as_posix()
+            package_hash = _source_hash(payloads[relative])
+            baseline_hash = baseline.get(path, "")
+            try:
+                current = _read_scaffold_file(root_fd, relative)
+            except FileNotFoundError:
+                current = None
+            except (OSError, ValueError, RuntimeError) as exc:
+                conflicts.append({"path": path, "reason": f"managed path is unsafe or unreadable: {exc}"})
+                continue
+            current_hash = _source_hash(current) if current is not None else ""
+
+            if baseline_hash:
+                if current is None:
+                    conflicts.append({"path": path, "reason": "managed file recorded by the baseline is missing"})
+                elif current_hash != baseline_hash:
+                    conflicts.append({"path": path, "reason": "local file differs from its recorded baseline"})
+                elif current_hash == package_hash:
+                    unchanged.append(path)
+                else:
+                    updates.append({"path": path, "expected_sha256": current_hash, "sha256": package_hash})
+            elif current is None:
+                creates.append({"path": path, "sha256": package_hash})
+            elif current_hash == package_hash:
+                adopted.append(path)
+            else:
+                conflicts.append({"path": path, "reason": "new package-managed path already exists with different content"})
+
+        retired = sorted(path for path in baseline if path not in {item.as_posix() for item in SCAFFOLD_MANAGED_PATHS})
+        next_baseline = dict(baseline)
+        next_baseline.update({path.as_posix(): _source_hash(payloads[path]) for path in SCAFFOLD_MANAGED_PATHS})
+        next_manifest = _scaffold_manifest_bytes(next_baseline)
+        return {
+            "ok": not conflicts,
+            "project": str(project),
+            "creates": creates,
+            "updates": updates,
+            "unchanged": unchanged,
+            "adopted": adopted,
+            "retired": retired,
+            "conflicts": conflicts,
+            "manifest_update": next_manifest != manifest_content,
+            "_payloads": payloads,
+            "_manifest": next_manifest,
+            "_manifest_sha256": _source_hash(manifest_content),
+        }
+    finally:
+        os.close(root_fd)
+
+
+def _stage_managed_write(root_fd: int, relative: Path, content: bytes) -> dict[str, Any]:
+    parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=True)
+    temporary = f".unaltraweb-scaffold-stage-{os.getpid()}-{time.time_ns()}"
+    temp_fd: int | None = None
+    try:
+        temp_fd = os.open(
+            temporary,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o644,
+            dir_fd=parent_fd,
+        )
+        _write_all(temp_fd, content)
+        os.fsync(temp_fd)
+        return {"relative": relative, "parent_fd": parent_fd, "temporary": temporary, "content": content}
+    except Exception:
+        try:
+            os.unlink(temporary, dir_fd=parent_fd)
+        except FileNotFoundError:
+            pass
+        os.close(parent_fd)
+        raise
+    finally:
+        if temp_fd is not None:
+            os.close(temp_fd)
+
+
+def _commit_staged_managed_write(staged: dict[str, Any], *, expected_sha256: str = "") -> dict[str, Any]:
+    relative: Path = staged["relative"]
+    parent_fd: int = staged["parent_fd"]
+    temporary: str = staged["temporary"]
+    backup = f".unaltraweb-scaffold-backup-{os.getpid()}-{time.time_ns()}"
+    backup_present = False
+    installed_identity: tuple[int, int] | None = None
+    try:
+        if expected_sha256:
+            current, metadata = _read_source_at(parent_fd, relative.name)
+            path_metadata = os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False)
+            if _source_hash(current) != expected_sha256 or _path_identity(metadata) != _path_identity(path_metadata):
+                raise RuntimeError(f"Managed file changed in the final scaffold_sync window: {relative}")
+            os.chmod(temporary, stat.S_IMODE(metadata.st_mode), dir_fd=parent_fd, follow_symlinks=False)
+            os.rename(relative.name, backup, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+            backup_present = True
+            moved, moved_metadata = _read_source_at(parent_fd, backup)
+            if _source_hash(moved) != expected_sha256 or _path_identity(moved_metadata) != _path_identity(metadata):
+                _restore_private_backup(parent_fd, relative.name, backup, None)
+                backup_present = False
+                raise RuntimeError(f"Managed file changed in the final scaffold_sync window: {relative}")
+        try:
+            os.link(temporary, relative.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd, follow_symlinks=False)
+        except FileExistsError as exc:
+            if backup_present:
+                _restore_private_backup(parent_fd, relative.name, backup, None)
+                backup_present = False
+            raise RuntimeError(f"Managed path appeared during scaffold_sync apply: {relative}") from exc
+        installed_identity = _path_identity(os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False))
+        if backup_present:
+            after, after_metadata = _read_source_at(parent_fd, backup)
+            if _source_hash(after) != expected_sha256 or _path_identity(after_metadata) != _path_identity(metadata):
+                _restore_private_backup(parent_fd, relative.name, backup, installed_identity)
+                backup_present = False
+                installed_identity = None
+                raise RuntimeError(f"Managed file changed in the final scaffold_sync window: {relative}")
+        os.unlink(temporary, dir_fd=parent_fd)
+        staged["temporary"] = ""
+        os.fsync(parent_fd)
+        return {
+            "relative": relative,
+            "parent_fd": parent_fd,
+            "backup": backup if backup_present else "",
+            "installed_identity": installed_identity,
+            "installed_sha256": _source_hash(staged["content"]),
+            "expected_sha256": expected_sha256,
+        }
+    except Exception:
+        if backup_present:
+            _restore_private_backup(parent_fd, relative.name, backup, installed_identity)
+        elif installed_identity is not None:
+            _unlink_if_identity(parent_fd, relative.name, installed_identity)
+        raise
+
+
+def _rollback_managed_transaction(applied: list[dict[str, Any]]) -> list[str]:
+    errors: list[str] = []
+    for record in reversed(applied):
+        parent_fd = record["parent_fd"]
+        relative: Path = record["relative"]
+        try:
+            try:
+                installed, installed_metadata = _read_source_at(parent_fd, relative.name)
+            except FileNotFoundError:
+                pass
+            else:
+                if _path_identity(installed_metadata) != record["installed_identity"] or _source_hash(installed) != record["installed_sha256"]:
+                    raise RuntimeError("installed path changed after apply; preserving it and the private backup")
+                os.unlink(relative.name, dir_fd=parent_fd)
+            if record["backup"]:
+                _restore_private_backup(parent_fd, relative.name, record["backup"], None)
+                record["backup"] = ""
+            os.fsync(parent_fd)
+        except Exception as exc:
+            errors.append(f"{relative}: {exc}")
+    return errors
+
+
+def _verify_applied_managed_transaction(applied: list[dict[str, Any]]) -> None:
+    for record in applied:
+        parent_fd = record["parent_fd"]
+        relative: Path = record["relative"]
+        installed, installed_metadata = _read_source_at(parent_fd, relative.name)
+        if _path_identity(installed_metadata) != record["installed_identity"] or _source_hash(installed) != record["installed_sha256"]:
+            raise RuntimeError(f"Managed file changed before scaffold_sync commit: {relative}")
+        if record["backup"]:
+            backup, _ = _read_source_at(parent_fd, record["backup"])
+            if _source_hash(backup) != record["expected_sha256"]:
+                raise RuntimeError(f"Managed backup changed before scaffold_sync commit: {relative}")
+
+
+def _cleanup_staged_managed_writes(staged_files: list[dict[str, Any]]) -> None:
+    first_error: OSError | None = None
+    for staged in staged_files:
+        parent_fd = staged["parent_fd"]
+        temporary = staged.get("temporary", "")
+        try:
+            if temporary:
+                try:
+                    os.unlink(temporary, dir_fd=parent_fd)
+                except FileNotFoundError:
+                    pass
+        except OSError as exc:
+            first_error = first_error or exc
+        finally:
+            os.close(parent_fd)
+    if first_error is not None:
+        raise first_error
+
+
+def _recheck_scaffold_sync(root_fd: int, plan: dict[str, Any]) -> None:
+    for item in plan["creates"]:
+        relative = Path(item["path"])
+        parent_fd: int | None = None
+        try:
+            parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
+            try:
+                os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                continue
+            raise RuntimeError(f"Managed path appeared after scaffold_sync preflight: {relative}")
+        except FileNotFoundError:
+            continue
+        finally:
+            if parent_fd is not None:
+                os.close(parent_fd)
+    for item in plan["updates"]:
+        current = _read_scaffold_file(root_fd, Path(item["path"]))
+        if _source_hash(current) != item["expected_sha256"]:
+            raise RuntimeError(f"Managed file changed after scaffold_sync preflight: {item['path']}")
+    for path in [*plan["unchanged"], *plan["adopted"]]:
+        current = _read_scaffold_file(root_fd, Path(path))
+        if _source_hash(current) != _source_hash(plan["_payloads"][Path(path)]):
+            raise RuntimeError(f"Managed file changed after scaffold_sync preflight: {path}")
+    manifest = _read_scaffold_file(root_fd, SCAFFOLD_MANIFEST_PATH)
+    if _source_hash(manifest) != plan["_manifest_sha256"]:
+        raise RuntimeError("Scaffold baseline changed after scaffold_sync preflight.")
+
+
+def _recheck_scaffold_sync_before_manifest(root_fd: int, plan: dict[str, Any]) -> None:
+    for path in [*plan["unchanged"], *plan["adopted"]]:
+        current = _read_scaffold_file(root_fd, Path(path))
+        if _source_hash(current) != _source_hash(plan["_payloads"][Path(path)]):
+            raise RuntimeError(f"Managed file changed before scaffold_sync manifest commit: {path}")
+    manifest = _read_scaffold_file(root_fd, SCAFFOLD_MANIFEST_PATH)
+    if _source_hash(manifest) != plan["_manifest_sha256"]:
+        raise RuntimeError("Scaffold baseline changed before scaffold_sync manifest commit.")
+
+
+def _verify_scaffold_sync_committed(root_fd: int, plan: dict[str, Any]) -> None:
+    for path in [*plan["unchanged"], *plan["adopted"]]:
+        current = _read_scaffold_file(root_fd, Path(path))
+        if _source_hash(current) != _source_hash(plan["_payloads"][Path(path)]):
+            raise RuntimeError(f"Managed file changed during scaffold_sync manifest commit: {path}")
+    manifest = _read_scaffold_file(root_fd, SCAFFOLD_MANIFEST_PATH)
+    if _source_hash(manifest) != _source_hash(plan["_manifest"]):
+        raise RuntimeError("Scaffold baseline changed during scaffold_sync manifest commit.")
+
+
+def scaffold_sync(
+    project: Path,
+    *,
+    dry_run: bool = True,
+    confirm_sync: bool = False,
+) -> dict[str, Any]:
+    project = project_path(project)
+    plan = _scaffold_sync_plan(project)
+    public_plan = {key: value for key, value in plan.items() if not key.startswith("_")}
+    if plan["conflicts"]:
+        return {**public_plan, "dry_run": dry_run, "applied": False}
+    if dry_run:
+        return {**public_plan, "dry_run": True, "applied": False}
+    if not confirm_sync:
+        raise RuntimeError("A real scaffold synchronization requires confirm_sync=True after reviewing the dry-run.")
+
+    root_fd = _open_project_root(project)
+    staged_files: list[dict[str, Any]] = []
+    applied: list[dict[str, Any]] = []
+    committed = False
+    try:
+        fcntl.flock(root_fd, fcntl.LOCK_EX)
+        operations = [
+            (Path(item["path"]), plan["_payloads"][Path(item["path"])], "", False)
+            for item in plan["creates"]
+        ] + [
+            (Path(item["path"]), plan["_payloads"][Path(item["path"])], item["expected_sha256"], False)
+            for item in plan["updates"]
+        ]
+        if plan["manifest_update"]:
+            operations.append((SCAFFOLD_MANIFEST_PATH, plan["_manifest"], plan["_manifest_sha256"], True))
+        for relative, content, expected_sha256, manifest in operations:
+            staged = _stage_managed_write(root_fd, relative, content)
+            staged["expected_sha256"] = expected_sha256
+            staged["manifest"] = manifest
+            staged_files.append(staged)
+        _recheck_scaffold_sync(root_fd, plan)
+        for staged in (item for item in staged_files if not item["manifest"]):
+            applied.append(_commit_staged_managed_write(staged, expected_sha256=staged["expected_sha256"]))
+        _verify_applied_managed_transaction(applied)
+        _recheck_scaffold_sync_before_manifest(root_fd, plan)
+        for staged in (item for item in staged_files if item["manifest"]):
+            applied.append(_commit_staged_managed_write(staged, expected_sha256=staged["expected_sha256"]))
+        _verify_applied_managed_transaction(applied)
+        _verify_scaffold_sync_committed(root_fd, plan)
+        committed = True
+    except Exception as exc:
+        rollback_errors = _rollback_managed_transaction(applied)
+        if rollback_errors:
+            raise RuntimeError(f"scaffold_sync failed and rollback was incomplete: {'; '.join(rollback_errors)}") from exc
+        raise
+    finally:
+        try:
+            if committed:
+                for record in applied:
+                    if record["backup"]:
+                        try:
+                            os.unlink(record["backup"], dir_fd=record["parent_fd"])
+                        except FileNotFoundError:
+                            pass
+                        record["backup"] = ""
+                        os.fsync(record["parent_fd"])
+        finally:
+            try:
+                _cleanup_staged_managed_writes(staged_files)
+            finally:
+                fcntl.flock(root_fd, fcntl.LOCK_UN)
+                os.close(root_fd)
+    return {**public_plan, "dry_run": False, "applied": True}
 
 
 def initialize_site(
@@ -895,16 +1411,52 @@ def profile_prune_plan(project: Path, site_profile_value: str = "") -> dict[str,
 
 def _remove_empty_content_dirs(project: Path) -> list[str]:
     removed: list[str] = []
-    roots = [(project / directory).resolve() for directory in CONTENT_DIRS]
-    for root in roots:
-        if not root.is_dir():
-            continue
-        for directory in sorted((path for path in root.rglob("*") if path.is_dir()), key=lambda item: len(item.parts), reverse=True):
+
+    def remove_children(parent_fd: int, relative: Path) -> None:
+        try:
+            names = sorted(os.listdir(parent_fd))
+        except OSError:
+            return
+        for name in names:
             try:
-                directory.rmdir()
+                metadata = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
             except OSError:
                 continue
-            removed.append(rel(project, directory))
+            if not stat.S_ISDIR(metadata.st_mode):
+                continue
+            try:
+                child_fd = os.open(
+                    name,
+                    os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+                    dir_fd=parent_fd,
+                )
+            except OSError:
+                continue
+            try:
+                remove_children(child_fd, relative / name)
+            finally:
+                os.close(child_fd)
+            try:
+                os.rmdir(name, dir_fd=parent_fd)
+            except OSError:
+                continue
+            removed.append((relative / name).as_posix())
+
+    root_fd = _open_project_root(project)
+    try:
+        fcntl.flock(root_fd, fcntl.LOCK_EX)
+        for root_name in CONTENT_DIRS:
+            try:
+                collection_fd = _open_scaffold_directory(root_fd, Path(root_name), create=False)
+            except OSError:
+                continue
+            try:
+                remove_children(collection_fd, Path(root_name))
+            finally:
+                os.close(collection_fd)
+    finally:
+        fcntl.flock(root_fd, fcntl.LOCK_UN)
+        os.close(root_fd)
     return removed
 
 
@@ -918,13 +1470,34 @@ def profile_prune(project: Path, site_profile_value: str = "", *, dry_run: bool 
 
     deleted: list[str] = []
     skipped: list[dict[str, str]] = []
-    for item in plan["candidates"]:
-        target = _safe_relative_path(project, str(item["path"]), default="")
-        if not target.is_file():
-            skipped.append({"path": str(item["path"]), "reason": "not a file"})
-            continue
-        target.unlink()
-        deleted.append(str(item["path"]))
+    root_fd = _open_project_root(project)
+    try:
+        fcntl.flock(root_fd, fcntl.LOCK_EX)
+        for item in plan["candidates"]:
+            raw_path = str(item["path"])
+            relative = Path(raw_path)
+            if not relative.parts or relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts) or relative.parts[0] not in CONTENT_DIRS:
+                skipped.append({"path": raw_path, "reason": "unsafe content path"})
+                continue
+            parent_fd: int | None = None
+            try:
+                parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
+                metadata = os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False)
+                if not stat.S_ISREG(metadata.st_mode):
+                    skipped.append({"path": raw_path, "reason": "not a regular file"})
+                    continue
+                os.unlink(relative.name, dir_fd=parent_fd)
+                os.fsync(parent_fd)
+            except OSError as exc:
+                skipped.append({"path": raw_path, "reason": f"unsafe, missing, or changed path: {exc}"})
+                continue
+            finally:
+                if parent_fd is not None:
+                    os.close(parent_fd)
+            deleted.append(raw_path)
+    finally:
+        fcntl.flock(root_fd, fcntl.LOCK_UN)
+        os.close(root_fd)
 
     return {
         "ok": True,
@@ -960,8 +1533,10 @@ def _computation_front_matter_for_typography(source: Path) -> dict[str, Any]:
         return read_front_matter(source)
     if source.suffix.lower() == ".ipynb":
         try:
-            notebook = json.loads(source.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            notebook = _strict_json_loads(
+                _read_regular_path(source, max_bytes=COMPANION_FILE_MAX_BYTES, description=f"Notebook source {source}").decode("utf-8")
+            )
+        except (OSError, UnicodeDecodeError, ValueError, RuntimeError, json.JSONDecodeError):
             return {}
         value = notebook.get("metadata", {}).get("unaltraweb_front_matter")
         if isinstance(value, dict):
@@ -2305,6 +2880,397 @@ def _safe_relative_path(project: Path, raw_path: str, *, default: str) -> Path:
     return resolved
 
 
+def _site_source_relative(raw_path: str) -> Path:
+    if not raw_path or "\\" in raw_path or "\x00" in raw_path:
+        raise ValueError("Source path must be a non-empty project-relative POSIX path.")
+    relative = Path(raw_path)
+    if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+        raise ValueError("Source path must be a confined project-relative path without traversal.")
+    suffix = relative.suffix.lower()
+    allowed = relative == Path("_config.yml")
+    allowed = allowed or (
+        len(relative.parts) >= 2
+        and relative.parts[0] in CONTENT_DIRS
+        and suffix in SITE_SOURCE_CONTENT_SUFFIXES
+    )
+    allowed = allowed or (
+        len(relative.parts) >= 2
+        and relative.parts[0] == "_data"
+        and suffix in SITE_SOURCE_DATA_SUFFIXES
+    )
+    allowed = allowed or (
+        len(relative.parts) >= 2
+        and relative.parts[0] == "context"
+        and suffix in SITE_SOURCE_CONTEXT_SUFFIXES
+    )
+    if not allowed:
+        raise ValueError(
+            "Source path is not an allowed text source (_config.yml, a Markdown/HTML content collection, "
+            "YAML/JSON/CSV under _data, or Markdown under context)."
+        )
+    return relative
+
+
+def _open_project_root(project: Path) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        return os.open(project, flags)
+    except OSError as exc:
+        raise RuntimeError(f"Could not open the project root safely: {project}: {exc}") from exc
+
+
+def _read_source_at(parent_fd: int, name: str) -> tuple[bytes, os.stat_result]:
+    return _read_regular_at(
+        parent_fd,
+        name,
+        max_bytes=SITE_SOURCE_MAX_BYTES,
+        description="Source path",
+    )
+
+
+def _read_source_from_root(root_fd: int, relative: Path) -> tuple[bytes, os.stat_result]:
+    parent_fd: int | None = None
+    try:
+        parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
+        return _read_source_at(parent_fd, relative.name)
+    except OSError as exc:
+        raise RuntimeError(f"Could not read source path safely: {relative}: {exc}") from exc
+    finally:
+        if parent_fd is not None:
+            os.close(parent_fd)
+
+
+def _decode_site_source(relative: Path, content: bytes) -> str:
+    if len(content) > SITE_SOURCE_MAX_BYTES:
+        raise ValueError(f"Source content exceeds the {SITE_SOURCE_MAX_BYTES}-byte limit.")
+    if b"\x00" in content:
+        raise ValueError("Source content must not contain NUL bytes.")
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("Source content must be valid UTF-8.") from exc
+
+    suffix = relative.suffix.lower()
+    try:
+        if relative == Path("_config.yml") or suffix in {".yml", ".yaml"}:
+            parsed = load_yaml_text(text)
+            if relative == Path("_config.yml") and not isinstance(parsed, dict):
+                raise ValueError("_config.yml must contain a YAML mapping.")
+        elif suffix == ".json":
+            _strict_json_loads(text)
+    except ValueError:
+        raise
+    except Exception as exc:
+        kind = "JSON" if suffix == ".json" else "YAML"
+        raise ValueError(f"Source content is not valid whole-file {kind}: {exc}") from exc
+    return text
+
+
+def _source_hash(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
+def _expected_source_hash(value: str) -> str:
+    if not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise ValueError("expected_sha256 must be an exact lowercase SHA-256 digest.")
+    return value
+
+
+def _bounded_source_diff(relative: Path, current: str, proposed: str) -> dict[str, Any]:
+    lines = list(
+        difflib.unified_diff(
+            current.splitlines(keepends=True),
+            proposed.splitlines(keepends=True),
+            fromfile=f"a/{relative}",
+            tofile=f"b/{relative}",
+        )
+    )
+    selected = lines[:SITE_SOURCE_DIFF_MAX_LINES]
+    text = "".join(selected)
+    encoded = text.encode("utf-8")
+    truncated = len(lines) > len(selected) or len(encoded) > SITE_SOURCE_DIFF_MAX_BYTES
+    if len(encoded) > SITE_SOURCE_DIFF_MAX_BYTES:
+        text = encoded[:SITE_SOURCE_DIFF_MAX_BYTES].decode("utf-8", errors="ignore")
+    return {"text": text, "truncated": truncated, "line_count": min(len(lines), SITE_SOURCE_DIFF_MAX_LINES)}
+
+
+def site_source_read(project: Path, path: str) -> dict[str, Any]:
+    project = project_path(project)
+    relative = _site_source_relative(path)
+    root_fd = _open_project_root(project)
+    try:
+        content, _ = _read_source_from_root(root_fd, relative)
+    finally:
+        os.close(root_fd)
+    text = _decode_site_source(relative, content)
+    return {
+        "ok": True,
+        "project": str(project),
+        "path": relative.as_posix(),
+        "size": len(content),
+        "sha256": _source_hash(content),
+        "content": text,
+    }
+
+
+def _write_all(file_fd: int, content: bytes) -> None:
+    remaining = memoryview(content)
+    while remaining:
+        written = os.write(file_fd, remaining)
+        if written == 0:
+            raise OSError("Could not finish writing the file.")
+        remaining = remaining[written:]
+
+
+def _path_identity(metadata: os.stat_result) -> tuple[int, int]:
+    return metadata.st_dev, metadata.st_ino
+
+
+def _unlink_if_identity(parent_fd: int, name: str, identity: tuple[int, int]) -> bool:
+    try:
+        metadata = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return False
+    if _path_identity(metadata) != identity:
+        return False
+    os.unlink(name, dir_fd=parent_fd)
+    return True
+
+
+def _restore_private_backup(parent_fd: int, name: str, backup: str, installed_identity: tuple[int, int] | None) -> None:
+    if installed_identity is not None:
+        _unlink_if_identity(parent_fd, name, installed_identity)
+    try:
+        os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        os.rename(backup, name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+        return
+    raise RuntimeError(f"Could not restore {name}; a different path appeared during rollback. Original data remains at {backup}.")
+
+
+def _atomic_site_source_write(
+    root_fd: int,
+    relative: Path,
+    content: bytes,
+    *,
+    create_only: bool,
+    expected_sha256: str,
+) -> None:
+    parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=True)
+    temporary = f".unaltraweb-source-{os.getpid()}-{time.time_ns()}"
+    backup = f".unaltraweb-source-backup-{os.getpid()}-{time.time_ns()}"
+    temp_fd: int | None = None
+    backup_present = False
+    installed_identity: tuple[int, int] | None = None
+    try:
+        fcntl.flock(parent_fd, fcntl.LOCK_EX)
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        temp_fd = os.open(temporary, flags, 0o644, dir_fd=parent_fd)
+        _write_all(temp_fd, content)
+        os.fsync(temp_fd)
+
+        if create_only:
+            try:
+                os.link(temporary, relative.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd, follow_symlinks=False)
+            except FileExistsError as exc:
+                raise RuntimeError(f"Source path appeared while the create was being applied: {relative}") from exc
+        else:
+            current, metadata = _read_source_at(parent_fd, relative.name)
+            if _source_hash(current) != expected_sha256:
+                raise RuntimeError(f"Source changed after preflight; expected SHA-256 no longer matches: {relative}")
+            current_metadata = os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False)
+            if _path_identity(metadata) != _path_identity(current_metadata):
+                raise RuntimeError(f"Source path changed during the race-safe recheck: {relative}")
+            os.fchmod(temp_fd, stat.S_IMODE(metadata.st_mode))
+            os.rename(relative.name, backup, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+            backup_present = True
+            moved, moved_metadata = _read_source_at(parent_fd, backup)
+            if _source_hash(moved) != expected_sha256 or _path_identity(moved_metadata) != _path_identity(metadata):
+                _restore_private_backup(parent_fd, relative.name, backup, None)
+                backup_present = False
+                raise RuntimeError(f"Source changed in the final update window: {relative}")
+            try:
+                os.link(temporary, relative.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd, follow_symlinks=False)
+            except FileExistsError as exc:
+                _restore_private_backup(parent_fd, relative.name, backup, None)
+                backup_present = False
+                raise RuntimeError(f"Source path appeared in the final update window: {relative}") from exc
+            installed_identity = _path_identity(os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False))
+            after, after_metadata = _read_source_at(parent_fd, backup)
+            if _source_hash(after) != expected_sha256 or _path_identity(after_metadata) != _path_identity(metadata):
+                _restore_private_backup(parent_fd, relative.name, backup, installed_identity)
+                backup_present = False
+                installed_identity = None
+                raise RuntimeError(f"Source changed in the final update window: {relative}")
+            os.unlink(backup, dir_fd=parent_fd)
+            backup_present = False
+        if temporary:
+            os.unlink(temporary, dir_fd=parent_fd)
+            temporary = ""
+        os.fsync(parent_fd)
+    finally:
+        if backup_present:
+            try:
+                _restore_private_backup(parent_fd, relative.name, backup, installed_identity)
+            except (OSError, RuntimeError):
+                pass
+        if temp_fd is not None:
+            os.close(temp_fd)
+        if temporary:
+            try:
+                os.unlink(temporary, dir_fd=parent_fd)
+            except FileNotFoundError:
+                pass
+        fcntl.flock(parent_fd, fcntl.LOCK_UN)
+        os.close(parent_fd)
+
+
+def site_source_write(
+    project: Path,
+    path: str,
+    content: str,
+    *,
+    expected_sha256: str = "",
+    create_only: bool = False,
+    dry_run: bool = True,
+) -> dict[str, Any]:
+    project = project_path(project)
+    relative = _site_source_relative(path)
+    proposed = content.encode("utf-8")
+    proposed_text = _decode_site_source(relative, proposed)
+
+    root_fd = _open_project_root(project)
+    current = b""
+    exists = True
+    try:
+        try:
+            current, _ = _read_source_from_root(root_fd, relative)
+        except RuntimeError as exc:
+            if isinstance(exc.__cause__, FileNotFoundError):
+                exists = False
+            else:
+                raise
+
+        if exists:
+            if create_only:
+                raise RuntimeError("create_only writes require the source path not to exist.")
+            expected = _expected_source_hash(expected_sha256)
+            actual = _source_hash(current)
+            if expected != actual:
+                raise RuntimeError(f"Source SHA-256 mismatch for {relative}; read the current source before retrying.")
+            current_text = _decode_site_source(relative, current)
+        else:
+            if not create_only:
+                raise RuntimeError("New source files require create_only=True.")
+            if expected_sha256:
+                raise ValueError("New create_only writes must not provide expected_sha256.")
+            expected = ""
+            current_text = ""
+
+        diff = _bounded_source_diff(relative, current_text, proposed_text)
+        if not dry_run:
+            _atomic_site_source_write(
+                root_fd,
+                relative,
+                proposed,
+                create_only=create_only,
+                expected_sha256=expected,
+            )
+    finally:
+        os.close(root_fd)
+
+    return {
+        "ok": True,
+        "operation": "create" if create_only else "update",
+        "dry_run": dry_run,
+        "project": str(project),
+        "path": relative.as_posix(),
+        "previous_sha256": _source_hash(current) if exists else "",
+        "sha256": _source_hash(proposed),
+        "size": len(proposed),
+        "diff": diff,
+    }
+
+
+def site_source_delete(
+    project: Path,
+    path: str,
+    *,
+    expected_sha256: str,
+    dry_run: bool = True,
+    confirm_delete: bool = False,
+) -> dict[str, Any]:
+    project = project_path(project)
+    relative = _site_source_relative(path)
+    if relative == Path("_config.yml"):
+        raise ValueError("_config.yml can never be deleted through site_source_delete.")
+    expected = _expected_source_hash(expected_sha256)
+    root_fd = _open_project_root(project)
+    parent_fd: int | None = None
+    try:
+        parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
+        fcntl.flock(parent_fd, fcntl.LOCK_EX)
+        current, metadata = _read_source_at(parent_fd, relative.name)
+        actual = _source_hash(current)
+        if actual != expected:
+            raise RuntimeError(f"Source SHA-256 mismatch for {relative}; read the current source before retrying.")
+        if not dry_run:
+            if not confirm_delete:
+                raise RuntimeError("A real source deletion requires confirm_delete=True after reviewing the dry-run.")
+            rechecked, rechecked_metadata = _read_source_at(parent_fd, relative.name)
+            path_metadata = os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False)
+            identity = _path_identity(metadata)
+            if _source_hash(rechecked) != expected or identity != _path_identity(rechecked_metadata) or identity != _path_identity(path_metadata):
+                raise RuntimeError(f"Source changed during the race-safe delete recheck: {relative}")
+            tombstone = f".unaltraweb-source-delete-{os.getpid()}-{time.time_ns()}"
+            audit = f"{tombstone}-audit"
+            os.rename(relative.name, tombstone, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+            try:
+                moved, moved_metadata = _read_source_at(parent_fd, tombstone)
+                if _source_hash(moved) != expected or _path_identity(moved_metadata) != identity:
+                    os.rename(tombstone, relative.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+                    raise RuntimeError(f"Source changed in the final delete window: {relative}")
+                os.link(tombstone, audit, src_dir_fd=parent_fd, dst_dir_fd=parent_fd, follow_symlinks=False)
+                os.unlink(tombstone, dir_fd=parent_fd)
+                after, after_metadata = _read_source_at(parent_fd, audit)
+                if _source_hash(after) != expected or _path_identity(after_metadata) != identity:
+                    os.rename(audit, relative.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+                    raise RuntimeError(f"Source changed in the final delete window: {relative}")
+                os.unlink(audit, dir_fd=parent_fd)
+            except Exception:
+                for private in [tombstone, audit]:
+                    try:
+                        os.stat(private, dir_fd=parent_fd, follow_symlinks=False)
+                    except FileNotFoundError:
+                        continue
+                    try:
+                        target_metadata = os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False)
+                    except FileNotFoundError:
+                        os.rename(private, relative.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+                    else:
+                        private_metadata = os.stat(private, dir_fd=parent_fd, follow_symlinks=False)
+                        if _path_identity(target_metadata) == _path_identity(private_metadata):
+                            os.unlink(private, dir_fd=parent_fd)
+                raise
+            os.fsync(parent_fd)
+    except OSError as exc:
+        raise RuntimeError(f"Could not delete source path safely: {relative}: {exc}") from exc
+    finally:
+        if parent_fd is not None:
+            fcntl.flock(parent_fd, fcntl.LOCK_UN)
+            os.close(parent_fd)
+        os.close(root_fd)
+    return {
+        "ok": True,
+        "operation": "delete",
+        "dry_run": dry_run,
+        "project": str(project),
+        "path": relative.as_posix(),
+        "sha256": expected,
+        "size": len(current),
+    }
+
+
 def _bib_key(bibtex: str) -> str:
     match = BIB_ENTRY_RE.search(bibtex.strip())
     if not match:
@@ -2411,16 +3377,237 @@ def build_health(project: Path) -> dict[str, Any]:
     }
 
 
-def run_make(project: Path, target: str, *, extra_args: list[str] | None = None, env: dict[str, str] | None = None) -> dict[str, Any]:
+class _AuditHTMLParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.ids: list[str] = []
+        self.references: list[tuple[str, str, str]] = []
+        self.images_without_alt: list[str] = []
+        self.html_lang = ""
+        self.saw_html = False
+        self.in_title = False
+        self.title_parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = {name.lower(): value for name, value in attrs}
+        tag = tag.lower()
+        identifier = values.get("id")
+        if identifier:
+            self.ids.append(identifier)
+        if tag == "html":
+            self.saw_html = True
+            self.html_lang = str(values.get("lang") or "").strip()
+        if tag == "title":
+            self.in_title = True
+        if tag == "img" and "alt" not in values:
+            self.images_without_alt.append(str(values.get("src") or ""))
+        srcset = str(values.get("srcset") or "").strip()
+        if tag in {"img", "source"} and srcset and not srcset.lower().startswith("data:"):
+            for candidate in srcset.split(","):
+                url = candidate.strip().split(None, 1)[0] if candidate.strip() else ""
+                if url:
+                    self.references.append((tag, "srcset", url))
+        for attribute in ["href", "src", "data"]:
+            value = values.get(attribute)
+            if value and (
+                attribute == "href" and tag in {"a", "area", "link"}
+                or attribute == "src" and tag in {"audio", "embed", "iframe", "img", "script", "source", "track", "video"}
+                or attribute == "data" and tag == "object"
+            ):
+                self.references.append((tag, attribute, value.strip()))
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() == "title":
+            self.in_title = False
+
+    def handle_data(self, data: str) -> None:
+        if self.in_title:
+            self.title_parts.append(data)
+
+
+def _html_route(relative: Path) -> str:
+    path = relative.as_posix()
+    if path == "index.html":
+        return "/"
+    if path.endswith("/index.html"):
+        return "/" + path[: -len("index.html")]
+    return "/" + path
+
+
+def _internal_html_target(site: Path, source: Path, raw_url: str, baseurl: str) -> tuple[Path | None, str, str]:
+    try:
+        parsed = urllib.parse.urlsplit(raw_url)
+    except ValueError:
+        return None, "missing", ""
+    if parsed.scheme or parsed.netloc or raw_url.startswith("//"):
+        return None, "external", ""
+    if parsed.path.startswith("data:") or parsed.path.startswith("mailto:") or parsed.path.startswith("tel:") or parsed.path.startswith("javascript:"):
+        return None, "external", ""
+
+    source_route = _html_route(source.relative_to(site))
+    joined = urllib.parse.urljoin(source_route, parsed.path) if parsed.path else source_route
+    decoded = urllib.parse.unquote(joined)
+    if "\\" in decoded or any(part == ".." for part in decoded.split("/")):
+        return None, "missing", urllib.parse.unquote(parsed.fragment)
+    prefix = "/" + baseurl.strip("/") if baseurl.strip("/") else ""
+    if prefix and (decoded == prefix or decoded.startswith(prefix + "/")):
+        decoded = decoded[len(prefix):] or "/"
+    relative_url = decoded.lstrip("/")
+    candidates: list[Path]
+    if not relative_url or decoded.endswith("/"):
+        candidates = [site / relative_url / "index.html"]
+    else:
+        target = site / relative_url
+        candidates = [target, Path(str(target) + ".html"), target / "index.html"]
+    for candidate in candidates:
+        try:
+            candidate.relative_to(site)
+        except ValueError:
+            continue
+        if candidate.is_file() and not candidate.is_symlink():
+            return candidate, "internal", urllib.parse.unquote(parsed.fragment)
+    return candidates[0] if candidates else None, "missing", urllib.parse.unquote(parsed.fragment)
+
+
+def html_audit(project: Path) -> dict[str, Any]:
+    project = project_path(project)
+    site = project / "_site"
+    config = site_config(project)
+    baseurl = str(config.get("baseurl") or "")
+    html_files = sorted(path for path in site.rglob("*.html") if path.is_file()) if site.is_dir() else []
+    parsed_files: dict[Path, tuple[str, _AuditHTMLParser]] = {}
+    findings: list[dict[str, Any]] = []
+    external: dict[str, set[str]] = {}
+
+    if not site.is_dir():
+        findings.append({"code": "UW-HTML-SITE-MISSING", "path": "_site", "message": "Generated _site directory does not exist."})
+    elif not html_files:
+        findings.append({"code": "UW-HTML-NO-DOCUMENTS", "path": "_site", "message": "Generated _site contains no HTML documents."})
+
+    for path in html_files:
+        relative = rel(project, path)
+        if path.is_symlink():
+            findings.append({"code": "UW-HTML-UNSAFE-PATH", "path": relative, "message": "Generated HTML is a symlink."})
+            continue
+        try:
+            text = _read_regular_path(
+                path,
+                max_bytes=HTML_AUDIT_FILE_MAX_BYTES,
+                description=f"HTML document {relative}",
+            ).decode("utf-8")
+        except (OSError, UnicodeDecodeError, ValueError) as exc:
+            findings.append({"code": "UW-HTML-READ", "path": relative, "message": str(exc)})
+            continue
+        parser = _AuditHTMLParser()
+        try:
+            parser.feed(text)
+            parser.close()
+        except Exception as exc:
+            findings.append({"code": "UW-HTML-PARSE", "path": relative, "message": str(exc)})
+        parsed_files[path] = (text, parser)
+
+        duplicates = sorted(identifier for identifier in set(parser.ids) if parser.ids.count(identifier) > 1)
+        for identifier in duplicates:
+            findings.append({"code": "UW-HTML-DUPLICATE-ID", "path": relative, "fragment": identifier, "message": "Duplicate id in one document."})
+        if re.search(r"{{.*?}}|{%.*?%}", text, flags=re.DOTALL):
+            findings.append({"code": "UW-HTML-UNRESOLVED-LIQUID", "path": relative, "message": "Unresolved Liquid markup remains in generated HTML."})
+        for source in parser.images_without_alt:
+            findings.append({"code": "UW-HTML-IMG-ALT", "path": relative, "target": source, "message": "img element has no alt attribute."})
+        if not "".join(parser.title_parts).strip():
+            findings.append({"code": "UW-HTML-TITLE", "path": relative, "message": "Document has no non-empty title."})
+        if not parser.saw_html or not parser.html_lang:
+            findings.append({"code": "UW-HTML-LANG", "path": relative, "message": "html element has no non-empty lang attribute."})
+
+    id_index = {path: set(parser.ids) for path, (_, parser) in parsed_files.items()}
+    for source, (_, parser) in parsed_files.items():
+        source_relative = rel(project, source)
+        for tag, attribute, raw_url in parser.references:
+            target, kind, fragment = _internal_html_target(site, source, raw_url, baseurl)
+            if kind == "external":
+                external.setdefault(raw_url, set()).add(source_relative)
+                continue
+            if kind == "missing" or target is None:
+                findings.append({
+                    "code": "UW-HTML-INTERNAL-TARGET",
+                    "path": source_relative,
+                    "target": raw_url,
+                    "element": f"{tag}[{attribute}]",
+                    "message": "Internal link or asset target does not exist.",
+                })
+                continue
+            if fragment and target.suffix.lower() == ".html" and fragment not in id_index.get(target, set()):
+                findings.append({
+                    "code": "UW-HTML-FRAGMENT",
+                    "path": source_relative,
+                    "target": raw_url,
+                    "fragment": fragment,
+                    "message": "Internal fragment does not match an id in the target document.",
+                })
+
+    by_code: dict[str, int] = {}
+    for finding in findings:
+        by_code[finding["code"]] = by_code.get(finding["code"], 0) + 1
+    return {
+        "ok": not findings,
+        "project": str(project),
+        "site": str(site),
+        "html_files": len(html_files),
+        "finding_count": len(findings),
+        "findings_by_code": dict(sorted(by_code.items())),
+        "findings": findings,
+        "external_link_count": len(external),
+        "external_links": [
+            {"url": url, "sources": sorted(sources)} for url, sources in sorted(external.items())
+        ],
+        "external_fetches": 0,
+    }
+
+
+def _process_payload(completed: Any) -> dict[str, Any]:
+    return {
+        "returncode": completed.returncode,
+        "ok": completed.returncode == 0,
+        "stdout": completed.stdout,
+        "stderr": completed.stderr,
+        "timed_out": bool(getattr(completed, "timed_out", False)),
+        "stdout_truncated": bool(getattr(completed, "stdout_truncated", False)),
+        "stderr_truncated": bool(getattr(completed, "stderr_truncated", False)),
+    }
+
+
+def run_make(
+    project: Path,
+    target: str,
+    *,
+    extra_args: list[str] | None = None,
+    env: dict[str, str] | None = None,
+    timeout_seconds: float | None = None,
+) -> dict[str, Any]:
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
     command = ["make", target, *(extra_args or [])]
-    completed = subprocess.run(command, cwd=str(project), env=merged_env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
-    return {"target": target, "command": command, "returncode": completed.returncode, "ok": completed.returncode == 0, "stdout": completed.stdout, "stderr": completed.stderr}
+    completed = run_process(
+        command,
+        cwd=project,
+        env=merged_env,
+        timeout_seconds=timeout_seconds or MAKE_TIMEOUTS.get(target, DEFAULT_MAKE_TIMEOUT),
+    )
+    return {"target": target, "command": command, **_process_payload(completed)}
 
 
-def run_factory_make(factory: Path, project: Path, target: str, *, extra_args: list[str] | None = None, env: dict[str, str] | None = None) -> dict[str, Any]:
+def run_factory_make(
+    factory: Path,
+    project: Path,
+    target: str,
+    *,
+    extra_args: list[str] | None = None,
+    env: dict[str, str] | None = None,
+    timeout_seconds: float | None = None,
+) -> dict[str, Any]:
     factory_root = project_path(factory)
     project_root = project_path(project)
     unsafe = set("$`\"'\\\r\n")
@@ -2430,24 +3617,90 @@ def run_factory_make(factory: Path, project: Path, target: str, *, extra_args: l
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
-    completed = subprocess.run(command, env=merged_env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    worker_role = WORKER_TARGET_ROLES.get(target, "")
+    worker_context: dict[str, str] = {}
+    if worker_role:
+        host_project = os.environ.get("UNALTRAWEB_DOCKER_ROOT", "").strip() or str(project_root)
+        project_id = hashlib.sha256(host_project.encode("utf-8")).hexdigest()[:16]
+        token = hashlib.sha256(f"{project_id}:{target}:{time.time_ns()}".encode("utf-8")).hexdigest()[:16]
+        worker_context = {"role": worker_role, "project_id": project_id, "token": token}
+        merged_env.update({
+            "UNALTRAWEB_WORKER_ROLE": worker_role,
+            "UNALTRAWEB_WORKER_PROJECT": project_id,
+            "UNALTRAWEB_WORKER_TOKEN": token,
+        })
+    completed = run_process(
+        command,
+        env=merged_env,
+        timeout_seconds=timeout_seconds or MAKE_TIMEOUTS.get(target, DEFAULT_MAKE_TIMEOUT),
+    )
     payload: dict[str, Any] = {
         "target": target,
         "command": command,
-        "returncode": completed.returncode,
-        "ok": completed.returncode == 0,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
+        **_process_payload(completed),
     }
-    if completed.stdout.strip():
+    worker_cleanup = _cleanup_timed_out_workers(**worker_context) if bool(getattr(completed, "timed_out", False)) and worker_context else None
+    parse_error = ""
+    parsed: Any = None
+    if bool(getattr(completed, "stdout_truncated", False)):
+        parse_error = "Factory JSON output was truncated."
+    elif not completed.stdout.strip():
+        parse_error = "Factory command returned no JSON output."
+    else:
         try:
-            parsed = json.loads(completed.stdout)
-        except json.JSONDecodeError:
-            pass
-        else:
-            if isinstance(parsed, dict):
-                payload = {**parsed, "target": target, "command": command, "returncode": completed.returncode, "ok": completed.returncode == 0 and bool(parsed.get("ok", True)), "stderr": completed.stderr}
+            parsed = _strict_json_loads(completed.stdout)
+        except (json.JSONDecodeError, ValueError) as exc:
+            parse_error = f"Factory command returned invalid JSON: {exc}"
+        if not parse_error and not isinstance(parsed, dict):
+            parse_error = "Factory command JSON output must be an object."
+    if parse_error:
+        payload = {**payload, "ok": False, "output_error": parse_error}
+    else:
+        payload = {
+            **parsed,
+            "target": target,
+            "command": command,
+            **_process_payload(completed),
+            "ok": completed.returncode == 0 and bool(parsed.get("ok", True)),
+        }
+    if worker_cleanup is not None:
+        payload["worker_cleanup"] = worker_cleanup
     return payload
+
+
+def _cleanup_timed_out_workers(*, role: str, project_id: str, token: str) -> dict[str, Any]:
+    filters = [
+        f"label={WORKER_FACTORY_LABEL}=unaltraweb",
+        f"label={WORKER_ROLE_LABEL}={role}",
+        f"label={WORKER_PROJECT_LABEL}={project_id}",
+        f"label={WORKER_TOKEN_LABEL}={token}",
+    ]
+    command = ["docker", "ps", "-aq"]
+    for value in filters:
+        command.extend(["--filter", value])
+    try:
+        listed = run_process(command, timeout_seconds=10)
+    except OSError as exc:
+        return {"ok": False, "filters": filters, "removed": [], "error": str(exc)}
+    if listed.returncode != 0 or listed.stdout_truncated:
+        return {
+            "ok": False,
+            "filters": filters,
+            "removed": [],
+            "error": listed.stderr.strip() or "Docker worker inventory failed or was truncated.",
+        }
+    container_ids = [line.strip() for line in listed.stdout.splitlines() if line.strip()]
+    if any(not re.fullmatch(r"[0-9a-f]{12,64}", container_id) for container_id in container_ids):
+        return {"ok": False, "filters": filters, "removed": [], "error": "Docker returned an invalid worker container id."}
+    if not container_ids:
+        return {"ok": True, "filters": filters, "removed": []}
+    removed = run_process(["docker", "rm", "-f", *container_ids], timeout_seconds=30)
+    return {
+        "ok": removed.returncode == 0,
+        "filters": filters,
+        "removed": container_ids if removed.returncode == 0 else [],
+        "error": "" if removed.returncode == 0 else (removed.stderr.strip() or "Docker worker cleanup failed."),
+    }
 
 
 def _computation_env(source: str = "", stale_only: bool = False) -> dict[str, str]:
@@ -2506,20 +3759,305 @@ def web_capture_render(project: Path, factory: Path, source: str = "", *, confir
     return _web_capture_render_isolated(project, factory, env)
 
 
+def _companion_input_paths(project: Path, owner: str) -> list[Path]:
+    if owner == "vegavisuals":
+        paths = [project / ".vegavisuals.yml"] if (project / ".vegavisuals.yml").is_file() else []
+        if paths:
+            manifest = _vegavisuals_manifest(project)
+            for index, visualization in enumerate(manifest["visualizations"]):
+                if not isinstance(visualization, dict):
+                    raise ValueError(f"vegavisuals manifest visualizations[{index}] must be a mapping.")
+                paths.append(
+                    _companion_dependency_path(
+                        project,
+                        visualization.get("source"),
+                        f"vegavisuals manifest visualizations[{index}].source",
+                    )
+                )
+        if (project / "assets").is_dir():
+            paths.extend(
+                path for path in (project / "assets").rglob("*")
+                if path.is_file() and path.name.lower().endswith(VEGA_SOURCE_SUFFIXES)
+            )
+        return sorted(set(paths))
+    return sorted({
+        path
+        for root_name in ["assets", "_chapters", "_documentation"]
+        for path in (project / root_name).rglob("*")
+        if (project / root_name).is_dir() and path.is_file() and path.suffix.lower() in DIAGRAM_SOURCE_SUFFIXES
+    })
+
+
+def _vegavisuals_manifest(project: Path) -> dict[str, Any]:
+    path = project / ".vegavisuals.yml"
+    try:
+        value = load_yaml_text(_companion_file_bytes(project, path).decode("utf-8"))
+    except Exception as exc:
+        raise ValueError(f"Invalid vegavisuals manifest: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("The vegavisuals manifest must be a YAML mapping.")
+    visualizations = value.get("visualizations")
+    if not isinstance(visualizations, list):
+        raise ValueError("The vegavisuals manifest must contain a visualizations array.")
+    return value
+
+
+def _companion_dependency_path(project: Path, raw: Any, context: str) -> Path:
+    if not isinstance(raw, str) or not raw.strip() or raw != raw.strip():
+        raise ValueError(f"{context} must be a non-empty project-relative string.")
+    parsed = urllib.parse.urlsplit(raw)
+    if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment or any(char in raw for char in "${}"):
+        raise ValueError(f"{context} is remote or dynamic and cannot be verified as a static project input: {raw}")
+    decoded = urllib.parse.unquote(parsed.path)
+    relative = Path(decoded)
+    if "\\" in decoded or relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+        raise ValueError(f"{context} must be a confined project-relative path: {raw}")
+    return project / relative
+
+
+def _vega_data_urls(project: Path, source: Path) -> list[Path]:
+    try:
+        value = _strict_json_loads(_companion_file_bytes(project, source).decode("utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError, RuntimeError, json.JSONDecodeError, RecursionError) as exc:
+        raise ValueError(f"Invalid Vega/Vega-Lite source {rel(project, source)}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ValueError(f"Vega/Vega-Lite source must contain a JSON object: {rel(project, source)}")
+
+    paths: list[Path] = []
+    nodes = 0
+    stack: list[tuple[Any, int, bool]] = [(value, 0, False)]
+    while stack:
+        node, depth, data_context = stack.pop()
+        nodes += 1
+        if nodes > COMPANION_JSON_MAX_NODES:
+            raise ValueError(f"Vega/Vega-Lite source exceeds the {COMPANION_JSON_MAX_NODES}-node inspection limit: {rel(project, source)}")
+        if depth > COMPANION_JSON_MAX_DEPTH:
+            raise ValueError(f"Vega/Vega-Lite source exceeds the {COMPANION_JSON_MAX_DEPTH}-level inspection limit: {rel(project, source)}")
+        if isinstance(node, dict):
+            if data_context and "url" in node:
+                paths.append(_companion_dependency_path(project, node["url"], f"data.url in {rel(project, source)}"))
+            for key, child in node.items():
+                stack.append((child, depth + 1, key == "data"))
+        elif isinstance(node, list):
+            for child in node:
+                stack.append((child, depth + 1, data_context))
+    return paths
+
+
+def _companion_expected_inputs(project: Path, owner: str, sources: list[Path]) -> list[Path]:
+    if owner == "diavisuals":
+        return []
+    if owner != "vegavisuals":
+        raise ValueError(f"Unknown companion provider: {owner}")
+
+    manifest = _vegavisuals_manifest(project)
+    dependencies: list[Path] = []
+
+    def add_explicit(value: dict[str, Any], context: str) -> None:
+        if "inputs" not in value:
+            return
+        inputs = value["inputs"]
+        if not isinstance(inputs, list):
+            raise ValueError(f"{context} inputs must be an array of project-relative paths.")
+        for index, raw in enumerate(inputs):
+            dependencies.append(_companion_dependency_path(project, raw, f"{context} inputs[{index}]"))
+
+    add_explicit(manifest, "vegavisuals manifest")
+    for index, visualization in enumerate(manifest["visualizations"]):
+        if not isinstance(visualization, dict):
+            raise ValueError(f"vegavisuals manifest visualizations[{index}] must be a mapping.")
+        add_explicit(visualization, f"vegavisuals manifest visualizations[{index}]")
+    for source in sources:
+        if source.name.lower().endswith(VEGA_SOURCE_SUFFIXES):
+            dependencies.extend(_vega_data_urls(project, source))
+    return sorted(set(dependencies))
+
+
+def _companion_expected_outputs(project: Path, owner: str, inputs: list[Path]) -> list[Path]:
+    if owner == "diavisuals":
+        outputs: list[Path] = []
+        for source in inputs:
+            edited = Path(str(source) + ".edited.svg")
+            generated = Path(str(source) + ".svg")
+            outputs.append(edited if edited.is_file() else generated)
+        return outputs
+    manifest = _vegavisuals_manifest(project)
+    visualizations = manifest["visualizations"]
+    outputs = []
+    for item in visualizations or []:
+        if not isinstance(item, dict) or not str(item.get("output") or "").strip():
+            continue
+        relative = Path(str(item["output"]))
+        if relative.is_absolute() or ".." in relative.parts:
+            outputs.append(project / relative)
+            continue
+        outputs.append(project / relative)
+    return sorted(set(outputs))
+
+
+def _companion_file_bytes(project: Path, path: Path) -> bytes:
+    try:
+        relative = path.relative_to(project)
+    except ValueError as exc:
+        raise ValueError(f"Companion path escapes the project: {path}") from exc
+    root_fd = _open_project_root(project)
+    try:
+        parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
+        try:
+            content, _ = _read_regular_at(
+                parent_fd,
+                relative.name,
+                max_bytes=COMPANION_FILE_MAX_BYTES,
+                description=f"Companion file {relative}",
+            )
+            return content
+        finally:
+            os.close(parent_fd)
+    finally:
+        os.close(root_fd)
+
+
+def _companion_request_sha256(project: Path, owner: str, inputs: list[Path]) -> str:
+    digest = hashlib.sha256()
+    digest.update(f"unaltraweb-companion-receipt-v1\0{owner}\0".encode("utf-8"))
+    for path in sorted(set(inputs)):
+        relative = path.relative_to(project).as_posix().encode("utf-8")
+        content = _companion_file_bytes(project, path)
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        digest.update(len(content).to_bytes(8, "big"))
+        digest.update(content)
+    return digest.hexdigest()
+
+
+def _companion_receipt_status(project: Path, owner: str, inputs: list[Path] | None = None) -> dict[str, Any]:
+    receipt_path = project / ".unaltraweb/receipts" / f"{owner}.json"
+    base = {
+        "provider": owner,
+        "receipt": rel(project, receipt_path),
+        "request_sha256": "",
+        "expected_inputs": [],
+        "expected_outputs": [],
+    }
+    try:
+        if inputs is None:
+            inputs = _companion_input_paths(project, owner)
+        expected_inputs = _companion_expected_inputs(project, owner, inputs)
+        expected_outputs = _companion_expected_outputs(project, owner, inputs)
+        base["expected_inputs"] = [rel(project, path) for path in expected_inputs]
+        base["expected_outputs"] = [rel(project, path) for path in expected_outputs]
+        for path in expected_inputs:
+            _companion_file_bytes(project, path)
+        base["request_sha256"] = _companion_request_sha256(project, owner, inputs)
+    except (OSError, ValueError, RuntimeError) as exc:
+        return {**base, "ok": False, "state": "invalid", "error": str(exc)}
+    if not receipt_path.is_file() or receipt_path.is_symlink():
+        return {**base, "ok": False, "state": "missing", "error": "Provider receipt is missing."}
+    try:
+        value = _strict_json_loads(_companion_file_bytes(project, receipt_path).decode("utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        return {**base, "ok": False, "state": "invalid", "error": str(exc)}
+    selected = component(owner)
+    expected_metadata = {
+        "schema_version": 1,
+        "provider": owner,
+        "provider_version": selected["version"],
+        "release": selected["release"],
+        "request_sha256": base["request_sha256"],
+        "ok": True,
+    }
+    expected_keys = {*expected_metadata, "inputs", "artifacts"}
+    metadata_types_ok = (
+        isinstance(value, dict)
+        and type(value.get("schema_version")) is int
+        and all(isinstance(value.get(key), str) for key in ["provider", "provider_version", "release", "request_sha256"])
+        and value.get("ok") is True
+    )
+    if not metadata_types_ok or set(value) != expected_keys or any(value.get(key) != expected for key, expected in expected_metadata.items()):
+        return {**base, "ok": False, "state": "mismatch", "error": "Provider receipt metadata does not match the current request and component contract."}
+    artifacts = value.get("artifacts")
+    receipt_inputs = value.get("inputs")
+    if not isinstance(receipt_inputs, list) or len(receipt_inputs) > 500 or not isinstance(artifacts, list) or len(artifacts) > 500:
+        return {**base, "ok": False, "state": "invalid", "error": "Provider receipt inputs and artifacts must be bounded arrays."}
+
+    def receipt_files(items: list[Any], label: str) -> dict[str, str]:
+        received: dict[str, str] = {}
+        for item in items:
+            if not isinstance(item, dict) or set(item) != {"path", "sha256"}:
+                raise ValueError(f"Provider receipt {label} entries require only path and sha256.")
+            relative = Path(str(item["path"]))
+            sha256 = str(item["sha256"])
+            if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts) or not re.fullmatch(r"[0-9a-f]{64}", sha256):
+                raise ValueError(f"Invalid provider receipt {label}: {relative}")
+            if relative.as_posix() in received:
+                raise ValueError(f"Duplicate provider receipt {label}: {relative}")
+            received[relative.as_posix()] = sha256
+        return received
+
+    try:
+        verified_inputs = receipt_files(receipt_inputs, "input")
+        received = receipt_files(artifacts, "artifact")
+    except ValueError as exc:
+        return {**base, "ok": False, "state": "invalid", "error": str(exc)}
+    expected_input_names = {rel(project, path) for path in expected_inputs}
+    if set(verified_inputs) != expected_input_names:
+        return {**base, "ok": False, "state": "mismatch", "error": "Provider receipt input inventory does not match current explicit and discovered dependencies."}
+    expected_names = {rel(project, path) for path in expected_outputs}
+    if set(received) != expected_names:
+        return {**base, "ok": False, "state": "mismatch", "error": "Provider receipt artifact inventory does not match current declared outputs."}
+    try:
+        for label, entries in [("input", verified_inputs), ("artifact", received)]:
+            for name, sha256 in entries.items():
+                actual = _source_hash(_companion_file_bytes(project, project / name))
+                if actual != sha256:
+                    raise ValueError(f"Provider receipt {label} hash mismatch: {name}")
+    except (OSError, ValueError, RuntimeError) as exc:
+        return {**base, "ok": False, "state": "invalid", "error": str(exc)}
+    return {**base, "ok": True, "state": "verified", "inputs": verified_inputs, "artifacts": received}
+
+
 def visualization_status(project: Path, factory: Path) -> dict[str, Any]:
+    del factory
     project = project_path(project)
     configured = (project / ".vegavisuals.yml").is_file()
+    receipt = _companion_receipt_status(project, "vegavisuals") if configured else None
     return {
-        "ok": True,
+        "ok": receipt["ok"] if receipt is not None else True,
         "configured": configured,
-        "delegated": configured,
+        "delegated": False,
         "owner": "vegavisuals",
         "required_tool": "visualization_check" if configured else "",
+        "receipt": receipt,
         "message": (
-            "Run visualization_check through the required vegavisuals MCP before building."
+            "Run visualization_check through vegavisuals and retain its verifiable provider receipt before building."
             if configured
             else "No .vegavisuals.yml; no Vega visualization check is required."
         ),
+    }
+
+
+def _diagram_status(project: Path) -> dict[str, Any]:
+    sources = _companion_input_paths(project, "diavisuals")
+    records: list[dict[str, Any]] = []
+    for source in sources:
+        generated = Path(str(source) + ".svg")
+        edited = Path(str(source) + ".edited.svg")
+        selected = edited if edited.is_file() else generated
+        state = "missing" if not selected.is_file() else ("stale" if source.stat().st_mtime_ns > selected.stat().st_mtime_ns else "fresh")
+        records.append({
+            "source": rel(project, source),
+            "output": rel(project, selected),
+            "edited_override": selected == edited,
+            "state": state,
+        })
+    receipt = _companion_receipt_status(project, "diavisuals", sources) if sources else None
+    outputs_fresh = all(record["state"] == "fresh" for record in records)
+    return {
+        "ok": outputs_fresh and (receipt is None or receipt["ok"]),
+        "configured": bool(sources),
+        "owner": "diavisuals",
+        "sources": records,
+        "receipt": receipt,
     }
 
 
@@ -2543,9 +4081,30 @@ def _site_profile_arg(site_profile_value: str) -> list[str]:
 
 def build_site(project: Path, factory: Path, site_profile: str = "") -> dict[str, Any]:
     project, detection = _require_site_runtime(project, "build_native")
+    companion_checks: dict[str, Any] = {}
+    visualization = visualization_status(project, factory)
+    if visualization["configured"]:
+        companion_checks["vegavisuals"] = visualization
+    diagrams = _diagram_status(project)
+    if diagrams["configured"]:
+        companion_checks["diavisuals"] = diagrams
+    blocked = {name: value for name, value in companion_checks.items() if value.get("ok") is not True}
+    if blocked:
+        return {
+            "ok": False,
+            "returncode": 1,
+            "runtime": "mcp-container",
+            "nested_container": False,
+            "site": detection,
+            "companion_checks": companion_checks,
+            "error": "Build blocked until companion outputs are fresh and provider receipts verify current sources, inputs, and outputs.",
+        }
     args = [f"LOCAL_CORE={project_path(factory)}", *_site_profile_arg(site_profile)]
     result = run_make(project, "build-native", extra_args=args, env={"UNALTRAWEB_MCP_RUNTIME": "1"})
-    return {**result, "runtime": "mcp-container", "nested_container": False, "site": detection}
+    if result["ok"]:
+        audit = html_audit(project)
+        result = {**result, "ok": audit["ok"], "html_audit": audit}
+    return {**result, "runtime": "mcp-container", "nested_container": False, "site": detection, "companion_checks": companion_checks}
 
 
 PREVIEW_FACTORY_LABEL = "io.context.mcp-factory"
@@ -2557,9 +4116,11 @@ PREVIEW_BASEURL_LABEL = "io.context.mcp-baseurl"
 PREVIEW_PATH_LABEL = "io.context.mcp-path"
 
 
-def _docker(args: list[str]) -> subprocess.CompletedProcess[str]:
+def _docker(args: list[str]) -> ProcessResult:
+    action = args[0] if args else ""
+    timeout = 30.0 if action in {"run", "rm", "network"} else 10.0
     try:
-        return subprocess.run(["docker", *args], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        return run_process(["docker", *args], timeout_seconds=timeout)
     except OSError as exc:
         raise RuntimeError(f"Docker is not available to the MCP runtime: {exc}") from exc
 
@@ -2572,7 +4133,7 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
     token = hashlib.sha256(f"{host_project}:{time.time_ns()}".encode("utf-8")).hexdigest()[:12]
     network = f"unaltraweb-capture-{token}"
     service = f"unaltraweb-capture-site-{token}"
-    image = os.environ.get("UNALTRAWEB_MCP_IMAGE", "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0")
+    image = os.environ.get("UNALTRAWEB_MCP_IMAGE", component_reference("mcp"))
     owner = os.environ.get("UNALTRAWEB_PROJECT_USER", f"{os.getuid()}:{os.getgid()}").strip()
     if not re.fullmatch(r"\d+:\d+", owner):
         raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
@@ -2649,9 +4210,11 @@ def _preview_inspect(name: str) -> dict[str, Any] | None:
         if "no such object" in message.lower() or "no such container" in message.lower():
             return None
         raise RuntimeError(message or f"Docker could not inspect {name}")
+    if bool(getattr(completed, "stdout_truncated", False)):
+        raise RuntimeError(f"Docker inspect output was truncated for {name}")
     try:
-        payload = json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
+        payload = _strict_json_loads(completed.stdout)
+    except (json.JSONDecodeError, ValueError) as exc:
         raise RuntimeError(f"Docker returned invalid inspect data for {name}") from exc
     return payload[0] if isinstance(payload, list) and payload and isinstance(payload[0], dict) else None
 
@@ -2730,9 +4293,12 @@ def _wait_for_preview(project: Path, name: str, timeout_seconds: float) -> tuple
         if not latest["running"]:
             break
         internal_url = str(latest.get("internal_url") or "")
-        if internal_url and http_check(internal_url, timeout_seconds=1.0)["ok"]:
-            ready = True
-            break
+        if internal_url:
+            parsed = urllib.parse.urlsplit(internal_url)
+            origin = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
+            if _http_probe(origin, [parsed.path or "/"], timeout_seconds=1.0)["ok"]:
+                ready = True
+                break
         if time.monotonic() >= deadline:
             break
         time.sleep(0.5)
@@ -2776,7 +4342,7 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
     prefix = "/" + baseurl.strip("/") if baseurl else ""
     lang = default_language(config).strip("/")
     route = f"{prefix}/{lang}/" if lang else f"{prefix}/"
-    image = os.environ.get("UNALTRAWEB_MCP_IMAGE", "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0")
+    image = os.environ.get("UNALTRAWEB_MCP_IMAGE", component_reference("mcp"))
     owner = os.environ.get("UNALTRAWEB_PROJECT_USER", "").strip()
     if owner and not re.fullmatch(r"\d+:\d+", owner):
         raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
@@ -2878,20 +4444,84 @@ def bibliometrics_update(project: Path, factory: Path, *, fetch_scimago: bool = 
     return run_factory_make(factory, project, target, extra_args=extra)
 
 
-def http_check(base_url: str, paths: list[str] | None = None, timeout_seconds: float = 5.0) -> dict[str, Any]:
-    paths = paths or ["/"]
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _validated_http_paths(paths: list[str], timeout_seconds: float) -> list[str]:
+    if not 0.1 <= timeout_seconds <= 5.0:
+        raise ValueError("HTTP timeout must be between 0.1 and 5 seconds.")
+    if not paths or len(paths) > 20:
+        raise ValueError("HTTP checks require between 1 and 20 paths.")
+    if len(paths) * timeout_seconds > 30:
+        raise ValueError("Combined HTTP path count and timeout exceed the 30-second budget.")
+    validated: list[str] = []
+    for raw in paths:
+        if not isinstance(raw, str) or not raw.startswith("/") or raw.startswith("//"):
+            raise ValueError("HTTP check paths must be absolute local paths beginning with one slash.")
+        if "\\" in raw or any(ord(character) < 32 for character in raw):
+            raise ValueError("HTTP check path contains hostile characters.")
+        parsed = urllib.parse.urlsplit(raw)
+        if parsed.scheme or parsed.netloc or parsed.fragment:
+            raise ValueError("HTTP check paths must not contain an origin or fragment.")
+        decoded = parsed.path
+        for _ in range(3):
+            decoded = urllib.parse.unquote(decoded)
+        if "\\" in decoded or any(ord(character) < 32 for character in decoded) or any(part in {".", ".."} for part in decoded.split("/")):
+            raise ValueError("HTTP check paths must not contain encoded or literal traversal.")
+        validated.append(urllib.parse.urlunsplit(("", "", parsed.path, parsed.query, "")))
+    return validated
+
+
+def _http_probe(origin: str, paths: list[str], *, timeout_seconds: float) -> dict[str, Any]:
+    parsed_origin = urllib.parse.urlsplit(origin)
+    if parsed_origin.scheme != "http" or not parsed_origin.netloc or parsed_origin.path not in {"", "/"} or parsed_origin.query or parsed_origin.fragment or parsed_origin.username or parsed_origin.password:
+        raise ValueError("Private HTTP probe origin must be an exact HTTP origin.")
+    paths = _validated_http_paths(paths, timeout_seconds)
     checks: list[dict[str, Any]] = []
-    parsed_base = base_url.rstrip("/")
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirectHandler())
     for path in paths:
-        url = parsed_base + (path if path.startswith("/") else "/" + path)
+        url = origin.rstrip("/") + path
         try:
-            with urllib.request.urlopen(url, timeout=timeout_seconds) as response:
-                checks.append({"url": url, "ok": 200 <= response.status < 400, "status": response.status, "reason": response.reason})
+            with opener.open(url, timeout=timeout_seconds) as response:
+                body = response.read(HTTP_RESPONSE_MAX_BYTES + 1)
+                checks.append({
+                    "url": url,
+                    "ok": 200 <= response.status < 300,
+                    "status": response.status,
+                    "reason": response.reason,
+                    "response_bytes": min(len(body), HTTP_RESPONSE_MAX_BYTES),
+                    "response_truncated": len(body) > HTTP_RESPONSE_MAX_BYTES,
+                })
         except urllib.error.HTTPError as error:
-            checks.append({"url": url, "ok": False, "status": error.code, "reason": str(error)})
+            reason = "redirect rejected" if 300 <= error.code < 400 else str(error)
+            checks.append({"url": url, "ok": False, "status": error.code, "reason": reason})
         except OSError as error:
             checks.append({"url": url, "ok": False, "status": None, "reason": str(error)})
-    return {"base_url": base_url, "ok": all(item["ok"] for item in checks), "checks": checks}
+    return {"origin": origin, "ok": all(item["ok"] for item in checks), "checks": checks, "redirects_followed": 0}
+
+
+def http_check(project: Path, paths: list[str] | None = None, timeout_seconds: float = 3.0) -> dict[str, Any]:
+    project = project_path(project)
+    supplied_paths = _validated_http_paths(paths, timeout_seconds) if paths is not None else None
+    _, project_id, name = _preview_identity(project)
+    info = _preview_inspect(name)
+    if info is None:
+        raise RuntimeError("No owned preview exists for this project; start preview_start first.")
+    if not _preview_owned(info, project_id):
+        raise RuntimeError(f"Refusing to probe unowned Docker container: {name}")
+    preview = _preview_payload(project, info)
+    if not preview["running"]:
+        raise RuntimeError(f"Owned preview is not running: {name}")
+    internal_url = str(preview.get("internal_url") or "")
+    parsed = urllib.parse.urlsplit(internal_url)
+    if parsed.scheme != "http" or not parsed.netloc:
+        raise RuntimeError("Owned preview has no valid container-internal HTTP origin.")
+    origin = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
+    selected_paths = supplied_paths or _validated_http_paths([parsed.path or "/"], timeout_seconds)
+    result = _http_probe(origin, selected_paths, timeout_seconds=timeout_seconds)
+    return {**result, "project": str(project), "container": name, "owned": True}
 
 
 def prompt_text(factory: Path, name: str) -> str:
@@ -2923,6 +4553,247 @@ def prompt_inventory(factory: Path) -> dict[str, Any]:
     }
 
 
+def _site_doctor_finding(code: str, severity: str, expected: Any, actual: Any, remediation: str) -> dict[str, Any]:
+    return {
+        "code": code,
+        "severity": severity,
+        "expected": expected,
+        "actual": actual,
+        "remediation": remediation,
+    }
+
+
+def _strict_site_config(project: Path) -> dict[str, Any]:
+    path = project / "_config.yml"
+    if not path.is_file():
+        raise ValueError("_config.yml is missing.")
+    root_fd = _open_project_root(project)
+    try:
+        content, _ = _read_source_from_root(root_fd, Path("_config.yml"))
+    finally:
+        os.close(root_fd)
+    text = _decode_site_source(Path("_config.yml"), content)
+    value = load_yaml_text(text)
+    if not isinstance(value, dict):
+        raise ValueError("_config.yml must contain a YAML mapping.")
+    return value
+
+
+def _core_override_inventory(project: Path) -> dict[str, Any]:
+    roots = ["_layouts", "_includes", "_plugins", "_sass"]
+    files: list[str] = []
+    symlinks: list[str] = []
+    for root_name in roots:
+        root = project / root_name
+        if root.is_symlink():
+            symlinks.append(rel(project, root))
+            continue
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob("*")):
+            if path.is_symlink():
+                symlinks.append(rel(project, path))
+            elif path.is_file():
+                files.append(rel(project, path))
+    return {"roots": roots, "count": len(files), "files": files, "symlinks": symlinks}
+
+
+def site_doctor(project: Path, factory: Path | None = None) -> dict[str, Any]:
+    from .distribution import distribution_doctor
+
+    project = project_path(project)
+    factory_root = project_path(factory) if factory is not None else None
+    distribution = distribution_doctor(project=project, factory=factory_root, check_docker=False)
+    findings = list(distribution["findings"])
+    checks: dict[str, Any] = {}
+
+    try:
+        config = _strict_site_config(project)
+    except Exception as exc:
+        # PyYAML parse failures do not share a stable exception base with the fallback parser.
+        config = {}
+        findings.append(_site_doctor_finding(
+            "UW-SITE-CONFIG-PARSE",
+            "error",
+            "strict UTF-8 YAML mapping with unique keys",
+            str(exc),
+            "Fix _config.yml syntax, encoding, root type, and duplicate keys.",
+        ))
+        checks["config"] = {"ok": False, "error": str(exc)}
+    else:
+        findings.append(_site_doctor_finding(
+            "UW-SITE-CONFIG-PARSE",
+            "info",
+            "strict UTF-8 YAML mapping with unique keys",
+            "valid",
+            "No action required.",
+        ))
+        checks["config"] = {"ok": True}
+
+    detection = detect_site(project)
+    profile = site_profile(config)
+    languages = configured_languages(config)
+    language_ok = bool(languages) and all(LANGUAGE_RE.fullmatch(value) for value in languages)
+    profile_ok = profile in PROFILE_CONTRACTS
+    checks["identity"] = {"detection": detection, "profile": profile, "languages": languages, "default_language": default_language(config)}
+    findings.append(_site_doctor_finding(
+        "UW-SITE-DETECTION",
+        "info" if detection["is_unaltraweb_site"] else "error",
+        "unaltraweb consumer site",
+        "detected" if detection["is_unaltraweb_site"] else "not detected",
+        "No action required." if detection["is_unaltraweb_site"] else "Restore the unaltraweb theme/plugin and gem markers.",
+    ))
+    findings.append(_site_doctor_finding(
+        "UW-SITE-PROFILE",
+        "info" if profile_ok else "error",
+        sorted(PROFILE_CONTRACTS),
+        profile or "missing",
+        "No action required." if profile_ok else "Set unaltraweb.site_profile to one supported profile.",
+    ))
+    findings.append(_site_doctor_finding(
+        "UW-SITE-LANGUAGE",
+        "info" if language_ok else "error",
+        "one or more valid configured language identifiers",
+        languages,
+        "No action required." if language_ok else "Set lang/default_lang and languages to valid language identifiers.",
+    ))
+
+    required_targets = ["site-check-native", "build-native", "serve-native", "test-native"]
+    make_contract = {target: _make_target_available(project, target) for target in required_targets}
+    checks["make_contract"] = make_contract
+    missing_targets = [target for target, available in make_contract.items() if not available]
+    findings.append(_site_doctor_finding(
+        "UW-SITE-MAKE-CONTRACT",
+        "info" if not missing_targets else "error",
+        required_targets,
+        {"missing": missing_targets},
+        "No action required." if not missing_targets else "Use scaffold_sync after resolving local managed-file conflicts.",
+    ))
+
+    try:
+        scaffold = _scaffold_sync_plan(project)
+        checks["scaffold"] = {key: value for key, value in scaffold.items() if not key.startswith("_")}
+        drift = len(scaffold["creates"]) + len(scaffold["updates"]) + len(scaffold["adopted"])
+        scaffold_severity = "warning" if scaffold["conflicts"] or drift else "info"
+        scaffold_actual: Any = {"drift": drift, "conflicts": scaffold["conflicts"], "retired": scaffold["retired"]}
+    except RuntimeError as exc:
+        checks["scaffold"] = {"ok": False, "error": str(exc)}
+        scaffold_severity = "warning"
+        scaffold_actual = str(exc)
+    findings.append(_site_doctor_finding(
+        "UW-SITE-SCAFFOLD-DRIFT",
+        scaffold_severity,
+        "managed files match the package baseline",
+        scaffold_actual,
+        "No action required." if scaffold_severity == "info" else "Review scaffold_sync dry-run output; never overwrite reported conflicts.",
+    ))
+
+    inventory = content_inventory(project)
+    computation_required = bool(inventory["computation_sources"] or (project / ".unaltraweb/computations.yml").is_file())
+    capture_required = bool(inventory["web_capture_sources"])
+    visualizations = visualization_status(project, factory_root or project)
+    companion_actions: list[dict[str, str]] = []
+    diagrams = _diagram_status(project)
+    if diagrams["configured"]:
+        companion_actions.append({"owner": "diavisuals", "action": "render_diagram/check style outputs and publish a provider receipt", "reason": "diagram sources are present"})
+    if visualizations["configured"]:
+        companion_actions.append({"owner": "vegavisuals", "action": "visualization_check and publish a provider receipt", "reason": ".vegavisuals.yml is present"})
+
+    diagram_records = diagrams["sources"]
+    diagram_receipt = diagrams["receipt"]
+    diagram_outputs_fresh = all(record["state"] == "fresh" for record in diagram_records)
+    statuses: dict[str, Any] = {"visualizations": visualizations, "diagrams": diagrams}
+    if computation_required:
+        if factory_root is None:
+            statuses["computations"] = {"ok": None, "required": True, "action": "Run manual_computation_check from a factory-backed MCP session."}
+        else:
+            statuses["computations"] = manual_computation_status(project, factory_root)
+    if capture_required:
+        if factory_root is None:
+            statuses["web_captures"] = {"ok": None, "required": True, "action": "Run web_capture_check from a factory-backed MCP session."}
+        else:
+            statuses["web_captures"] = web_capture_status(project, factory_root)
+    checks["generated_freshness"] = statuses
+    for name in ["computations", "web_captures"]:
+        status_value = statuses.get(name)
+        if isinstance(status_value, dict) and status_value.get("ok") is not True:
+            findings.append(_site_doctor_finding(
+                f"UW-SITE-{name.upper().replace('_', '-')}-FRESHNESS",
+                "error",
+                "fresh generated outputs",
+                status_value,
+                f"Run the corresponding {name} check and explicit render workflow, then rerun site_doctor.",
+            ))
+    if visualizations["configured"] and visualizations.get("ok") is not True:
+        findings.append(_site_doctor_finding(
+            "UW-SITE-VISUALIZATION-RECEIPT",
+            "error",
+            "verified vegavisuals provider receipt for current inputs and outputs",
+            visualizations,
+            "Run visualization_check with the selected vegavisuals provider and retain its receipt.",
+        ))
+    if not diagram_outputs_fresh:
+        findings.append(_site_doctor_finding(
+            "UW-SITE-DIAGRAM-FRESHNESS",
+            "error",
+            "fresh diagram SVG outputs",
+            diagram_records,
+            "Use the diavisuals renderer for missing or stale outputs; never replace an edited SVG automatically.",
+        ))
+    if diagram_receipt is not None and diagram_receipt.get("ok") is not True:
+        findings.append(_site_doctor_finding(
+            "UW-SITE-DIAGRAM-RECEIPT",
+            "error",
+            "verified diavisuals provider receipt for current inputs and outputs",
+            diagram_receipt,
+            "Run the selected diavisuals checks and retain their provider receipt.",
+        ))
+    checks["companion_actions"] = companion_actions
+
+    freshness = content_freshness_check(project)
+    overrides = _core_override_inventory(project)
+    build = build_health(project)
+    checks["content_freshness"] = freshness
+    checks["core_overrides"] = overrides
+    checks["build_health"] = build
+    checks["html_audit"] = html_audit(project) if build["site_dir_exists"] else {"ok": None, "reason": "_site is absent"}
+    if build["site_dir_exists"] and checks["html_audit"].get("ok") is not True:
+        findings.append(_site_doctor_finding(
+            "UW-SITE-HTML-AUDIT",
+            "error",
+            "clean generated HTML",
+            checks["html_audit"],
+            "Fix the generated HTML findings and rebuild before publication.",
+        ))
+    findings.append(_site_doctor_finding(
+        "UW-SITE-CONTENT-FRESHNESS",
+        "warning" if freshness["warnings"] else "info",
+        "no local freshness warnings",
+        freshness["warnings"],
+        "No action required." if not freshness["warnings"] else "Review future-dated content and stale bibliometrics before publication.",
+    ))
+    findings.append(_site_doctor_finding(
+        "UW-SITE-CORE-OVERRIDES",
+        "warning" if overrides["symlinks"] else "info",
+        "explicit regular-file core overrides",
+        overrides,
+        "Review overrides when upgrading the core; remove symlinked overrides." if overrides["symlinks"] else "Review this inventory when upgrading the core.",
+    ))
+
+    summary = {severity: sum(item["severity"] == severity for item in findings) for severity in ["error", "warning", "info"]}
+    return {
+        "schema_version": 1,
+        "ok": summary["error"] == 0,
+        "offline": True,
+        "read_only": True,
+        "project": str(project),
+        "distribution": distribution,
+        "summary": summary,
+        "findings": findings,
+        "checks": checks,
+    }
+
+
 def site_check(project: Path, factory: Path, max_bibliometrics_age_days: int = 180) -> dict[str, Any]:
     project = project_path(project)
     checks = {
@@ -2935,6 +4806,7 @@ def site_check(project: Path, factory: Path, max_bibliometrics_age_days: int = 1
         "computations": manual_computation_status(project, factory),
         "web_captures": web_capture_status(project, factory),
         "visualizations": visualization_status(project, factory),
+        "diagrams": _diagram_status(project),
         "bibliography": bibliography_inventory(project),
         "build_health": build_health(project),
     }
@@ -2967,9 +4839,9 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
 
 def list_tools() -> dict[str, Any]:
     return {
-        "resources": ["web://site-context", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
+        "resources": ["web://distribution", "web://site-context", "web://site-doctor", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": list(PROMPT_SPECS),
-        "tools": ["new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "preview_start", "preview_status", "preview_stop", "http_check"],
+        "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
 
 

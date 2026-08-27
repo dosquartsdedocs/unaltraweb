@@ -32,7 +32,7 @@ except ImportError as exc:  # pragma: no cover - supplied by project tooling
 
 LOCK_PATH = Path(".unaltraweb/web-captures.lock.json")
 SOURCE_SUFFIXES = (".capture.yml", ".capture.yaml")
-DEFAULT_IMAGE = "ghcr.io/dosquartsdedocs/unaltraweb-web-capture:main"
+DEFAULT_IMAGE = "ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0"
 DEFAULT_VIEWPORT = {"width": 1440, "height": 900, "device_scale_factor": 1}
 CAPTURE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,79}$")
 SAFE_SOURCE_RE = re.compile(r"^[A-Za-z0-9_./-]+\.capture\.ya?ml$")
@@ -585,20 +585,9 @@ def build_image(image: str) -> None:
     available = inspect_image(image)["available"] == "true"
     if available:
         return
-    if image != DEFAULT_IMAGE:
-        completed = subprocess.run(["docker", "pull", image], check=False)
-        if completed.returncode != 0:
-            raise WebCaptureError(f"Could not pull web capture image: {image}")
-        return
-    root = factory_root()
-    command = ["docker", "build"]
-    network = os.environ.get("WEB_CAPTURE_DOCKER_BUILD_NETWORK", "").strip()
-    if network:
-        command.extend(["--network", network])
-    command.extend(["-f", str(root / "scripts/web_captures/Dockerfile"), "-t", image, str(root)])
-    completed = subprocess.run(command, check=False)
+    completed = subprocess.run(["docker", "pull", image], check=False)
     if completed.returncode != 0:
-        raise WebCaptureError(f"Could not build web capture image: {image}")
+        raise WebCaptureError(f"Could not pull web capture image: {image}")
 
 
 def png_dimensions(path: Path) -> tuple[int, int]:
@@ -723,13 +712,38 @@ def run_worker(project: Path, image: str, config_path: Path) -> None:
     network = os.environ.get("WEB_CAPTURE_DOCKER_NETWORK", "").strip()
     if not internal_network(network):
         raise WebCaptureError("Browser capture requires a named isolated Docker network.")
+    worker_values = {
+        "role": os.environ.get("UNALTRAWEB_WORKER_ROLE", "").strip(),
+        "project": os.environ.get("UNALTRAWEB_WORKER_PROJECT", "").strip(),
+        "token": os.environ.get("UNALTRAWEB_WORKER_TOKEN", "").strip(),
+    }
+    worker_args: list[str] = []
+    cidfile: Path | None = None
+    if any(worker_values.values()):
+        if worker_values["role"] != "web-capture" or not re.fullmatch(r"[0-9a-f]{16}", worker_values["project"]) or not re.fullmatch(r"[0-9a-f]{16}", worker_values["token"]):
+            raise WebCaptureError("Web capture worker identity is incomplete or invalid.")
+        runtime = project / "tmp/.unaltraweb/web-captures"
+        runtime.mkdir(parents=True, exist_ok=True)
+        cidfile = runtime / f"worker-{worker_values['token']}.cid"
+        cidfile.unlink(missing_ok=True)
+        worker_args = [
+            "--cidfile", str(cidfile),
+            "--label", "io.context.mcp-factory=unaltraweb",
+            "--label", f"io.context.mcp-role={worker_values['role']}",
+            "--label", f"io.context.mcp-project={worker_values['project']}",
+            "--label", f"io.context.mcp-worker-token={worker_values['token']}",
+        ]
     command = [
-        "docker", "run", "--rm", "--user", f"{os.getuid()}:{os.getgid()}", "--network", network, "--ipc=host",
+        "docker", "run", "--rm", *worker_args, "--user", f"{os.getuid()}:{os.getgid()}", "--network", network, "--ipc=host",
         "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--cpus", "2", "--memory", "2g",
         "--tmpfs", "/tmp:rw,noexec,nosuid,size=512m", "-e", "HOME=/tmp", "-v", f"{project}:/project:rw", "-w", "/project", image,
         "/project/" + relative(project, config_path),
     ]
-    completed = subprocess.run(command, check=False)
+    try:
+        completed = subprocess.run(command, check=False)
+    finally:
+        if cidfile is not None:
+            cidfile.unlink(missing_ok=True)
     if completed.returncode != 0:
         raise WebCaptureError(f"Browser capture failed with exit code {completed.returncode}.")
 

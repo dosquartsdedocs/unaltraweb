@@ -42,7 +42,7 @@ The companion `unaltraweb-template` repository contains full-profile demos becau
 - Add a data-file reference for `_data/` files used by team, repositories, metrics, readings and profile-specific pages.
 - Add profile-specific checklists for creating real sites from the template.
 - Add screenshots or visual examples for the four profiles without duplicating the full template demo.
-- Document future `keep`, `sync`, `doctor` or equivalent commands when they exist.
+- Keep future `keep`/`sync` behavior separate from the existing offline distribution `doctor`; document migrations only when those commands exist.
 - Expand manual/PDF guidance once printable manual output becomes a first-class target.
 
 ## Where To Look Today

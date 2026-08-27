@@ -1,1 +1,4 @@
-__version__ = "0.3.0"
+from .distribution import distribution_version
+
+
+__version__ = distribution_version()

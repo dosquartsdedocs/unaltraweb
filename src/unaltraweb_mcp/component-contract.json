@@ -1,0 +1,139 @@
+{
+  "$schema": "component-contract.schema.json",
+  "schema_version": 1,
+  "release": {
+    "version": "0.3.0",
+    "tag": "v0.3.0"
+  },
+  "receipt_contract": {
+    "schema_version": 1,
+    "path_template": ".unaltraweb/receipts/{provider}.json",
+    "hash_algorithm": "sha256",
+    "input_inventory": "exact",
+    "vegavisuals_dependencies": ["manifest.inputs", "visualizations[].inputs", "spec.data.url"],
+    "diavisuals_dependencies": [],
+    "local_dependency_policy": "project-relative-static-only",
+    "unverifiable_dependency_policy": "error"
+  },
+  "wheel_contract": {
+    "package": "unaltraweb-mcp",
+    "role": "Modular control, scaffolding, and offline inspection plane for unaltraweb sites.",
+    "package_only_commands": ["doctor", "new-web", "version"],
+    "factory_required_commands": ["factory-dir"],
+    "package_only_mcp": ["bibliography-add-entry", "bibliography-inventory", "build-health", "content-approval-inventory", "content-freshness-check", "content-inventory", "detect-site", "html-audit", "http-check", "initialize-site", "language-policy", "list-tools", "manual-authoring-capabilities", "manual-editorial-quality-check", "manual-source-quality-check", "new-web", "preview-start", "preview-status", "preview-stop", "profile-check", "profile-prune", "profile-prune-plan", "scaffold-sync", "site-context", "site-doctor", "site-source-delete", "site-source-read", "site-source-write", "starter-templates", "translation-plan"],
+    "factory_required_mcp": ["bibliometrics-check", "bibliometrics-fetch-scimago", "bibliometrics-update", "build-site", "manual-computation-check", "manual-computation-render", "manual-computation-render-figures", "manual-computation-status", "manual-pdf-build", "manual-pdf-publish", "manual-pdf-status", "prompts", "serve", "site-check", "web-capture-check", "web-capture-render", "web-capture-status"],
+    "not_bundled": ["gem", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf", "diavisuals", "vegavisuals"]
+  },
+  "components": {
+    "gem": {
+      "kind": "gem",
+      "name": "unaltraweb",
+      "version": "0.3.0",
+      "release": "v0.3.0",
+      "release_status": "released",
+      "reference": "unaltraweb (= 0.3.0)",
+      "repository": "https://github.com/dosquartsdedocs/unaltraweb",
+      "included_in_wheel": false,
+      "features": ["jekyll-core", "site-build"]
+    },
+    "wheel": {
+      "kind": "python-wheel",
+      "name": "unaltraweb-mcp",
+      "version": "0.3.0",
+      "release": "v0.3.0",
+      "release_status": "released",
+      "reference": "unaltraweb-mcp==0.3.0",
+      "repository": "https://github.com/dosquartsdedocs/unaltraweb",
+      "included_in_wheel": true,
+      "features": ["doctor", "new-web", "offline-inspection", "mcp-control-plane"]
+    },
+    "runtime": {
+      "kind": "container",
+      "name": "unaltraweb runtime",
+      "version": "0.3.0",
+      "release": "v0.3.0",
+      "release_status": "released",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb:0.3.0",
+      "repository": "https://github.com/dosquartsdedocs/unaltraweb",
+      "included_in_wheel": false,
+      "features": ["jekyll-runtime"]
+    },
+    "mcp": {
+      "kind": "container",
+      "name": "unaltraweb MCP runtime",
+      "version": "0.3.0",
+      "release": "v0.3.0",
+      "release_status": "released",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0",
+      "repository": "https://github.com/dosquartsdedocs/unaltraweb",
+      "included_in_wheel": false,
+      "features": ["mcp", "consumer-build", "preview"]
+    },
+    "compute_python": {
+      "kind": "container",
+      "name": "unaltraweb Python computation worker",
+      "version": "0.3.0",
+      "release": "v0.3.0",
+      "release_status": "released",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0",
+      "repository": "https://github.com/dosquartsdedocs/unaltraweb",
+      "included_in_wheel": false,
+      "features": ["manual-computations", "python"]
+    },
+    "compute_r": {
+      "kind": "container",
+      "name": "unaltraweb R computation worker",
+      "version": "0.3.0",
+      "release": "v0.3.0",
+      "release_status": "released",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0",
+      "repository": "https://github.com/dosquartsdedocs/unaltraweb",
+      "included_in_wheel": false,
+      "features": ["manual-computations", "r"]
+    },
+    "web_capture": {
+      "kind": "container",
+      "name": "unaltraweb web capture worker",
+      "version": "0.3.0",
+      "release": "v0.3.0",
+      "release_status": "released",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0",
+      "repository": "https://github.com/dosquartsdedocs/unaltraweb",
+      "included_in_wheel": false,
+      "features": ["web-captures"]
+    },
+    "manual_pdf": {
+      "kind": "container",
+      "name": "unaltraweb manual PDF worker",
+      "version": "0.3.0",
+      "release": "v0.3.0",
+      "release_status": "released",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0",
+      "repository": "https://github.com/dosquartsdedocs/unaltraweb",
+      "included_in_wheel": false,
+      "features": ["manual-pdf"]
+    },
+    "diavisuals": {
+      "kind": "companion",
+      "name": "diavisuals",
+      "version": "0.3.1",
+      "release": "v0.3.1",
+      "release_status": "pending",
+      "reference": "https://github.com/dosquartsdedocs/diavisuals.git@v0.3.1",
+      "repository": "https://github.com/dosquartsdedocs/diavisuals",
+      "included_in_wheel": false,
+      "features": ["mermaid", "plantuml"]
+    },
+    "vegavisuals": {
+      "kind": "companion",
+      "name": "vegavisuals",
+      "version": "0.3.1",
+      "release": "v0.3.1",
+      "release_status": "pending",
+      "reference": "https://github.com/dosquartsdedocs/vegavisuals.git@v0.3.1",
+      "repository": "https://github.com/dosquartsdedocs/vegavisuals",
+      "included_in_wheel": false,
+      "features": ["vega", "vega-lite"]
+    }
+  }
+}

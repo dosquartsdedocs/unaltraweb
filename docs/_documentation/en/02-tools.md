@@ -30,7 +30,7 @@ nav_title: Local Tools
 The template uses the shared runtime image by default:
 
 ```bash
-ghcr.io/dosquartsdedocs/unaltraweb:main
+ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 ```
 
 That image provides Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local commands. The GHCR package must be public before unauthenticated users can pull it.
@@ -45,6 +45,18 @@ make build
 make test
 make down
 ```
+
+Inspect the selected component contract and local project pins without network access:
+
+```bash
+unaltraweb-mcp doctor --project .
+unaltraweb-mcp doctor --project . --docker  # local image inspection only; never pulls
+unaltraweb-mcp --project . mcp site-doctor
+unaltraweb-mcp --project . mcp scaffold-sync
+unaltraweb-mcp --project . mcp html-audit
+```
+
+The generated `make test` builds and runs the offline HTML audit. `build_site` returns the same audit after a successful build. External URLs are inventoried but never fetched.
 
 ## Integration Template Commands
 
@@ -72,9 +84,9 @@ make down
 Run these from the `unaltraweb` repository when working on this reference site:
 
 ```bash
-make docs-serve DOCKER_IMAGE=unaltraweb:local
-make docs-build DOCKER_IMAGE=unaltraweb:local
-make docs-publish DOCKER_IMAGE=unaltraweb:local
+make docs-serve DOCKER_IMAGE=unaltraweb:dev
+make docs-build DOCKER_IMAGE=unaltraweb:dev
+make docs-publish DOCKER_IMAGE=unaltraweb:dev
 make docs-down
 ```
 
@@ -115,4 +127,4 @@ When the core docs and all template profiles are running together, use this conv
 - Keep deploy workflows as thin `workflow_dispatch` wrappers pinned to a reviewed full commit SHA of `dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml`.
 - The optional integration template may retain its local `gh-pages` publishing target for testing that separate workflow.
 - After the first Docker publish, make `ghcr.io/dosquartsdedocs/unaltraweb` public.
-- Confirm `docker pull ghcr.io/dosquartsdedocs/unaltraweb:main` works without `docker login`.
+- Confirm `docker pull ghcr.io/dosquartsdedocs/unaltraweb:0.3.0` works without `docker login`.

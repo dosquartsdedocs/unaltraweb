@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dosquartsdedocs.github.io/unaltraweb/schemas/component-contract-v1.schema.json",
+  "title": "unaltraweb component contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release", "receipt_contract", "wheel_contract", "components"],
+  "properties": {
+    "$schema": {"type": "string"},
+    "schema_version": {"const": 1},
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "tag"],
+      "properties": {
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "tag": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "receipt_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "path_template", "hash_algorithm", "input_inventory", "vegavisuals_dependencies", "diavisuals_dependencies", "local_dependency_policy", "unverifiable_dependency_policy"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "path_template": {"const": ".unaltraweb/receipts/{provider}.json"},
+        "hash_algorithm": {"const": "sha256"},
+        "input_inventory": {"const": "exact"},
+        "vegavisuals_dependencies": {"const": ["manifest.inputs", "visualizations[].inputs", "spec.data.url"]},
+        "diavisuals_dependencies": {"const": []},
+        "local_dependency_policy": {"const": "project-relative-static-only"},
+        "unverifiable_dependency_policy": {"const": "error"}
+      }
+    },
+    "wheel_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package", "role", "package_only_commands", "factory_required_commands", "package_only_mcp", "factory_required_mcp", "not_bundled"],
+      "properties": {
+        "package": {"const": "unaltraweb-mcp"},
+        "role": {"type": "string"},
+        "package_only_commands": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "factory_required_commands": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "package_only_mcp": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "factory_required_mcp": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "not_bundled": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    },
+    "components": {
+      "type": "object",
+      "required": ["gem", "wheel", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf", "diavisuals", "vegavisuals"],
+      "additionalProperties": {"$ref": "#/$defs/component"}
+    }
+  },
+  "$defs": {
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "version", "release", "release_status", "reference", "repository", "included_in_wheel", "features"],
+      "properties": {
+        "kind": {"enum": ["gem", "python-wheel", "container", "companion"]},
+        "name": {"type": "string"},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "release": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "release_status": {"enum": ["released", "pending", "unavailable"]},
+        "reference": {"type": "string"},
+        "repository": {"type": "string", "pattern": "^https://"},
+        "included_in_wheel": {"type": "boolean"},
+        "features": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    }
+  }
+}

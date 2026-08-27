@@ -1,8 +1,9 @@
----
+schema_version: 1
 name: unaltraweb
 kind: codex-mcp-factory
 version: 0.3.0
 description: Reusable Jekyll website factory with package-owned site creation and MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, and build checks.
+repository: https://github.com/dosquartsdedocs/unaltraweb
 install_scope: user
 workspace_rule:
   consumer_root: .
@@ -25,11 +26,9 @@ workspace_rule:
     - assets
     - context
     - .github/workflows
+    - .unaltraweb/scaffold.json
   source_paths:
     - _config.yml
-    - Gemfile
-    - Gemfile.lock
-    - Makefile
     - _pages
     - _posts
     - _news
@@ -37,12 +36,10 @@ workspace_rule:
     - _outputs
     - _chapters
     - _documentation
-    - _bibliography
+    - _books
+    - _theses
     - _data
-    - assets
     - context
-    - .github/workflows
-    - .vegavisuals.yml
   generated_paths:
     - _site
     - tmp
@@ -60,25 +57,21 @@ runtime:
 transport:
   type: stdio
   command:
-    - /bin/sh
-    - -c
-    - 'exec env PROJECT="$PWD" make --silent --no-print-directory -C "${factoryRoot}" mcp-stdio'
+    - make
+    - -C
+    - '${factoryRoot}'
+    - mcp-stdio
+    - 'PROJECT=${workspaceFolder}'
 commands:
   build:
     - make
     - mcp-build
-  init:
-    - make
-    - mcp-init
   check:
     - make
     - mcp-check
   smoke:
     - make
     - mcp-smoke
-  down:
-    - make
-    - mcp-down
 discovery:
   suggested_scan_roots:
     - ~/git
@@ -87,11 +80,18 @@ discovery:
     - The on-demand stdio launcher mounts the current workspace into the Dockerized MCP runtime.
     - Site builds execute inside the MCP runtime; previews use one labelled container per consumer project.
     - Durable website state belongs in versioned site files, not in chat history.
+release:
+  default: v0.3.0
+contracts:
+  component_bom: 1
+  distribution_doctor: 1
 mcp:
   server_name: unaltraweb
   transport: stdio
   resources:
+    - web://distribution
     - web://site-context
+    - web://site-doctor
     - web://new-web-scaffolds
     - web://starter-templates
     - web://profile-contract
@@ -109,12 +109,18 @@ mcp:
     - web://build-health
     - web://prompts
   required_tools:
+    - distribution_doctor
     - new_web
     - initialize_site
     - starter_templates
     - site_context
+    - site_doctor
     - detect_site
     - site_check
+    - site_source_read
+    - site_source_write
+    - site_source_delete
+    - scaffold_sync
     - profile_check
     - manual_source_quality_check
     - manual_editorial_quality_check
@@ -143,6 +149,7 @@ mcp:
     - bibliometrics_update
     - build_site
     - build_health
+    - html_audit
     - preview_start
     - preview_status
     - preview_stop
@@ -153,12 +160,16 @@ mcp_dependencies:
     required: true
     install: true
     build: true
-    init: true
-    remote: git@github.com:dosquartsdedocs/diavisuals.git
+    init: false
+    remote: https://github.com/dosquartsdedocs/diavisuals.git
     package: diavisuals
+    version: 0.3.1
+    release: v0.3.1
+    release_status: pending
     extras:
       - mcp
     required_tools:
+      - project_check
       - render_diagram
       - render_diagram_text
     suggested_path: ../diavisuals
@@ -168,9 +179,12 @@ mcp_dependencies:
     required: true
     install: true
     build: true
-    init: true
-    remote: git@github.com:dosquartsdedocs/vegavisuals.git
+    init: false
+    remote: https://github.com/dosquartsdedocs/vegavisuals.git
     package: vegavisuals
+    version: 0.3.1
+    release: v0.3.1
+    release_status: pending
     extras:
       - mcp
     required_tools:
@@ -181,4 +195,3 @@ mcp_dependencies:
       - render_visualizations
     suggested_path: ../vegavisuals
     reason: Vega-Lite and Vega validation, rendering, themes, and freshness are owned by vegavisuals.
----

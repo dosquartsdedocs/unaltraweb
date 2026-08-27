@@ -1,4 +1,4 @@
-ARG UNALTRAWEB_RUNTIME_IMAGE=unaltraweb/runtime:latest
+ARG UNALTRAWEB_RUNTIME_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 FROM ${UNALTRAWEB_RUNTIME_IMAGE}
 
 LABEL org.opencontainers.image.source="https://github.com/dosquartsdedocs/unaltraweb"

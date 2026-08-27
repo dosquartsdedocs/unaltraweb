@@ -31,8 +31,8 @@ LOCK_PATH = Path(".unaltraweb/computations.lock.json")
 SUPPORTED_SUFFIXES = {".qmd", ".rmd", ".r", ".py", ".ipynb"}
 GENERATED_MEDIA_SUFFIXES = {".gif", ".jpeg", ".jpg", ".pdf", ".png", ".svg", ".webp"}
 DEFAULT_IMAGES = {
-    "python": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python:main",
-    "r": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r:main",
+    "python": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0",
+    "r": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0",
 }
 ENGINE_ENV = {"python": "COMPUTE_PYTHON_IMAGE", "r": "COMPUTE_R_IMAGE"}
 FRONT_MATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?", re.DOTALL)

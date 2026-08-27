@@ -16,20 +16,20 @@ nav_title: Docker Image
 The shared image is published from the core repository:
 
 ```text
-ghcr.io/dosquartsdedocs/unaltraweb:main
+ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 ```
 
 It provides the runtime environment: Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling.
 
 The image is not the source of layouts and styles. Those come from the `unaltraweb` gem in the child site's `Gemfile`.
 
-The GHCR package is kept because it makes the local Docker workflow cheap and repeatable. Publishing the image is manual: run `.github/workflows/docker-image.yml` only when runtime dependencies change. The workflow publishes `main`/`latest` from the default branch and release tags from tag refs; it does not publish per-commit SHA tags by default.
+The GHCR package is kept because it makes the local Docker workflow cheap and repeatable. Publishing the image is manual: run `.github/workflows/docker-image.yml` only when runtime dependencies change and after reviewing its strict release preflight. The versioned tag is the consumer default. `main`/`latest` are mutable maintainer channels published from the default branch; they are not release pins. The workflow builds and tests all images before registry login, emits SBOM/provenance attestations, and builds the MCP image from the exact newly published runtime digest.
 
 During local core development, use the locally built image:
 
 ```bash
-docker build -t unaltraweb:local .
-make docs-serve DOCKER_IMAGE=unaltraweb:local
+docker build -t unaltraweb:dev .
+make docs-serve DOCKER_IMAGE=unaltraweb:dev
 ```
 
 After the first GHCR publish, make the package public and confirm unauthenticated pulls work.
@@ -39,8 +39,8 @@ After the first GHCR publish, make the package public and confirm unauthenticate
 Executable manual chapters use separate images from the Jekyll runtime and PDF builder:
 
 ```text
-ghcr.io/dosquartsdedocs/unaltraweb-compute-python:main
-ghcr.io/dosquartsdedocs/unaltraweb-compute-r:main
+ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0
+ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0
 ```
 
 The Python image provides Quarto, Jupyter, NumPy, pandas, Matplotlib, GeoPandas, and geospatial libraries. The R image builds on `rocker/geospatial`, preserves RStudio Server, and adds Quarto, `knitr`, `rmarkdown`, `renv`, and the computation driver.
@@ -148,7 +148,7 @@ The target prepares the image, mounts the project at `/home/rstudio/project`, ma
 
 ### Publish To GHCR
 
-Core maintainers publish both base images with the manual `Compute images` workflow in `.github/workflows/compute-images.yml`. Its matrix produces separate Python and R packages with default-branch `main`, commit `sha-*`, and release-tag metadata. Packages intended for child sites must allow unauthenticated pulls.
+Core maintainers publish both base images with the manual `Compute images` workflow in `.github/workflows/compute-images.yml`. Its strict, no-credentials preflight and no-push build matrix must complete before its package-write matrix can start. Published Python and R packages carry SBOM/provenance and default-branch `main`, commit `sha-*`, and semver/release-tag metadata. Consumer defaults use the semver tag; `main` and `sha-*` are explicitly maintainer channels. Packages intended for child sites must allow unauthenticated pulls.
 
 Projects can call `.github/workflows/project-compute-image.yml` to publish their own extension package. Use a separate package name such as `example-compute-r`; do not encode project dependencies as variants of `unaltraweb-compute-r`.
 
@@ -159,9 +159,11 @@ The current publication workflows build `linux/amd64` images. ARM authors need D
 Selector-based screenshot authoring uses a separate Playwright image rather than adding Chromium to the Jekyll runtime:
 
 ```text
-ghcr.io/dosquartsdedocs/unaltraweb-web-capture
+ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0
 ```
 
-The image contains pinned Playwright/Chromium, the capture worker, the Python status controller, and the core visual sources used in fingerprints. `make web-capture-image` builds the local image; the manual `Web capture image` workflow publishes default-branch, commit, and release tags to GHCR.
+The image contains pinned Playwright/Chromium, the capture worker, the Python status controller, and the core visual sources used in fingerprints. `make web-capture-image` builds the explicitly named `unaltraweb-web-capture:dev` maintainer image; set `WEB_CAPTURE_IMAGE` to that name when testing it. The manual `Web capture image` workflow publishes default-branch, commit, and semver/release tags to GHCR.
+
+Manual PDF commands similarly consume `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0` by default. `manual-pdf-image` reuses or pulls that selected image instead of rebuilding it locally. Maintainers use `make manual-pdf-image-dev` and then pass `MANUAL_PDF_IMAGE=unaltraweb-manual-pdf:dev` for local PDF runtime changes.
 
 Rendering creates an ephemeral Docker `--internal` network shared only by Jekyll and Chromium, keeps browser requests on the preview origin, blocks service workers, popups, and WebSockets, drops Linux capabilities, uses a read-only container root and bounded resources, and writes only the declared PNG/SVG outputs under the mounted project. Ordinary checks run without browser execution or network access.

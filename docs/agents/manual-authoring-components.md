@@ -146,7 +146,7 @@ Store Vega-Lite specifications as `*.vl.json` and raw Vega specifications as `*.
 ![Quarterly totals](assets/charts/quarterly.vl.json "Quarterly totals"){: data-figure-width-web="42rem" data-figure-width-pdf="78%"}
 ```
 
-The web and PDF builders resolve the source through the manifest and use the same declared output. A source used as a web image must produce SVG or PNG; prefer SVG for web/PDF parity. Render with `make visualization-render`, commit the specification, output, manifest, and `.vegavisuals.lock.json`, and do not publish while `make visualization-check` or the companion `visualization_check` MCP tool reports stale, missing, unmanaged, or modified output. Reference a generated output directly when one source intentionally has multiple render variants.
+The web and PDF builders resolve the source through the manifest and use the same declared output. A source used as a web image must produce SVG or PNG; prefer SVG for web/PDF parity. Declare non-source files through manifest `inputs`; project-relative static `data.url` references in strict JSON specifications are discovered recursively as well. Receipt verification requires that exact union and rejects remote, dynamic, absolute, or escaping data URLs. Render with `make visualization-render`, commit the specification, inputs, output, manifest, and `.vegavisuals.lock.json`, then run the companion `visualization_check` so the provider publishes its verifiable receipt. Do not publish while the check or receipt verification reports stale, missing, unmanaged, modified, or hash-mismatched output. Reference a generated output directly when one source intentionally has multiple render variants.
 
 ## Web captures
 

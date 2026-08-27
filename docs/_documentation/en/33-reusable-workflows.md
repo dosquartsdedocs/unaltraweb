@@ -70,8 +70,9 @@ jobs:
       dockerfile: Dockerfile.compute-python
       context: .
       base_image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python@sha256:<digest>
+      test_command: make test-compute-image
 ```
 
-Pin the reusable workflow to a reviewed commit because it receives the caller's package-write token. The workflow checks out the consumer repository, passes `BASE_IMAGE`, and publishes `main` and `sha-*` under the consumer repository owner. It also publishes release-tag metadata when invoked from a tag ref. Keep engine-specific dependencies and lockfiles in that project; for example, a TIGIT site should publish `tigit-compute-r`, not a TIGIT variant of the core package.
+Pin the reusable workflow to a reviewed commit because it receives the caller's package-write token. Before a login is possible, the workflow checks that exact core revision with `distribution-release-check`, requires a digest-pinned `base_image`, validates confined build paths and the default-branch or `vX.Y.Z` ref, runs the optional project test command, and completes a no-push image build. Only the dependent publication job can publish `main` and `sha-*` under the consumer repository owner or semver/release-tag metadata from a release tag. Published images include SBOM and provenance attestations. Keep engine-specific dependencies and lockfiles in that project; for example, a TIGIT site should publish `tigit-compute-r`, not a TIGIT variant of the core package.
 
 After publication, make the package public or authenticate Docker, select its full GHCR digest in `.unaltraweb/computations.yml`, run `manual-compute-render`, and commit the updated generated artifacts and computation lock. Publishing an extension does not select or rerender it automatically.

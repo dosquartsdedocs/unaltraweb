@@ -31,14 +31,22 @@ The core repository can publish the `unaltraweb` reference site from `docs/` wit
 The reference site is a real child site of the local `unaltraweb` gem. It uses `theme: unaltraweb`, the shared layouts/includes/Sass, and `unaltraweb.site_profile: unaltredocs`.
 
 ```bash
-make docs-serve DOCKER_IMAGE=unaltraweb:local
-make docs-build DOCKER_IMAGE=unaltraweb:local
-make docs-publish DOCKER_IMAGE=unaltraweb:local
+make docs-serve DOCKER_IMAGE=unaltraweb:dev
+make docs-build DOCKER_IMAGE=unaltraweb:dev
+make docs-publish DOCKER_IMAGE=unaltraweb:dev
 ```
 
-After the published Docker image is available, omit `DOCKER_IMAGE=unaltraweb:local`.
+After the selected versioned Docker image is available, omit `DOCKER_IMAGE=unaltraweb:dev`.
 
-Docs deploys, link checks, Docker image publishing and CodeQL are intentionally manual to avoid consuming Actions minutes on every push.
+Docs deploys, link checks, publication metrics and all publication workflows remain manual. CodeQL and the repository CI workflow run automatically; neither deploys or publishes anything.
+
+## Automatic CI
+
+`.github/workflows/ci.yml` runs on pull requests and pushes. Its bounded jobs cover Python 3.10/3.13 compile and unit checks, `git diff --check`, workflow policy, structural `distribution-check`, clean wheel and gem checks, and cached Docker builds followed by MCP smoke and docs builds. CodeQL analyzes JavaScript/TypeScript, Python and Ruby for pull requests, default-branch pushes and its weekly schedule.
+
+Automatic CI deliberately uses the structural gate. It verifies that pending companion releases are represented truthfully but does not require them to be published, so normal feature work can remain green before a coordinated release.
+
+`make distribution-release-check` is stricter: it exits nonzero while any selected component is `pending` or `unavailable`. Manual image workflows and the package-candidate workflow run that strict gate, exact ref/version validation and relevant tests before any registry login or image push is reachable. Starting a manual workflow is still an explicit approval; package preparation only uploads commit-SHA-named workflow artifacts and does not publish to RubyGems/PyPI or create a GitHub release.
 
 ## Core Build
 
@@ -57,7 +65,7 @@ docker compose -f docker-compose.yml down --remove-orphans
 
 This can be resource-heavy because the inherited demo build minifies JavaScript and can generate many responsive WebP images.
 
-The same Dockerfile is published to GHCR as `ghcr.io/dosquartsdedocs/unaltraweb:main` by the manual `.github/workflows/docker-image.yml` workflow. Template repositories use that image as their default local runtime, while the `unaltraweb` gem remains the source of theme files and plugins.
+The same Dockerfile is published manually. Consumers select `ghcr.io/dosquartsdedocs/unaltraweb:0.3.0`; the mutable `ghcr.io/dosquartsdedocs/unaltraweb:main` channel and local `unaltraweb:dev` name are explicit maintainer paths. The `unaltraweb` gem remains the source of theme files and plugins.
 
 The root core build excludes `docs/`. The reference site is published from the `docs/` folder through a dedicated workflow so its root-relative permalinks do not collide with the inherited core demo build.
 

@@ -56,7 +56,7 @@ engines:
   python:
     dockerfile: Dockerfile.compute-python
     context: .
-    base_image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python:main
+    base_image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0
     local_image: tigit-compute-python:local
     lockfiles:
       - requirements-compute.txt

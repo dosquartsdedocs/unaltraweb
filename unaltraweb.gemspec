@@ -12,18 +12,19 @@ Gem::Specification.new do |spec|
   spec.summary = "Reusable Jekyll core for academic and research websites."
   spec.homepage = "https://github.com/dosquartsdedocs/unaltraweb"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.1"
+  spec.required_ruby_version = ">= 3.2"
 
   repo_root = File.expand_path(__dir__)
   tracked_files = `git -c safe.directory=#{repo_root.shellescape} ls-files -z`.split("\x0")
   discovered_files = Dir.chdir(repo_root) do
-    Dir.glob("{_includes,_layouts,_sass,_plugins,_scripts,assets,lib,scripts,docs}/**/*", File::FNM_DOTMATCH).reject do |file|
+    (Dir.glob("{_includes,_layouts,_sass,_plugins,_scripts,assets,lib,scripts,docs}/**/*", File::FNM_DOTMATCH) +
+      ["src/unaltraweb_mcp/component-contract.json", "src/unaltraweb_mcp/component-contract.schema.json"]).reject do |file|
       File.directory?(file)
     end
   end
   spec.files = (tracked_files + discovered_files).uniq.select do |file|
     !file.match?(%r{(^|/)__pycache__/|\.pyc\z}) &&
-      (["_config.yml", "Makefile", "requirements.txt"].include?(file) ||
+      (["_config.yml", "Makefile", "requirements.txt", "src/unaltraweb_mcp/component-contract.json", "src/unaltraweb_mcp/component-contract.schema.json"].include?(file) ||
        file.match?(%r{\A(_includes|_layouts|_sass|_plugins|_scripts|assets|lib|scripts)/}) ||
        file.match?(%r{\A(README|LICENSE|docs)/}))
   end

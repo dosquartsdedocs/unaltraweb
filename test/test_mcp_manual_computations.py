@@ -127,14 +127,42 @@ Chapter source.
             with self.assertRaisesRegex(ValueError, "unsafe for Make delegation"):
                 site_tools.run_factory_make(Path("/tmp/factory"), Path("/tmp/site"), "manual-compute-status")
 
-    @patch("unaltraweb_mcp.site_tools.subprocess.run")
+    @patch("unaltraweb_mcp.site_tools.run_process")
     def test_factory_delegation_accepts_spaces_in_project_path(self, run) -> None:
-        run.return_value = subprocess.CompletedProcess([], 0, "", "")
+        run.return_value = subprocess.CompletedProcess([], 0, '{"ok": true}', "")
         with patch("unaltraweb_mcp.site_tools.project_path", side_effect=[Path("/tmp/factory"), Path("/tmp/My Site")]):
             result = site_tools.run_factory_make(Path("/tmp/factory"), Path("/tmp/site"), "manual-compute-status")
 
         self.assertTrue(result["ok"])
         self.assertIn("PROJECT=/tmp/My Site", run.call_args.args[0])
+
+    @patch("unaltraweb_mcp.site_tools.run_process")
+    def test_factory_delegation_fails_closed_on_invalid_or_truncated_json(self, run) -> None:
+        run.return_value = site_tools.ProcessResult(
+            args=["make"],
+            returncode=0,
+            stdout='{"ok": true',
+            stderr="",
+            timed_out=False,
+            stdout_truncated=False,
+            stderr_truncated=False,
+        )
+        invalid = site_tools.run_factory_make(Path("/tmp/factory"), Path("/tmp/site"), "manual-compute-status")
+        self.assertFalse(invalid["ok"])
+        self.assertIn("invalid JSON", invalid["output_error"])
+
+        run.return_value = site_tools.ProcessResult(
+            args=["make"],
+            returncode=0,
+            stdout='{"ok": true}',
+            stderr="",
+            timed_out=False,
+            stdout_truncated=True,
+            stderr_truncated=False,
+        )
+        truncated = site_tools.run_factory_make(Path("/tmp/factory"), Path("/tmp/site"), "manual-compute-status")
+        self.assertFalse(truncated["ok"])
+        self.assertIn("truncated", truncated["output_error"])
 
     def test_factory_make_preserves_project_path_with_spaces(self) -> None:
         root = Path(__file__).resolve().parents[1]
