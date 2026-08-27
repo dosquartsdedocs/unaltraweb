@@ -286,6 +286,7 @@ exclude:
   - .bundle/
   - bin/
   - CONTRIBUTING.md
+  - context/
   - CUSTOMIZE.md
   - Dockerfile
   - docker-compose.yml

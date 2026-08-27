@@ -1,34 +1,14 @@
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 from typing import Any
 
 from . import site_tools as tools
 
 
-PROMPT_FILES = {
-    "start_site_session": "00-start-site-session.txt",
-    "create_new_web": "05-create-new-web.txt",
-    "content_update": "10-content-update.txt",
-    "edit_default_content": "15-edit-default-content.txt",
-    "manual_teaching_materials": "20-manual-teaching-materials.txt",
-    "manual_style_audit": "22-manual-style-audit.txt",
-    "manual_structure_audit": "23-manual-structure-audit.txt",
-    "translation_prepublish": "25-translation-prepublish.txt",
-    "project_site_update": "30-project-site-update.txt",
-    "documentation_update": "40-documentation-update.txt",
-    "bibliography_entry": "50-bibliography-entry.txt",
-    "bibliometrics_refresh": "60-bibliometrics-refresh.txt",
-    "build_and_review": "70-build-and-review.txt",
-}
-
-
 def _prompt_text(factory: Path, name: str) -> str:
-    filename = PROMPT_FILES.get(name, "")
-    path = factory / "docs" / "agents" / "action-prompts" / filename
-    if filename and path.is_file():
-        return path.read_text(encoding="utf-8")
-    return f"Prompt `{name}` is not available in this unaltraweb checkout."
+    return tools.prompt_text(factory, name)
 
 
 def _manual_writing_guidance(project: Path, factory: Path) -> str:
@@ -67,6 +47,25 @@ def run_server(project: Path, factory: Path) -> None:
             " For multilingual visuals, keep the default-language source unsuffixed and add .<lang> before the complete suffix only for translated variants; missing variants fall back to the default source."
         ),
     )
+
+    def registered_prompt(function):
+        spec = tools.PROMPT_SPECS[function.__name__]
+        signature = inspect.signature(function)
+        parameters = list(signature.parameters.values())
+        arguments = spec["arguments"]
+        actual = [
+            {
+                "name": parameter.name,
+                "type": "string" if parameter.annotation in {str, "str"} else str(parameter.annotation),
+                "default": parameter.default if parameter.default is not inspect.Parameter.empty else None,
+            }
+            for parameter in parameters
+        ]
+        expected = [{"name": argument["name"], "type": argument["type"], "default": argument["default"]} for argument in arguments]
+        if actual != expected:
+            raise RuntimeError(f"Prompt signature does not match PROMPT_SPECS for {function.__name__}: {actual} != {expected}")
+        function.__doc__ = str(spec["description"])
+        return mcp.prompt()(function)
 
     @mcp.resource("web://site-context")
     def site_context_resource() -> str:
@@ -153,70 +152,57 @@ def run_server(project: Path, factory: Path) -> None:
         """Reusable unaltraweb workflow prompt inventory."""
         return tools.dumps(tools.prompt_inventory(factory))
 
-    @mcp.prompt()
+    @registered_prompt
     def start_site_session() -> str:
-        """Start or resume work in an unaltraweb website workspace."""
         return _prompt_text(factory, "start_site_session")
 
-    @mcp.prompt()
+    @registered_prompt
     def create_new_web(site_profile: str = "unaltreselfie") -> str:
-        """Create a fresh website safely from a package-owned profile scaffold."""
         return _prompt_text(factory, "create_new_web") + f"\n\nSelected profile: {site_profile}\n"
 
-    @mcp.prompt()
+    @registered_prompt
     def content_update(target: str = "next content item") -> str:
-        """Update one page, post, news item, project, output, or structured data file."""
         return _prompt_text(factory, "content_update") + f"\n\nCurrent target: {target}\n"
 
-    @mcp.prompt()
+    @registered_prompt
     def edit_default_content(target: str = "default-language content item") -> str:
-        """Draft, revise, and approve content in the configured default language before localization."""
         return _prompt_text(factory, "edit_default_content") + f"\n\nCurrent target: {target}\n"
 
-    @mcp.prompt()
+    @registered_prompt
     def manual_teaching_materials(target: str = "manual chapter or teaching resource") -> str:
-        """Create or revise teaching/manual content for unaltremanual sites."""
         return _prompt_text(factory, "manual_teaching_materials") + f"\n\nCurrent target: {target}\n"
 
-    @mcp.prompt()
+    @registered_prompt
     def manual_style_audit(target: str = "manual chapter or teaching resource") -> str:
-        """Audit unaltremanual prose for pedagogical flow, technical precision, and local style."""
         return _prompt_text(factory, "manual_style_audit") + f"\n\nCurrent target: {target}\n"
 
-    @mcp.prompt()
+    @registered_prompt
     def manual_structure_audit(target: str = "whole manual", revision_mode: str = "report only") -> str:
-        """Audit section and paragraph functions against reader goals and tasks."""
         return _prompt_text(factory, "manual_structure_audit") + f"\n\nCurrent target: {target}\nRevision mode: {revision_mode}\n"
 
-    @mcp.prompt()
+    @registered_prompt
     def translation_prepublish(target_language: str = "") -> str:
-        """Prepare approved default-language content for translation shortly before publication."""
         suffix = f"\n\nTarget language: {target_language}\n" if target_language else ""
         return _prompt_text(factory, "translation_prepublish") + suffix
 
-    @mcp.prompt()
+    @registered_prompt
     def project_site_update(target: str = "project site section") -> str:
-        """Update research project content, outputs, repositories, team data, or news."""
         return _prompt_text(factory, "project_site_update") + f"\n\nCurrent target: {target}\n"
 
-    @mcp.prompt()
+    @registered_prompt
     def documentation_update(target: str = "documentation page") -> str:
-        """Update technical or operational documentation."""
         return _prompt_text(factory, "documentation_update") + f"\n\nCurrent target: {target}\n"
 
-    @mcp.prompt()
+    @registered_prompt
     def bibliography_entry(source: str = "verified source metadata") -> str:
-        """Add or revise bibliography entries without inventing metadata."""
         return _prompt_text(factory, "bibliography_entry") + f"\n\nSource basis: {source}\n"
 
-    @mcp.prompt()
+    @registered_prompt
     def bibliometrics_refresh() -> str:
-        """Check and update static bibliometrics data."""
         return _prompt_text(factory, "bibliometrics_refresh")
 
-    @mcp.prompt()
+    @registered_prompt
     def build_and_review(site_profile: str = "") -> str:
-        """Build the site and review local rendered output or a running preview."""
         suffix = f"\n\nSite profile override: {site_profile}\n" if site_profile else ""
         return _prompt_text(factory, "build_and_review") + suffix
 

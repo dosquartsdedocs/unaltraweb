@@ -10,6 +10,7 @@ Gemfile.lock
 assets/libs/
 node_modules/
 *.egg-info/
+build/
 sandbox/
 vendor
 tmp/

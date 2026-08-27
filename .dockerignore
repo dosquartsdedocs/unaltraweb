@@ -8,6 +8,7 @@
 .venv/
 _site/
 *.egg-info/
+build/
 sandbox/
 tmp/
 vendor/

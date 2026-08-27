@@ -43,6 +43,76 @@ FIGURE_WEB_FONT_MIN_PIXELS = MANUAL_WEB_BODY_FONT_PIXELS * 0.75
 FIGURE_WEB_FONT_MAX_PIXELS = MANUAL_WEB_BODY_FONT_PIXELS
 VEGA_SOURCE_SUFFIXES = (".vl.json", ".vg.json")
 WEB_CAPTURE_SUFFIXES = (".capture.yml", ".capture.yaml")
+PROMPT_SPECS: dict[str, dict[str, Any]] = {
+    "start_site_session": {
+        "source": "00-start-site-session.txt",
+        "description": "Start or resume work in an unaltraweb website workspace.",
+        "arguments": [],
+    },
+    "create_new_web": {
+        "source": "05-create-new-web.txt",
+        "description": "Create a fresh website safely from a package-owned profile scaffold.",
+        "arguments": [{"name": "site_profile", "type": "string", "default": "unaltreselfie"}],
+    },
+    "content_update": {
+        "source": "10-content-update.txt",
+        "description": "Update one page, post, news item, project, output, or structured data file.",
+        "arguments": [{"name": "target", "type": "string", "default": "next content item"}],
+    },
+    "edit_default_content": {
+        "source": "15-edit-default-content.txt",
+        "description": "Draft, revise, and approve content in the configured default language before localization.",
+        "arguments": [{"name": "target", "type": "string", "default": "default-language content item"}],
+    },
+    "manual_teaching_materials": {
+        "source": "20-manual-teaching-materials.txt",
+        "description": "Create or revise teaching/manual content for unaltremanual sites.",
+        "arguments": [{"name": "target", "type": "string", "default": "manual chapter or teaching resource"}],
+    },
+    "manual_style_audit": {
+        "source": "22-manual-style-audit.txt",
+        "description": "Audit unaltremanual prose for pedagogical flow, technical precision, and local style.",
+        "arguments": [{"name": "target", "type": "string", "default": "manual chapter or teaching resource"}],
+    },
+    "manual_structure_audit": {
+        "source": "23-manual-structure-audit.txt",
+        "description": "Audit section and paragraph functions against reader goals and tasks.",
+        "arguments": [
+            {"name": "target", "type": "string", "default": "whole manual"},
+            {"name": "revision_mode", "type": "string", "default": "report only"},
+        ],
+    },
+    "translation_prepublish": {
+        "source": "25-translation-prepublish.txt",
+        "description": "Prepare approved default-language content for translation shortly before publication.",
+        "arguments": [{"name": "target_language", "type": "string", "default": ""}],
+    },
+    "project_site_update": {
+        "source": "30-project-site-update.txt",
+        "description": "Update research project content, outputs, repositories, team data, or news.",
+        "arguments": [{"name": "target", "type": "string", "default": "project site section"}],
+    },
+    "documentation_update": {
+        "source": "40-documentation-update.txt",
+        "description": "Update technical or operational documentation.",
+        "arguments": [{"name": "target", "type": "string", "default": "documentation page"}],
+    },
+    "bibliography_entry": {
+        "source": "50-bibliography-entry.txt",
+        "description": "Add or revise bibliography entries without inventing metadata.",
+        "arguments": [{"name": "source", "type": "string", "default": "verified source metadata"}],
+    },
+    "bibliometrics_refresh": {
+        "source": "60-bibliometrics-refresh.txt",
+        "description": "Check and update static bibliometrics data.",
+        "arguments": [],
+    },
+    "build_and_review": {
+        "source": "70-build-and-review.txt",
+        "description": "Build the site and review local rendered output or a running preview.",
+        "arguments": [{"name": "site_profile", "type": "string", "default": ""}],
+    },
+}
 RASTER_VISUAL_SUFFIXES = {".gif", ".jpeg", ".jpg", ".png", ".tiff", ".webp"}
 VISUAL_LOCALIZATION_SUFFIXES = tuple(sorted({
     ".capture.edited.svg", ".capture.yaml", ".capture.yml", ".capture.svg",
@@ -153,7 +223,7 @@ PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
         "description": "Book-like manual, course, or teaching site.",
         "recommended_paths": ["_chapters", "_bibliography"],
         "config_keys": ["unaltraweb.manual"],
-        "content_notes": ["localized chapters", "manual home", "figures/tables", "teaching blocks", "manual bibliography"],
+        "content_notes": ["localized chapters", "manual home", "figures/tables", "teaching blocks", "manual bibliography", "local writing policy"],
     },
     "unaltredocs": {
         "description": "Technical or operational documentation portal.",
@@ -2824,10 +2894,33 @@ def http_check(base_url: str, paths: list[str] | None = None, timeout_seconds: f
     return {"base_url": base_url, "ok": all(item["ok"] for item in checks), "checks": checks}
 
 
+def prompt_text(factory: Path, name: str) -> str:
+    spec = PROMPT_SPECS.get(name, {})
+    source = str(spec.get("source") or "")
+    path = factory / "docs" / "agents" / "action-prompts" / source
+    if source and path.is_file():
+        return path.read_text(encoding="utf-8")
+    return f"Prompt `{name}` is not available in this unaltraweb checkout."
+
+
 def prompt_inventory(factory: Path) -> dict[str, Any]:
     root = factory / "docs" / "agents" / "action-prompts"
-    prompts = sorted(root.glob("*.txt")) if root.is_dir() else []
-    return {"factory": str(factory), "prompts": [path.name for path in prompts]}
+    prompts = []
+    for name, spec in PROMPT_SPECS.items():
+        source = str(spec["source"])
+        prompts.append({
+            "name": name,
+            "description": spec["description"],
+            "arguments": spec["arguments"],
+            "source": source,
+            "available": (root / source).is_file(),
+        })
+    return {
+        "factory": str(factory),
+        "prompt_count": len(prompts),
+        "all_available": all(prompt["available"] for prompt in prompts),
+        "prompts": prompts,
+    }
 
 
 def site_check(project: Path, factory: Path, max_bibliometrics_age_days: int = 180) -> dict[str, Any]:
@@ -2875,7 +2968,7 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
 def list_tools() -> dict[str, Any]:
     return {
         "resources": ["web://site-context", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
-        "prompts": ["start_site_session", "create_new_web", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "manual_structure_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
+        "prompts": list(PROMPT_SPECS),
         "tools": ["new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
 
