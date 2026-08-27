@@ -44,6 +44,21 @@ def cmd_factory_dir(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_new_web(args: argparse.Namespace) -> int:
+    return print_json(
+        tools.new_web(
+            Path(args.project),
+            site_profile_value=args.site_profile,
+            title=args.title,
+            baseurl=args.baseurl,
+            url=args.url,
+            default_lang=args.default_lang,
+            languages=args.languages,
+        ),
+        enforce_ok=True,
+    )
+
+
 def cmd_mcp(args: argparse.Namespace) -> int:
     project = project_dir(args.project)
     factory = factory_dir()
@@ -75,12 +90,14 @@ def cmd_mcp(args: argparse.Namespace) -> int:
                 confirm_overwrite=args.confirm_overwrite,
             )
         )
+    if command == "new-web":
+        return cmd_new_web(args)
     if command == "site-context":
         return print_json(tools.site_context(project, factory))
     if command == "site-check":
-        return print_json(tools.site_check(project, factory))
+        return print_json(tools.site_check(project, factory), enforce_ok=True)
     if command == "profile-check":
-        return print_json(tools.profile_check(project))
+        return print_json(tools.profile_check(project), enforce_ok=True)
     if command == "manual-source-quality-check":
         return print_json(tools.manual_source_quality_check(project))
     if command == "manual-editorial-quality-check":
@@ -102,11 +119,11 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "web-capture-render":
         return print_json(tools.web_capture_render(project, factory, source=args.source, confirm_overwrite=args.confirm_overwrite))
     if command == "manual-pdf-status":
-        return print_json(tools.manual_pdf_status(project, language=args.language))
+        return print_json(tools.manual_pdf_status(project, factory, language=args.language))
     if command == "manual-pdf-build":
-        return print_json(tools.manual_pdf_build(project, language=args.language))
+        return print_json(tools.manual_pdf_build(project, factory, language=args.language))
     if command == "manual-pdf-publish":
-        return print_json(tools.manual_pdf_publish(project, language=args.language, dry_run=not args.apply, confirm_publish=args.confirm_publish))
+        return print_json(tools.manual_pdf_publish(project, factory, language=args.language, dry_run=not args.apply, confirm_publish=args.confirm_publish))
     if command == "profile-prune-plan":
         return print_json(tools.profile_prune_plan(project, site_profile_value=args.site_profile))
     if command == "profile-prune":
@@ -126,13 +143,14 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "bibliography-add-entry":
         return print_json(tools.bibliography_add_entry(project, args.bibtex, path=args.path, replace=args.replace))
     if command == "bibliometrics-check":
-        return print_json(tools.bibliometrics_check(project))
+        return print_json(tools.bibliometrics_check(project, factory))
     if command == "bibliometrics-fetch-scimago":
-        return print_json(tools.bibliometrics_fetch_scimago(project, scimago_input=args.scimago_input))
+        return print_json(tools.bibliometrics_fetch_scimago(project, factory, scimago_input=args.scimago_input))
     if command == "bibliometrics-update":
         return print_json(
             tools.bibliometrics_update(
                 project,
+                factory,
                 fetch_scimago=args.fetch_scimago,
                 offline=args.offline,
                 dry_run=args.dry_run,
@@ -165,10 +183,17 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("version").set_defaults(func=cmd_version)
     sub.add_parser("factory-dir").set_defaults(func=cmd_factory_dir)
 
+    new_web = sub.add_parser("new-web", help="Create a website from a package-owned profile scaffold")
+    _add_new_web_arguments(new_web)
+    new_web.set_defaults(func=cmd_new_web)
+
     mcp = sub.add_parser("mcp", help="MCP server and JSON helper commands")
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
     for name in ["serve", "list-tools", "starter-templates", "detect-site", "site-context", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "preview-stop", "prompts"]:
         mcp_sub.add_parser(name)
+
+    mcp_new_web = mcp_sub.add_parser("new-web")
+    _add_new_web_arguments(mcp_new_web)
 
     for name in ["manual-computation-status", "manual-computation-check"]:
         computation = mcp_sub.add_parser(name)
@@ -262,6 +287,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp.set_defaults(func=cmd_mcp)
     return parser
+
+
+def _add_new_web_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--site-profile", choices=sorted(tools.PROFILE_CONTRACTS), default="unaltreselfie")
+    parser.add_argument("--title", default="")
+    parser.add_argument("--baseurl", default="")
+    parser.add_argument("--url", default="")
+    parser.add_argument("--default-lang", default="")
+    parser.add_argument("--languages", default="")
 
 
 def main(argv: list[str] | None = None) -> int:

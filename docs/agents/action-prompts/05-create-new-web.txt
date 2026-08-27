@@ -1,0 +1,5 @@
+Create a new unaltraweb website only after confirming the intended profile, title, URL/base URL, default language, and maintained languages.
+
+Use `new_web`, which reads only package-owned scaffold assets. Do not source a template from another checkout or arbitrary filesystem path. The operation preflights every managed path, rejects destination symlinks and differing files, and writes no website files when a collision is present during preflight. No-clobber descriptor writes prevent a raced file from being overwritten.
+
+After creation, inspect `profile_check`, edit the generated configuration and localized home pages, then run `site_check` and `build_site`.

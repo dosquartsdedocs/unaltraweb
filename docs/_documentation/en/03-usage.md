@@ -19,12 +19,18 @@ nav_title: Run And Preview
 
 ## Create A Site
 
-1. Create a repository from `dosquartsdedocs/unaltraweb-template`.
-2. Edit `_config.yml`.
-3. Choose one `unaltraweb.site_profile`.
-4. Edit content and data files.
-5. Commit to `main`.
-6. Publish locally with `make publish`, or run the manual GitHub deploy workflow when local publishing is not possible.
+1. Call `new_web` with one `unaltraweb.site_profile` and the site identity/language settings.
+2. Inspect the generated `_config.yml` and localized home page.
+3. Edit content and data files.
+4. Run `profile_check`, `site_check`, and `build_site`.
+5. Commit the reviewed site to `main`.
+6. Run the generated manual GitHub Pages workflow, or replace it with the workflow required by another host.
+
+CLI equivalent:
+
+```bash
+unaltraweb-mcp --project ./example-site new-web --site-profile unaltreselfie --title "Example Site" --url https://example.github.io --baseurl /example-site
+```
 
 Minimal profile selection:
 
@@ -68,29 +74,18 @@ assets/img/local-brand.svg
 ```bash
 make serve
 make build
-make publish
 make test
+make down
 ```
 
-Preview a different profile without changing what GitHub Pages publishes:
-
-```bash
-make serve SITE_PROFILE=unaltreprojecte
-make build SITE_PROFILE=unaltremanual
-```
-
-Run all profile demos together:
-
-```bash
-make serve-allprofiles
-```
+The generated repository contains one profile. Create a separate temporary site with `new_web` to compare another profile. Publication runs through the generated manual GitHub Pages workflow and is never triggered by these local commands.
 
 ## Update Model
 
 - Gem updates change layouts, includes, Sass, plugins and scripts.
 - Docker image updates change local runtime dependencies and are published manually.
 - Reusable workflow updates change optional GitHub build and deploy behavior.
-- Template changes affect new sites, but existing GitHub-template repositories do not automatically inherit scaffold changes.
+- Package scaffold changes affect newly generated sites; existing repositories receive them only through an explicit migration.
 
 Dependabot can stay enabled for Bundler and GitHub Actions in child sites, but deploy workflows should remain manual so dependency pull requests do not consume deploy minutes automatically.
 
@@ -104,4 +99,4 @@ The GitHub web UI is enough for common edits:
 - update a team member in `_data/`;
 - change profile feature flags in `_config.yml`.
 
-Use local Docker when you need to inspect the rendered result before committing or publish the generated site to `gh-pages`.
+Use local Docker when you need to inspect the rendered result before committing. Publication remains an explicit manual workflow action.

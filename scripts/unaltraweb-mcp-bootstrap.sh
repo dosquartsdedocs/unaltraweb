@@ -10,7 +10,7 @@ If --project is omitted, UNALTRAWEB_PROJECT is used, then the current directory.
 USAGE
 }
 
-image="${UNALTRAWEB_MCP_IMAGE:-ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0}"
+image="${UNALTRAWEB_MCP_IMAGE:-ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0}"
 project="${UNALTRAWEB_PROJECT:-${PROJECT:-}}"
 
 while [ "$#" -gt 0 ]; do

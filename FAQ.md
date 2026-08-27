@@ -2,7 +2,7 @@
 
 ## Is `unaltraweb` a website or a theme core?
 
-It is a reusable Jekyll core distributed as a gem. The core can build a local demonstration site, but normal user sites should start from `dosquartsdedocs/unaltraweb-template`.
+It is a reusable Jekyll core distributed as a gem. Normal user sites should start from the profile-specific scaffold created by `new_web`; `dosquartsdedocs/unaltraweb-template` is the full integration demo.
 
 ## Where should demo content live?
 
@@ -10,7 +10,7 @@ Most demo content belongs in `unaltraweb-template`, because it validates the gem
 
 ## How do I create a new site?
 
-Use `dosquartsdedocs/unaltraweb-template` as the starter repository, then edit `_config.yml`, `_pages/`, `_posts/`, `_projects/`, `_chapters/`, `_bibliography/`, `_data/` and local assets.
+Call the `new_web` MCP tool or run `unaltraweb-mcp --project ./my-site new-web --site-profile PROFILE`. The operation creates package-owned common files, profile configuration, localized home pages, and the content paths required by the selected profile.
 
 ## How are site types selected?
 

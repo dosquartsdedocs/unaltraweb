@@ -21,16 +21,16 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 ## Repository Split
 
 - `unaltraweb` owns reusable code: layouts, includes, Sass, assets, Jekyll plugins, Python and shell tooling, reusable GitHub Actions workflows and core documentation.
-- `unaltraweb-template` owns the thin starter scaffold: `_config.yml`, editable demo content, local overrides, local workflow glue and Playwright smoke tests.
+- `unaltraweb_mcp` owns clean package scaffolds for all four profiles; `unaltraweb-template` owns richer demo content, local workflow glue and Playwright integration tests.
 - The template is the preferred place to prove gem consumption and centralized style/logic behaviour because it exercises `unaltraweb` as an external dependency.
-- `docs/` in this repo contains the public `unaltraweb` reference site. It should explain tools, requirements, usage, profiles, themes and syntax without duplicating the template's full starter demo.
+- `docs/` in this repo contains the public `unaltraweb` reference site. It should explain tools, requirements, usage, profiles, themes and syntax without duplicating the template's full demo.
 
 ## Design Decisions
 
 - Keep Jekyll builds static. Do not call OpenAlex, Crossref, Scimago, Google Scholar, Medium or other external services during `jekyll build`.
 - Metrics update scripts may fetch data manually, locally or through an explicit workflow, but normal builds must use local files only.
 - Keep reusable functionality in `unaltraweb`; keep `unaltraweb-template` thin.
-- Use Docker-first commands for child sites so users can run `make serve`, `make build`, `make test` and `make down` without remembering Docker details.
+- Use Docker-first commands for child sites so users can run `make serve`, `make build`, `make test` and `make down` without remembering Docker details. The package-owned common scaffold now provides this contract through the MCP image.
 - Do not add backward-compatibility branches unless there is a concrete persisted-data, shipped-behaviour or external-consumer need.
 - Preserve small, minimal changes where possible. Avoid broad abstractions before there is a clear second consumer.
 - Move away from `al-folio` identity and demo defaults over time, while keeping useful inherited code until it is replaced.
@@ -120,10 +120,10 @@ mcp_dependencies:
 - Diagram-editing MCP tools should prefer SVG output. When a source diagram has a matching `*.edited.svg`, the tool must ask the user whether to preserve the edited SVG or replace it with a regenerated SVG before changing or discarding that author-edited file.
 - Normal Jekyll builds should stay non-interactive: the Jekyll filter may render a missing/stale generated SVG through `diavisuals` when available, but it must never overwrite `*.edited.svg`.
 
-### Next Session Priority: Docker-First Distribution And Child-Site Contract
+### Docker-First Distribution And Child-Site Contract
 
-- Decide and document the recommended new-site workflow. Current direction: users clone or fork `unaltraweb-template`, then run `make keep PROFILE=unaltremanual` or a profile-specific shortcut such as `make keep-unaltremanual` so the starter removes unused profile content for them instead of asking users to delete demo material manually.
-- Treat `unaltraweb-template` as a multi-profile starter/demo and integration fixture, not as the product itself. Real child sites should keep content, configuration and local assets; reusable layouts, includes, plugins, Sass, JS and build scripts should stay centralized in `unaltraweb`.
+- The recommended new-site workflow is the package-owned `new_web` operation exposed through API, CLI, Make, and MCP. It creates one clean profile and never depends on a sibling checkout.
+- Treat `unaltraweb-template` as a multi-profile demo and integration fixture, not as the product or a runtime dependency. Real child sites should keep content, configuration and local assets; reusable layouts, includes, plugins, Sass, JS and build scripts should stay centralized in `unaltraweb`.
 - Define the stable child-site contract: profile config, collections, front matter keys, local data files, bibliography/books/projects/content assets, `site-custom` extension points and generated diagram sources. Also define what remains explicitly non-contractual and can change inside the core.
 - Audit which JS/CSS/assets currently live in child repos versus the gem/core. Any copied core code in child sites should either move into `unaltraweb` or be marked as a deliberate local override.
 - Continue hardening Docker as the primary user-facing runtime: users should only need Docker plus Git for normal local `make serve`, `make build` and `make test` flows.

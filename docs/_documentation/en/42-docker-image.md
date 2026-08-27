@@ -55,9 +55,9 @@ make manual-compute-images
 
 An image already available locally is reused. Otherwise the target pulls a selected published image or builds a configured project extension.
 
-Template and child repositories expose the same `manual-compute-*` targets. When a local `unaltraweb` factory checkout is available through `../unaltraweb`, `LOCAL_CORE`, or `COMPUTE_CORE`, routine `manual-compute-status` and `manual-compute-check` use that checkout and avoid pulling the small control image. Rendering and project image preparation still run through the factory checkout because they need the core scripts and Docker contracts.
+The factory owns the `manual-compute-*` Make targets and exposes them to child repositories through the MCP computation tools. Package-created sites keep a small build/serve Makefile instead of copying the computation implementation. Rendering and project image preparation run through the factory because they need the core scripts and Docker contracts.
 
-Do not use host `quarto render` for publishable manual computations. Missing Jupyter packages, read-only runtime directories such as `/run/user/...`, and local socket restrictions are host-environment failures; run `make manual-compute-render` instead so the selected computation image supplies Quarto/Jupyter and records provenance.
+Do not use host `quarto render` for publishable manual computations. Missing Jupyter packages, read-only runtime directories such as `/run/user/...`, and local socket restrictions are host-environment failures; use `manual_computation_render` instead so the selected computation image supplies Quarto/Jupyter and records provenance.
 
 ### Select An Image
 

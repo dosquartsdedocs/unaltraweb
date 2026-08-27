@@ -40,18 +40,20 @@ async def smoke() -> None:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 tools = {tool.name for tool in (await session.list_tools()).tools}
-                for name in ["detect_site", "content_inventory", "build_site", "preview_start", "preview_status", "preview_stop"]:
+                for name in ["new_web", "detect_site", "content_inventory", "build_site", "preview_start", "preview_status", "preview_stop"]:
                     assert name in tools, name
 
                 resources = {str(resource.uri) for resource in (await session.list_resources()).resources}
                 assert "web://site-context" in resources
+                assert "web://new-web-scaffolds" in resources
                 assert "web://content-inventory" in resources
 
                 prompts = {prompt.name for prompt in (await session.list_prompts()).prompts}
                 assert "start_site_session" in prompts
+                assert "create_new_web" in prompts
                 assert "build_and_review" in prompts
 
-                initialized = tool_payload(await session.call_tool("initialize_site", {}))
+                initialized = tool_payload(await session.call_tool("new_web", {}))
                 assert initialized["ok"] is True, initialized
                 assert (project / "_config.yml").is_file()
                 assert (project / "Makefile").is_file()

@@ -8,6 +8,7 @@ from . import site_tools as tools
 
 PROMPT_FILES = {
     "start_site_session": "00-start-site-session.txt",
+    "create_new_web": "05-create-new-web.txt",
     "content_update": "10-content-update.txt",
     "edit_default_content": "15-edit-default-content.txt",
     "manual_teaching_materials": "20-manual-teaching-materials.txt",
@@ -54,11 +55,12 @@ def run_server(project: Path, factory: Path) -> None:
     mcp = FastMCP(
         "unaltraweb",
         instructions=(
+            "Use new_web to create a fresh site from one of the four package-owned profile scaffolds. "
             "For unaltremanual work, inspect manual_authoring_capabilities before editing. "
             "Run site_check and resolve blocking validation failures before build_site. "
             "When a chapter has an executable .qmd, .Rmd, .R, .py, or .ipynb source, edit that source rather than its generated .md. "
             "A figure can be referenced from Markdown by its compute source (for example assets/quarto/figures/boxplot.qmd); the build rewrites the reference to the declared mode:figure output and prefers an author-owned *.edited.svg. "
-            "Run manual_computation_status and render explicitly after source or input changes; builds must not proceed with stale generated Markdown or figures, and make build/serve auto-render stale figures first. "
+            "Run manual_computation_status and render explicitly after source or input changes; site_check blocks build/test/serve when generated Markdown, figures, or web captures are stale. "
             "For selector-based screenshots, edit the .capture.yml recipe, preserve the original PNG, and never overwrite .capture.edited.svg without approval. "
             "For static Vega figures, reference a .vl.json or .vg.json source declared once in .vegavisuals.yml and use the companion vegavisuals tools to render and check its declared output."
             " After inserting a text-bearing figure or diagram, run manual_source_quality_check and use its separate web/PDF dimension suggestions; do not distort the intrinsic aspect ratio."
@@ -73,8 +75,13 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.resource("web://starter-templates")
     def starter_templates_resource() -> str:
-        """Available starter website templates usable by initialize_site."""
+        """Package-owned website scaffolds exposed under the legacy starter inventory name."""
         return tools.dumps(tools.starter_templates(factory))
+
+    @mcp.resource("web://new-web-scaffolds")
+    def new_web_scaffolds_resource() -> str:
+        """Package-owned website scaffolds available for all supported profiles."""
+        return tools.dumps(tools.scaffold_inventory())
 
     @mcp.resource("web://profile-contract")
     def profile_contract_resource() -> str:
@@ -152,6 +159,11 @@ def run_server(project: Path, factory: Path) -> None:
         return _prompt_text(factory, "start_site_session")
 
     @mcp.prompt()
+    def create_new_web(site_profile: str = "unaltreselfie") -> str:
+        """Create a fresh website safely from a package-owned profile scaffold."""
+        return _prompt_text(factory, "create_new_web") + f"\n\nSelected profile: {site_profile}\n"
+
+    @mcp.prompt()
     def content_update(target: str = "next content item") -> str:
         """Update one page, post, news item, project, output, or structured data file."""
         return _prompt_text(factory, "content_update") + f"\n\nCurrent target: {target}\n"
@@ -210,12 +222,17 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def starter_templates() -> dict[str, Any]:
-        """Return available starter website templates discovered from the unaltraweb factory checkout."""
+        """Return package-owned website scaffolds under the legacy starter inventory name."""
         return tools.starter_templates(factory)
 
     @mcp.tool()
+    def new_web(site_profile: str = "unaltreselfie", title: str = "", baseurl: str = "", url: str = "", default_lang: str = "", languages: str = "") -> dict[str, Any]:
+        """Create a complete profile-specific website after collision and symlink preflight. Differing files are never overwritten."""
+        return tools.new_web(project, site_profile_value=site_profile, title=title, baseurl=baseurl, url=url, default_lang=default_lang, languages=languages)
+
+    @mcp.tool()
     def initialize_site(template_path: str = "", site_profile: str = "unaltreselfie", title: str = "", baseurl: str = "", url: str = "", default_lang: str = "", languages: str = "", force: bool = False, confirm_overwrite: bool = False) -> dict[str, Any]:
-        """Initialize the current workspace from a starter template. Existing files are skipped unless force and confirm_overwrite are both true."""
+        """Compatibility alias for new_web. External templates and overwrite mode are rejected."""
         return tools.initialize_site(project, factory, template_path=template_path, site_profile_value=site_profile, title=title, baseurl=baseurl, url=url, default_lang=default_lang, languages=languages, force=force, confirm_overwrite=confirm_overwrite)
 
     @mcp.tool()
@@ -291,17 +308,17 @@ def run_server(project: Path, factory: Path) -> None:
     @mcp.tool()
     def manual_pdf_status(language: str = "") -> dict[str, Any]:
         """Inspect manual PDF configuration, source availability, and artefact freshness without changing files."""
-        return tools.manual_pdf_status(project, language=language)
+        return tools.manual_pdf_status(project, factory, language=language)
 
     @mcp.tool()
     def manual_pdf_build(language: str = "") -> dict[str, Any]:
         """Build configured unaltremanual PDFs and first-page cover previews under the site's temporary directory."""
-        return tools.manual_pdf_build(project, language=language)
+        return tools.manual_pdf_build(project, factory, language=language)
 
     @mcp.tool()
     def manual_pdf_publish(language: str = "", dry_run: bool = True, confirm_publish: bool = False) -> dict[str, Any]:
         """Copy built PDFs and covers to public site assets. Defaults to dry-run; real publication requires confirmation."""
-        return tools.manual_pdf_publish(project, language=language, dry_run=dry_run, confirm_publish=confirm_publish)
+        return tools.manual_pdf_publish(project, factory, language=language, dry_run=dry_run, confirm_publish=confirm_publish)
 
     @mcp.tool()
     def profile_prune_plan(site_profile: str = "") -> dict[str, Any]:
@@ -351,17 +368,17 @@ def run_server(project: Path, factory: Path) -> None:
     @mcp.tool()
     def bibliometrics_check() -> dict[str, Any]:
         """Run the site's offline bibliometrics check target."""
-        return tools.bibliometrics_check(project)
+        return tools.bibliometrics_check(project, factory)
 
     @mcp.tool()
     def bibliometrics_fetch_scimago(scimago_input: str = "") -> dict[str, Any]:
         """Fetch or validate local Scimago data through the site Make contract."""
-        return tools.bibliometrics_fetch_scimago(project, scimago_input=scimago_input)
+        return tools.bibliometrics_fetch_scimago(project, factory, scimago_input=scimago_input)
 
     @mcp.tool()
     def bibliometrics_update(fetch_scimago: bool = False, offline: bool = False, dry_run: bool = False, strict_external: bool = False, require_scimago: bool = False) -> dict[str, Any]:
         """Update static bibliography and bibliometrics outputs through the site Make contract."""
-        return tools.bibliometrics_update(project, fetch_scimago=fetch_scimago, offline=offline, dry_run=dry_run, strict_external=strict_external, require_scimago=require_scimago)
+        return tools.bibliometrics_update(project, factory, fetch_scimago=fetch_scimago, offline=offline, dry_run=dry_run, strict_external=strict_external, require_scimago=require_scimago)
 
     @mcp.tool()
     def build_site(site_profile: str = "") -> dict[str, Any]:

@@ -35,7 +35,7 @@ A site with `.vegavisuals.yml` must pass `vegavisuals-sha` as the full lowercase
 
 The deploy workflow runs `sync-manual-pdf: true` by default. When `unaltraweb.manual.pdf.enabled` is true, it deterministically rebuilds every configured language and copies the current PDF and cover before Jekyll renders the website; sites without PDF output are skipped. Set `check-manual-pdf: true` when the repository must additionally require its committed public copies to match the generated artefacts before synchronization.
 
-For lower-cost publishing, prefer the template's local `make publish` target and configure GitHub Pages to serve the generated `gh-pages` branch.
+Clean package scaffolds include a manual GitHub Pages wrapper pinned to a reviewed workflow revision. The optional integration template retains additional local publishing experiments, but generated sites do not publish from local validation targets.
 
 ## Publication metrics
 

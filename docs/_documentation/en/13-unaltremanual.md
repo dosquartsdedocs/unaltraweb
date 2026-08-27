@@ -120,35 +120,35 @@ The execution container has no network, a read-only root filesystem, dropped cap
 
 ### Render And Check
 
-The consumer Makefile exposes the stable workflow:
+The MCP exposes the stable workflow without copying implementation targets into the consumer Makefile:
 
-```bash
-make manual-compute-status
-make manual-compute-check
-make manual-compute-render
-make manual-compute-render-figures
-make manual-compute-render COMPUTE_SOURCE=_chapters/en/chapter.qmd
+```text
+manual_computation_status
+manual_computation_check
+manual_computation_render
+manual_computation_render_figures
+manual_computation_render(source="_chapters/en/chapter.qmd")
 ```
 
-`status` prints JSON and remains informational even when `ok` is false. `check` exits nonzero for missing, stale, modified, or orphaned results. `render` executes explicitly, stages output, serializes publication per project, and replaces managed Markdown and figures with rollback on ordinary errors. `manual-compute-render-figures` renders only stale `mode: figure` sources and never executes chapter-mode sources. Rendering runs without network access and with Quarto caches disabled.
+`status` prints JSON and remains informational even when `ok` is false. `check` exits nonzero for missing, stale, modified, or orphaned results. `render` executes explicitly, stages output, serializes publication per project, and replaces managed Markdown and figures with rollback on ordinary errors. `manual_computation_render_figures` renders only stale `mode: figure` sources and never executes chapter-mode sources. Rendering runs without network access and with Quarto caches disabled.
 
 The first render refuses to overwrite an existing same-stem Markdown file or figure directory that is not recorded in the computation lock. Review the collision before an intentional takeover:
 
-```bash
-make manual-compute-render COMPUTE_CONFIRM_OVERWRITE=1
+```text
+manual_computation_render(confirm_overwrite=true)
 ```
 
 Do not use that confirmation as a permanent default. Do not edit `.unaltraweb/computations.lock.json` manually; review it as generated provenance.
 
 Deleting or disabling a source leaves its lock record and generated artifacts as an orphan, so publication remains blocked. Review and remove the old generated Markdown and figure directory, then run a full `manual-compute-render`; the renderer removes an orphan lock record only after both managed paths are absent.
 
-`make serve`, `make build`, profile previews, Playwright checks, PDF operations, and the reusable Pages workflow reject stale results. CI checks committed artifacts without recalculating them. Equivalent MCP tools are `manual_computation_status`, `manual_computation_check`, `manual_computation_render`, and `manual_computation_render_figures`.
+`make serve`, `make build`, `make test`, profile previews, Playwright checks, PDF operations, and the reusable Pages workflow reject stale results. The internal capture-only preview is the deliberate exception because it must render the artefact that is currently stale. CI checks committed artifacts without recalculating them. Equivalent MCP tools are `manual_computation_status`, `manual_computation_check`, `manual_computation_render`, and `manual_computation_render_figures`.
 
 ### Static Vega Figures
 
 Static Vega-Lite and Vega figures use `*.vl.json` and `*.vg.json` sources declared in `.vegavisuals.yml`. A chapter references the specification as a captioned Markdown image; Jekyll and the PDF builder resolve it to the same single manifest output without changing the caption or figure attributes. Prefer SVG when the figure must work identically on the web and in print.
 
-Use `make visualization-status`, `make visualization-render`, and `make visualization-check` for the source-to-output lifecycle. These targets are no-ops in projects without `.vegavisuals.yml`. PDF status, build, and publication require `visualization-check` when a manifest exists, so commit the manifest, lock, source data, and generated outputs together.
+Use the companion `visualization_status`, `render_visualizations`, and `visualization_check` tools for the source-to-output lifecycle. Run `visualization_check` before PDF status, build, or publication when a manifest exists; the unaltraweb PDF tool does not proxy the separate MCP. Commit the manifest, lock, source data, and generated outputs together.
 
 ## PDF Edition
 
@@ -198,15 +198,15 @@ The cover deliberately contains only structural publication elements: series, ti
 
 The default template is a two-sided, open-right book: inner and outer margins mirror, folios sit at the outer edge, numbered and unnumbered chapters begin on recto pages, and inserted blank versos carry no headers or folios. Main matter starts at chapter 0.
 
-The PDF workflow checks executable chapters before reading their generated Markdown:
+The PDF workflow checks executable chapters before reading their generated Markdown. Normal site work uses the MCP tools; the additional check/sync targets remain factory-maintainer operations:
 
-```bash
-make manual-pdf-status
-make manual-pdf-build
-make manual-pdf-publish                 # dry-run by default
-make manual-pdf-publish MANUAL_PDF_PUBLISH_DRY_RUN=0
-make manual-pdf-sync                    # build and publish before rendering the site
-make manual-pdf-check                   # public copies match the fresh build
+```text
+manual_pdf_status
+manual_pdf_build
+manual_pdf_publish                      # dry-run by default
+manual_pdf_publish(dry_run=false, confirm_publish=true)
+factory: make manual-pdf-sync PROJECT=/path/to/site
+factory: make manual-pdf-check PROJECT=/path/to/site
 ```
 
 Builds remain under `tmp/manual-pdf/<lang>/`. Each language build creates both the PDF and a PNG extracted from its first page. The default template derives XeTeX's trailer ID from the build fingerprint, and the builder canonicalizes the lossless PDF streams with qpdf, so identical inputs produce byte-identical PDFs. A custom template must put `\special{pdf:trailerid [<$trailer-id$><$trailer-id$>]}` on its first output page to preserve that property. Publication copies those reviewed artefacts together into the configured project-relative public paths; it does not commit, push, deploy, or write outside the site. `manual-pdf-status` accepts a fresh reviewed build that is still waiting to be copied, while `manual-pdf-check` rejects missing or obsolete public copies. The download button appears automatically when the configured PDF exists among the site's static files, so it cannot point to a missing build. Chapters can opt out with `pdf: false`.

@@ -6,7 +6,8 @@ For current customization guidance, use:
 
 - `docs/customization.md` for profiles, feature toggles, local styles, manual mode, project resources and theme modes.
 - `docs/distribution.md` for the split between this core and `unaltraweb-template`.
-- `../unaltraweb-template/README.md` for the starter-site workflow.
+- `docs/agents/mcp-contract.md` for package-owned site creation and the MCP workflow.
+- `../unaltraweb-template/README.md` for the optional full-profile demo workflow.
 
 ## Local Overrides
 
