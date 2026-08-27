@@ -4,6 +4,7 @@ import inspect
 from pathlib import Path
 from typing import Any
 
+from .distribution import distribution_doctor as inspect_distribution
 from . import site_tools as tools
 
 
@@ -67,10 +68,20 @@ def run_server(project: Path, factory: Path) -> None:
         function.__doc__ = str(spec["description"])
         return mcp.prompt()(function)
 
+    @mcp.resource("web://distribution")
+    def distribution_resource() -> str:
+        """Versioned component BOM and offline doctor findings for the current distribution and project."""
+        return tools.dumps(inspect_distribution(project=project, factory=factory))
+
     @mcp.resource("web://site-context")
     def site_context_resource() -> str:
         """Current unaltraweb site profile, features, content, bibliography, bibliometrics, and build state."""
         return tools.dumps(tools.site_context(project, factory))
+
+    @mcp.resource("web://site-doctor")
+    def site_doctor_resource() -> str:
+        """Offline distribution, project-contract, freshness, scaffold-drift, and override findings."""
+        return tools.dumps(tools.site_doctor(project, factory))
 
     @mcp.resource("web://starter-templates")
     def starter_templates_resource() -> str:
@@ -207,6 +218,11 @@ def run_server(project: Path, factory: Path) -> None:
         return _prompt_text(factory, "build_and_review") + suffix
 
     @mcp.tool()
+    def distribution_doctor(check_docker: bool = False) -> dict[str, Any]:
+        """Inspect component versions, project feature pins, and optionally local Docker image presence without pulling."""
+        return inspect_distribution(project=project, factory=factory, check_docker=check_docker)
+
+    @mcp.tool()
     def starter_templates() -> dict[str, Any]:
         """Return package-owned website scaffolds under the legacy starter inventory name."""
         return tools.starter_templates(factory)
@@ -232,9 +248,34 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.site_context(project, factory)
 
     @mcp.tool()
+    def site_doctor() -> dict[str, Any]:
+        """Run the read-only offline distribution and project doctor with stable findings and remediation."""
+        return tools.site_doctor(project, factory)
+
+    @mcp.tool()
     def site_check(max_bibliometrics_age_days: int = 180) -> dict[str, Any]:
         """Run local profile, freshness, bibliography, bibliometrics, and build-state checks without network access."""
         return tools.site_check(project, factory, max_bibliometrics_age_days)
+
+    @mcp.tool()
+    def site_source_read(path: str) -> dict[str, Any]:
+        """Read one strictly allowed UTF-8 text source and return its SHA-256 for later CAS mutation."""
+        return tools.site_source_read(project, path)
+
+    @mcp.tool()
+    def site_source_write(path: str, content: str, expected_sha256: str = "", create_only: bool = False, dry_run: bool = True) -> dict[str, Any]:
+        """Dry-run or atomically create/update one allowed text source. Creates require create_only; updates require the exact prior SHA-256."""
+        return tools.site_source_write(project, path, content, expected_sha256=expected_sha256, create_only=create_only, dry_run=dry_run)
+
+    @mcp.tool()
+    def site_source_delete(path: str, expected_sha256: str, dry_run: bool = True, confirm_delete: bool = False) -> dict[str, Any]:
+        """Dry-run or delete one allowed source after exact SHA-256 and explicit confirmation. _config.yml and directories are never deleted."""
+        return tools.site_source_delete(project, path, expected_sha256=expected_sha256, dry_run=dry_run, confirm_delete=confirm_delete)
+
+    @mcp.tool()
+    def scaffold_sync(dry_run: bool = True, confirm_sync: bool = False) -> dict[str, Any]:
+        """Synchronize package-managed runtime files only when they still match their recorded scaffold baseline."""
+        return tools.scaffold_sync(project, dry_run=dry_run, confirm_sync=confirm_sync)
 
     @mcp.tool()
     def profile_check() -> dict[str, Any]:
@@ -377,6 +418,11 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.build_health(project)
 
     @mcp.tool()
+    def html_audit() -> dict[str, Any]:
+        """Audit generated _site HTML locally without fetching external links."""
+        return tools.html_audit(project)
+
+    @mcp.tool()
     def preview_start(port: int = 4000, site_profile: str = "", timeout_seconds: float = 60.0) -> dict[str, Any]:
         """Start the single labelled Jekyll preview container for this project and wait for HTTP readiness."""
         return tools.preview_start(project, port=port, site_profile=site_profile, timeout_seconds=timeout_seconds)
@@ -392,8 +438,8 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.preview_stop(project)
 
     @mcp.tool()
-    def http_check(base_url: str = "http://127.0.0.1:4000", paths: list[str] | None = None, timeout_seconds: float = 5.0) -> dict[str, Any]:
-        """Check whether a running Jekyll preview responds over HTTP. This does not make the MCP itself an HTTP server."""
-        return tools.http_check(base_url, paths=paths, timeout_seconds=timeout_seconds)
+    def http_check(paths: list[str] | None = None, timeout_seconds: float = 3.0) -> dict[str, Any]:
+        """Probe bounded local paths on this project's owned labelled preview without accepting an arbitrary origin or redirects."""
+        return tools.http_check(project, paths=paths, timeout_seconds=timeout_seconds)
 
     mcp.run()

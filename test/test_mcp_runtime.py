@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 import tempfile
@@ -291,9 +292,9 @@ class McpRuntimeTests(unittest.TestCase):
             site_tools.preview_status(self.project)
 
     @patch("unaltraweb_mcp.site_tools.time.sleep", return_value=None)
-    @patch("unaltraweb_mcp.site_tools.http_check")
+    @patch("unaltraweb_mcp.site_tools._http_probe")
     @patch("unaltraweb_mcp.site_tools._preview_inspect")
-    def test_existing_preview_waits_until_ready(self, inspect, http_check, _sleep) -> None:
+    def test_existing_preview_waits_until_ready(self, inspect, http_probe, _sleep) -> None:
         _, project_id, _ = site_tools._preview_identity(self.project)
         info = {
             "Config": {"Labels": {
@@ -308,15 +309,15 @@ class McpRuntimeTests(unittest.TestCase):
             "NetworkSettings": {"Networks": {"bridge": {"IPAddress": "172.17.0.2"}}},
         }
         inspect.return_value = info
-        http_check.side_effect = [{"ok": False}, {"ok": True}]
+        http_probe.side_effect = [{"ok": False}, {"ok": True}]
 
         result = site_tools.preview_start(self.project, timeout_seconds=10)
 
         self.assertTrue(result["ok"])
         self.assertTrue(result["already_running"])
-        self.assertEqual(http_check.call_count, 2)
+        self.assertEqual(http_probe.call_count, 2)
 
-    @patch("unaltraweb_mcp.site_tools.http_check", return_value={"ok": True})
+    @patch("unaltraweb_mcp.site_tools._http_probe", return_value={"ok": True})
     @patch("unaltraweb_mcp.site_tools._preview_inspect")
     @patch("unaltraweb_mcp.site_tools._docker")
     def test_preview_uses_controller_image_id(self, docker, inspect, _http_check) -> None:
@@ -344,7 +345,23 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertIn("sha256:controller", run_args)
         self.assertEqual(run_args[run_args.index("--entrypoint") + 2], "sha256:controller")
 
-    def test_bootstrap_names_and_labels_stdio_container_by_project(self) -> None:
+    def test_project_id_matches_preview_identity(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+
+        completed = subprocess.run(
+            ["/bin/sh", str(root / "scripts/unaltraweb-mcp-project-id.sh"), str(self.project)],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+        expected = hashlib.sha256(str(self.project.resolve()).encode("utf-8")).hexdigest()[:16]
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout.strip(), expected)
+        self.assertEqual(site_tools._preview_identity(self.project)[1], expected)
+
+    def test_bootstrap_labels_stdio_container_without_a_colliding_name(self) -> None:
         root = Path(__file__).resolve().parents[1]
         fake_bin = self.project / "bin"
         fake_bin.mkdir()
@@ -371,9 +388,10 @@ class McpRuntimeTests(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, completed.stderr)
         args = capture.read_text(encoding="utf-8").splitlines()
-        self.assertIn("--name", args)
-        self.assertTrue(args[args.index("--name") + 1].startswith("unaltraweb-mcp-"))
+        project_id = hashlib.sha256(str(self.project.resolve()).encode("utf-8")).hexdigest()[:16]
+        self.assertNotIn("--name", args)
         self.assertIn("io.context.mcp-role=stdio", args)
+        self.assertIn(f"io.context.mcp-project={project_id}", args)
         self.assertIn("sha256:controller", args)
         self.assertNotIn(str(root), args)
         canonical_mount = f"{self.project.resolve()}:{self.project.resolve()}"
@@ -381,15 +399,75 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertEqual(args[args.index("-w") + 1], str(self.project.resolve()))
         self.assertEqual(args[args.index("--project") + 1], str(self.project.resolve()))
 
-    def test_visualization_status_delegates_configured_project_to_companion_mcp(self) -> None:
+    def test_make_cleanup_scopes_project_and_maintainer_targets(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        fake_bin = self.project / "bin"
+        fake_bin.mkdir()
+        capture = self.project / "docker-calls"
+        docker = fake_bin / "docker"
+        docker.write_text(
+            "#!/bin/sh\n"
+            "printf '%s\\n' CALL \"$@\" >> \"$CAPTURE\"\n",
+            encoding="utf-8",
+        )
+        docker.chmod(0o755)
+        env = os.environ.copy()
+        env.update({"PATH": f"{fake_bin}:{env['PATH']}", "CAPTURE": str(capture)})
+
+        def run_target(target: str) -> list[list[str]]:
+            capture.unlink(missing_ok=True)
+            completed = subprocess.run(
+                [
+                    "make", "--silent", "--no-print-directory", "-C", str(root), target,
+                    f"PROJECT={self.project}",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            calls: list[list[str]] = []
+            for line in capture.read_text(encoding="utf-8").splitlines():
+                if line == "CALL":
+                    calls.append([])
+                else:
+                    calls[-1].append(line)
+            return calls
+
+        project_id = hashlib.sha256(str(self.project.resolve()).encode("utf-8")).hexdigest()[:16]
+        self.assertEqual(
+            run_target("mcp-down"),
+            [
+                [
+                    "ps", "-aq", "--filter", "label=io.context.mcp-factory=unaltraweb",
+                    "--filter", f"label=io.context.mcp-project={project_id}",
+                ],
+                [
+                    "network", "ls", "-q", "--filter", "label=io.context.mcp-factory=unaltraweb",
+                    "--filter", f"label=io.context.mcp-project={project_id}",
+                ],
+            ],
+        )
+        self.assertEqual(
+            run_target("mcp-down-all"),
+            [
+                ["ps", "-aq", "--filter", "label=io.context.mcp-factory=unaltraweb"],
+                ["network", "ls", "-q", "--filter", "label=io.context.mcp-factory=unaltraweb"],
+            ],
+        )
+
+    def test_visualization_status_requires_provider_receipt_for_configured_project(self) -> None:
         (self.project / ".vegavisuals.yml").write_text("visualizations: []\n", encoding="utf-8")
 
         status = site_tools.visualization_status(self.project, Path("/opt/unaltraweb"))
 
-        self.assertTrue(status["ok"])
-        self.assertTrue(status["delegated"])
+        self.assertFalse(status["ok"])
+        self.assertFalse(status["delegated"])
         self.assertEqual(status["owner"], "vegavisuals")
         self.assertEqual(status["required_tool"], "visualization_check")
+        self.assertEqual(status["receipt"]["state"], "missing")
 
     def test_inventory_exposes_runtime_tools(self) -> None:
         tools = site_tools.list_tools()["tools"]
@@ -418,6 +496,15 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertEqual(set(manifest["mcp"]["required_tools"]), set(inventory["tools"]))
         self.assertIn("context", manifest["workspace_rule"]["init_creates"])
         self.assertIn("context", manifest["workspace_rule"]["source_paths"])
+        self.assertEqual(manifest["schema_version"], 1)
+        self.assertEqual(
+            manifest["transport"]["command"],
+            ["make", "-C", "${factoryRoot}", "mcp-stdio", "PROJECT=${workspaceFolder}"],
+        )
+        self.assertNotIn("init", manifest["commands"])
+        self.assertNotIn("down", manifest["commands"])
+        self.assertTrue(all(not dependency["init"] for dependency in manifest["mcp_dependencies"]))
+        self.assertNotIn("mcp-init:", (root / "Makefile").read_text(encoding="utf-8"))
 
     def test_writing_profile_is_excluded_from_published_site(self) -> None:
         root = Path(__file__).resolve().parents[1]

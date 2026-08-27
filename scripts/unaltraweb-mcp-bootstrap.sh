@@ -48,9 +48,8 @@ fi
 project="$(CDPATH= cd -- "$project" && pwd -P)"
 owner="${UNALTRAWEB_PROJECT_USER:-$(id -u):$(id -g)}"
 docker_socket="${UNALTRAWEB_DOCKER_SOCKET:-/var/run/docker.sock}"
-checksum="$(printf '%s' "$project" | cksum)"
-project_id="${checksum%% *}"
-container_name="unaltraweb-mcp-$project_id"
+script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
+project_id="$(/bin/sh "$script_dir/unaltraweb-mcp-project-id.sh" "$project")"
 
 if ! resolved_image="$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/null)"; then
   docker pull "$image" >/dev/null
@@ -58,7 +57,6 @@ if ! resolved_image="$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/n
 fi
 
 set -- docker run --rm -i \
-  --name "$container_name" \
   --label io.context.mcp-factory=unaltraweb \
   --label io.context.mcp-role=stdio \
   --label "io.context.mcp-project=$project_id" \

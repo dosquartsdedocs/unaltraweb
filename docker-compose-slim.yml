@@ -1,7 +1,7 @@
 # Kept as a lightweight compatibility compose file; it now uses the unaltraweb image.
 services:
   jekyll:
-    image: ghcr.io/dosquartsdedocs/unaltraweb:main
+    image: unaltraweb:dev
     #build: .
     ports:
       - 4000:8080

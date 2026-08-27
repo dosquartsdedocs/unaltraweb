@@ -41,10 +41,11 @@ async def smoke() -> None:
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 tools = {tool.name for tool in (await session.list_tools()).tools}
-                for name in ["new_web", "detect_site", "content_inventory", "build_site", "preview_start", "preview_status", "preview_stop"]:
+                for name in ["distribution_doctor", "new_web", "detect_site", "site_doctor", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "content_inventory", "build_site", "html_audit", "preview_start", "preview_status", "preview_stop"]:
                     assert name in tools, name
 
                 resources = {str(resource.uri) for resource in (await session.list_resources()).resources}
+                assert "web://distribution" in resources
                 assert "web://site-context" in resources
                 assert "web://new-web-scaffolds" in resources
                 assert "web://content-inventory" in resources
@@ -60,17 +61,41 @@ async def smoke() -> None:
                 assert initialized["ok"] is True, initialized
                 assert (project / "_config.yml").is_file()
                 assert (project / "Makefile").is_file()
+                assert (project / ".unaltraweb/scaffold.json").is_file()
 
                 detection = tool_payload(await session.call_tool("detect_site", {}))
                 assert detection["is_unaltraweb_site"] is True
                 assert detection["project"] == str(project)
 
+                distribution = tool_payload(await session.call_tool("distribution_doctor", {}))
+                assert distribution["ok"] is True, distribution
+                assert distribution["mode"] == "factory"
+                assert distribution["project"]["profile"] == "unaltreselfie"
+
                 inventory = tool_payload(await session.call_tool("content_inventory", {}))
                 assert inventory["collections"]["_pages"]["documents"] == 1
+
+                home = tool_payload(await session.call_tool("site_source_read", {"path": "_pages/en/index.md"}))
+                source_dry_run = tool_payload(await session.call_tool("site_source_write", {
+                    "path": "_pages/en/index.md",
+                    "content": home["content"] + "\nMCP source smoke.\n",
+                    "expected_sha256": home["sha256"],
+                }))
+                assert source_dry_run["dry_run"] is True
+                assert (project / "_pages/en/index.md").read_text(encoding="utf-8") == home["content"]
+
+                scaffold = tool_payload(await session.call_tool("scaffold_sync", {}))
+                assert scaffold["ok"] is True, scaffold
+                assert scaffold["dry_run"] is True
+
+                doctor = tool_payload(await session.call_tool("site_doctor", {}))
+                assert doctor["ok"] is True, doctor
+                assert doctor["offline"] is True
 
                 build = tool_payload(await session.call_tool("build_site", {}))
                 assert build["ok"] is True, build
                 assert build["nested_container"] is False
+                assert build["html_audit"]["ok"] is True, build["html_audit"]
                 assert (project / "_site/index.html").is_file()
 
                 checks = tool_payload(await session.call_tool("site_check", {}))

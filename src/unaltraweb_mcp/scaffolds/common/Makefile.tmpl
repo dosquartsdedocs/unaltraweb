@@ -1,6 +1,6 @@
 LOCAL_CORE ?= /opt/unaltraweb
 LOCAL_GEMFILE := tmp/Gemfile.local
-MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0
+MCP_IMAGE ?= __MCP_IMAGE__
 UNALTRAWEB_CAPTURE_RUNTIME := 1
 LOCAL_UID ?= $(shell id -u)
 LOCAL_GID ?= $(shell id -g)
@@ -29,6 +29,7 @@ serve-capture-native: local-gemfile
 serve-native: site-check-native serve-capture-native
 
 test-native: build-native
+	@unaltraweb-mcp --project "$(CURDIR)" mcp html-audit >/dev/null
 
 build:
 	@docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -v "$(CURDIR):/workspace" -w /workspace --entrypoint make "$(MCP_IMAGE)" --silent build-native LOCAL_CORE=/opt/unaltraweb

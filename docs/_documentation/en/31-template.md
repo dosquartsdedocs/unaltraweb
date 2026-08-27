@@ -21,7 +21,7 @@ nav_title: Core And Template
 - It consumes `unaltraweb` as an external dependency.
 - It contains realistic demo content for `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs` profiles.
 - It exercises richer local Docker and browser-test orchestration than the clean package scaffolds.
-- It uses the shared `ghcr.io/dosquartsdedocs/unaltraweb:main` runtime image by default.
+- It uses the selected `ghcr.io/dosquartsdedocs/unaltraweb:0.3.0` runtime image by default; mutable `main` is reserved for maintainer testing.
 - It runs Playwright smoke tests and screenshots across profiles, themes and responsive layouts.
 - It keeps rich demo content out of clean profile scaffolds.
 

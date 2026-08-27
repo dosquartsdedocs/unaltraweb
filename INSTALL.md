@@ -12,7 +12,16 @@ Create a clean profile-specific repository locally or through the MCP:
 unaltraweb-mcp --project ./my-site new-web --site-profile unaltredocs --title "Project documentation" --default-lang en
 ```
 
-The command is idempotent for identical inputs and refuses differing files, symlinks, and unsafe language paths. It does not require or inspect `unaltraweb-template`.
+The command is idempotent for identical inputs and refuses differing files, symlinks, and unsafe language paths. It records the five package-managed runtime files in `.unaltraweb/scaffold.json`; an explicit `scaffold_sync` dry-run can later update only files that remain unchanged from that baseline. It does not require or inspect `unaltraweb-template`.
+
+The wheel can verify its own modular distribution and a generated site without a factory checkout:
+
+```bash
+unaltraweb-mcp doctor
+unaltraweb-mcp doctor --project ./my-site
+```
+
+Add `--docker` only when local presence of the selected feature images should be inspected. Doctor never pulls images. Factory-backed build, computation, capture, PDF, bibliometrics, prompt, and MCP serve commands require `UNALTRAWEB_FACTORY_DIR` or the published MCP container.
 
 ### GitHub-only
 
@@ -36,7 +45,7 @@ make test
 make down
 ```
 
-These targets run through the pinned MCP Docker image; Ruby and Bundler are not required on the host. The native targets remain available inside the MCP runtime. Layouts, styles and plugins still come from the `unaltraweb` gem/core mounted in that image.
+These targets run through the pinned MCP Docker image; Ruby and Bundler are not required on the host. `make test` also audits generated HTML links, fragments, IDs, Liquid residue, image alt attributes, title, and language without fetching external URLs. The native targets remain available inside the MCP runtime. Layouts, styles and plugins still come from the `unaltraweb` gem/core mounted in that image.
 
 When running the core documentation and all template profiles together, use the convention `4000` for `unaltraweb` and `4001` through `4004` for `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs`.
 
@@ -78,9 +87,9 @@ This core repository publishes its own `unaltraweb` reference site from `docs/` 
 The reference site uses the real `unaltredocs` profile from the local `unaltraweb` gem:
 
 ```bash
-make docs-serve DOCKER_IMAGE=unaltraweb:local
-make docs-build DOCKER_IMAGE=unaltraweb:local
-make docs-publish DOCKER_IMAGE=unaltraweb:local
+make docs-serve DOCKER_IMAGE=unaltraweb:dev
+make docs-build DOCKER_IMAGE=unaltraweb:dev
+make docs-publish DOCKER_IMAGE=unaltraweb:dev
 ```
 
 Publication metrics are intentionally separate from automatic deploys. Run them locally or through the manual/reusable `.github/workflows/metrics-update.yml` workflow.

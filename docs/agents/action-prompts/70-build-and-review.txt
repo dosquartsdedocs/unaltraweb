@@ -1,11 +1,12 @@
 Build and review an `unaltraweb` site change.
 
-1. Run `site_check`; resolve profile, freshness, computation, capture, bibliography, and editorial failures before building.
-2. When `site_check` reports delegated Vega validation, run the companion `visualization_check` before building.
+1. Run `site_doctor` and `site_check`; resolve distribution, scaffold, profile, freshness, computation, capture, bibliography, and editorial failures before building.
+2. When `site_check` reports a required companion gate, run the selected provider check and retain its verifiable `.unaltraweb/receipts/<provider>.json`; never substitute a caller-provided success flag.
 3. Render stale computation or capture artefacts explicitly, preserving edited SVG overrides, then rerun their checks.
 4. Run `build_site`, passing `site_profile` when reviewing a specific profile override.
-5. If a preview server is already running, call `http_check` with the expected local base URL and key paths.
-6. For visual or browser-level checks, use the consumer site's existing Playwright/render-smoke Make targets rather than inventing a new server workflow.
-7. For visible content changes, start or reuse the local `make serve` preview and ask the human author to review the rendered site in their browser.
-8. Do not commit or publish content changes until the human author explicitly approves that served preview.
-9. Summarize build failures with the relevant target, return code, and the actionable stderr/stdout tail.
+5. Review the `html_audit` returned by a successful `build_site`; resolve broken local targets/fragments and document accessibility findings before previewing.
+6. If the project-owned preview is already running, call `http_check` with key local paths. Never supply or probe an arbitrary origin.
+7. For visual or browser-level checks, use the consumer site's existing Playwright/render-smoke Make targets rather than inventing a new server workflow.
+8. For visible content changes, start or reuse the local `make serve` preview and ask the human author to review the rendered site in their browser.
+9. Do not commit or publish content changes until the human author explicitly approves that served preview.
+10. Summarize build failures with the relevant target, return code, timeout state, and the bounded actionable stderr/stdout.

@@ -6,23 +6,101 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .distribution import distribution_doctor
 from . import site_tools as tools
+
+
+PACKAGE_ONLY_COMMANDS = {"doctor", "new-web", "version"}
+FACTORY_REQUIRED_COMMANDS = {"factory-dir"}
+FACTORY_REQUIRED_MCP_COMMANDS = {
+    "serve",
+    "site-check",
+    "manual-computation-status",
+    "manual-computation-check",
+    "manual-computation-render",
+    "manual-computation-render-figures",
+    "web-capture-status",
+    "web-capture-check",
+    "web-capture-render",
+    "manual-pdf-status",
+    "manual-pdf-build",
+    "manual-pdf-publish",
+    "bibliometrics-check",
+    "bibliometrics-fetch-scimago",
+    "bibliometrics-update",
+    "build-site",
+    "prompts",
+}
+PACKAGE_ONLY_MCP_COMMANDS = {
+    "bibliography-add-entry",
+    "bibliography-inventory",
+    "build-health",
+    "content-approval-inventory",
+    "content-freshness-check",
+    "content-inventory",
+    "detect-site",
+    "html-audit",
+    "http-check",
+    "initialize-site",
+    "language-policy",
+    "list-tools",
+    "manual-authoring-capabilities",
+    "manual-editorial-quality-check",
+    "manual-source-quality-check",
+    "new-web",
+    "preview-start",
+    "preview-status",
+    "preview-stop",
+    "profile-check",
+    "profile-prune",
+    "profile-prune-plan",
+    "scaffold-sync",
+    "site-context",
+    "site-doctor",
+    "site-source-delete",
+    "site-source-read",
+    "site-source-write",
+    "starter-templates",
+    "translation-plan",
+}
+ALL_MCP_COMMANDS = FACTORY_REQUIRED_MCP_COMMANDS | PACKAGE_ONLY_MCP_COMMANDS
 
 
 def source_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def factory_dir() -> Path:
+def find_factory_dir() -> Path | None:
     candidates = []
     configured = os.environ.get("UNALTRAWEB_FACTORY_DIR", "").strip()
     if configured:
         candidates.append(Path(configured))
+    candidates.append(Path.cwd())
     candidates.append(source_root())
     for candidate in candidates:
-        if (candidate / "mcp-factory.yml").is_file():
-            return candidate.expanduser().resolve()
-    raise SystemExit("unaltraweb factory assets not found; set UNALTRAWEB_FACTORY_DIR")
+        resolved = candidate.expanduser().resolve()
+        manifest_path = resolved / "mcp-factory.yml"
+        if not manifest_path.is_file():
+            continue
+        try:
+            manifest = tools.load_yaml_file(manifest_path)
+        except Exception:
+            # YAML parser failures do not share one exception base across optional loaders.
+            continue
+        if manifest.get("name") == "unaltraweb":
+            return resolved
+    return None
+
+
+def factory_dir(command: str = "") -> Path:
+    factory = find_factory_dir()
+    if factory is not None:
+        return factory
+    label = f"MCP command '{command}'" if command else "This command"
+    raise SystemExit(
+        f"{label} requires the unaltraweb factory checkout. The modular wheel provides version, doctor, new-web, "
+        "and package-only inspection without factory assets; set UNALTRAWEB_FACTORY_DIR to a checkout containing mcp-factory.yml."
+    )
 
 
 def project_dir(raw: str | None) -> Path:
@@ -40,14 +118,14 @@ def cmd_version(_: argparse.Namespace) -> int:
 
 
 def cmd_factory_dir(_: argparse.Namespace) -> int:
-    print(factory_dir())
+    print(factory_dir("factory-dir"))
     return 0
 
 
 def cmd_new_web(args: argparse.Namespace) -> int:
     return print_json(
         tools.new_web(
-            Path(args.project),
+            Path(args.project or os.getcwd()),
             site_profile_value=args.site_profile,
             title=args.title,
             baseurl=args.baseurl,
@@ -59,10 +137,19 @@ def cmd_new_web(args: argparse.Namespace) -> int:
     )
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    raw_project = args.doctor_project if args.doctor_project is not None else args.project
+    project = project_dir(raw_project) if raw_project is not None else None
+    return print_json(
+        distribution_doctor(project=project, factory=find_factory_dir(), check_docker=args.docker),
+        enforce_ok=True,
+    )
+
+
 def cmd_mcp(args: argparse.Namespace) -> int:
     project = project_dir(args.project)
-    factory = factory_dir()
     command = args.mcp_command
+    factory = factory_dir(command) if command in FACTORY_REQUIRED_MCP_COMMANDS else find_factory_dir()
     if command == "serve":
         from .mcp_server import run_server
 
@@ -94,8 +181,38 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return cmd_new_web(args)
     if command == "site-context":
         return print_json(tools.site_context(project, factory))
+    if command == "site-doctor":
+        return print_json(tools.site_doctor(project, factory), enforce_ok=True)
     if command == "site-check":
         return print_json(tools.site_check(project, factory), enforce_ok=True)
+    if command == "site-source-read":
+        return print_json(tools.site_source_read(project, args.path))
+    if command == "site-source-write":
+        return print_json(
+            tools.site_source_write(
+                project,
+                args.path,
+                args.content,
+                expected_sha256=args.expected_sha256,
+                create_only=args.create_only,
+                dry_run=not args.apply,
+            )
+        )
+    if command == "site-source-delete":
+        return print_json(
+            tools.site_source_delete(
+                project,
+                args.path,
+                expected_sha256=args.expected_sha256,
+                dry_run=not args.apply,
+                confirm_delete=args.confirm_delete,
+            )
+        )
+    if command == "scaffold-sync":
+        return print_json(
+            tools.scaffold_sync(project, dry_run=not args.apply, confirm_sync=args.confirm_sync),
+            enforce_ok=True,
+        )
     if command == "profile-check":
         return print_json(tools.profile_check(project), enforce_ok=True)
     if command == "manual-source-quality-check":
@@ -159,9 +276,11 @@ def cmd_mcp(args: argparse.Namespace) -> int:
             )
         )
     if command == "build-site":
-        return print_json(tools.build_site(project, factory, site_profile=args.site_profile))
+        return print_json(tools.build_site(project, factory, site_profile=args.site_profile), enforce_ok=True)
     if command == "build-health":
         return print_json(tools.build_health(project))
+    if command == "html-audit":
+        return print_json(tools.html_audit(project), enforce_ok=True)
     if command == "preview-start":
         return print_json(tools.preview_start(project, port=args.port, site_profile=args.site_profile, timeout_seconds=args.timeout_seconds))
     if command == "preview-status":
@@ -169,7 +288,7 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "preview-stop":
         return print_json(tools.preview_stop(project))
     if command == "http-check":
-        return print_json(tools.http_check(args.base_url, paths=args.paths, timeout_seconds=args.timeout_seconds))
+        return print_json(tools.http_check(project, paths=args.paths, timeout_seconds=args.timeout_seconds), enforce_ok=True)
     if command == "prompts":
         return print_json(tools.prompt_inventory(factory))
     raise SystemExit(f"unsupported mcp command: {command}")
@@ -177,11 +296,16 @@ def cmd_mcp(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="unaltraweb-mcp")
-    parser.add_argument("--project", default=".", help="Consumer website workspace. Defaults to current directory.")
+    parser.add_argument("--project", default=None, help="Consumer website workspace. Defaults to current directory for project commands.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("version").set_defaults(func=cmd_version)
     sub.add_parser("factory-dir").set_defaults(func=cmd_factory_dir)
+
+    doctor = sub.add_parser("doctor", help="Inspect the modular distribution contract without network access")
+    doctor.add_argument("--project", dest="doctor_project", default=None, help="Optional consumer project to inspect.")
+    doctor.add_argument("--docker", action="store_true", help="Inspect selected local Docker images without pulling.")
+    doctor.set_defaults(func=cmd_doctor)
 
     new_web = sub.add_parser("new-web", help="Create a website from a package-owned profile scaffold")
     _add_new_web_arguments(new_web)
@@ -189,8 +313,28 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp = sub.add_parser("mcp", help="MCP server and JSON helper commands")
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
-    for name in ["serve", "list-tools", "starter-templates", "detect-site", "site-context", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "preview-stop", "prompts"]:
+    for name in ["serve", "list-tools", "starter-templates", "detect-site", "site-context", "site-doctor", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "html-audit", "preview-stop", "prompts"]:
         mcp_sub.add_parser(name)
+
+    source_read = mcp_sub.add_parser("site-source-read")
+    source_read.add_argument("--path", required=True)
+
+    source_write = mcp_sub.add_parser("site-source-write")
+    source_write.add_argument("--path", required=True)
+    source_write.add_argument("--content", required=True)
+    source_write.add_argument("--expected-sha256", default="")
+    source_write.add_argument("--create-only", action="store_true")
+    source_write.add_argument("--apply", action="store_true")
+
+    source_delete = mcp_sub.add_parser("site-source-delete")
+    source_delete.add_argument("--path", required=True)
+    source_delete.add_argument("--expected-sha256", required=True)
+    source_delete.add_argument("--apply", action="store_true")
+    source_delete.add_argument("--confirm-delete", action="store_true")
+
+    scaffold_sync = mcp_sub.add_parser("scaffold-sync")
+    scaffold_sync.add_argument("--apply", action="store_true")
+    scaffold_sync.add_argument("--confirm-sync", action="store_true")
 
     mcp_new_web = mcp_sub.add_parser("new-web")
     _add_new_web_arguments(mcp_new_web)
@@ -281,9 +425,8 @@ def build_parser() -> argparse.ArgumentParser:
     preview_status.add_argument("--include-logs", action="store_true")
 
     http = mcp_sub.add_parser("http-check")
-    http.add_argument("--base-url", default="http://127.0.0.1:4000")
-    http.add_argument("--paths", nargs="*", default=["/"])
-    http.add_argument("--timeout-seconds", type=float, default=5.0)
+    http.add_argument("--paths", nargs="*", default=None)
+    http.add_argument("--timeout-seconds", type=float, default=3.0)
 
     mcp.set_defaults(func=cmd_mcp)
     return parser

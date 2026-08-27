@@ -21,8 +21,8 @@ nav_title: Run And Preview
 
 1. Call `new_web` with one `unaltraweb.site_profile` and the site identity/language settings.
 2. Inspect the generated `_config.yml` and localized home page.
-3. Edit content and data files.
-4. Run `profile_check`, `site_check`, and `build_site`.
+3. Edit content and data files. MCP agents should read a source hash, review the default `site_source_write` dry-run, then apply the exact CAS update.
+4. Run `site_doctor`, `profile_check`, `site_check`, and `build_site`; review the returned HTML audit.
 5. Commit the reviewed site to `main`.
 6. Run the generated manual GitHub Pages workflow, or replace it with the workflow required by another host.
 
@@ -85,7 +85,11 @@ The generated repository contains one profile. Create a separate temporary site 
 - Gem updates change layouts, includes, Sass, plugins and scripts.
 - Docker image updates change local runtime dependencies and are published manually.
 - Reusable workflow updates change optional GitHub build and deploy behavior.
-- Package scaffold changes affect newly generated sites; existing repositories receive them only through an explicit migration.
+- Package scaffold changes affect newly generated sites. Existing generated repositories can review `scaffold_sync`, which manages only `.gitignore`, Makefile, Gemfile/lock, and the deploy workflow from `.unaltraweb/scaffold.json`; it never overwrites conflicts or changes config/content.
+
+## Safe MCP Editing
+
+`site_source_read`, `site_source_write`, and `site_source_delete` are deliberately restricted to `_config.yml`, Markdown/HTML content collections, YAML/JSON/CSV below `_data/`, and Markdown below `context/`. They do not expose generic filesystem access and cannot mutate workflows, runtime files, core overrides, bibliography, assets, or generated output. Writes default to dry-run and use SHA-256 optimistic concurrency; destructive deletes additionally require explicit confirmation and can never remove `_config.yml`.
 
 Dependabot can stay enabled for Bundler and GitHub Actions in child sites, but deploy workflows should remain manual so dependency pull requests do not consume deploy minutes automatically.
 

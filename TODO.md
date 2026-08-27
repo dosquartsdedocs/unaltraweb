@@ -59,7 +59,7 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 - Replaced the post-deploy link checker with a docs-only offline link check.
 - Added a manual/reusable publication metrics workflow at `.github/workflows/metrics-update.yml`.
 - Kept publication metrics PRs focused on versionable generated data: `_bibliography/**/*.bib` and `_data/metrics.yml`. Scimago caches and diagnostics remain unversioned.
-- Changed CodeQL to manual-only so automatic CI stays focused on web/docs.
+- Added automatic multi-language CodeQL and bounded PR/push CI without enabling automatic publication.
 - Fixed `scripts/biblio/fetch_scimago_csv.sh` so it validates Scimago data through its own script directory when called from child repositories.
 - Added clearer metrics failure reporting for missing Scimago data and OpenAlex/Crossref request errors.
 - Exposed local `METRICS_ARGS` and `SCIMAGO_INPUT` Makefile controls in both core and template repos.
@@ -87,7 +87,7 @@ Important current template behaviour:
 - Playwright render smoke tests verify `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs` profiles, desktop/mobile rendering, theme modes and screenshots.
 - The template deploy workflow calls `.github/workflows/site-deploy.yml` from this core.
 - The template manual `Update publication metrics` workflow calls `.github/workflows/metrics-update.yml` from this core.
-- The template local runtime defaults to `ghcr.io/dosquartsdedocs/unaltraweb:main`, while `LOCAL_CORE=../unaltraweb` remains the side-by-side development path.
+- The package scaffold local runtime defaults to the selected `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0`; the external template fixture should align its consumer defaults while `LOCAL_CORE=../unaltraweb` remains the side-by-side development path.
 - The template README explains the four profiles, the GitHub-only content workflow and the local Docker workflow.
 
 ## Next Work
@@ -106,12 +106,16 @@ mcp_dependencies:
     required: true
     install: true
     build: true
-    init: true
-    remote: git@github.com:dosquartsdedocs/diavisuals.git
+    init: false
+    remote: https://github.com/dosquartsdedocs/diavisuals.git
     package: diavisuals
+    version: 0.3.1
+    release: v0.3.1
+    release_status: pending
     extras:
       - mcp
     required_tools:
+      - project_check
       - render_diagram
       - render_diagram_text
     suggested_path: ../diavisuals
@@ -128,11 +132,11 @@ mcp_dependencies:
 - Audit which JS/CSS/assets currently live in child repos versus the gem/core. Any copied core code in child sites should either move into `unaltraweb` or be marked as a deliberate local override.
 - Continue hardening Docker as the primary user-facing runtime: users should only need Docker plus Git for normal local `make serve`, `make build` and `make test` flows.
 - Decide whether future images should preinstall the `unaltraweb` gem or keep the current split where the image owns runtime dependencies and the child `Gemfile` owns theme/plugin code.
-- Add versioning guidance for `ghcr.io/dosquartsdedocs/unaltraweb:main`, `latest`, release tags and the template's default `DOCKER_IMAGE` value before recommending this outside the pre-release workflow; ensure the GHCR package is public after the first publish.
+- The versioned component BOM now selects release images and exact companion releases; mutable `main`/`latest` channels are documented as maintainer-only. Ensure every GHCR package is public after its first approved publish.
 - Keep a developer path for local core work: `LOCAL_CORE=../unaltraweb` and possibly a Git-based gem dependency remain useful for testing, but should not be the normal user setup.
 - Decide how `diavisuals` is distributed for users. Preferred direction: `unaltraweb diagrams` works without cloning `diavisuals`, either by packaging the style/render tooling into the core image or by invoking a versioned render image.
 - Add update commands with clear semantics: `make update-core` or `unaltraweb update` pulls the Docker image/tag and runs `doctor`; optional git-upstream updates should be limited to starter/template migrations, not core code.
-- Add `make doctor` or `unaltraweb doctor` to validate the contract in child repos: no copied `_layouts/_includes/_sass/assets/js` core files unless declared, required collections/data exist for the selected profile and generated assets are in sync.
+- Distribution doctor now validates release/factory/project pins and feature selection offline. Extend it later with explicit copied-core-asset detection and generated-asset synchronization checks rather than conflating those with distribution health.
 - Revisit documentation pages for creating a new site after the keep/sync commands exist. Current docs already cover: choose profile, edit content/config, and serve/build through Docker.
 
 - Next-session focus for `unaltremanual`: make the manual content usable as a student-facing downloadable/printable PDF, likely through LaTeX/Pandoc. Treat PDF output as a first-class target, and mark web-only enhancements so they degrade cleanly or are omitted in PDF builds.

@@ -58,6 +58,11 @@ def main() -> None:
         assert status["ok"] is True
         assert status["running"] is True
         assert status["container"].startswith("unaltraweb-preview-")
+
+        checked = site_tools.http_check(project, paths=["/"], timeout_seconds=2)
+        assert checked["ok"] is True, checked
+        assert checked["owned"] is True
+        assert checked["redirects_followed"] == 0
     finally:
         stopped = site_tools.preview_stop(project)
         assert stopped["ok"] is True
