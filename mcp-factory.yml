@@ -1,15 +1,18 @@
 ---
 name: unaltraweb
 kind: codex-mcp-factory
-version: 0.2.0
-description: Reusable Jekyll website factory with MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, and build checks.
+version: 0.3.0
+description: Reusable Jekyll website factory with package-owned site creation and MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, and build checks.
 install_scope: user
 workspace_rule:
   consumer_root: .
   init_creates:
+    - .gitignore
+    - .github/workflows/deploy.yml
     - _config.yml
     - Makefile
     - Gemfile
+    - Gemfile.lock
     - _pages
     - _posts
     - _news
@@ -20,8 +23,12 @@ workspace_rule:
     - _bibliography
     - _data
     - assets
+    - .github/workflows
   source_paths:
     - _config.yml
+    - Gemfile
+    - Gemfile.lock
+    - Makefile
     - _pages
     - _posts
     - _news
@@ -32,6 +39,7 @@ workspace_rule:
     - _bibliography
     - _data
     - assets
+    - .github/workflows
     - .vegavisuals.yml
   generated_paths:
     - _site
@@ -44,7 +52,7 @@ workspace_rule:
 runtime:
   kind: container
   package_manager: docker
-  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0
+  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0
   package: unaltraweb-mcp
   module: unaltraweb_mcp
 transport:
@@ -82,6 +90,7 @@ mcp:
   transport: stdio
   resources:
     - web://site-context
+    - web://new-web-scaffolds
     - web://starter-templates
     - web://profile-contract
     - web://manual-writing-guidance
@@ -95,6 +104,7 @@ mcp:
     - web://build-health
     - web://prompts
   required_tools:
+    - new_web
     - initialize_site
     - starter_templates
     - site_context

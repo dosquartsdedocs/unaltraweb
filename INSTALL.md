@@ -1,35 +1,42 @@
 # Installing And Deploying
 
-`unaltraweb` is intended to be consumed from a child site, normally `dosquartsdedocs/unaltraweb-template`.
+`unaltraweb` is intended to be consumed from a thin child site created by the package-owned `new_web` operation.
 
 ## Create A Site
 
-Use local Docker when you need previews, larger edits, screenshots, tests or low-cost publishing. Use GitHub-only editing when you only need content changes and can publish with an explicit manual workflow.
+Use local Docker when you need previews, larger edits, screenshots, tests, or rendered-output review. Use GitHub-only editing when you only need content changes and can publish with an explicit manual workflow.
+
+Create a clean profile-specific repository locally or through the MCP:
+
+```bash
+unaltraweb-mcp --project ./my-site new-web --site-profile unaltredocs --title "Project documentation" --default-lang en
+```
+
+The command is idempotent for identical inputs and refuses differing files, symlinks, and unsafe language paths. It does not require or inspect `unaltraweb-template`.
 
 ### GitHub-only
 
-1. Create a new repository from `dosquartsdedocs/unaltraweb-template`.
+1. Push a site created by `new_web` to a new repository. A fork of `dosquartsdedocs/unaltraweb-template` is an optional alternative when its full demo and workflow files are wanted.
 2. Edit `_config.yml` with the public `url`, `baseurl`, title, language settings and `unaltraweb.site_profile`.
 3. Edit content in `_pages/`, `_posts/`, `_projects/`, `_chapters/`, `_bibliography/`, `_data/` and `assets/`.
 4. Commit to `main`.
-5. Publish explicitly, either by running the manual deploy workflow in GitHub Actions or by cloning locally and running `make publish`.
+5. Publish explicitly by running the generated manual deploy workflow in GitHub Actions.
 
 This path requires no local install. It is appropriate for adding bibliography entries, editing pages, updating posts and changing structured data.
 
-## Local Template Workflow
+## Local Site Workflow
 
 Install Git, Docker and GNU Make. On Windows, use WSL2 with Docker Desktop and run these commands inside the WSL Linux shell.
 
 ```bash
-cd ../unaltraweb-template
+cd ./my-site
 make serve
 make build
-make publish
 make test
 make down
 ```
 
-The template pulls `ghcr.io/dosquartsdedocs/unaltraweb:main` by default. That GHCR package must be public before unauthenticated users can pull it. The image is only the local runtime; layouts, styles and plugins still come from the `unaltraweb` gem.
+These targets run through the pinned MCP Docker image; Ruby and Bundler are not required on the host. The native targets remain available inside the MCP runtime. Layouts, styles and plugins still come from the `unaltraweb` gem/core mounted in that image.
 
 When running the core documentation and all template profiles together, use the convention `4000` for `unaltraweb` and `4001` through `4004` for `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs`.
 
@@ -80,20 +87,14 @@ Publication metrics are intentionally separate from automatic deploys. Run them 
 
 ## Child Site Deployment
 
-Child sites should prefer local publishing when possible:
-
-```bash
-make publish
-```
-
-Configure GitHub Pages to deploy from the `gh-pages` branch and `/` folder. The branch is generated and can be replaced by each new local publish.
-
-When a team needs GitHub-hosted publishing, the child site can keep a manual workflow wrapper around the reusable workflow:
+Sites created by `new_web` include a manual workflow wrapper around the reusable GitHub Pages workflow. Configure GitHub Pages to use GitHub Actions as its source, then run the workflow explicitly when reviewed content should go live:
 
 ```yaml
 jobs:
   deploy:
-    uses: dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@main
+    uses: dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@7855522e00562a43443b2a2e3294bb3c0ce7dc34
 ```
+
+Keep the reusable workflow pinned to a reviewed full commit SHA because it receives Pages and OIDC permissions.
 
 See `docs/distribution.md` for the update model and `../unaltraweb-template/.github/workflows/deploy.yml` for the current wrapper.

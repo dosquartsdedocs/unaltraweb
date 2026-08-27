@@ -8,7 +8,7 @@ The client registration should launch:
 make --silent --no-print-directory -C ${factoryRoot} mcp-stdio 'PROJECT=${workspaceFolder}'
 ```
 
-The opened workspace is the consumer website repository. Factory logic is embedded in `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0`. The launcher pulls that public image when it is not already present. Global clients that do not substitute `${workspaceFolder}` must preserve their startup directory before `make -C` runs:
+The opened workspace is the consumer website repository. Factory logic is embedded in `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0`. The launcher pulls that public image when it is not already present. Global clients that do not substitute `${workspaceFolder}` must preserve their startup directory before `make -C` runs:
 
 ```bash
 /bin/sh -c 'exec env PROJECT="$PWD" make --silent --no-print-directory -C /path/to/unaltraweb mcp-stdio'
@@ -39,13 +39,15 @@ When `.vegavisuals.yml` exists, `site_check` reports the delegated `visualizatio
 | `web://manual-writing-guidance` | Generic drafting and style-review prompts combined with the site's `context/writing-profile.md` when available. |
 | `web://manual-authoring-components` | Supported prose structures and component syntax, including callouts, definition lists, figure layouts, tables, diagrams, citations, and web/PDF compatibility. |
 | `web://web-captures` | Selector-based screenshot recipes, original PNGs, editable SVG layers, edited overrides, and freshness. |
+| `web://new-web-scaffolds` | Package-owned scaffold availability and contract paths for every supported site profile. |
 
 ## Tools
 
 | Tool | Notes |
 | --- | --- |
-| `starter_templates` | Discover available starter templates, usually `../unaltraweb-template`. |
-| `initialize_site` | Copy a starter site into the workspace and set profile/title/baseurl/url. Existing files are skipped unless overwrite is explicitly forced and confirmed. |
+| `new_web` | Create a profile-specific site from package-owned assets after a complete collision, path, and symlink preflight. |
+| `starter_templates` | List package-owned profile scaffolds under the legacy inventory name. |
+| `initialize_site` | Compatibility alias for `new_web`; external templates and overwrite mode are rejected. |
 | `detect_site` | Detect an unaltraweb consumer from `_config.yml` and `Gemfile`, and report whether its Makefile exposes the native build/serve contract. |
 | `site_context` | Read the main local state for an agent session. |
 | `site_check` | Run profile, freshness, bibliography, bibliometrics, and build-state checks without network. |
@@ -84,13 +86,13 @@ Manual PDF publication is a local workspace operation: it copies reviewed artefa
 
 ## New Site Initialization
 
-`initialize_site` is intended for empty or nearly-empty website repositories. It copies a starter template into the consumer workspace, skips generated folders such as `_site`, `.jekyll-cache`, `.bundle`, `.cache`, `node_modules`, `tmp`, and `vendor`, and updates `_config.yml` with the selected `unaltraweb.site_profile`, `title`, `baseurl`, and `url`.
+`new_web` is intended for empty or nearly-empty website repositories. It creates common runtime files, profile-specific configuration, localized home pages, and the content paths required by the selected profile. All scaffold assets are shipped inside the `unaltraweb_mcp` Python package and MCP Docker image; environment variables, sibling checkouts, and arbitrary template paths are not consulted.
 
-It can also set `lang`, `default_lang`, and `languages` so a new site has an explicit source language from the first commit.
+It sets `lang`, `default_lang`, and `languages` so a new site has an explicit source language from the first commit. The default is a single English home page; every configured language gets a localized home-page source and route.
 
-By default it does not overwrite existing files. Overwrites require both `force=true` and `confirm_overwrite=true`, and agents should only use that combination after explicit user approval.
+Before writing, it validates every managed path, rejects destination symlinks, and compares existing files with the complete rendered scaffold. Identical files make repeated calls idempotent. Any differing file or file/directory collision detected during preflight aborts the whole operation before website files are written. Descriptor-relative, no-clobber writes and a final descriptor-relative content check prevent raced paths from being followed or overwritten; overwrite mode is not available.
 
-Use `profile_prune_plan` after initialization when the starter should be reduced to one profile. The prune rule is deliberately conservative: it only targets Markdown/HTML content files with explicit `profiles:` front matter that does not include the selected profile. It does not remove assets, bibliography, `_data`, or unprofiled content. Destructive pruning requires `profile_prune(dry_run=false, confirm_prune=true)` after the plan has been reviewed.
+Each scaffold is already reduced to one profile, so `profile_prune_plan` is not part of new-site creation. The prune rule remains available for existing mixed-profile sites.
 
 ## Language And Translation Discipline
 
@@ -104,7 +106,7 @@ Translations are a pre-publication task. They should preserve `ref`, citations, 
 
 ## Docker Runtime And Preview
 
-`make mcp-build` builds `ghcr.io/dosquartsdedocs/unaltraweb:0.2.0` and then `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0` locally. `make mcp-smoke` runs a real MCP client/server stdio exchange, compiles a temporary minimal site, and exercises preview start/status/stop. `mcp-stdio` remains dormant until a client launches it.
+`make mcp-build` builds `ghcr.io/dosquartsdedocs/unaltraweb:0.3.0` and then `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0` locally. `make mcp-smoke` runs a real MCP client/server stdio exchange, compiles a temporary minimal site, and exercises preview start/status/stop. `mcp-stdio` remains dormant until a client launches it.
 
 Run `site_check` and resolve any blocking validation result before compiling. `build_site` then reuses the active MCP container and the consumer's `build-native` target. This is intentionally different from the consumer's normal host-side `make build`, which starts a Jekyll container and would create a nested runtime when called from MCP.
 

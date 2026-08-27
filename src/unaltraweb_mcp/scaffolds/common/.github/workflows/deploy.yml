@@ -1,0 +1,13 @@
+name: Deploy site
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    uses: dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@7855522e00562a43443b2a2e3294bb3c0ce7dc34

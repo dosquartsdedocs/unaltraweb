@@ -1,10 +1,10 @@
 PYTHON ?= python3
 PROJECT ?= .
-MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.2.0
-MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0
+MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
+MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0
 MCP_DOCKER_BUILD_NETWORK ?= default
-TEMPLATE_PATH ?=
 INIT_SITE_PROFILE ?= unaltreselfie
+NEW_WEB_PROFILE ?= unaltreselfie
 SITE_PROFILE ?=
 SITE_TITLE ?=
 BASEURL ?=
@@ -57,7 +57,7 @@ SCIMAGO_ARGS += --input $(SCIMAGO_INPUT)
 endif
 
 .PHONY: docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check manual-pdf-image manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio compute-base-image-python compute-base-image-r web-capture-status web-capture-check web-capture-render web-capture-image visualization-status visualization-check visualization-render
-.PHONY: mcp-runtime-image mcp-image mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-down mcp-list-tools mcp-starter-templates mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
+.PHONY: mcp-runtime-image mcp-image mcp-build mcp-init mcp-check mcp-smoke mcp-stdio mcp-down mcp-list-tools mcp-starter-templates mcp-new-web mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
 
 mcp-runtime-image: ## Build the reusable Jekyll runtime used by the MCP
 	docker build --network "$(MCP_DOCKER_BUILD_NETWORK)" -t "$(MCP_RUNTIME_IMAGE)" .
@@ -98,8 +98,11 @@ mcp-list-tools: ## List MCP resources, prompts, and tools exposed by this factor
 mcp-starter-templates: ## List starter website templates available to initialize PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp starter-templates
 
-mcp-initialize-site: ## Initialize PROJECT from the starter template without overwriting existing files
-	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp initialize-site --template-path "$(TEMPLATE_PATH)" --site-profile "$(INIT_SITE_PROFILE)" --title "$(SITE_TITLE)" --baseurl "$(BASEURL)" --url "$(URL)" --default-lang "$(DEFAULT_LANG)" --languages "$(LANGUAGES)"
+mcp-new-web: ## Create PROJECT from the package-owned scaffold for NEW_WEB_PROFILE
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" new-web --site-profile "$(NEW_WEB_PROFILE)" --title "$(SITE_TITLE)" --baseurl "$(BASEURL)" --url "$(URL)" --default-lang "$(DEFAULT_LANG)" --languages "$(LANGUAGES)"
+
+mcp-initialize-site: ## Compatibility alias for package-owned website creation
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp initialize-site --site-profile "$(INIT_SITE_PROFILE)" --title "$(SITE_TITLE)" --baseurl "$(BASEURL)" --url "$(URL)" --default-lang "$(DEFAULT_LANG)" --languages "$(LANGUAGES)"
 
 mcp-site-context: ## Print JSON site context for PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp site-context

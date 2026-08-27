@@ -30,4 +30,4 @@ Profiles choose a real build shape before Jekyll writes the site. They are not c
 
 ## Can one repository contain all profiles?
 
-The template does, because it is a starter and integration fixture. Real sites should normally keep one published profile and only the content they need.
+The integration template does so it can test every profile. `new_web` creates real sites with one selected profile and only its required content paths.

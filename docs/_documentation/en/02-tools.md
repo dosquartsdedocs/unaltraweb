@@ -20,7 +20,7 @@ nav_title: Local Tools
 
 | Path | Required tools | Best for |
 |---|---|---|
-| Local Docker | Git, Docker, GNU Make | Previewing, larger edits, screenshots, tests, profile comparison and publishing to `gh-pages` |
+| Local Docker | Git, Docker, GNU Make | Previewing, larger edits, screenshots, tests, and rendered-output review |
 | GitHub-only | Browser, GitHub account, repository created from the template | Small content edits, bibliography entries, page text, YAML data and configuration changes, followed by a manual deploy workflow |
 | Windows local | WSL2, Docker Desktop with WSL integration, Git and Make inside WSL | The supported Windows equivalent of the local Docker path |
 | Core maintenance | Docker, Git, GitHub Actions, GHCR access; Ruby/Bundler optional for direct debugging | Changing layouts, plugins, Sass, scripts, workflows and the shared runtime image |
@@ -35,7 +35,18 @@ ghcr.io/dosquartsdedocs/unaltraweb:main
 
 That image provides Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local commands. The GHCR package must be public before unauthenticated users can pull it.
 
-## Template Commands
+## Generated Site Commands
+
+Clean sites created by `new_web` expose the Dockerized core workflow:
+
+```bash
+make serve
+make build
+make test
+make down
+```
+
+## Integration Template Commands
 
 Run these from a child site created from `unaltraweb-template`:
 
@@ -100,8 +111,8 @@ When the core docs and all template profiles are running together, use this conv
 
 ## Publishing Checklist
 
-- Preferred route: enable GitHub Pages from the `gh-pages` branch and `/` folder, then publish locally with `make publish`.
-- GitHub-only route: enable GitHub Pages with GitHub Actions as the source and run the manual deploy workflow when needed.
-- Keep the template deploy workflow as a thin `workflow_dispatch` wrapper around `dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@main`.
+- Generated-site route: enable GitHub Pages with GitHub Actions as the source and run the manual deploy workflow when needed.
+- Keep deploy workflows as thin `workflow_dispatch` wrappers pinned to a reviewed full commit SHA of `dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml`.
+- The optional integration template may retain its local `gh-pages` publishing target for testing that separate workflow.
 - After the first Docker publish, make `ghcr.io/dosquartsdedocs/unaltraweb` public.
 - Confirm `docker pull ghcr.io/dosquartsdedocs/unaltraweb:main` works without `docker login`.

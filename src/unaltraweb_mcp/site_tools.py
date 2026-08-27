@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import time
 import urllib.error
@@ -164,16 +163,8 @@ PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     },
 }
 
-SKIPPED_TEMPLATE_PARTS = {
-    ".git",
-    ".bundle",
-    ".cache",
-    ".jekyll-cache",
-    "_site",
-    "node_modules",
-    "tmp",
-    "vendor",
-}
+SCAFFOLD_TEMPLATE_FILES = {"_config.yml.tmpl", "home.md.tmpl"}
+LANGUAGE_RE = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 
 
 def project_path(raw: str | Path | None) -> Path:
@@ -439,48 +430,34 @@ def content_inventory(project: Path) -> dict[str, Any]:
     }
 
 
-def starter_templates(factory: Path) -> dict[str, Any]:
-    factory = project_path(factory)
-    configured = os.environ.get("UNALTRAWEB_TEMPLATE_PATH", "").strip()
-    candidates = ([Path(configured).expanduser()] if configured else []) + [
-        factory / "templates" / "site",
-        factory / "templates" / "project",
-        factory.parent / "unaltraweb-template",
-    ]
-    templates = []
-    seen: set[Path] = set()
-    for candidate in candidates:
-        candidate = candidate.resolve()
-        if candidate in seen:
-            continue
-        seen.add(candidate)
-        templates.append(
+def _scaffold_root() -> Path:
+    return Path(__file__).resolve().parent / "scaffolds"
+
+
+def scaffold_inventory() -> dict[str, Any]:
+    root = _scaffold_root()
+    profiles = []
+    for profile, contract in PROFILE_CONTRACTS.items():
+        profile_root = root / "profiles" / profile
+        profiles.append(
             {
-                "path": str(candidate),
-                "available": (candidate / "_config.yml").is_file(),
-                "has_makefile": (candidate / "Makefile").is_file(),
-                "has_gemfile": (candidate / "Gemfile").is_file(),
+                "profile": profile,
+                "description": contract["description"],
+                "available": (profile_root / "_config.yml.tmpl").is_file() and (profile_root / "home.md.tmpl").is_file(),
+                "recommended_paths": contract["recommended_paths"],
             }
         )
-    default = next((item["path"] for item in templates if item["available"]), "")
-    return {"factory": str(factory), "default": default, "templates": templates}
+    return {
+        "source": "unaltraweb_mcp package",
+        "default": "unaltreselfie",
+        "common_available": (root / "common" / "Makefile").is_file() and (root / "common" / "Gemfile").is_file(),
+        "profiles": profiles,
+    }
 
 
-def _resolve_template(factory: Path, template_path: str = "") -> Path:
-    if template_path:
-        template = Path(template_path).expanduser().resolve()
-        if not (template / "_config.yml").is_file():
-            raise ValueError(f"Template path does not look like an unaltraweb site template: {template}")
-        return template
-    status = starter_templates(factory)
-    default = str(status.get("default") or "")
-    if not default:
-        raise ValueError("No starter template found. Pass template_path or place unaltraweb-template next to the factory checkout.")
-    return Path(default)
-
-
-def _should_skip_template_path(path: Path) -> bool:
-    return any(part in SKIPPED_TEMPLATE_PARTS for part in path.parts)
+def starter_templates(factory: Path) -> dict[str, Any]:
+    """Return the package-owned scaffolds exposed by the legacy inventory name."""
+    return {"factory": str(project_path(factory)), **scaffold_inventory()}
 
 
 def _yaml_scalar(value: str) -> str:
@@ -491,93 +468,282 @@ def _yaml_inline_list(values: list[str]) -> str:
     return "[" + ", ".join(_yaml_scalar(value) for value in values) + "]"
 
 
-def _replace_top_level_scalar(lines: list[str], key: str, value: str) -> tuple[list[str], bool]:
-    replaced = False
-    rendered = f"{key}: {_yaml_scalar(value)}"
-    output = []
-    for line in lines:
-        if not replaced and line.startswith(f"{key}:"):
-            output.append(rendered)
-            replaced = True
-        else:
-            output.append(line)
-    if not replaced:
-        output.append(rendered)
-    return output, replaced
+def _validated_languages(default_lang: str, languages: str | list[str] | None) -> tuple[str, list[str]]:
+    values = _parse_languages(languages)
+    selected_default = default_lang.strip() or (values[0] if values else "en")
+    if selected_default not in values:
+        values.insert(0, selected_default)
+    values = list(dict.fromkeys(values))
+    invalid = [value for value in values if not LANGUAGE_RE.fullmatch(value)]
+    if invalid:
+        raise ValueError(f"Invalid language identifier: {invalid[0]}")
+    return selected_default, values
 
 
-def _replace_unaltraweb_site_profile(lines: list[str], site_profile_value: str) -> tuple[list[str], bool]:
-    rendered = f"  site_profile: {_yaml_scalar(site_profile_value)}"
-    output: list[str] = []
-    in_unaltraweb = False
-    replaced = False
-    inserted = False
-    for line in lines:
-        if line.startswith("unaltraweb:"):
-            in_unaltraweb = True
-            output.append(line)
+def _render_scaffold_template(path: Path, replacements: dict[str, str]) -> bytes:
+    text = path.read_text(encoding="utf-8")
+    for token, value in replacements.items():
+        text = text.replace(f"__{token}__", value)
+    unresolved = sorted(set(re.findall(r"__[A-Z_]+__", text)))
+    if unresolved:
+        raise RuntimeError(f"Unresolved scaffold tokens in {path.name}: {', '.join(unresolved)}")
+    return text.encode("utf-8")
+
+
+def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, default_lang: str, languages: list[str]) -> dict[Path, bytes]:
+    root = _scaffold_root()
+    common_root = root / "common"
+    profile_root = root / "profiles" / profile
+    required = [common_root / "Makefile", common_root / "Gemfile", profile_root / "_config.yml.tmpl", profile_root / "home.md.tmpl"]
+    missing = [str(path) for path in required if not path.is_file()]
+    if missing:
+        raise RuntimeError(f"Package-owned new-web scaffold is incomplete: {', '.join(missing)}")
+
+    payloads: dict[Path, bytes] = {}
+    for source_root in [common_root, profile_root]:
+        for source in sorted(source_root.rglob("*")):
+            if source.is_symlink():
+                raise RuntimeError(f"Package-owned scaffold contains a symlink: {source}")
+            if not source.is_file() or source.name in SCAFFOLD_TEMPLATE_FILES:
+                continue
+            relative = source.relative_to(source_root)
+            if relative in payloads:
+                raise RuntimeError(f"Duplicate package-owned scaffold path: {relative}")
+            payloads[relative] = source.read_bytes()
+
+    replacements = {
+        "TITLE": _yaml_scalar(title),
+        "URL": _yaml_scalar(url),
+        "BASEURL": _yaml_scalar(baseurl),
+        "DEFAULT_LANG": _yaml_scalar(default_lang),
+        "LANGUAGES": _yaml_inline_list(languages),
+    }
+    payloads[Path("_config.yml")] = _render_scaffold_template(profile_root / "_config.yml.tmpl", replacements)
+    for language in languages:
+        home_replacements = {
+            "TITLE": _yaml_scalar(title),
+            "LANG": _yaml_scalar(language),
+            "PERMALINK": _yaml_scalar("/" if language == default_lang else f"/{language}/"),
+        }
+        payloads[Path("_pages") / language / "index.md"] = _render_scaffold_template(profile_root / "home.md.tmpl", home_replacements)
+    return payloads
+
+
+def _scaffold_preflight(project: Path, payloads: dict[Path, bytes], required_directories: set[Path]) -> tuple[list[Path], list[Path]]:
+    if project.exists() and not project.is_dir():
+        raise RuntimeError(f"New website path is not a directory: {project}")
+
+    all_directories = set(required_directories)
+    for relative in required_directories | set(payloads):
+        parent = relative.parent
+        while parent != Path("."):
+            all_directories.add(parent)
+            parent = parent.parent
+
+    conflicts: list[str] = []
+    for relative in sorted(all_directories | set(payloads)):
+        if relative.is_absolute() or ".." in relative.parts:
+            conflicts.append(f"unsafe scaffold path: {relative}")
             continue
-        if in_unaltraweb and line and not line.startswith((" ", "\t")):
-            if not replaced and not inserted:
-                output.append(rendered)
-                inserted = True
-            in_unaltraweb = False
-        if in_unaltraweb and line.startswith("  site_profile:"):
-            output.append(rendered)
-            replaced = True
+        target = project / relative
+        current = project
+        has_symlink = False
+        for part in relative.parts:
+            current = current / part
+            if current.is_symlink():
+                conflicts.append(f"symlink is not allowed at scaffold path: {current.relative_to(project)}")
+                has_symlink = True
+                break
+        if has_symlink:
             continue
-        output.append(line)
-    if in_unaltraweb and not replaced and not inserted:
-        output.append(rendered)
-        inserted = True
-    if not any(line.startswith("unaltraweb:") for line in lines):
-        output.extend(["unaltraweb:", rendered])
-        inserted = True
-    return output, replaced or inserted
+        try:
+            target.resolve(strict=False).relative_to(project)
+        except ValueError:
+            conflicts.append(f"path escapes the website root: {relative}")
 
+    for relative in sorted(all_directories):
+        target = project / relative
+        if target.exists() and not target.is_dir():
+            conflicts.append(f"expected a directory but found a file: {relative}")
 
-def _replace_top_level_list(lines: list[str], key: str, values: list[str]) -> tuple[list[str], bool]:
-    replaced = False
-    rendered = f"{key}: {_yaml_inline_list(values)}"
-    output = []
-    for line in lines:
-        if not replaced and line.startswith(f"{key}:"):
-            output.append(rendered)
-            replaced = True
+    create: list[Path] = []
+    unchanged: list[Path] = []
+    for relative, content in sorted(payloads.items()):
+        target = project / relative
+        if target.is_symlink():
+            continue
+        if target.exists():
+            if not target.is_file():
+                conflicts.append(f"expected a file but found a directory: {relative}")
+            elif target.read_bytes() == content:
+                unchanged.append(relative)
+            else:
+                conflicts.append(f"existing file differs from the package scaffold: {relative}")
         else:
-            output.append(line)
-    if not replaced:
-        output.append(rendered)
-    return output, replaced
+            create.append(relative)
+
+    if conflicts:
+        details = "\n".join(f"- {message}" for message in sorted(set(conflicts)))
+        raise RuntimeError(f"new-web preflight failed; no website files were written:\n{details}")
+    return create, unchanged
 
 
-def _update_initialized_config(project: Path, *, site_profile_value: str, title: str, baseurl: str, url: str, default_lang: str, languages: list[str]) -> dict[str, Any]:
-    config_path = project / "_config.yml"
-    if not config_path.is_file():
-        return {"updated": False, "reason": "_config.yml not found"}
-    lines = config_path.read_text(encoding="utf-8").splitlines()
-    updates: list[str] = []
-    if title:
-        lines, _ = _replace_top_level_scalar(lines, "title", title)
-        updates.append("title")
-    if baseurl:
-        lines, _ = _replace_top_level_scalar(lines, "baseurl", baseurl)
-        updates.append("baseurl")
-    if url:
-        lines, _ = _replace_top_level_scalar(lines, "url", url)
-        updates.append("url")
-    if default_lang:
-        lines, _ = _replace_top_level_scalar(lines, "lang", default_lang)
-        lines, _ = _replace_top_level_scalar(lines, "default_lang", default_lang)
-        updates.extend(["lang", "default_lang"])
-    if languages:
-        lines, _ = _replace_top_level_list(lines, "languages", languages)
-        updates.append("languages")
-    if site_profile_value:
-        lines, _ = _replace_unaltraweb_site_profile(lines, site_profile_value)
-        updates.append("unaltraweb.site_profile")
-    config_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
-    return {"updated": bool(updates), "path": rel(project, config_path), "keys": updates}
+def _new_web_project_path(raw: str | Path) -> Path:
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    path = Path(os.path.abspath(path))
+    current = Path(path.anchor)
+    for part in path.parts[1:]:
+        current /= part
+        if current.is_symlink():
+            raise RuntimeError(f"Symlinks are not allowed in the new website destination: {current}")
+    return path
+
+
+def _open_or_create_scaffold_root(project: Path) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    current_fd = os.open(project.anchor, flags)
+    try:
+        for part in project.parts[1:]:
+            try:
+                os.mkdir(part, dir_fd=current_fd)
+            except FileExistsError:
+                pass
+            next_fd = os.open(part, flags, dir_fd=current_fd)
+            os.close(current_fd)
+            current_fd = next_fd
+        return current_fd
+    except Exception:
+        os.close(current_fd)
+        raise
+
+
+def _open_scaffold_directory(root_fd: int, relative: Path, *, create: bool) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    current_fd = os.dup(root_fd)
+    try:
+        for part in relative.parts:
+            if create:
+                try:
+                    os.mkdir(part, dir_fd=current_fd)
+                except FileExistsError:
+                    pass
+            next_fd = os.open(part, flags, dir_fd=current_fd)
+            os.close(current_fd)
+            current_fd = next_fd
+        return current_fd
+    except Exception:
+        os.close(current_fd)
+        raise
+
+
+def _create_scaffold_file(root_fd: int, relative: Path, content: bytes) -> None:
+    parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=True)
+    file_fd: int | None = None
+    created_stat: os.stat_result | None = None
+    try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        file_fd = os.open(relative.name, flags, 0o644, dir_fd=parent_fd)
+        created_stat = os.fstat(file_fd)
+        remaining = memoryview(content)
+        while remaining:
+            written = os.write(file_fd, remaining)
+            if written == 0:
+                raise OSError(f"Could not finish writing scaffold file: {relative}")
+            remaining = remaining[written:]
+        os.fsync(file_fd)
+    except Exception:
+        if created_stat is not None:
+            try:
+                current_stat = os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False)
+                if (current_stat.st_dev, current_stat.st_ino) == (created_stat.st_dev, created_stat.st_ino):
+                    os.unlink(relative.name, dir_fd=parent_fd)
+            except FileNotFoundError:
+                pass
+        raise
+    finally:
+        if file_fd is not None:
+            os.close(file_fd)
+        os.close(parent_fd)
+
+
+def _read_scaffold_file(root_fd: int, relative: Path) -> bytes:
+    parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
+    file_fd: int | None = None
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        file_fd = os.open(relative.name, flags, dir_fd=parent_fd)
+        chunks = []
+        while chunk := os.read(file_fd, 65536):
+            chunks.append(chunk)
+        return b"".join(chunks)
+    finally:
+        if file_fd is not None:
+            os.close(file_fd)
+        os.close(parent_fd)
+
+
+def new_web(
+    project: Path,
+    *,
+    site_profile_value: str = "unaltreselfie",
+    title: str = "",
+    baseurl: str = "",
+    url: str = "",
+    default_lang: str = "",
+    languages: str | list[str] | None = None,
+) -> dict[str, Any]:
+    project = _new_web_project_path(project)
+    if site_profile_value not in PROFILE_CONTRACTS:
+        raise ValueError(f"Unknown site profile: {site_profile_value}")
+
+    selected_default, language_values = _validated_languages(default_lang, languages)
+    selected_title = title.strip() or "New unaltraweb site"
+    payloads = _scaffold_payloads(
+        site_profile_value,
+        title=selected_title,
+        baseurl=baseurl,
+        url=url,
+        default_lang=selected_default,
+        languages=language_values,
+    )
+    recommended_paths = {Path(path) for path in PROFILE_CONTRACTS[site_profile_value]["recommended_paths"]}
+    required_directories = {path for path in recommended_paths if path not in payloads}
+    required_directories.update(relative.parent for relative in payloads if relative.parent != Path("."))
+    create, unchanged = _scaffold_preflight(project, payloads, required_directories)
+
+    root_fd = _open_or_create_scaffold_root(project)
+    try:
+        for relative in sorted(required_directories):
+            directory_fd = _open_scaffold_directory(root_fd, relative, create=True)
+            os.close(directory_fd)
+        for relative in create:
+            _create_scaffold_file(root_fd, relative, payloads[relative])
+        for relative, content in sorted(payloads.items()):
+            if _read_scaffold_file(root_fd, relative) != content:
+                raise RuntimeError(f"Scaffold file changed while new-web was running: {relative}")
+    except OSError as exc:
+        raise RuntimeError(f"new-web could not apply the preflighted scaffold safely: {exc}") from exc
+    finally:
+        os.close(root_fd)
+
+    check = profile_check(project)
+    return {
+        "ok": check["ok"],
+        "operation": "new_web",
+        "project": str(project),
+        "source": "unaltraweb_mcp package",
+        "site_profile": site_profile_value,
+        "default_language": selected_default,
+        "languages": language_values,
+        "created_count": len(create),
+        "created": [str(path) for path in create],
+        "unchanged_count": len(unchanged),
+        "unchanged": [str(path) for path in unchanged],
+        "profile_check": check,
+        "next_steps": ["Edit the generated configuration and home page", "Run site_check", "Run build_site"],
+    }
 
 
 def initialize_site(
@@ -594,82 +760,20 @@ def initialize_site(
     force: bool = False,
     confirm_overwrite: bool = False,
 ) -> dict[str, Any]:
-    project = project_path(project)
-    factory = project_path(factory)
-    if force and not confirm_overwrite:
-        raise RuntimeError("force=True can overwrite existing website files; call again with confirm_overwrite=True only after user approval")
-    if site_profile_value and site_profile_value not in PROFILE_CONTRACTS:
-        raise ValueError(f"Unknown site profile: {site_profile_value}")
-
-    template = _resolve_template(factory, template_path)
-    language_values = _parse_languages(languages)
-    if default_lang and language_values and default_lang not in language_values:
-        language_values.insert(0, default_lang)
-    project.mkdir(parents=True, exist_ok=True)
-    config_existed_before = (project / "_config.yml").exists()
-    copied: list[str] = []
-    skipped_existing: list[str] = []
-    skipped_template: list[str] = []
-    overwritten: list[str] = []
-
-    for root_raw, dirnames, filenames in os.walk(template):
-        dirnames.sort()
-        filenames.sort()
-        root = Path(root_raw)
-        root_relative = root.relative_to(template)
-        skipped_dirs = [name for name in dirnames if name in SKIPPED_TEMPLATE_PARTS]
-        for name in skipped_dirs:
-            skipped_path = Path(name) if str(root_relative) == "." else root_relative / name
-            skipped_template.append(str(skipped_path))
-        dirnames[:] = [name for name in dirnames if name not in SKIPPED_TEMPLATE_PARTS]
-
-        target_root = project if str(root_relative) == "." else project / root_relative
-        target_root.mkdir(parents=True, exist_ok=True)
-
-        for filename in filenames:
-            source = root / filename
-            relative = source.relative_to(template)
-            if _should_skip_template_path(relative):
-                skipped_template.append(str(relative))
-                continue
-            target = project / relative
-            if target.exists() and not force:
-                skipped_existing.append(str(relative))
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if target.exists() and force:
-                overwritten.append(str(relative))
-            shutil.copy2(source, target)
-            copied.append(str(relative))
-
-    if config_existed_before and not force:
-        config_update = {"updated": False, "path": "_config.yml", "reason": "existing _config.yml was left unchanged because force is false"}
-    else:
-        config_update = _update_initialized_config(
-            project,
-            site_profile_value=site_profile_value,
-            title=title,
-            baseurl=baseurl,
-            url=url,
-            default_lang=default_lang,
-            languages=language_values,
-        )
-    return {
-        "ok": True,
-        "project": str(project),
-        "template": str(template),
-        "requested_site_profile": site_profile_value,
-        "site_profile": site_profile(site_config(project)),
-        "copied_count": len(copied),
-        "copied": copied[:120],
-        "skipped_existing_count": len(skipped_existing),
-        "skipped_existing": skipped_existing[:120],
-        "skipped_template": sorted(set(skipped_template))[:120],
-        "overwritten_count": len(overwritten),
-        "overwritten": overwritten[:120],
-        "config_update": config_update,
-        "next_steps": ["Run profile_check", "Run profile_prune_plan if the starter should be reduced to one profile", "Run build_site when dependencies are available"],
-    }
+    del factory, confirm_overwrite
+    if template_path:
+        raise ValueError("External template paths are not supported; new websites use package-owned profile scaffolds")
+    if force:
+        raise RuntimeError("Package-owned new-web scaffolds never overwrite differing files")
+    return new_web(
+        project,
+        site_profile_value=site_profile_value,
+        title=title,
+        baseurl=baseurl,
+        url=url,
+        default_lang=default_lang,
+        languages=languages,
+    )
 
 
 def profile_prune_plan(project: Path, site_profile_value: str = "") -> dict[str, Any]:
@@ -2522,7 +2626,7 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
     prefix = "/" + baseurl.strip("/") if baseurl else ""
     lang = default_language(config).strip("/")
     route = f"{prefix}/{lang}/" if lang else f"{prefix}/"
-    image = os.environ.get("UNALTRAWEB_MCP_IMAGE", "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0")
+    image = os.environ.get("UNALTRAWEB_MCP_IMAGE", "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0")
     owner = os.environ.get("UNALTRAWEB_PROJECT_USER", "").strip()
     if owner and not re.fullmatch(r"\d+:\d+", owner):
         raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
@@ -2686,9 +2790,9 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
 
 def list_tools() -> dict[str, Any]:
     return {
-        "resources": ["web://site-context", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
-        "prompts": ["start_site_session", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "manual_structure_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
-        "tools": ["initialize_site", "starter_templates", "detect_site", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "preview_start", "preview_status", "preview_stop", "http_check"],
+        "resources": ["web://site-context", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
+        "prompts": ["start_site_session", "create_new_web", "content_update", "edit_default_content", "manual_teaching_materials", "manual_style_audit", "manual_structure_audit", "translation_prepublish", "project_site_update", "documentation_update", "bibliography_entry", "bibliometrics_refresh", "build_and_review"],
+        "tools": ["new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_check", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
 
 

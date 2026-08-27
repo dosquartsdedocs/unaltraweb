@@ -14,18 +14,18 @@ weight: 510
 permalink: "/template/"
 nav_title: Core And Template
 ---
-<p class="lede"><code>unaltraweb-template</code> is the starter repository and integration fixture. It should stay thin, but it is the best place to prove that the gem works for real child sites.</p>
+<p class="lede"><code>unaltraweb-template</code> is the full-profile demo and integration fixture. It should stay thin, but it is the best place to prove that the gem works for real child sites. Clean sites come from the package-owned <code>new_web</code> scaffolds.</p>
 
 ## Why The Template Matters
 
 - It consumes `unaltraweb` as an external dependency.
 - It contains realistic demo content for `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs` profiles.
-- It owns the local Docker workflow for child sites.
+- It exercises richer local Docker and browser-test orchestration than the clean package scaffolds.
 - It uses the shared `ghcr.io/dosquartsdedocs/unaltraweb:main` runtime image by default.
 - It runs Playwright smoke tests and screenshots across profiles, themes and responsive layouts.
-- It keeps starter-site content out of the reusable core.
+- It keeps rich demo content out of clean profile scaffolds.
 
-The core `docs/` site is different: it is an `unaltredocs`-style documentation site for explaining `unaltraweb` itself. The template is the place where all four profile starters are shown together.
+The core `docs/` site is different: it is an `unaltredocs`-style documentation site for explaining `unaltraweb` itself. The template is the place where richer examples of all four profiles are shown together.
 
 ## What Should Stay In The Core
 

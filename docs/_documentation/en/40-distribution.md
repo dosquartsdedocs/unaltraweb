@@ -17,28 +17,29 @@ nav_title: Distribution Model
 ## Repository Roles
 
 - `unaltraweb`: layouts, includes, Sass, assets, Jekyll plugins, Python and shell tooling, reusable GitHub Actions workflows, documentation, small internal examples and the shared Docker runtime image.
-- `unaltraweb-template`: `_config.yml`, editable content, local overrides, demo assets, local Docker workflow, Dependabot config, workflow wrapper and Playwright smoke tests.
+- `unaltraweb_mcp` package scaffolds: clean profile-specific config, localized home pages, content roots, and native build/serve files used by new sites.
+- `unaltraweb-template`: multi-profile demo assets, local Docker workflow, Dependabot config, workflow wrapper and Playwright integration tests.
 - `docs/` in `unaltraweb`: public reference site for the platform itself.
 
-The template is the better place to validate gem consumption, centralized styles and shared logic because it runs as a child site. The core docs site should explain and showcase the platform, not replace the starter template.
+The template is the better place to validate gem consumption, centralized styles and shared logic because it runs as a child site. It is not required to create a site: package scaffolds are the supported clean starting point.
 
 ## User Paths
 
 ### GitHub-only editing
 
-Users can create a site from `dosquartsdedocs/unaltraweb-template`, edit content in the GitHub web UI and run the manual deploy workflow when the site should be published.
+Users can push a site created by `new_web`, edit content in the GitHub web UI, and run its configured deploy workflow when the site should be published. Forking `dosquartsdedocs/unaltraweb-template` remains an optional path for users who want its full demo and workflow wrapper.
 
 This path is intended for small content edits, bibliography updates, course/manual chapter edits and configuration changes. It does not require Docker, Make or a local development environment.
 
 ### Local editing
 
-Users who need larger edits can clone their generated site repository and use the local Docker workflow from the template:
+Users who need larger edits can clone their generated site repository and use its package-scaffolded Docker workflow:
 
 ```bash
 make serve
 make build
-make publish
 make test
+make down
 ```
 
 Local editing requires Git, Docker and GNU Make. On Windows, use WSL2 with Docker Desktop and run the same commands inside the WSL Linux shell.
@@ -53,7 +54,7 @@ make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltreprojecte
 
 ## Demo Strategy
 
-- Template demo: realistic starter content for `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs`, used to validate the gem consumer path.
+- Template demo: realistic content for `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs`, used to validate the gem consumer path.
 - Core docs: the `unaltraweb` reference site, focused on concepts, profile capabilities, syntax, customization points, tools and links to the template.
 - Avoid duplicating full demo content between the two repositories.
 
@@ -85,12 +86,12 @@ The image is not the source of layouts or styles. Child sites still get those fr
 
 Before recommending the local Docker workflow to unauthenticated users, complete this first-publish checklist:
 
-- Create the release tag, then run the manual `.github/workflows/docker-image.yml` workflow from `v0.2.0` to publish both versioned images.
+- Create the release tag, then run the manual `.github/workflows/docker-image.yml` workflow from `v0.3.0` to publish both versioned images.
 - Open the `ghcr.io/dosquartsdedocs/unaltraweb` package settings in GitHub.
 - Make the package public.
 - Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb:main` works without `docker login`.
 - Make the `ghcr.io/dosquartsdedocs/unaltraweb-mcp` package public after its first publication.
-- Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0` works without `docker login`.
+- Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0` works without `docker login`.
 
 ## Verification
 

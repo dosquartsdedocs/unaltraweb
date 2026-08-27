@@ -10,13 +10,14 @@ It packages shared layouts, includes, Sass, assets, Jekyll plugins, bibliometric
 
 - The core builds successfully as a standalone Jekyll site through Docker.
 - The repository is packaged as the `unaltraweb` gem and publishes the shared Docker runtime image as `ghcr.io/dosquartsdedocs/unaltraweb`.
-- The companion `../unaltraweb-template` repository is the primary integration fixture and starter scaffold.
+- The MCP package and image contain profile-specific scaffolds for creating sites without another checkout.
+- The companion `../unaltraweb-template` repository remains the full-profile integration fixture and visual demo.
 - The project is still pre-release. Some inherited `al-folio` implementation details remain while the core is being generalized.
 
 ## Repository Roles
 
 - `unaltraweb`: reusable code, theme defaults, plugins, styles, scripts, documentation, reusable workflows and the Docker runtime image.
-- `unaltraweb-template`: thin starter site, demo content, local Docker workflow and Playwright smoke tests for the gem consumer path.
+- `unaltraweb-template`: full-profile demo and Playwright integration fixture for the gem consumer path.
 - `docs/`: the public reference site for `unaltraweb`.
 
 The template is the better place to validate gem consumption, centralized styles and shared logic because it exercises `unaltraweb` as an external dependency instead of relying on the core checkout itself.
@@ -45,9 +46,23 @@ unaltraweb:
 
 ## Quick Start
 
-Use `dosquartsdedocs/unaltraweb-template` to create child sites. There are two supported user paths:
+Create a child site with the `new_web` MCP tool or the package CLI:
 
-- Local Docker editing for previews, larger edits, screenshots, tests and low-cost publishing to `gh-pages`.
+```bash
+unaltraweb-mcp --project ./my-site new-web --site-profile unaltreselfie --title "My site" --default-lang en
+```
+
+From this factory checkout, the equivalent command is:
+
+```bash
+make mcp-new-web PROJECT=./my-site NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
+```
+
+The operation uses only assets shipped in `unaltraweb_mcp`, preflights all managed paths, and never overwrites differing files. `dosquartsdedocs/unaltraweb-template` remains available when a full multi-profile demo with Playwright tests is more useful than a clean profile-specific site.
+
+After creation, there are two supported editing paths:
+
+- Local Docker editing for previews, larger edits, screenshots, tests, and rendered-output review before publication.
 - GitHub-only editing for small content changes, bibliography updates, page edits and simple configuration changes, followed by an explicit manual workflow run when GitHub Pages must publish the site.
 
 Local editing is intended to require only Git, Docker and GNU Make. On Windows, use WSL2 with Docker Desktop and run `make` commands inside the WSL Linux shell.
@@ -101,7 +116,7 @@ The template tests are intentionally heavier because they run browser smoke test
 
 ## Global Dockerized MCP
 
-`unaltraweb` provides one global, on-demand stdio MCP whose container is scoped to the current consumer workspace. The launcher pulls the pinned public image `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.2.0` when it is not available locally. To build and test the same image from this checkout instead:
+`unaltraweb` provides one global, on-demand stdio MCP whose container is scoped to the current consumer workspace. The launcher pulls the pinned public image `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0` when it is not available locally. To build and test the same image from this checkout instead:
 
 ```bash
 make mcp-build
@@ -155,13 +170,7 @@ It can also publish the reference site locally to `gh-pages`:
 make docs-publish
 ```
 
-Child sites should prefer local publishing when possible:
-
-```bash
-make publish
-```
-
-That builds locally and pushes the generated site to the replaceable `gh-pages` branch.
+Sites created by `new_web` include a manual GitHub Pages workflow that delegates to the reusable core workflow. Local `make build` and `make test` validate the site without publishing or changing Git history.
 
 ## CI Scope
 

@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from unaltraweb_mcp import cli
 from unaltraweb_mcp import site_tools
 
 
@@ -41,7 +42,7 @@ class McpRuntimeTests(unittest.TestCase):
 
         self.assertFalse(site_tools.detect_site(self.project)["is_unaltraweb_site"])
 
-    def test_starter_template_uses_container_mount(self) -> None:
+    def test_scaffold_inventory_ignores_external_template_environment(self) -> None:
         template = self.project / "template"
         template.mkdir()
         (template / "_config.yml").write_text("theme: unaltraweb\n", encoding="utf-8")
@@ -51,14 +52,175 @@ class McpRuntimeTests(unittest.TestCase):
         with patch.dict(os.environ, {"UNALTRAWEB_TEMPLATE_PATH": str(template)}):
             status = site_tools.starter_templates(Path("/opt/unaltraweb"))
 
-        self.assertEqual(status["default"], str(template.resolve()))
+        self.assertEqual(status["default"], "unaltreselfie")
+        self.assertEqual(status["source"], "unaltraweb_mcp package")
+        self.assertNotIn(str(template.resolve()), str(status))
 
-    def test_embedded_starter_template_is_available(self) -> None:
-        factory = Path(__file__).resolve().parents[1]
+    def test_package_scaffolds_are_available_for_every_profile(self) -> None:
+        status = site_tools.scaffold_inventory()
 
-        status = site_tools.starter_templates(factory)
+        available = {item["profile"]: item["available"] for item in status["profiles"]}
 
-        self.assertEqual(status["default"], str((factory / "templates/site").resolve()))
+        self.assertEqual(set(available), set(site_tools.PROFILE_CONTRACTS))
+        self.assertTrue(all(available.values()))
+        self.assertTrue(status["common_available"])
+
+    def test_new_web_creates_each_profile_and_passes_its_contract(self) -> None:
+        expected_layouts = {
+            "unaltreselfie": "profile",
+            "unaltreprojecte": "page",
+            "unaltremanual": "manual-home",
+            "unaltredocs": "documentation-home",
+        }
+        for profile, layout in expected_layouts.items():
+            with self.subTest(profile=profile):
+                project = self.project / profile
+                result = site_tools.new_web(project, site_profile_value=profile, title=f"Test {profile}")
+
+                self.assertTrue(result["ok"], result)
+                self.assertEqual(site_tools.site_profile(site_tools.site_config(project)), profile)
+                self.assertIn(f"layout: {layout}", (project / "_pages/en/index.md").read_text(encoding="utf-8"))
+                self.assertTrue((project / ".github/workflows/deploy.yml").is_file())
+                self.assertIn("docker run", (project / "Makefile").read_text(encoding="utf-8"))
+                self.assertIn("unaltraweb (= 0.3.0)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
+                for path in site_tools.PROFILE_CONTRACTS[profile]["recommended_paths"]:
+                    self.assertTrue((project / path).exists(), path)
+
+    def test_new_web_is_idempotent_for_the_same_inputs(self) -> None:
+        project = self.project / "new-site"
+
+        first = site_tools.new_web(project, site_profile_value="unaltredocs", title="Test docs")
+        second = site_tools.new_web(project, site_profile_value="unaltredocs", title="Test docs")
+
+        self.assertGreater(first["created_count"], 0)
+        self.assertEqual(second["created_count"], 0)
+        self.assertEqual(second["unchanged_count"], first["created_count"])
+
+    def test_new_web_preflights_all_collisions_before_writing(self) -> None:
+        project = self.project / "collision"
+        project.mkdir()
+        (project / "_config.yml").write_text("title: Existing\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(RuntimeError, "no website files were written"):
+            site_tools.new_web(project, site_profile_value="unaltreprojecte")
+
+        self.assertFalse((project / "Makefile").exists())
+        self.assertFalse((project / "_pages").exists())
+        self.assertEqual((project / "_config.yml").read_text(encoding="utf-8"), "title: Existing\n")
+
+    def test_new_web_preflights_file_ancestors_before_writing(self) -> None:
+        project = self.project / "ancestor-collision"
+        project.mkdir()
+        (project / "_pages").write_text("not a directory\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(RuntimeError, "expected a directory but found a file: _pages"):
+            site_tools.new_web(project, site_profile_value="unaltredocs")
+
+        self.assertEqual(list(project.iterdir()), [project / "_pages"])
+        self.assertFalse((project / "_documentation").exists())
+
+    def test_new_web_rejects_symlinks_without_writing_through_them(self) -> None:
+        project = self.project / "symlink-site"
+        outside = self.project / "outside"
+        project.mkdir()
+        outside.mkdir()
+        (project / "_pages").symlink_to(outside, target_is_directory=True)
+
+        with self.assertRaisesRegex(RuntimeError, "symlink is not allowed"):
+            site_tools.new_web(project)
+
+        self.assertEqual(list(outside.iterdir()), [])
+        self.assertFalse((project / "_config.yml").exists())
+
+    def test_new_web_rejects_symlink_in_destination_ancestors(self) -> None:
+        outside = self.project / "destination-outside"
+        alias = self.project / "destination-alias"
+        outside.mkdir()
+        alias.symlink_to(outside, target_is_directory=True)
+
+        with self.assertRaisesRegex(RuntimeError, "Symlinks are not allowed in the new website destination"):
+            site_tools.new_web(alias / "site")
+
+        self.assertEqual(list(outside.iterdir()), [])
+
+        with self.assertRaisesRegex(RuntimeError, "Symlinks are not allowed in the new website destination"):
+            cli.main(["--project", str(alias / "cli-site"), "new-web"])
+
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_new_web_does_not_follow_symlink_created_after_preflight(self) -> None:
+        project = self.project / "raced-symlink-site"
+        outside = self.project / "raced-outside"
+        project.mkdir()
+        outside.mkdir()
+        original_preflight = site_tools._scaffold_preflight
+
+        def add_symlink_after_preflight(project_path, payloads, required_directories):
+            result = original_preflight(project_path, payloads, required_directories)
+            (project_path / "_pages").symlink_to(outside, target_is_directory=True)
+            return result
+
+        with patch("unaltraweb_mcp.site_tools._scaffold_preflight", side_effect=add_symlink_after_preflight):
+            with self.assertRaisesRegex(RuntimeError, "could not apply the preflighted scaffold safely"):
+                site_tools.new_web(project)
+
+        self.assertEqual(list(outside.iterdir()), [])
+        self.assertFalse((project / "_config.yml").exists())
+
+    def test_new_web_does_not_overwrite_file_created_after_preflight(self) -> None:
+        project = self.project / "raced-file-site"
+        project.mkdir()
+        original_preflight = site_tools._scaffold_preflight
+
+        def add_file_after_preflight(project_path, payloads, required_directories):
+            result = original_preflight(project_path, payloads, required_directories)
+            (project_path / "_config.yml").write_text("title: Raced\n", encoding="utf-8")
+            return result
+
+        with patch("unaltraweb_mcp.site_tools._scaffold_preflight", side_effect=add_file_after_preflight):
+            with self.assertRaisesRegex(RuntimeError, "could not apply the preflighted scaffold safely"):
+                site_tools.new_web(project)
+
+        self.assertEqual((project / "_config.yml").read_text(encoding="utf-8"), "title: Raced\n")
+
+    def test_new_web_revalidates_unchanged_files_after_preflight(self) -> None:
+        project = self.project / "raced-unchanged-site"
+        outside = self.project / "raced-unchanged-outside"
+        site_tools.new_web(project)
+        outside.write_text("title: Outside\n", encoding="utf-8")
+        original_preflight = site_tools._scaffold_preflight
+
+        def replace_unchanged_file(project_path, payloads, required_directories):
+            result = original_preflight(project_path, payloads, required_directories)
+            (project_path / "_config.yml").unlink()
+            (project_path / "_config.yml").symlink_to(outside)
+            return result
+
+        with patch("unaltraweb_mcp.site_tools._scaffold_preflight", side_effect=replace_unchanged_file):
+            with self.assertRaisesRegex(RuntimeError, "could not apply the preflighted scaffold safely"):
+                site_tools.new_web(project)
+
+        self.assertEqual(outside.read_text(encoding="utf-8"), "title: Outside\n")
+
+    def test_new_web_rejects_language_paths(self) -> None:
+        project = self.project / "unsafe-language"
+
+        with self.assertRaisesRegex(ValueError, "Invalid language identifier"):
+            site_tools.new_web(project, languages="en,../outside")
+
+        self.assertFalse(project.exists())
+
+    def test_initialize_site_rejects_external_templates(self) -> None:
+        with self.assertRaisesRegex(ValueError, "External template paths are not supported"):
+            site_tools.initialize_site(self.project / "legacy", Path("/opt/unaltraweb"), template_path="/tmp/template")
+
+    def test_profile_check_cli_exits_nonzero_for_invalid_site(self) -> None:
+        (self.project / "_config.yml").write_text("title: Invalid\n", encoding="utf-8")
+
+        with patch("builtins.print"):
+            returncode = cli.main(["--project", str(self.project), "mcp", "profile-check"])
+
+        self.assertEqual(returncode, 1)
 
     @patch("unaltraweb_mcp.site_tools.run_make", return_value={"ok": True, "returncode": 0})
     def test_build_uses_current_mcp_runtime_without_nested_container(self, run_make) -> None:
@@ -207,7 +369,7 @@ class McpRuntimeTests(unittest.TestCase):
     def test_inventory_exposes_runtime_tools(self) -> None:
         tools = site_tools.list_tools()["tools"]
 
-        for name in ["detect_site", "build_site", "preview_start", "preview_status", "preview_stop"]:
+        for name in ["new_web", "detect_site", "build_site", "preview_start", "preview_status", "preview_stop"]:
             self.assertIn(name, tools)
 
 

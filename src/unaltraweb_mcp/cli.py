@@ -44,6 +44,21 @@ def cmd_factory_dir(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_new_web(args: argparse.Namespace) -> int:
+    return print_json(
+        tools.new_web(
+            Path(args.project),
+            site_profile_value=args.site_profile,
+            title=args.title,
+            baseurl=args.baseurl,
+            url=args.url,
+            default_lang=args.default_lang,
+            languages=args.languages,
+        ),
+        enforce_ok=True,
+    )
+
+
 def cmd_mcp(args: argparse.Namespace) -> int:
     project = project_dir(args.project)
     factory = factory_dir()
@@ -75,12 +90,14 @@ def cmd_mcp(args: argparse.Namespace) -> int:
                 confirm_overwrite=args.confirm_overwrite,
             )
         )
+    if command == "new-web":
+        return cmd_new_web(args)
     if command == "site-context":
         return print_json(tools.site_context(project, factory))
     if command == "site-check":
         return print_json(tools.site_check(project, factory))
     if command == "profile-check":
-        return print_json(tools.profile_check(project))
+        return print_json(tools.profile_check(project), enforce_ok=True)
     if command == "manual-source-quality-check":
         return print_json(tools.manual_source_quality_check(project))
     if command == "manual-editorial-quality-check":
@@ -165,10 +182,17 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("version").set_defaults(func=cmd_version)
     sub.add_parser("factory-dir").set_defaults(func=cmd_factory_dir)
 
+    new_web = sub.add_parser("new-web", help="Create a website from a package-owned profile scaffold")
+    _add_new_web_arguments(new_web)
+    new_web.set_defaults(func=cmd_new_web)
+
     mcp = sub.add_parser("mcp", help="MCP server and JSON helper commands")
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
     for name in ["serve", "list-tools", "starter-templates", "detect-site", "site-context", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "preview-stop", "prompts"]:
         mcp_sub.add_parser(name)
+
+    mcp_new_web = mcp_sub.add_parser("new-web")
+    _add_new_web_arguments(mcp_new_web)
 
     for name in ["manual-computation-status", "manual-computation-check"]:
         computation = mcp_sub.add_parser(name)
@@ -262,6 +286,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp.set_defaults(func=cmd_mcp)
     return parser
+
+
+def _add_new_web_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--site-profile", choices=sorted(tools.PROFILE_CONTRACTS), default="unaltreselfie")
+    parser.add_argument("--title", default="")
+    parser.add_argument("--baseurl", default="")
+    parser.add_argument("--url", default="")
+    parser.add_argument("--default-lang", default="")
+    parser.add_argument("--languages", default="")
 
 
 def main(argv: list[str] | None = None) -> int:

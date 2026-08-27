@@ -8,6 +8,7 @@ from . import site_tools as tools
 
 PROMPT_FILES = {
     "start_site_session": "00-start-site-session.txt",
+    "create_new_web": "05-create-new-web.txt",
     "content_update": "10-content-update.txt",
     "edit_default_content": "15-edit-default-content.txt",
     "manual_teaching_materials": "20-manual-teaching-materials.txt",
@@ -54,6 +55,7 @@ def run_server(project: Path, factory: Path) -> None:
     mcp = FastMCP(
         "unaltraweb",
         instructions=(
+            "Use new_web to create a fresh site from one of the four package-owned profile scaffolds. "
             "For unaltremanual work, inspect manual_authoring_capabilities before editing. "
             "Run site_check and resolve blocking validation failures before build_site. "
             "When a chapter has an executable .qmd, .Rmd, .R, .py, or .ipynb source, edit that source rather than its generated .md. "
@@ -73,8 +75,13 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.resource("web://starter-templates")
     def starter_templates_resource() -> str:
-        """Available starter website templates usable by initialize_site."""
+        """Package-owned website scaffolds exposed under the legacy starter inventory name."""
         return tools.dumps(tools.starter_templates(factory))
+
+    @mcp.resource("web://new-web-scaffolds")
+    def new_web_scaffolds_resource() -> str:
+        """Package-owned website scaffolds available for all supported profiles."""
+        return tools.dumps(tools.scaffold_inventory())
 
     @mcp.resource("web://profile-contract")
     def profile_contract_resource() -> str:
@@ -152,6 +159,11 @@ def run_server(project: Path, factory: Path) -> None:
         return _prompt_text(factory, "start_site_session")
 
     @mcp.prompt()
+    def create_new_web(site_profile: str = "unaltreselfie") -> str:
+        """Create a fresh website safely from a package-owned profile scaffold."""
+        return _prompt_text(factory, "create_new_web") + f"\n\nSelected profile: {site_profile}\n"
+
+    @mcp.prompt()
     def content_update(target: str = "next content item") -> str:
         """Update one page, post, news item, project, output, or structured data file."""
         return _prompt_text(factory, "content_update") + f"\n\nCurrent target: {target}\n"
@@ -210,12 +222,17 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def starter_templates() -> dict[str, Any]:
-        """Return available starter website templates discovered from the unaltraweb factory checkout."""
+        """Return package-owned website scaffolds under the legacy starter inventory name."""
         return tools.starter_templates(factory)
 
     @mcp.tool()
+    def new_web(site_profile: str = "unaltreselfie", title: str = "", baseurl: str = "", url: str = "", default_lang: str = "", languages: str = "") -> dict[str, Any]:
+        """Create a complete profile-specific website after collision and symlink preflight. Differing files are never overwritten."""
+        return tools.new_web(project, site_profile_value=site_profile, title=title, baseurl=baseurl, url=url, default_lang=default_lang, languages=languages)
+
+    @mcp.tool()
     def initialize_site(template_path: str = "", site_profile: str = "unaltreselfie", title: str = "", baseurl: str = "", url: str = "", default_lang: str = "", languages: str = "", force: bool = False, confirm_overwrite: bool = False) -> dict[str, Any]:
-        """Initialize the current workspace from a starter template. Existing files are skipped unless force and confirm_overwrite are both true."""
+        """Compatibility alias for new_web. External templates and overwrite mode are rejected."""
         return tools.initialize_site(project, factory, template_path=template_path, site_profile_value=site_profile, title=title, baseurl=baseurl, url=url, default_lang=default_lang, languages=languages, force=force, confirm_overwrite=confirm_overwrite)
 
     @mcp.tool()

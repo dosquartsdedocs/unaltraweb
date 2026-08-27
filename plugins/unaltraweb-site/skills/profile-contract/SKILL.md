@@ -7,7 +7,7 @@ description: Use when checking or editing unaltraweb profile-specific content, f
 
 Before editing, identify `unaltraweb.site_profile`, the default language, and enabled features. Use `profile_check`, `language_policy`, and `content_inventory` when the MCP is available.
 
-For newly initialized starter sites, use `profile_prune_plan` to review out-of-profile content. Destructive pruning requires explicit approval and `profile_prune(dry_run=false, confirm_prune=true)`.
+Sites created by `new_web` already contain only the selected profile. For older mixed-profile sites, use `profile_prune_plan` to review out-of-profile content; destructive pruning requires explicit approval and `profile_prune(dry_run=false, confirm_prune=true)`.
 
 Profile focus:
 
