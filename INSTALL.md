@@ -58,16 +58,16 @@ make build LOCAL_CORE=../unaltraweb
 make test LOCAL_CORE=../unaltraweb SITE_PROFILE=unaltremanual
 ```
 
-For a configured `unaltremanual` PDF edition, Docker remains the only runtime prerequisite:
+For a configured `unaltremanual` PDF edition, Docker remains the only runtime prerequisite. Package-created sites use the factory-backed MCP tools rather than copying PDF targets into their small Makefile:
 
-```bash
-make manual-pdf-status LOCAL_CORE=../unaltraweb
-make manual-pdf-check LOCAL_CORE=../unaltraweb
-make manual-pdf-build LOCAL_CORE=../unaltraweb
-make manual-pdf-publish LOCAL_CORE=../unaltraweb
+```text
+manual_pdf_status
+manual_pdf_build
+manual_pdf_publish
+manual_pdf_publish(dry_run=false, confirm_publish=true)
 ```
 
-The publication command is a local dry-run by default. A real copy into the configured `assets/pdf/` and cover paths requires `MANUAL_PDF_PUBLISH_DRY_RUN=0`; review the generated files under `tmp/manual-pdf/` first. `manual-pdf-check` fails unless those public files match the latest fresh build.
+Publication is a local dry-run by default. A real copy into the configured `assets/pdf/` and cover paths requires both `dry_run=false` and `confirm_publish=true`; review the generated files under `tmp/manual-pdf/` first. Factory maintainers can still use the corresponding `make -C /path/to/unaltraweb manual-pdf-* PROJECT=/path/to/site` targets directly.
 
 ## Core Development Workflow
 

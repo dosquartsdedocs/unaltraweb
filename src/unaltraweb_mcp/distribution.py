@@ -154,6 +154,52 @@ def component_reference(component_id: str) -> str:
     return str(component(component_id)["reference"])
 
 
+def companion_dependency_requirements(component_id: str) -> dict[str, Any]:
+    capabilities = {
+        "diavisuals": {
+            "tools": [
+                "compatibility_status",
+                "release_status",
+                "factory_manifest",
+                "project_check",
+                "render_diagram",
+                "render_diagram_text",
+            ],
+            "resources": ["diavisuals://project/check", "diavisuals://factory-manifest"],
+        },
+        "vegavisuals": {
+            "tools": [
+                "initialize_project",
+                "validate_visualization",
+                "render_visualization",
+                "visualization_status",
+                "visualization_check",
+                "render_visualizations",
+                "compatibility_status",
+                "release_status",
+                "factory_manifest",
+            ],
+            "resources": ["vegavisuals://project/check", "vegavisuals://factory-manifest"],
+        },
+    }
+    if component_id not in capabilities:
+        raise KeyError(f"Unknown unaltraweb companion: {component_id}")
+    selected = component(component_id)
+    return {
+        "lifecycle": {
+            "required": True,
+            "install": True,
+            "build": True,
+            "init": False,
+            "check": True,
+            "smoke": True,
+            "update": False,
+        },
+        "uv_spec": f"{component_id}[mcp] @ git+{selected['reference']}",
+        **capabilities[component_id],
+    }
+
+
 def is_mutable_reference(reference: str) -> bool:
     value = reference.strip().lower()
     if not value:
@@ -243,6 +289,7 @@ def _factory_findings(factory: Path) -> list[dict[str, Any]]:
     for component_id in ["diavisuals", "vegavisuals"]:
         expected = contract["components"][component_id]
         dependency = dependency_map.get(component_id, {})
+        requirements = companion_dependency_requirements(component_id)
         actual = {
             "version": str(dependency.get("version") or ""),
             "release": str(dependency.get("release") or ""),
@@ -265,7 +312,57 @@ def _factory_findings(factory: Path) -> list[dict[str, Any]]:
                 component_id=component_id,
             )
         )
+        expected_lifecycle = requirements["lifecycle"]
+        actual_lifecycle = {key: dependency.get(key) for key in expected_lifecycle}
+        findings.append(
+            _finding(
+                "UW-DIST-COMPANION-LIFECYCLE",
+                "info" if actual_lifecycle == expected_lifecycle else "error",
+                expected_lifecycle,
+                actual_lifecycle,
+                (
+                    "No action required."
+                    if actual_lifecycle == expected_lifecycle
+                    else f"Align {component_id} dependency lifecycle with the required ContExt contract."
+                ),
+                component_id=component_id,
+            )
+        )
+        actual_uv_spec = str(dependency.get("uv_spec") or "")
+        findings.append(
+            _finding(
+                "UW-DIST-COMPANION-INSTALL-SPEC",
+                "info" if actual_uv_spec == requirements["uv_spec"] else "error",
+                requirements["uv_spec"],
+                actual_uv_spec or "missing",
+                (
+                    "No action required."
+                    if actual_uv_spec == requirements["uv_spec"]
+                    else f"Use the selected immutable {component_id} release in uv_spec."
+                ),
+                component_id=component_id,
+            )
+        )
         declared_tools = dependency.get("required_tools") if isinstance(dependency.get("required_tools"), list) else []
+        declared_resources = dependency.get("required_resources") if isinstance(dependency.get("required_resources"), list) else []
+        missing_capabilities = sorted(
+            (set(requirements["tools"]) - set(declared_tools))
+            | (set(requirements["resources"]) - set(declared_resources))
+        )
+        findings.append(
+            _finding(
+                "UW-DIST-COMPANION-CAPABILITIES",
+                "info" if not missing_capabilities else "error",
+                {"tools": requirements["tools"], "resources": requirements["resources"]},
+                {"tools": declared_tools, "resources": declared_resources},
+                (
+                    "No action required."
+                    if not missing_capabilities
+                    else f"Require the missing {component_id} tools and resources: {', '.join(missing_capabilities)}."
+                ),
+                component_id=component_id,
+            )
+        )
         receipt_tool = receipt_tools[component_id]
         findings.append(
             _finding(

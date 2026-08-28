@@ -113,6 +113,33 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("manual_pdf", result["selected_components"])
         self.assertIn("UW-DIST-PROJECT-MUTABLE-PIN", {item["code"] for item in result["findings"]})
 
+    def test_new_manual_selects_factory_owned_python_and_r_workers(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_project:
+            project = Path(raw_project) / "manual"
+            site_tools.new_web(project, site_profile_value="unaltremanual")
+
+            result = distribution_doctor(project=project)
+
+        self.assertTrue(result["ok"], result["findings"])
+        self.assertTrue(result["project"]["features"]["manual_computations"])
+        self.assertIn("compute_python", result["selected_components"])
+        self.assertIn("compute_r", result["selected_components"])
+        self.assertEqual(result["docker"]["images"]["compute_python"], component_reference("compute_python"))
+        self.assertEqual(result["docker"]["images"]["compute_r"], component_reference("compute_r"))
+
+    def test_factory_doctor_enforces_companion_lifecycle_and_capabilities(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+
+        result = distribution_doctor(factory=root)
+        companion_findings = [item for item in result["findings"] if item.get("component") in {"diavisuals", "vegavisuals"}]
+
+        self.assertTrue(result["ok"], companion_findings)
+        codes = {item["code"] for item in companion_findings}
+        self.assertIn("UW-DIST-COMPANION-LIFECYCLE", codes)
+        self.assertIn("UW-DIST-COMPANION-INSTALL-SPEC", codes)
+        self.assertIn("UW-DIST-COMPANION-CAPABILITIES", codes)
+        self.assertTrue(all(item["severity"] == "info" for item in companion_findings))
+
     def test_docker_doctor_only_inspects_local_images(self) -> None:
         root = Path(__file__).resolve().parents[1]
         commands: list[list[str]] = []

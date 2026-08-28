@@ -57,11 +57,12 @@ async def smoke() -> None:
                     assert prompts[name].description == spec["description"]
                     assert [argument.name for argument in (prompts[name].arguments or [])] == [argument["name"] for argument in spec["arguments"]]
 
-                initialized = tool_payload(await session.call_tool("new_web", {}))
+                initialized = tool_payload(await session.call_tool("new_web", {"site_profile": "unaltremanual"}))
                 assert initialized["ok"] is True, initialized
                 assert (project / "_config.yml").is_file()
                 assert (project / "Makefile").is_file()
                 assert (project / ".unaltraweb/scaffold.json").is_file()
+                assert (project / ".unaltraweb/computations.yml").is_file()
 
                 detection = tool_payload(await session.call_tool("detect_site", {}))
                 assert detection["is_unaltraweb_site"] is True
@@ -70,7 +71,8 @@ async def smoke() -> None:
                 distribution = tool_payload(await session.call_tool("distribution_doctor", {}))
                 assert distribution["ok"] is True, distribution
                 assert distribution["mode"] == "factory"
-                assert distribution["project"]["profile"] == "unaltreselfie"
+                assert distribution["project"]["profile"] == "unaltremanual"
+                assert {"compute_python", "compute_r"}.issubset(distribution["selected_components"])
 
                 inventory = tool_payload(await session.call_tool("content_inventory", {}))
                 assert inventory["collections"]["_pages"]["documents"] == 1

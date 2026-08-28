@@ -30,6 +30,7 @@ from unaltraweb_mcp.cli import (  # noqa: E402
     PACKAGE_ONLY_MCP_COMMANDS,
 )
 from unaltraweb_mcp.distribution import (  # noqa: E402
+    companion_dependency_requirements,
     component_contract_semantic_errors,
     component_reference,
     distribution_contract,
@@ -137,6 +138,7 @@ def validate(root: Path = ROOT) -> list[str]:
     for component_id in ["diavisuals", "vegavisuals"]:
         expected = contract["components"][component_id]
         actual = dependencies.get(component_id, {})
+        requirements = companion_dependency_requirements(component_id)
         expected_remote = expected["repository"] + ".git"
         for key, selected in [
             ("version", expected["version"]),
@@ -148,6 +150,17 @@ def validate(root: Path = ROOT) -> list[str]:
                 errors.append(f"{component_id} {key} does not match the selected companion release")
         if not str(actual.get("remote") or "").startswith("https://"):
             errors.append(f"{component_id} remote must use HTTPS")
+        for key, selected in requirements["lifecycle"].items():
+            if actual.get(key) is not selected:
+                errors.append(f"{component_id} lifecycle flag {key} must be {selected}")
+        if actual.get("uv_spec") != requirements["uv_spec"]:
+            errors.append(f"{component_id} uv_spec must select its immutable companion release")
+        missing_tools = set(requirements["tools"]) - set(actual.get("required_tools", []))
+        missing_resources = set(requirements["resources"]) - set(actual.get("required_resources", []))
+        if missing_tools:
+            errors.append(f"{component_id} dependency is missing required tools: {sorted(missing_tools)}")
+        if missing_resources:
+            errors.append(f"{component_id} dependency is missing required resources: {sorted(missing_resources)}")
 
     make_pins = {
         "MCP_RUNTIME_IMAGE": "runtime",
@@ -185,6 +198,10 @@ def validate(root: Path = ROOT) -> list[str]:
         text = (root / "src/unaltraweb_mcp/scaffolds/common" / name).read_text(encoding="utf-8")
         if token not in text:
             errors.append(f"scaffold {name} must derive its release pin from the component contract")
+    computation_template = (root / "src/unaltraweb_mcp/scaffolds/profiles/unaltremanual/computations.yml.tmpl").read_text(encoding="utf-8")
+    for token in ["__COMPUTE_PYTHON_IMAGE__", "__COMPUTE_R_IMAGE__"]:
+        if token not in computation_template:
+            errors.append(f"unaltremanual computation scaffold is missing component token {token}")
 
     release_references = [
         item["reference"]

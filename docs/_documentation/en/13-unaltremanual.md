@@ -38,7 +38,7 @@ Typical content:
 - Optional manual bibliography.
 - A local `context/writing-profile.md` for audience, voice, terminology, evidence, language, and review rules.
 
-The package scaffold provides a usable default writing profile; revise it before substantial drafting when the manual has project-specific editorial requirements. The site profile also includes a sticky chapter sidebar, right-hand table of contents, reader font controls and search index.
+The package scaffold provides a usable default writing profile and a computation configuration that selects the distribution's R and Python workers. It accepts executable chapters under `_chapters` and figure-only sources under `assets/quarto` without copying worker implementation into the site. Revise the writing profile before substantial drafting when the manual has project-specific editorial requirements. The site profile also includes a sticky chapter sidebar, right-hand table of contents, reader font controls and search index.
 
 The scaffold stores manual references in `_bibliography/manual.bib`. Manual bibliographies are alphabetical by contributor name, then year and title. This applies to the general bibliography and to the cited references emitted by a chapter with `manual_references: true`. On the web, the visible reference omits its trailing DOI or URL because the adjacent DOI/LINK buttons and expandable citation panel already expose that access information. The printable PDF keeps DOI and URL text, sorts the general bibliography alphabetically, and inserts an alphabetical references section in each chapter that requests one.
 
@@ -86,7 +86,7 @@ Optional `unaltraweb_compute` fields are `inputs`, `output`, `figures`, and `ena
 
 ### Project Configuration
 
-Use `.unaltraweb/computations.yml` to define discovery roots, generated assets, images, and environment dependencies:
+The scaffold creates a consumer-owned `.unaltraweb/computations.yml` with both release-selected engines. Extend it to define additional discovery roots and project-specific environment dependencies:
 
 ```yaml
 version: 1
@@ -96,13 +96,13 @@ source_roots:
 generated_assets_root: assets/img/generated
 engines:
   python:
-    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0
+    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python@sha256:18cb269811bd4005800382da25a480ec2bca7eac8d0501ad1ef36bad1c0f8cd9
     lockfiles:
       - requirements-compute.txt
     fingerprint_paths:
       - analysis/helpers
   r:
-    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0
+    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-r@sha256:928ffb93f221e09e8b929157dee473b838e061915a2eb67224e4124b85f81837
     lockfiles:
       - renv.lock
 ```
@@ -133,7 +133,7 @@ manual_computation_render_figures
 manual_computation_render(source="_chapters/en/chapter.qmd")
 ```
 
-`status` prints JSON and remains informational even when `ok` is false. `check` exits nonzero for missing, stale, modified, or orphaned results. `render` executes explicitly, stages output, serializes publication per project, and replaces managed Markdown and figures with rollback on ordinary errors. `manual_computation_render_figures` renders only stale `mode: figure` sources and never executes chapter-mode sources. Rendering runs without network access and with Quarto caches disabled.
+`status` prints JSON and remains informational even when `ok` is false. `check` exits nonzero for missing, stale, modified, or orphaned results. `render` executes explicitly, reuses an available selected worker or pulls it on first use, stages output, serializes publication per project, and replaces managed Markdown and figures with rollback on ordinary errors. `manual_computation_render_figures` renders only stale `mode: figure` sources and never executes chapter-mode sources. Source execution runs without network access and with Quarto caches disabled; image preparation occurs before the network-disabled worker starts.
 
 The first render refuses to overwrite an existing same-stem Markdown file or figure directory that is not recorded in the computation lock. Review the collision before an intentional takeover:
 
@@ -143,7 +143,7 @@ manual_computation_render(confirm_overwrite=true)
 
 Do not use that confirmation as a permanent default. Do not edit `.unaltraweb/computations.lock.json` manually; review it as generated provenance.
 
-Deleting or disabling a source leaves its lock record and generated artifacts as an orphan, so publication remains blocked. Review and remove the old generated Markdown and figure directory, then run a full `manual-compute-render`; the renderer removes an orphan lock record only after both managed paths are absent.
+Deleting or disabling a source leaves its lock record and generated artifacts as an orphan, so publication remains blocked. Review and remove the old generated Markdown and figure directory, then run a full `manual_computation_render`; the renderer removes an orphan lock record only after both managed paths are absent.
 
 `make serve`, `make build`, `make test`, profile previews, Playwright checks, PDF operations, and the reusable Pages workflow reject stale results. The internal capture-only preview is the deliberate exception because it must render the artefact that is currently stale. CI checks committed artifacts without recalculating them. Equivalent MCP tools are `manual_computation_status`, `manual_computation_check`, `manual_computation_render`, and `manual_computation_render_figures`.
 
@@ -151,7 +151,7 @@ Deleting or disabling a source leaves its lock record and generated artifacts as
 
 Static Vega-Lite and Vega figures use `*.vl.json` and `*.vg.json` sources declared in `.vegavisuals.yml`. A chapter references the specification as a captioned Markdown image; Jekyll and the PDF builder resolve it to the same single manifest output without changing the caption or figure attributes. Prefer SVG when the figure must work identically on the web and in print.
 
-Use the companion `visualization_status`, `render_visualizations`, and `visualization_check` tools for the source-to-output lifecycle. Run `visualization_check` before PDF status, build, or publication when a manifest exists; the unaltraweb PDF tool does not proxy the separate MCP. Commit the manifest, lock, source data, and generated outputs together.
+Use the required companion `vegavisuals` MCP and its `initialize_project`, `visualization_status`, `render_visualizations`, and `visualization_check` tools for the source-to-output lifecycle. ContExt registers the companion separately rather than copying it into the site. Run `visualization_check` before PDF status, build, or publication when a manifest exists; the unaltraweb PDF tool does not proxy the separate MCP. Commit the manifest, lock, provider receipt, source data, and generated outputs together.
 
 ## PDF Edition
 

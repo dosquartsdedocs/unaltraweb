@@ -75,7 +75,7 @@
       "version": "0.3.0",
       "release": "v0.3.0",
       "release_status": "released",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python@sha256:18cb269811bd4005800382da25a480ec2bca7eac8d0501ad1ef36bad1c0f8cd9",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["manual-computations", "python"]
@@ -86,7 +86,7 @@
       "version": "0.3.0",
       "release": "v0.3.0",
       "release_status": "released",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r@sha256:928ffb93f221e09e8b929157dee473b838e061915a2eb67224e4124b85f81837",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["manual-computations", "r"]

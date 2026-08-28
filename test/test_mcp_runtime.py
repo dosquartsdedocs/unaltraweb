@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import subprocess
 import tempfile
@@ -12,6 +13,7 @@ import yaml
 
 from unaltraweb_mcp import cli
 from unaltraweb_mcp import site_tools
+from unaltraweb_mcp.distribution import companion_dependency_requirements, component_reference
 
 
 class McpRuntimeTests(unittest.TestCase):
@@ -80,6 +82,9 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertEqual(set(available), set(site_tools.PROFILE_CONTRACTS))
         self.assertTrue(all(available.values()))
         self.assertTrue(status["common_available"])
+        manual = next(item for item in status["profiles"] if item["profile"] == "unaltremanual")
+        self.assertEqual(manual["scaffold_paths"], [".unaltraweb/computations.yml"])
+        self.assertEqual(set(manual["provisioned_features"]), {"manual_computations_python", "manual_computations_r"})
 
     def test_new_web_creates_each_profile_and_passes_its_contract(self) -> None:
         expected_layouts = {
@@ -95,6 +100,8 @@ class McpRuntimeTests(unittest.TestCase):
 
                 self.assertTrue(result["ok"], result)
                 self.assertEqual(site_tools.site_profile(site_tools.site_config(project)), profile)
+                expected_features = {"manual_computations_python", "manual_computations_r"} if profile == "unaltremanual" else set()
+                self.assertEqual(set(result["provisioned_features"]), expected_features)
                 self.assertIn(f"layout: {layout}", (project / "_pages/en/index.md").read_text(encoding="utf-8"))
                 self.assertTrue((project / ".github/workflows/deploy.yml").is_file())
                 makefile = (project / "Makefile").read_text(encoding="utf-8")
@@ -103,8 +110,17 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertIn("unaltraweb (= 0.3.0)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
                 self.assertIn("jekyll-scholar (>= 7.3, < 8)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
                 self.assertEqual((project / "context/writing-profile.md").is_file(), profile == "unaltremanual")
+                computations_path = project / ".unaltraweb/computations.yml"
+                self.assertEqual(computations_path.is_file(), profile == "unaltremanual")
                 if profile == "unaltremanual":
                     self.assertTrue((project / "_bibliography/manual.bib").is_file())
+                    computations = yaml.safe_load(computations_path.read_text(encoding="utf-8"))
+                    self.assertTrue(computations["enabled"])
+                    self.assertEqual(computations["source_roots"], ["_chapters", "assets/quarto"])
+                    self.assertEqual(computations["engines"]["python"]["image"], component_reference("compute_python"))
+                    self.assertEqual(computations["engines"]["r"]["image"], component_reference("compute_r"))
+                    scaffold = json.loads((project / ".unaltraweb/scaffold.json").read_text(encoding="utf-8"))
+                    self.assertNotIn(".unaltraweb/computations.yml", scaffold["files"])
                 if profile == "unaltreselfie":
                     self.assertTrue((project / "_bibliography/papers.bib").is_file())
                 if profile == "unaltreprojecte":
@@ -525,6 +541,11 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertEqual(set(manifest["mcp"]["required_tools"]), set(inventory["tools"]))
         self.assertIn("context", manifest["workspace_rule"]["init_creates"])
         self.assertIn("context", manifest["workspace_rule"]["source_paths"])
+        self.assertIn(".unaltraweb/computations.yml", manifest["workspace_rule"]["init_creates"])
+        self.assertIn(".unaltraweb/computations.yml", manifest["workspace_rule"]["source_paths"])
+        self.assertIn(".vegavisuals.yml", manifest["workspace_rule"]["source_paths"])
+        self.assertIn(".unaltraweb/receipts/diavisuals.json", manifest["workspace_rule"]["generated_paths"])
+        self.assertIn(".unaltraweb/receipts/vegavisuals.json", manifest["workspace_rule"]["generated_paths"])
         self.assertEqual(manifest["schema_version"], 1)
         self.assertEqual(
             manifest["transport"]["command"],
@@ -533,6 +554,13 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertNotIn("init", manifest["commands"])
         self.assertNotIn("down", manifest["commands"])
         self.assertTrue(all(not dependency["init"] for dependency in manifest["mcp_dependencies"]))
+        dependencies = {dependency["name"]: dependency for dependency in manifest["mcp_dependencies"]}
+        for name, dependency in dependencies.items():
+            requirements = companion_dependency_requirements(name)
+            self.assertEqual({key: dependency[key] for key in requirements["lifecycle"]}, requirements["lifecycle"])
+            self.assertEqual(dependency["uv_spec"], requirements["uv_spec"])
+            self.assertTrue(set(requirements["tools"]).issubset(dependency["required_tools"]))
+            self.assertTrue(set(requirements["resources"]).issubset(dependency["required_resources"]))
         self.assertNotIn("mcp-init:", (root / "Makefile").read_text(encoding="utf-8"))
 
     def test_writing_profile_is_excluded_from_published_site(self) -> None:

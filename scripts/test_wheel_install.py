@@ -57,6 +57,7 @@ def main() -> int:
             "unaltraweb_mcp/component-contract.json",
             "unaltraweb_mcp/component-contract.schema.json",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",
+            "unaltraweb_mcp/scaffolds/profiles/unaltremanual/computations.yml.tmpl",
             "unaltraweb_mcp/scaffolds/profiles/unaltremanual/_bibliography/manual.bib",
             "unaltraweb_mcp/scaffolds/profiles/unaltreprojecte/_bibliography/papers.bib",
             "unaltraweb_mcp/scaffolds/profiles/unaltreselfie/_bibliography/papers.bib",
@@ -81,6 +82,19 @@ def main() -> int:
             raise RuntimeError(f"new-web failed from clean wheel: {created}")
         if not (site / ".unaltraweb/scaffold.json").is_file():
             raise RuntimeError("new-web did not install the package scaffold baseline")
+
+        manual_site = temp / "manual-site"
+        manual_created = json.loads(run([str(cli), "--project", str(manual_site), "new-web", "--site-profile", "unaltremanual"], cwd=temp).stdout)
+        if not manual_created["ok"]:
+            raise RuntimeError(f"manual new-web failed from clean wheel: {manual_created}")
+        computation_config = (manual_site / ".unaltraweb/computations.yml").read_text(encoding="utf-8")
+        contract = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text(encoding="utf-8"))
+        for component_id in ["compute_python", "compute_r"]:
+            if contract["components"][component_id]["reference"] not in computation_config:
+                raise RuntimeError(f"new-web did not select the {component_id} worker from the component contract")
+        manual_doctor = json.loads(run([str(cli), "doctor", "--project", str(manual_site)], cwd=temp).stdout)
+        if not {"compute_python", "compute_r"}.issubset(manual_doctor["selected_components"]):
+            raise RuntimeError(f"manual project doctor did not select both computation workers: {manual_doctor}")
         detected = json.loads(run([str(cli), "--project", str(site), "mcp", "detect-site"], cwd=temp).stdout)
         if not detected["is_unaltraweb_site"]:
             raise RuntimeError(f"package-only inspection failed from clean wheel: {detected}")

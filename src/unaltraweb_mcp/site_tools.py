@@ -259,6 +259,8 @@ PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     "unaltremanual": {
         "description": "Book-like manual, course, or teaching site.",
         "recommended_paths": ["_chapters", "_bibliography"],
+        "scaffold_paths": [".unaltraweb/computations.yml"],
+        "provisioned_features": ["manual_computations_python", "manual_computations_r"],
         "config_keys": ["unaltraweb.manual"],
         "content_notes": ["localized chapters", "manual home", "figures/tables", "teaching blocks", "manual bibliography", "local writing policy"],
     },
@@ -270,7 +272,14 @@ PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     },
 }
 
-SCAFFOLD_TEMPLATE_FILES = {"Gemfile.lock.tmpl", "Gemfile.tmpl", "Makefile.tmpl", "_config.yml.tmpl", "home.md.tmpl"}
+SCAFFOLD_TEMPLATE_FILES = {
+    "Gemfile.lock.tmpl",
+    "Gemfile.tmpl",
+    "Makefile.tmpl",
+    "_config.yml.tmpl",
+    "computations.yml.tmpl",
+    "home.md.tmpl",
+}
 SCAFFOLD_MANIFEST_PATH = Path(".unaltraweb/scaffold.json")
 SCAFFOLD_MANAGED_PATHS = (
     Path(".gitignore"),
@@ -614,6 +623,8 @@ def scaffold_inventory() -> dict[str, Any]:
                 "description": contract["description"],
                 "available": (profile_root / "_config.yml.tmpl").is_file() and (profile_root / "home.md.tmpl").is_file(),
                 "recommended_paths": contract["recommended_paths"],
+                "scaffold_paths": contract.get("scaffold_paths", []),
+                "provisioned_features": contract.get("provisioned_features", []),
             }
         )
     return {
@@ -664,6 +675,8 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
     common_root = root / "common"
     profile_root = root / "profiles" / profile
     required = [common_root / "Makefile.tmpl", common_root / "Gemfile.tmpl", common_root / "Gemfile.lock.tmpl", profile_root / "_config.yml.tmpl", profile_root / "home.md.tmpl"]
+    if profile == "unaltremanual":
+        required.append(profile_root / "computations.yml.tmpl")
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise RuntimeError(f"Package-owned new-web scaffold is incomplete: {', '.join(missing)}")
@@ -694,6 +707,14 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
     for name in ["Makefile", "Gemfile", "Gemfile.lock"]:
         payloads[Path(name)] = _render_scaffold_template(common_root / f"{name}.tmpl", common_replacements)
     payloads[Path("_config.yml")] = _render_scaffold_template(profile_root / "_config.yml.tmpl", replacements)
+    if profile == "unaltremanual":
+        computation_replacements = {
+            "COMPUTE_PYTHON_IMAGE": component_reference("compute_python"),
+            "COMPUTE_R_IMAGE": component_reference("compute_r"),
+        }
+        payloads[Path(".unaltraweb/computations.yml")] = _render_scaffold_template(
+            profile_root / "computations.yml.tmpl", computation_replacements
+        )
     for language in languages:
         home_replacements = {
             "TITLE": _yaml_scalar(title),
@@ -989,6 +1010,7 @@ def new_web(
         "project": str(project),
         "source": "unaltraweb_mcp package",
         "site_profile": site_profile_value,
+        "provisioned_features": PROFILE_CONTRACTS[site_profile_value].get("provisioned_features", []),
         "default_language": selected_default,
         "languages": language_values,
         "created_count": len(create),

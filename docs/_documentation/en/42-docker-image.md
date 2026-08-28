@@ -39,8 +39,8 @@ After the first GHCR publish, make the package public and confirm unauthenticate
 Executable manual chapters use separate images from the Jekyll runtime and PDF builder:
 
 ```text
-ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0
-ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0
+ghcr.io/dosquartsdedocs/unaltraweb-compute-python@sha256:18cb269811bd4005800382da25a480ec2bca7eac8d0501ad1ef36bad1c0f8cd9
+ghcr.io/dosquartsdedocs/unaltraweb-compute-r@sha256:928ffb93f221e09e8b929157dee473b838e061915a2eb67224e4124b85f81837
 ```
 
 The Python image provides Quarto, Jupyter, NumPy, pandas, Matplotlib, GeoPandas, and geospatial libraries. The R image builds on `rocker/geospatial`, preserves RStudio Server, and adds Quarto, `knitr`, `rmarkdown`, `renv`, and the computation driver.
@@ -53,7 +53,7 @@ make manual-compute-image-r
 make manual-compute-images
 ```
 
-An image already available locally is reused. Otherwise the target pulls a selected published image or builds a configured project extension.
+An image already available locally is reused. Otherwise the target pulls a selected published image or builds a configured project extension. New `unaltremanual` sites select both release workers in `.unaltraweb/computations.yml`, and `manual_computation_render` performs this preparation automatically for each engine that has discovered sources.
 
 The factory owns the `manual-compute-*` Make targets and exposes them to child repositories through the MCP computation tools. Package-created sites keep a small build/serve Makefile instead of copying the computation implementation. Rendering and project image preparation run through the factory because they need the core scripts and Docker contracts.
 
@@ -164,6 +164,6 @@ ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0
 
 The image contains pinned Playwright/Chromium, the capture worker, the Python status controller, and the core visual sources used in fingerprints. `make web-capture-image` builds the explicitly named `unaltraweb-web-capture:dev` maintainer image; set `WEB_CAPTURE_IMAGE` to that name when testing it. The manual `Web capture image` workflow publishes default-branch, commit, and semver/release tags to GHCR.
 
-Manual PDF commands similarly consume `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0` by default. `manual-pdf-image` reuses or pulls that selected image instead of rebuilding it locally. Maintainers use `make manual-pdf-image-dev` and then pass `MANUAL_PDF_IMAGE=unaltraweb-manual-pdf:dev` for local PDF runtime changes.
+Manual PDF commands similarly select `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0` by default. `manual-pdf-image` reuses that image when present, attempts to pull it, and builds the same selected reference from the factory source when the registry image is unavailable. Maintainers use `make manual-pdf-image-dev` and then pass `MANUAL_PDF_IMAGE=unaltraweb-manual-pdf:dev` for local PDF runtime changes.
 
 Rendering creates an ephemeral Docker `--internal` network shared only by Jekyll and Chromium, keeps browser requests on the preview origin, blocks service workers, popups, and WebSockets, drops Linux capabilities, uses a read-only container root and bounded resources, and writes only the declared PNG/SVG outputs under the mounted project. Ordinary checks run without browser execution or network access.

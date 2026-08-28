@@ -16,7 +16,7 @@ The opened workspace is the consumer website repository. Factory logic is embedd
 
 Replace `/path/to/unaltraweb` with the checkout's absolute path. `PROJECT=.` is invalid after `make -C` because it resolves to the factory checkout. The declared launcher remains `make`, which ContExt permits for a container runtime without a `runtime.allowed_host_launchers` exception; the shell is introduced only in generated client configuration. Restart clients such as OpenCode after changing their MCP registration.
 
-ContExt dependency preparation builds the runtime and required companions but does not initialize consumer content. The manifest does not advertise an `init` command, and both companion dependencies set `init: false`. Use `new_web` explicitly when a new consumer site should be created.
+ContExt dependency preparation builds the runtime and required companions but does not initialize consumer content. Companion-aware checks and smoke tests include both required providers, while provider updates remain explicit. The manifest does not advertise an `init` command, and both companion dependencies set `init: false`. Use `new_web` explicitly when a new consumer site should be created. Restart long-lived MCP clients after registration, rebuilds, or provider upgrades so their stdio processes use the selected releases.
 
 The Python wheel remains modular. Without a factory checkout it supports `version`, `new-web`, top-level `doctor`, and the exact package-only MCP inventory declared in `component-contract.json`. The complementary exact inventory fails clearly with `UNALTRAWEB_FACTORY_DIR` remediation. The BOM selects the published `diavisuals v0.3.1` and `vegavisuals v0.3.1` releases. Neither companion is bundled in the wheel or MCP server namespace.
 
@@ -102,7 +102,7 @@ The request digest is SHA-256 over `unaltraweb-companion-receipt-v1\0OWNER\0`, f
 | `preview_stop` | Remove only that project's labelled preview container. |
 | `http_check` | Probe bounded safe paths on the current project's owned labelled preview. The origin is derived internally; redirects and arbitrary origins are rejected. |
 
-Advanced computation, capture, PDF, and bibliometrics tools delegate to factory-owned Make targets against the consumer project. Fresh package scaffolds therefore do not need to copy those implementation targets into each website. The tool names use `bibliometrics_*` even though factory Make targets retain `metrics-*` for backwards compatibility.
+Advanced computation, capture, PDF, and bibliometrics tools delegate to factory-owned Make targets against the consumer project. Fresh package scaffolds therefore do not need to copy those implementation targets into each website. A new `unaltremanual` does include a consumer-owned `.unaltraweb/computations.yml` that selects the release's R and Python workers; the first render reuses a local image or pulls that selected image automatically. The worker layers remain external distribution components and are not copied into the wheel or site. The tool names use `bibliometrics_*` even though factory Make targets retain `metrics-*` for backwards compatibility.
 
 `distribution_doctor` findings always include `code`, `severity`, `expected`, `actual`, and `remediation`. Missing factory assets in a direct wheel install produce healthy limited wheel mode, not a false failure. When Docker checks are requested, doctor uses only `docker version` and `docker image inspect`; it does not pull, build, start, or remove anything.
 
@@ -112,7 +112,7 @@ Manual PDF publication is a local workspace operation: it copies reviewed artefa
 
 `new_web` is intended for empty or nearly-empty website repositories. It creates common runtime files, profile-specific configuration, localized home pages, the content paths required by the selected profile, and `.unaltraweb/scaffold.json`. All scaffold assets are shipped inside the `unaltraweb_mcp` Python package and MCP Docker image; environment variables, sibling checkouts, and arbitrary template paths are not consulted.
 
-The `unaltremanual` scaffold also creates `context/writing-profile.md` with a usable default editorial policy. Customize that local file for the manual's audience, voice, terminology, evidence policy, language workflow, and review requirements.
+The `unaltremanual` scaffold also creates `context/writing-profile.md` with a usable default editorial policy and `.unaltraweb/computations.yml` with both BOM-selected workers, `_chapters` and `assets/quarto` source roots, and a generated-asset root. Customize the writing profile for the manual's audience, voice, terminology, evidence policy, language workflow, and review requirements. Computation configuration is consumer-owned rather than scaffold-managed so a project can add lockfiles, dependency paths, or extension Dockerfiles without creating scaffold-sync conflicts. PDF generation and Vega manifests remain opt-in project configuration.
 
 It sets `lang`, `default_lang`, and `languages` so a new site has an explicit source language from the first commit. The default is a single English home page; every configured language gets a localized home-page source and route.
 

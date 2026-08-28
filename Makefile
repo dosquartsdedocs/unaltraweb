@@ -43,6 +43,7 @@ VEGAVISUALS_CLI ?=
 DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 MANUAL_PDF_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0
 MANUAL_PDF_DEV_IMAGE ?= unaltraweb-manual-pdf:dev
+MANUAL_PDF_DOCKER_BUILD_NETWORK ?= default
 MANUAL_PDF_LANG ?=
 MANUAL_PDF_PUBLISH_DRY_RUN ?= 1
 UNALTRAWEB_WORKER_ROLE ?=
@@ -303,7 +304,12 @@ visualization-render: ## Render missing or stale Vega visualizations when config
 	$(call run_vegavisuals,render-all)
 
 manual-pdf-image: ## Ensure the selected versioned Pandoc/XeLaTeX image is present
-	@docker image inspect "$(MANUAL_PDF_IMAGE)" >/dev/null 2>&1 || docker pull "$(MANUAL_PDF_IMAGE)"
+	@if ! docker image inspect "$(MANUAL_PDF_IMAGE)" >/dev/null 2>&1; then \
+	  if ! docker pull "$(MANUAL_PDF_IMAGE)"; then \
+	    printf 'Selected manual PDF image is not published; building %s from the factory source.\n' "$(MANUAL_PDF_IMAGE)" >&2; \
+	    docker build --network "$(MANUAL_PDF_DOCKER_BUILD_NETWORK)" -f scripts/manual/Dockerfile -t "$(MANUAL_PDF_IMAGE)" scripts/manual; \
+	  fi; \
+	fi
 
 manual-pdf-image-dev: ## Build the explicitly named maintainer PDF development image
 	docker build -f scripts/manual/Dockerfile -t "$(MANUAL_PDF_DEV_IMAGE)" scripts/manual
@@ -318,7 +324,7 @@ endef
 manual-pdf-preflight: ## Run required PDF gates without contaminating the worker JSON stream
 	@$(MAKE) --silent --no-print-directory manual-compute-check PROJECT="$(PROJECT_ROOT)" >/dev/null
 	@$(MAKE) --silent --no-print-directory web-capture-check PROJECT="$(PROJECT_ROOT)" >/dev/null
-	@docker image inspect "$(MANUAL_PDF_IMAGE)" >/dev/null 2>&1 || docker pull "$(MANUAL_PDF_IMAGE)" >/dev/null
+	@$(MAKE) --silent --no-print-directory manual-pdf-image MANUAL_PDF_IMAGE="$(MANUAL_PDF_IMAGE)" >/dev/null
 
 manual-pdf-status: manual-pdf-preflight ## Inspect manual PDF configuration and artefacts
 	$(call run_manual_pdf_worker,status)

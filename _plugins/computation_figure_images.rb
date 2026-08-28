@@ -97,7 +97,7 @@ module Unaltraweb
 
       output_local = local_asset_path(output, site_source)
       unless output_local && File.file?(output_local)
-        raise Jekyll::Errors::FatalException, "Missing rendered figure #{output} for #{source_ref}. Run `make manual-compute-render` (included in `make build`) before building."
+        raise Jekyll::Errors::FatalException, "Missing rendered figure #{output} for #{source_ref}. Run `manual_computation_render` before building."
       end
 
       reference_for(source_ref, output)
