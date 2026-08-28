@@ -47,6 +47,10 @@ class DistributionTests(unittest.TestCase):
             ["manifest.inputs", "visualizations[].inputs", "spec.data.url"],
         )
         self.assertEqual(contract["receipt_contract"]["diavisuals_dependencies"], [])
+        self.assertEqual(
+            {contract["components"][name]["release_status"] for name in ["diavisuals", "vegavisuals"]},
+            {"released"},
+        )
 
     def test_doctor_reports_healthy_limited_wheel_mode(self) -> None:
         result = distribution_doctor()
@@ -54,8 +58,8 @@ class DistributionTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertTrue(result["offline"])
         self.assertTrue(result["limited"])
-        self.assertFalse(result["release_ready"])
-        self.assertEqual(result["pending_releases"], ["diavisuals", "vegavisuals"])
+        self.assertTrue(result["release_ready"])
+        self.assertEqual(result["pending_releases"], [])
         self.assertEqual(result["unavailable_releases"], [])
         self.assertEqual(result["receipt_contract"]["input_inventory"], "exact")
         self.assertEqual(result["mode"], "wheel")
@@ -75,7 +79,7 @@ class DistributionTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertFalse(result["release_ready"])
-        self.assertEqual(result["pending_releases"], ["diavisuals"])
+        self.assertEqual(result["pending_releases"], [])
         self.assertEqual(result["unavailable_releases"], ["vegavisuals"])
         self.assertIn("UW-DIST-COMPANION-RELEASE-UNAVAILABLE", {item["code"] for item in result["findings"]})
 
@@ -229,8 +233,8 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
         result = json.loads(completed.stdout)
         self.assertTrue(result["ok"])
-        self.assertFalse(result["release_ready"])
-        self.assertEqual(result["pending_releases"], ["diavisuals", "vegavisuals"])
+        self.assertTrue(result["release_ready"])
+        self.assertEqual(result["pending_releases"], [])
 
         release = subprocess.run(
             [sys.executable, str(root / "scripts/validate_distribution.py"), "--require-release-ready"],
@@ -240,8 +244,8 @@ class DistributionTests(unittest.TestCase):
             stderr=subprocess.PIPE,
             check=False,
         )
-        self.assertEqual(release.returncode, 2, release.stderr or release.stdout)
-        self.assertFalse(json.loads(release.stdout)["release_ready"])
+        self.assertEqual(release.returncode, 0, release.stderr or release.stdout)
+        self.assertTrue(json.loads(release.stdout)["release_ready"])
 
     def test_publish_ref_must_match_the_distribution_release(self) -> None:
         contract = distribution_contract()
