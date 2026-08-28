@@ -85,7 +85,7 @@ class BibliographyProfilesTest < Minitest::Test
     end
   end
 
-  def test_manual_render_folds_accents_and_keeps_numeric_citations_linked_to_their_labels
+  def test_manual_render_folds_unicode_and_latex_accents_and_keeps_numeric_citations_linked_to_their_labels
     Dir.mktmpdir do |directory|
       source = File.join(directory, "site")
       destination = File.join(directory, "output")
@@ -96,6 +96,8 @@ class BibliographyProfilesTest < Minitest::Test
           @book{zulu, author={Zulu, Ada}, title={Zulu title}, year={2026}}
           @book{eclair, author={Éclair, Ada}, title={Eclair title}, year={2026}}
           @book{agency, author={{Agency Alpha}}, title={Agency title}, year={2026}}
+          @book{bruns, author={Bruns, Ada}, title={Bruns title}, year={2026}}
+          @book{boeckmann, author={B{\"o}ckmann, Ada}, title={Boeckmann title}, year={2026}}
         BIBLIOGRAPHY
       )
       File.write(
@@ -103,7 +105,7 @@ class BibliographyProfilesTest < Minitest::Test
         <<~MARKDOWN
           ---
           ---
-          {% cite zulu %} {% cite eclair %} {% cite agency %}
+          {% cite zulu %} {% cite eclair %} {% cite agency %} {% cite bruns %} {% cite boeckmann %}
 
           {% bibliography --cited --group_by none %}
         MARKDOWN
@@ -128,11 +130,17 @@ class BibliographyProfilesTest < Minitest::Test
       output = File.read(File.join(destination, "index.html"))
 
       assert_operator output.index('id="agency"'), :<, output.index('id="eclair"')
+      assert_operator output.index('id="boeckmann"'), :<, output.index('id="bruns"')
+      assert_operator output.index('id="bruns"'), :<, output.index('id="eclair"')
       assert_operator output.index('id="eclair"'), :<, output.index('id="zulu"')
       assert_match(/href="#zulu"[^>]*>\[1\]<\/a>/, output)
       assert_match(/href="#eclair"[^>]*>\[2\]<\/a>/, output)
       assert_match(/href="#agency"[^>]*>\[3\]<\/a>/, output)
+      assert_match(/href="#bruns"[^>]*>\[4\]<\/a>/, output)
+      assert_match(/href="#boeckmann"[^>]*>\[5\]<\/a>/, output)
       assert_match(/id="agency"[^>]*>3\. Agency title/, output)
+      assert_match(/id="boeckmann"[^>]*>5\. Boeckmann title/, output)
+      assert_match(/id="bruns"[^>]*>4\. Bruns title/, output)
       assert_match(/id="eclair"[^>]*>2\. Eclair title/, output)
       assert_match(/id="zulu"[^>]*>1\. Zulu title/, output)
     end

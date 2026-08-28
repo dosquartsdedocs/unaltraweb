@@ -112,7 +112,7 @@ module Unaltraweb
     end
 
     def fold_sort_value(value)
-      value.to_s.unicode_normalize(:nfkd).gsub(/\p{Mn}/, "")
+      BibTeX::Value.new(value.to_s).convert(:latex).to_s.unicode_normalize(:nfkd).gsub(/\p{Mn}/, "")
     end
   end
 
