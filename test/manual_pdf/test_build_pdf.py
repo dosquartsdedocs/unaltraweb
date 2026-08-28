@@ -77,8 +77,20 @@ class ManualPdfBuilderTests(unittest.TestCase):
     def test_template_keeps_callouts_together_without_floating_figures_through_them(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("breakable,", template)
+        self.assertNotIn("breakable,", template)
+        self.assertIn(r"\newenvironment{manualcallout}[3][enhanced]", template)
+        self.assertIn("colback=#2!6!white", template)
+        self.assertIn(r"\color{#2}#3", template)
         self.assertIn(r"\floatplacement{figure}{H}", template)
+
+    def test_template_avoids_stretched_pages_and_orphaned_headings(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(r"\raggedbottom", template)
+        self.assertIn(r"\clubpenalty=10000", template)
+        self.assertIn(r"\widowpenalty=10000", template)
+        self.assertIn(r"\pretocmd{\section}{\Needspace{6\baselineskip}}{}{}", template)
+        self.assertIn(r"\setlength{\LTpre}{0.6em}", template)
 
     def test_template_keeps_figures_in_source_order(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -306,8 +318,44 @@ class ManualPdfBuilderTests(unittest.TestCase):
         result = manual_pdf.transform_markdown(self.project, text, source)
 
         self.assertIn("[@one; @two]", result)
+        self.assertIn(r"\Needspace{10\baselineskip}", result)
         self.assertIn("Table: A useful table", result)
         self.assertIn("![Detailed flow](assets/diagrams/flow.mmd.edited.svg)", result)
+
+    def test_transform_starts_oversized_tables_on_a_fresh_page(self) -> None:
+        rows = "\n".join(f"| Row {index} | " + ("Long cell text. " * 12) + "|" for index in range(18))
+        text = f'''::: table "Large table"
+| Item | Description |
+| --- | --- |
+{rows}
+:::'''
+
+        result = manual_pdf.transform_markdown(
+            self.project,
+            text,
+            self.project / "_chapters/en/chapter.md",
+        )
+
+        self.assertIn("```{=latex}\n\\clearpage\n```", result)
+        self.assertIn("Table: Large table", result)
+
+    def test_transform_moves_table_page_guard_before_an_immediate_heading(self) -> None:
+        text = '''## Review table
+
+::: table "Compact table"
+| Item | Description |
+| --- | --- |
+| One | Short description |
+:::'''
+
+        result = manual_pdf.transform_markdown(
+            self.project,
+            text,
+            self.project / "_chapters/en/chapter.md",
+        )
+
+        self.assertIn("```{=latex}\n\\Needspace{16\\baselineskip}\n```\n\n## Review table", result)
+        self.assertLess(result.index(r"\Needspace"), result.index("## Review table"))
 
     def test_transform_collects_unique_citation_keys_outside_code(self) -> None:
         citation_keys: list[str] = []
@@ -391,6 +439,17 @@ $$
         self.assertIn("- Comproveu les unitats.", result)
         self.assertEqual(result.count(r"\end{manualcallout}"), 2)
         self.assertNotIn(">>>>", result)
+
+    def test_transform_allows_oversized_callouts_to_continue(self) -> None:
+        body = "\n".join(f">> This is long callout line {index}. " + ("More text. " * 8) for index in range(24))
+
+        result = manual_pdf.transform_markdown(
+            self.project,
+            body,
+            self.project / "_chapters/en/chapter.md",
+        )
+
+        self.assertIn(r"\begin{manualcallout}[enhanced,breakable]{ManualCalloutInfo}{NOTE}", result)
 
     def test_transform_uses_web_callout_i18n_customization(self) -> None:
         i18n = self.project / "_data/i18n/ca.yml"

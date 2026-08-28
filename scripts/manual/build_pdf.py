@@ -48,6 +48,12 @@ IMAGE_RE = re.compile(
     r"(?P<attrs>\{:[^}\n]*\})?"
 )
 TABLE_DIV_RE = re.compile(r'^::: table\s+["\'](.+?)["\']\s*\n(.*?)^:::\s*$', re.MULTILINE | re.DOTALL)
+PIPE_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?(?:\s*\|\s*:?-{3,}:?)+\s*\|?\s*$")
+TABLE_GUARD_AFTER_HEADING_RE = re.compile(
+    r"^(?P<heading>#{2,6}\s+[^\n]+)\n\n```\{=latex\}\n"
+    r"(?P<guard>\\(?:clearpage|Needspace\{(?P<baselines>\d+)\\baselineskip\}))\n```",
+    re.MULTILINE,
+)
 SUBFIGURES_DIV_RE = re.compile(
     r'^:::\s*subfigures(?:\s+(?P<layout>[^\s"]+))?(?:\s+"(?P<caption>[^"]*)")?\s*\n'
     r'(?P<body>.*?)^:::\s*$',
@@ -820,7 +826,19 @@ def transform_markdown(
         return "[" + "; ".join(f"@{key}" for key in keys) + "]"
 
     def table(match: re.Match[str]) -> str:
-        return f"Table: {match.group(1).strip()}\n\n{match.group(2).strip()}"
+        body = match.group(2).strip()
+        rows = [
+            re.sub(r"\s+", " ", line.strip().strip("|"))
+            for line in body.splitlines()
+            if "|" in line and not PIPE_TABLE_SEPARATOR_RE.fullmatch(line)
+        ]
+        estimated_lines = 2 + sum(max(1, (len(row) + 71) // 72) for row in rows)
+        required_baselines = max(10, round(estimated_lines * 1.25) + 2)
+        page_guard = r"\clearpage" if required_baselines >= 40 else f"\\Needspace{{{required_baselines}\\baselineskip}}"
+        return (
+            f"```{{=latex}}\n{page_guard}\n```\n\n"
+            f"Table: {match.group(1).strip()}\n\n{body}"
+        )
 
     def inline_code(match: re.Match[str]) -> str:
         value = html.unescape(match.group(1))
@@ -828,6 +846,12 @@ def transform_markdown(
         fence = "`" * longest_fence
         padding = " " if value.startswith("`") or value.endswith("`") else ""
         return f"{fence}{padding}{value}{padding}{fence}"
+
+    def table_guard_before_heading(match: re.Match[str]) -> str:
+        guard = match.group("guard")
+        if match.group("baselines"):
+            guard = f"\\Needspace{{{int(match.group('baselines')) + 6}\\baselineskip}}"
+        return f"```{{=latex}}\n{guard}\n```\n\n{match.group('heading')}"
 
     def display_math(match: re.Match[str]) -> str:
         body = match.group("body").rstrip("\r\n")
@@ -855,10 +879,16 @@ def transform_markdown(
         body = "\n".join(line[len(marks):].lstrip(" \t") for line in match.group("block").splitlines()).strip()
         if not body:
             raise ManualPdfError(f"Empty callout in {source.relative_to(project)}")
+        estimated_lines = 2 + sum(
+            max(1, (len(line.strip()) + 71) // 72)
+            for line in body.splitlines()
+            if line.strip()
+        )
+        options = "[enhanced,breakable]" if estimated_lines >= 40 else ""
         label = latex_escape(callout_labels[callout_type])
         return (
             "```{=latex}\n"
-            f"\\begin{{manualcallout}}{{{color}}}{{{label}}}\n"
+            f"\\begin{{manualcallout}}{options}{{{color}}}{{{label}}}\n"
             "```\n\n"
             f"{body}\n\n"
             "```{=latex}\n"
@@ -939,6 +969,7 @@ def transform_markdown(
     transformed = CITE_RE.sub(citations, transformed)
     transformed = CALLOUT_BLOCK_RE.sub(callout, transformed)
     transformed = TABLE_DIV_RE.sub(table, transformed)
+    transformed = TABLE_GUARD_AFTER_HEADING_RE.sub(table_guard_before_heading, transformed)
     transformed = SUBFIGURES_DIV_RE.sub(subfigures, transformed)
     transformed = IMAGE_RE.sub(image, transformed)
     if re.search(r"^:::\s*subfigures\b", transformed, re.MULTILINE):

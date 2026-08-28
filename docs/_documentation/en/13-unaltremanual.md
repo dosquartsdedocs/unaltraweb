@@ -135,6 +135,8 @@ manual_computation_render(source="_chapters/en/chapter.qmd")
 
 `status` prints JSON and remains informational even when `ok` is false. `check` exits nonzero for missing, stale, modified, or orphaned results. `render` executes explicitly, reuses an available selected worker or pulls it on first use, stages output, serializes publication per project, and replaces managed Markdown and figures with rollback on ordinary errors. `manual_computation_render_figures` renders only stale `mode: figure` sources and never executes chapter-mode sources. Source execution runs without network access and with Quarto caches disabled; image preparation occurs before the network-disabled worker starts.
 
+The shared PDF template keeps normal paragraph spacing instead of stretching sparse pages to the bottom margin, avoids widow and orphan lines, and reserves body text after section headings. Callouts and figures that fit on one page move as a unit to the next page when necessary. Captioned tables reserve their estimated height; genuinely long tables start on a fresh page and may continue only between rows when they exceed one page.
+
 The first render refuses to overwrite an existing same-stem Markdown file or figure directory that is not recorded in the computation lock. Review the collision before an intentional takeover:
 
 ```text
