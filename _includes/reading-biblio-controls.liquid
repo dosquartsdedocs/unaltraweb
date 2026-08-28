@@ -37,7 +37,7 @@
         <button class="reading-copy-button" type="button" data-copy-target="#{{ biblio_id }}-cite-copy" data-copy-label="{{ copy_text | strip | escape }}" data-copy-done="{{ copied_text | strip | escape }}">{{ copy_text | strip }}</button>
       </div>
       <div id="{{ biblio_id }}-cite-copy" class="reading-copy-source reading-citation-text">{{ biblio_citation }}</div>
-      {% if biblio_doi_url %}<p class="reading-citation-doi"><strong>{{ doi_text | strip }}:</strong> <a href="{{ biblio_doi_url }}" target="_blank" rel="noopener noreferrer">{{ biblio_doi_url }}</a></p>{% endif %}
+      {% if biblio_doi_url and include.hide_citation_access != true %}<p class="reading-citation-doi"><strong>{{ doi_text | strip }}:</strong> <a href="{{ biblio_doi_url }}" target="_blank" rel="noopener noreferrer">{{ biblio_doi_url }}</a></p>{% endif %}
     </div>
   {% endif %}
 

@@ -7,6 +7,7 @@ require "tmpdir"
 require "fileutils"
 
 require_relative "../../_plugins/bibliography_profiles"
+require_relative "../../_plugins/hide-custom-bibtex"
 
 class BibliographyProfilesTest < Minitest::Test
   def test_manual_profile_uses_alphabetical_ungrouped_bibliographies
@@ -143,6 +144,70 @@ class BibliographyProfilesTest < Minitest::Test
       assert_match(/id="bruns"[^>]*>4\. Bruns title/, output)
       assert_match(/id="eclair"[^>]*>2\. Eclair title/, output)
       assert_match(/id="zulu"[^>]*>1\. Zulu title/, output)
+    end
+  end
+
+  def test_manual_bibliography_keeps_featured_readings_and_hides_access_from_citation_panels
+    Dir.mktmpdir do |directory|
+      source = File.join(directory, "site")
+      destination = File.join(directory, "output")
+      root = File.expand_path("../..", __dir__)
+      %w[
+        _includes/manual-bibliography.liquid
+        _includes/manual-featured-readings.liquid
+        _includes/manual-other-readings.liquid
+        _includes/reading-biblio-controls.liquid
+        _includes/t.liquid
+        _layouts/manual-bib.liquid
+        _layouts/manual-featured-bib.liquid
+      ].each do |relative_path|
+        target = File.join(source, relative_path)
+        FileUtils.mkdir_p(File.dirname(target))
+        FileUtils.cp(File.join(root, relative_path), target)
+      end
+      FileUtils.mkdir_p(File.join(source, "_bibliography"))
+      File.write(
+        File.join(source, "_bibliography", "manual.bib"),
+        <<~BIBLIOGRAPHY
+          @book{selected, author={Selected, Ada}, title={Selected title}, year={2020}, manual={true}, manual_selected={true}}
+          @article{other, author={Other, Ada}, title={Other title}, journal={Journal}, year={2021}, manual={true}, manual_selected={false}, doi={10.1234/other}}
+        BIBLIOGRAPHY
+      )
+      File.write(
+        File.join(source, "index.md"),
+        <<~MARKDOWN
+          ---
+          lang: en
+          ref: manual-bibliography
+          ---
+          {% include manual-bibliography.liquid %}
+        MARKDOWN
+      )
+      config = Jekyll.configuration(
+        "source" => source,
+        "destination" => destination,
+        "quiet" => true,
+        "default_lang" => "en",
+        "lang" => "en",
+        "filtered_bibtex_keywords" => [],
+        "unaltraweb" => {"site_profile" => "unaltremanual", "manual" => {}},
+        "scholar" => {"style" => "apa", "bibliography_template" => "manual-bib"}
+      )
+
+      Jekyll::Site.new(config).process
+      output = File.read(File.join(destination, "index.html"))
+      visible_reference = output[/<div class="manual-reference-text">(.*?)<\/div>/m, 1]
+      citation_panel = output[/id="biblio-other-cite-copy"[^>]*>(.*?)<\/div>/m, 1]
+
+      assert_includes output, "Selected readings"
+      assert_includes output, "More readings"
+      assert_operator output.index("manual-featured-bibliography"), :<, output.index("manual-more-bibliography")
+      assert_includes output, "manual-featured-reference"
+      assert_includes output, "Other title"
+      refute_includes visible_reference, "doi.org"
+      refute_includes citation_panel, "doi.org"
+      refute_includes output, "reading-citation-doi"
+      assert_includes output, 'href="https://doi.org/10.1234/other"'
     end
   end
 
