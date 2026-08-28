@@ -58,8 +58,23 @@
 \definecolor{ManualExternalLink}{HTML}{$external-link-color$}
 \definecolor{ManualCitationLink}{HTML}{$citation-link-color$}
 \definecolor{ManualInlineCode}{HTML}{$inline-code-color$}
-\captionsetup{font=small,labelfont=bf}
-\captionsetup[subfigure]{font=small,labelfont=bf}
+\DeclareCaptionFont{manualcaption}{\sffamily\fontsize{9.4}{11.2}\selectfont}
+\DeclareCaptionFont{manualsubcaption}{\sffamily\fontsize{8.8}{10.5}\selectfont}
+\captionsetup{
+  font={manualcaption,color=ManualMuted},
+  labelfont={bf,sf,color=ManualPrimary},
+  format=hang,
+  justification=raggedright,
+  singlelinecheck=false
+}
+\captionsetup[figure]{margin=1em,aboveskip=7pt,belowskip=10pt}
+\captionsetup[table]{margin=1em,aboveskip=7pt,belowskip=10pt}
+\captionsetup[subfigure]{
+  font={manualsubcaption,color=ManualMuted},
+  labelfont={bf,sf,color=ManualPrimary},
+  margin=0pt,
+  skip=5pt
+}
 \definecolor{ManualCalloutInfo}{HTML}{2A5FB8}
 \definecolor{ManualCalloutExample}{HTML}{13795B}
 \definecolor{ManualCalloutWarning}{HTML}{A65D03}

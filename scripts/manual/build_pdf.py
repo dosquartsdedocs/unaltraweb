@@ -954,7 +954,13 @@ def transform_markdown(
                 rendered.append("```{=latex}\n\\par\\medskip\n```")
 
         overall_caption = latex_caption(match.group("caption") or "")
-        caption_command = f"\\caption{{{overall_caption}}}\n" if overall_caption else ""
+        caption_command = (
+            "\\par\\medskip\n"
+            "{\\color{ManualMuted!45}\\rule{\\linewidth}{0.35pt}}\\par\\smallskip\n"
+            f"\\caption{{{overall_caption}}}\n"
+            if overall_caption
+            else ""
+        )
         rendered.append(f"```{{=latex}}\n{caption_command}\\end{{figure}}\n```")
         return "\n\n".join(rendered)
 

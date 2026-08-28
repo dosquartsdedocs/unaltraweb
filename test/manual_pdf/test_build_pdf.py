@@ -60,8 +60,14 @@ class ManualPdfBuilderTests(unittest.TestCase):
     def test_template_distinguishes_captions_from_body_text(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn(r"\captionsetup{font=small,labelfont=bf}", template)
-        self.assertIn(r"\captionsetup[subfigure]{font=small,labelfont=bf}", template)
+        self.assertIn(r"\DeclareCaptionFont{manualcaption}{\sffamily\fontsize{9.4}{11.2}\selectfont}", template)
+        self.assertIn(r"\DeclareCaptionFont{manualsubcaption}{\sffamily\fontsize{8.8}{10.5}\selectfont}", template)
+        self.assertIn("font={manualcaption,color=ManualMuted}", template)
+        self.assertIn("labelfont={bf,sf,color=ManualPrimary}", template)
+        self.assertIn("format=hang", template)
+        self.assertIn("justification=raggedright", template)
+        self.assertIn(r"\captionsetup[figure]{margin=1em,aboveskip=7pt,belowskip=10pt}", template)
+        self.assertIn("font={manualsubcaption,color=ManualMuted}", template)
 
     def test_template_distinguishes_link_categories_and_code(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -761,6 +767,8 @@ $$
         self.assertNotIn("data-figure-width", result)
         self.assertNotIn("UNALTRAWEBMANUALPROTECTED", result)
         self.assertIn(r"\caption{Bars \& \texttt{points} at 50\%}", result)
+        self.assertIn(r"{\color{ManualMuted!45}\rule{\linewidth}{0.35pt}}", result)
+        self.assertLess(result.index(r"\rule{\linewidth}{0.35pt}"), result.index(r"\caption{Bars"))
         self.assertIn(r"\begin{figure}[H]", result)
         self.assertEqual(result.count(r"\begin{subfigure}[t]{0.48\linewidth}"), 2)
         self.assertEqual(result.count(r"\begin{subfigure}[t]{0.92\linewidth}"), 1)
