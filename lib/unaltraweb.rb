@@ -6,6 +6,7 @@ require_relative "unaltraweb/version"
   bibliography_profiles
   localized_visual_sources
   callouts
+  code_blocks
   computation_figure_images
   vega_visual_images
   computation_sources

@@ -29,6 +29,8 @@ SCRIPT_ROOT = Path(__file__).resolve().parent
 DEFAULT_DOCKERFILE = SCRIPT_ROOT / "Dockerfile"
 DEFAULT_TEMPLATE = SCRIPT_ROOT / "templates" / "manual.tex"
 DEFAULT_BIBLIOGRAPHY_FILTER = SCRIPT_ROOT / "filters" / "bibliography.lua"
+DEFAULT_CODE_BLOCK_FILTER = SCRIPT_ROOT / "filters" / "code-blocks.lua"
+DEFAULT_FIGURE_FILTER = SCRIPT_ROOT / "filters" / "figure-captions.lua"
 BIB_ENTRY_HEADER_RE = re.compile(r"(?im)^\s*@(?:[A-Za-z]+)\s*[({]\s*([^,\s]+)\s*,")
 BIB_CUSTOM_URL_RE = re.compile(r'(?im)^\s*(?:manual_url|website)\s*=\s*(?:\{([^}\r\n]+)\}|"([^"\r\n]+)")\s*,?')
 FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)^---[ \t]*(?:\r?\n|\Z)", re.MULTILINE | re.DOTALL)
@@ -113,6 +115,7 @@ CALLOUT_LABELS = {
         "danger": "CAUTION",
     },
 }
+CODE_BLOCK_LABELS = {"ca": "Codi", "es": "Código", "en": "Code"}
 CAPTURE_SVG_ALLOWED_ELEMENTS = {
     "svg", "g", "defs", "metadata", "title", "desc", "image", "rect", "path", "text", "tspan",
     "marker", "polygon", "polyline", "line", "circle", "ellipse", "clippath", "mask", "lineargradient",
@@ -286,27 +289,27 @@ def normalize_callout_language(value: Any) -> str:
     return normalized or "en"
 
 
+def language_data(project: Path, config: dict[str, Any], lang: str) -> tuple[dict[str, Any], Path | None]:
+    data_root = safe_relative(project, str(config.get("data_dir") or "_data"), label="Jekyll data directory")
+    if not LANGUAGE_RE.fullmatch(lang):
+        return {}, None
+    for suffix in (".yml", ".yaml"):
+        path = data_root / "i18n" / f"{lang}{suffix}"
+        if not path.is_file():
+            continue
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+        return (parsed if isinstance(parsed, dict) else {}), path
+    return {}, None
+
+
 def resolve_callout_labels(project: Path, config: dict[str, Any], language: str) -> tuple[dict[str, str], list[Path]]:
     normalized_language = normalize_callout_language(language)
     default_language = normalize_callout_language(config.get("default_lang") or config.get("lang") or "en")
-    data_root = safe_relative(project, str(config.get("data_dir") or "_data"), label="Jekyll data directory")
-
-    def language_data(lang: str) -> tuple[dict[str, Any], Path | None]:
-        if not LANGUAGE_RE.fullmatch(lang):
-            return {}, None
-        for suffix in (".yml", ".yaml"):
-            path = data_root / "i18n" / f"{lang}{suffix}"
-            if not path.is_file():
-                continue
-            parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
-            return (parsed if isinstance(parsed, dict) else {}), path
-        return {}, None
-
-    localized_data, localized_path = language_data(normalized_language)
+    localized_data, localized_path = language_data(project, config, normalized_language)
     if default_language == normalized_language:
         default_data, default_path = localized_data, localized_path
     else:
-        default_data, default_path = language_data(default_language)
+        default_data, default_path = language_data(project, config, default_language)
 
     localized_callouts = localized_data.get("callouts")
     default_callouts = default_data.get("callouts")
@@ -322,6 +325,28 @@ def resolve_callout_labels(project: Path, config: dict[str, Any], language: str)
     labels.update({str(key): "" if value is None else str(value) for key, value in configured.items()})
     dependencies = list(dict.fromkeys(path for path in (localized_path, default_path) if path is not None))
     return labels, dependencies
+
+
+def resolve_code_block_label(project: Path, config: dict[str, Any], language: str) -> tuple[str, list[Path]]:
+    normalized_language = normalize_callout_language(language)
+    default_language = normalize_callout_language(config.get("default_lang") or config.get("lang") or "en")
+    localized_data, localized_path = language_data(project, config, normalized_language)
+    if default_language == normalized_language:
+        default_data, default_path = localized_data, localized_path
+    else:
+        default_data, default_path = language_data(project, config, default_language)
+
+    localized_label = nested(localized_data, "code_blocks").get("label")
+    default_label = nested(default_data, "code_blocks").get("label")
+    label = str(
+        localized_label
+        or default_label
+        or CODE_BLOCK_LABELS.get(normalized_language)
+        or CODE_BLOCK_LABELS.get(default_language)
+        or CODE_BLOCK_LABELS["en"]
+    )
+    dependencies = list(dict.fromkeys(path for path in (localized_path, default_path) if path is not None))
+    return label, dependencies
 
 
 def language_list(config: dict[str, Any], pdf: dict[str, Any], requested: str = "") -> list[str]:
@@ -918,7 +943,14 @@ def transform_markdown(
                 f"in {source.relative_to(project)}"
             )
 
-        rendered = ["```{=latex}\n\\begin{figure}[H]\n\\centering\n```"]
+        overall_caption = latex_caption(match.group("caption") or "")
+        figure_start = "```{=latex}\n\\begin{figure}[H]\n\\centering\n"
+        if overall_caption:
+            figure_start += (
+                f"\\caption{{{overall_caption}}}\n"
+                "{\\color{ManualMuted!45}\\rule{\\linewidth}{0.35pt}}\\par\\medskip\n"
+            )
+        rendered = [figure_start + "```"]
         image_index = 0
         max_image_height = f"{0.52 / len(row_sizes):.3f}".rstrip("0").rstrip(".")
         for row_index, row_size in enumerate(row_sizes):
@@ -953,15 +985,7 @@ def transform_markdown(
             if row_index < len(row_sizes) - 1:
                 rendered.append("```{=latex}\n\\par\\medskip\n```")
 
-        overall_caption = latex_caption(match.group("caption") or "")
-        caption_command = (
-            "\\par\\medskip\n"
-            "{\\color{ManualMuted!45}\\rule{\\linewidth}{0.35pt}}\\par\\smallskip\n"
-            f"\\caption{{{overall_caption}}}\n"
-            if overall_caption
-            else ""
-        )
-        rendered.append(f"```{{=latex}}\n{caption_command}\\end{{figure}}\n```")
+        rendered.append("```{=latex}\n\\end{figure}\n```")
         return "\n\n".join(rendered)
 
     transformed = FENCED_CODE_BLOCK_RE.sub(lambda match: protect(match.group(0)), text)
@@ -1110,7 +1134,8 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
     home_front: dict[str, Any] = {}
     chunks: list[str] = []
     _, callout_label_sources = resolve_callout_labels(project, config, source_lang)
-    source_paths: list[Path] = list(callout_label_sources)
+    code_block_label, code_block_label_sources = resolve_code_block_label(project, config, source_lang)
+    source_paths: list[Path] = list(dict.fromkeys([*callout_label_sources, *code_block_label_sources]))
     includes_home = bool(home and pdf.get("include_home", True))
 
     if includes_home:
@@ -1144,6 +1169,7 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
 
     metadata = build_metadata(project, config, lang, source_lang, home_front, included_chapters)
     metadata["include-home"] = includes_home
+    metadata["code-block-label"] = code_block_label
     return metadata, source_paths, "\n\n\\newpage\n\n".join(chunks) + "\n"
 
 
@@ -1293,6 +1319,8 @@ def build_dependencies(project: Path, metadata: dict[str, Any], source_paths: li
         ("toolchain:Dockerfile", DEFAULT_DOCKERFILE),
         (f"template:{template.name}", template),
         ("filter:bibliography.lua", DEFAULT_BIBLIOGRAPHY_FILTER),
+        ("filter:code-blocks.lua", DEFAULT_CODE_BLOCK_FILTER),
+        ("filter:figure-captions.lua", DEFAULT_FIGURE_FILTER),
     ]
     for path in source_paths:
         dependencies.append((f"source:{path.relative_to(project)}", path))
@@ -1401,6 +1429,8 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
             if csl:
                 command.append(f"--csl={csl}")
             command.append(f"--lua-filter={DEFAULT_BIBLIOGRAPHY_FILTER}")
+        command.append(f"--lua-filter={DEFAULT_CODE_BLOCK_FILTER}")
+        command.append(f"--lua-filter={DEFAULT_FIGURE_FILTER}")
         run_command(command, project)
         normalized_pdf = staged["pdf"].with_suffix(".normalized.pdf")
         run_command(

@@ -244,7 +244,7 @@ Manual chapters can also number teaching tables with the same localized counter 
 
 This renders a numbered table with localized labels such as `Table 1.`, `Taula 1.` or `Tabla 1.`. Tables and figures keep separate counters.
 
-Use fenced code blocks for programming examples. The theme uses Rouge, so common TIG languages such as Bash/Linux shell, Windows PowerShell, SQL/PostGIS, Python, R and Haskell get syntax highlighting when the fence includes the language name:
+Use fenced code blocks for programming examples. The shared web and PDF renderers show a language header and line numbers. The theme uses Rouge, so common TIG languages such as Bash/Linux shell, Windows PowerShell, SQL/PostGIS, Python, R and Haskell get syntax highlighting when the fence includes the language name. Use `text` or omit the language for a plain block with the localized generic code label:
 
 ````markdown
 Inline code like `ST_Transform` stays inside the paragraph.

@@ -62,12 +62,33 @@ class ManualPdfBuilderTests(unittest.TestCase):
 
         self.assertIn(r"\DeclareCaptionFont{manualcaption}{\sffamily\fontsize{9.4}{11.2}\selectfont}", template)
         self.assertIn(r"\DeclareCaptionFont{manualsubcaption}{\sffamily\fontsize{8.8}{10.5}\selectfont}", template)
+        self.assertIn(r"\DeclareCaptionLabelFormat{manual}{#1\nobreakspace\textcolor{ManualSecondary}{#2}}", template)
         self.assertIn("font={manualcaption,color=ManualMuted}", template)
-        self.assertIn("labelfont={bf,sf,color=ManualPrimary}", template)
+        self.assertIn("labelformat=manual", template)
         self.assertIn("format=hang", template)
-        self.assertIn("justification=raggedright", template)
-        self.assertIn(r"\captionsetup[figure]{margin=1em,aboveskip=7pt,belowskip=10pt}", template)
+        self.assertIn("justification=RaggedRight", template)
+        self.assertIn(r"\captionsetup[figure]{position=top,margin=1em,aboveskip=0pt,belowskip=7pt}", template)
         self.assertIn("font={manualsubcaption,color=ManualMuted}", template)
+        self.assertIn("labelfont={bf,sf,color=ManualSecondary}", template)
+
+    def test_template_colors_heading_numbers_without_coloring_titles(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(
+            r"\renewcommand{\@seccntformat}[1]{\textcolor{ManualSecondary}{\csname the#1\endcsname}\quad}",
+            template,
+        )
+        self.assertIn(r"{\@chapapp\space \textcolor{ManualSecondary}{\thechapter}}", template)
+
+    def test_code_block_label_uses_localized_site_data(self) -> None:
+        i18n = self.project / "_data/i18n/ca.yml"
+        i18n.parent.mkdir(parents=True)
+        i18n.write_text("code_blocks:\n  label: Fragment de codi\n", encoding="utf-8")
+
+        label, dependencies = manual_pdf.resolve_code_block_label(self.project, self.config, "ca")
+
+        self.assertEqual(label, "Fragment de codi")
+        self.assertEqual(dependencies, [i18n])
 
     def test_template_distinguishes_link_categories_and_code(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -80,10 +101,24 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn("$highlighting-macros$", template)
         self.assertIn(r"\renewcommand{\texttt}[1]", template)
 
-    def test_template_keeps_callouts_together_without_floating_figures_through_them(self) -> None:
+    def test_template_renders_breakable_numbered_code_panels(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertNotIn("breakable,", template)
+        self.assertIn(r"\usepackage{fvextra}", template)
+        self.assertIn(r"\RecustomVerbatimEnvironment{Highlighting}{Verbatim}", template)
+        self.assertIn("breaklines=true", template)
+        self.assertIn("breaknonspaceingroup=true", template)
+        self.assertIn("breaksymbolleft={}", template)
+        self.assertIn("breakanywheresymbolpre={}", template)
+        self.assertIn(r"\newenvironment{manualcode}[1]", template)
+        self.assertIn("colbacktitle=ManualCodeHeader", template)
+        self.assertIn("breakable,", template)
+
+    def test_template_keeps_callouts_together_without_floating_figures_through_them(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        callout = template.split(r"\newenvironment{manualcallout}", 1)[1].split(r"\hypersetup", 1)[0]
+
+        self.assertNotIn("breakable,", callout)
         self.assertIn(r"\newenvironment{manualcallout}[3][enhanced]", template)
         self.assertIn("colback=#2!6!white", template)
         self.assertIn(r"\color{#2}#3", template)
@@ -768,7 +803,8 @@ $$
         self.assertNotIn("UNALTRAWEBMANUALPROTECTED", result)
         self.assertIn(r"\caption{Bars \& \texttt{points} at 50\%}", result)
         self.assertIn(r"{\color{ManualMuted!45}\rule{\linewidth}{0.35pt}}", result)
-        self.assertLess(result.index(r"\rule{\linewidth}{0.35pt}"), result.index(r"\caption{Bars"))
+        self.assertLess(result.index(r"\caption{Bars"), result.index(r"\rule{\linewidth}{0.35pt}"))
+        self.assertLess(result.index(r"\caption{Bars"), result.index(r"\begin{subfigure}"))
         self.assertIn(r"\begin{figure}[H]", result)
         self.assertEqual(result.count(r"\begin{subfigure}[t]{0.48\linewidth}"), 2)
         self.assertEqual(result.count(r"\begin{subfigure}[t]{0.92\linewidth}"), 1)
@@ -1012,6 +1048,8 @@ $$
         commands = [call.args[0] for call in run_command.call_args_list]
         self.assertEqual([command[0] for command in commands], ["pandoc", "qpdf", "pdftoppm"])
         self.assertIn("--highlight-style=pygments", commands[0])
+        self.assertIn(f"--lua-filter={manual_pdf.DEFAULT_CODE_BLOCK_FILTER}", commands[0])
+        self.assertIn(f"--lua-filter={manual_pdf.DEFAULT_FIGURE_FILTER}", commands[0])
         self.assertNotIn("--no-highlight", commands[0])
         self.assertIn("--deterministic-id", commands[1])
         self.assertIn("--object-streams=generate", commands[1])

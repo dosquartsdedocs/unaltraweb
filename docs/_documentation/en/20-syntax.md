@@ -202,7 +202,7 @@ annotations:
 
 ## Code Fences
 
-Use language names for syntax highlighting. Rouge renders code on the web and Pandoc Skylighting renders the same fenced blocks in manual PDFs. Inline code uses single backticks and is styled separately from prose. Common teaching languages include `bash`, `powershell`, `sql`, `python`, `r`, `haskell`, `javascript`, `yaml`, and `json`:
+Use language names for syntax highlighting. Rouge renders code on the web and Pandoc Skylighting renders the same fenced blocks in manual PDFs. Both outputs add a compact language header and line numbers; web line numbers are hidden from assistive technology and excluded when copying code. A fence declared as `text`, `plaintext`, `plain`, or `txt`, or a fence with no language, uses the localized generic label `Code`, `Codi`, or `Código` without language-specific highlighting. Inline code uses single backticks and is styled separately from prose. Common teaching languages include `bash`, `powershell`, `sql`, `python`, `r`, `haskell`, `javascript`, `yaml`, and `json`:
 
 ````markdown
 ```bash
@@ -225,7 +225,18 @@ import geopandas as gpd
 ```r
 library(sf)
 ```
+
+```
+Generic output or a value copied from an application.
+```
 ````
+
+A consumer can replace the generic header through `_data/i18n/<lang>.yml`:
+
+```yaml
+code_blocks:
+  label: Source code
+```
 
 ## Links, Citations, And Equations
 

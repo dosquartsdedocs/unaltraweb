@@ -42,6 +42,9 @@ callouts:
   objectives: OBJECTIUS D'APRENENTATGE
   danger: ATENCIÓ
 
+code_blocks:
+  label: Codi
+
 bib:
   filter_placeholder: Escriu per filtrar
   and: i
