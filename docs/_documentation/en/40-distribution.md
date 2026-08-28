@@ -29,7 +29,7 @@ The template is the better place to validate gem consumption, centralized styles
 
 The BOM is an interoperability contract, not a bundle. The wheel contains only its Python control/inspection modules, schema/BOM, and clean package-owned scaffolds. In particular it does not contain Ruby theme assets, Docker image layers, factory Make/scripts/docs, TeX, Chromium, computation environments, `diavisuals`, or `vegavisuals`.
 
-For the selected release, the core-owned container references use `0.3.0`; `diavisuals v0.3.1` and `vegavisuals v0.3.1` remain explicitly pending compatibility selections. Current checkouts can be used through `suggested_path`, but the BOM, factory manifest, validator, and doctor do not claim that either tag has been published. `distribution-check` validates structural contract integrity and remains green for normal pre-release CI. `distribution-release-check` additionally requires all selected external releases to be published and exits with release-readiness status `2` while either release remains pending.
+For the selected release, the core-owned container references use `0.3.0`; the BOM selects the published `diavisuals v0.3.1` and `vegavisuals v0.3.1` releases. Current checkouts can be used through `suggested_path`, while the immutable tag references remain the distribution contract. `distribution-check` validates structural contract integrity for normal CI. `distribution-release-check` additionally requires every selected external release to be marked published and blocks future publication if any component returns to `pending` or `unavailable`.
 
 ## Wheel And Doctor
 

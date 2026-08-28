@@ -111,7 +111,7 @@ mcp_dependencies:
     package: diavisuals
     version: 0.3.1
     release: v0.3.1
-    release_status: pending
+    release_status: released
     extras:
       - mcp
     required_tools:
