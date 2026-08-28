@@ -400,7 +400,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_bib = mcp_sub.add_parser("bibliography-add-entry")
     add_bib.add_argument("--bibtex", required=True)
-    add_bib.add_argument("--path", default="_bibliography/papers.bib")
+    add_bib.add_argument("--path", default="")
     add_bib.add_argument("--replace", action="store_true")
 
     fetch = mcp_sub.add_parser("bibliometrics-fetch-scimago")

@@ -72,7 +72,7 @@ layout: default
       <section class="manual-references" aria-labelledby="manual-references-title">
         <h2 id="manual-references-title">{{ manual_references_text | strip }}</h2>
         <div class="manual-bibliography publications">
-          {% bibliography -f manual --cited_in_order --template manual-bib --group_by none %}
+          {% bibliography --cited --template manual-bib --group_by none %}
         </div>
       </section>
     {% endif %}

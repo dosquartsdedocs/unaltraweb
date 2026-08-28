@@ -225,6 +225,12 @@ Add a stable `eq:` label inside a display block when the text needs to refer to 
 
 Do not place a label inside `equation*`, because an unnumbered expression has no stable equation number to retrieve. Do not mark mathematical variables as inline code: `` `P_i` `` renders literally instead of typesetting the subscript. Do not use `\(...\)` directly in Markdown sources because Kramdown consumes those backslashes before MathJax runs.
 
+## Bibliographies
+
+Store manual entries in `_bibliography/manual.bib` and cite them with `{% cite key %}`. The manual profile sorts the general bibliography and chapter reference lists alphabetically by contributor name, then year and title. Set `manual_references: true` on a chapter when it needs a references section.
+
+The web keeps access links compact: DOI and URL text are removed only from the visible reference line and remain available through DOI/LINK buttons and the expandable citation panel. The PDF has no interactive controls, so it prints DOI and URL text in both the general bibliography and each requested chapter bibliography. Do not remove access fields from BibTeX or use a no-access CSL to change the web presentation.
+
 ## Web-only components
 
 Tabs, details, interactive charts and maps, galleries, audio, video, and arbitrary Liquid figure includes can work in the browser but do not have general PDF parity. An assistant must not introduce them into a PDF-enabled manual without stating the limitation and reviewing both outputs.

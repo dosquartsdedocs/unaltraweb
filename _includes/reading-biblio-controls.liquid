@@ -49,7 +49,7 @@
         <h3>{{ bib_button_text | strip }}</h3>
         <button class="reading-copy-button" type="button" data-copy-target="#{{ biblio_id }}-bib-copy" data-copy-label="{{ copy_text | strip | escape }}" data-copy-done="{{ copied_text | strip | escape }}">{{ copy_text | strip }}</button>
       </div>
-      <pre id="{{ biblio_id }}-bib-copy" class="reading-copy-source"><code class="language-bibtex">{{ biblio_bibtex | hideCustomBibtex | escape }}</code></pre>
+      <pre id="{{ biblio_id }}-bib-copy" class="reading-copy-source"><code class="language-bibtex">{{ biblio_bibtex | hideCustomBibtex | escape | escapeLiquidMarkers }}</code></pre>
     </div>
   {% endif %}
 </div>

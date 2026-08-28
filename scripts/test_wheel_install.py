@@ -57,6 +57,9 @@ def main() -> int:
             "unaltraweb_mcp/component-contract.json",
             "unaltraweb_mcp/component-contract.schema.json",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",
+            "unaltraweb_mcp/scaffolds/profiles/unaltremanual/_bibliography/manual.bib",
+            "unaltraweb_mcp/scaffolds/profiles/unaltreprojecte/_bibliography/papers.bib",
+            "unaltraweb_mcp/scaffolds/profiles/unaltreselfie/_bibliography/papers.bib",
         ]
         missing = [name for name in required if name not in names]
         if missing:

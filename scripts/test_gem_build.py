@@ -61,6 +61,7 @@ def inspect_gem(path: Path) -> None:
         with tarfile.open(fileobj=io.BytesIO(data_member.read()), mode="r:gz") as payload:
             names = set(payload.getnames())
     required = {
+        "_plugins/bibliography_profiles.rb",
         "lib/unaltraweb/version.rb",
         "src/unaltraweb_mcp/component-contract.json",
         "src/unaltraweb_mcp/component-contract.schema.json",

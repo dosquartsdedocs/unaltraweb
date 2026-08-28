@@ -158,6 +158,62 @@ class ManualPdfBuilderTests(unittest.TestCase):
 
         self.assertEqual("\n@book{example, title={Example}}\n", destination.read_text(encoding="utf-8"))
 
+    def test_bibliography_source_rejects_a_path_in_the_filename_setting(self) -> None:
+        self.config["unaltraweb"]["manual"].update({"bibliography": True, "bibliography_file": "../outside.bib"})
+
+        with self.assertRaisesRegex(manual_pdf.ManualPdfError, "must be a .bib filename"):
+            manual_pdf.bibliography_source(self.project, self.config)
+
+    def test_bibliography_filter_metadata_uses_contributors_and_custom_urls(self) -> None:
+        records = [
+            {
+                "id": "zulu",
+                "author": [{"family": "Zulu", "given": "Ada"}],
+                "issued": {"date-parts": [[2026]]},
+                "title": "Last",
+                "DOI": "10.1234/zulu",
+            },
+            {
+                "id": "agency",
+                "author": [{"literal": "Àrea Example"}],
+                "issued": {"date-parts": [[2025]]},
+                "title": "First",
+                "URL": "https://example.test/standard",
+            },
+        ]
+
+        metadata = manual_pdf.bibliography_filter_metadata(records, {"agency": ["https://example.test/agency"]})
+
+        self.assertTrue(metadata["bibliography-sort-keys"]["agency"].startswith("area example | 2025"))
+        self.assertTrue(metadata["bibliography-sort-keys"]["zulu"].startswith("zulu, ada | 2026"))
+        self.assertEqual(metadata["bibliography-access"]["zulu"]["doi"], "10.1234/zulu")
+        self.assertEqual(
+            metadata["bibliography-access"]["agency"]["urls"],
+            ["https://example.test/standard", "https://example.test/agency"],
+        )
+
+    def test_bibliography_custom_urls_reads_website_and_manual_url_fields(self) -> None:
+        text = (
+            "@book{first,\n  website = {https://example.test/first},\n  manual_url = {https://example.test/manual-first}\n}\n\n"
+            "@book{second,\n  manual_url = \"https://example.test/second\"\n}\n"
+        )
+
+        self.assertEqual(
+            manual_pdf.bibliography_custom_urls(text),
+            {
+                "first": ["https://example.test/first", "https://example.test/manual-first"],
+                "second": ["https://example.test/second"],
+            },
+        )
+
+    def test_bibliography_filter_metadata_deduplicates_doi_urls(self) -> None:
+        records = [{"id": "article", "title": "Article", "DOI": "http://dx.doi.org/10.1234/article", "URL": "https://doi.org/10.1234/article"}]
+
+        metadata = manual_pdf.bibliography_filter_metadata(records, {"article": ["http://dx.doi.org/10.1234/article"]})
+
+        self.assertEqual(metadata["bibliography-access"]["article"], {"doi": "10.1234/article", "urls": []})
+        self.assertEqual(manual_pdf.normalize_doi("https://doi.org/10.1234/article"), "10.1234/article")
+
     def write_fresh_artifacts(self) -> dict[str, Path]:
         write_markdown(self.project / "_chapters/en/chapter.md", {"title": "Chapter", "lang": "en", "weight": 10, "content_status": "approved"})
         paths = manual_pdf.artifact_paths(self.project, self.config, "en")
@@ -252,6 +308,23 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn("[@one; @two]", result)
         self.assertIn("Table: A useful table", result)
         self.assertIn("![Detailed flow](assets/diagrams/flow.mmd.edited.svg)", result)
+
+    def test_transform_collects_unique_citation_keys_outside_code(self) -> None:
+        citation_keys: list[str] = []
+        source = self.project / "_chapters/en/chapter.md"
+        text = """{% cite zeta alpha %}
+
+```liquid
+{% cite ignored %}
+```
+
+{% cite alpha beta %}
+"""
+
+        result = manual_pdf.transform_markdown(self.project, text, source, citation_keys=citation_keys)
+
+        self.assertIn("[@zeta; @alpha]", result)
+        self.assertEqual(["zeta", "alpha", "beta"], citation_keys)
 
     def test_transform_allows_apostrophes_in_double_quoted_image_titles(self) -> None:
         source = self.project / "_chapters/en/chapter.md"
@@ -941,6 +1014,81 @@ $$
         self.assertEqual(metadata["external-link-color"], "AA3300")
         self.assertEqual(metadata["citation-link-color"], "CC2277")
         self.assertEqual(metadata["inline-code-color"], "552266")
+        self.assertEqual(metadata["chapter-references-title"], "References")
+
+    def test_assemble_marks_requested_chapter_references_for_pdf(self) -> None:
+        self.config["unaltraweb"]["manual"]["bibliography"] = True
+        write_markdown(
+            self.project / "_chapters/en/chapter.md",
+            {"title": "Chapter", "lang": "en", "weight": 10, "manual_references": True},
+            body="First {% cite zeta alpha %}, then {% cite alpha beta %}.",
+        )
+
+        _, _, markdown = manual_pdf.assemble(
+            self.project,
+            self.config,
+            "en",
+            manual_pdf.artifact_paths(self.project, self.config, "en"),
+        )
+
+        self.assertIn('::: {.manual-chapter-citations data-citations="zeta,alpha,beta"}', markdown)
+
+    @patch.object(manual_pdf, "run_command")
+    def test_pdf_passes_structured_sort_and_access_metadata_to_post_citeproc_filter(self, run_command) -> None:
+        self.config["unaltraweb"]["manual"]["bibliography"] = True
+        bibliography = self.project / "_bibliography/manual.bib"
+        bibliography.parent.mkdir(parents=True)
+        bibliography.write_text("@book{example, author={Example, A.}, title={Example}, year={2026}}\n", encoding="utf-8")
+        write_markdown(
+            self.project / "_chapters/en/chapter.md",
+            {"title": "Chapter", "lang": "en", "content_status": "approved"},
+        )
+
+        rendered_metadata: dict[str, object] = {}
+        rendered_bibliography: list[dict[str, object]] = []
+
+        def create_outputs(command: list[str], _project: Path) -> None:
+            if command[0] == "pandoc" and "--to=csljson" in command:
+                output = next(Path(argument.split("=", 1)[1]) for argument in command if argument.startswith("--output="))
+                output.write_text(
+                    json.dumps(
+                        [
+                            {
+                                "id": "example",
+                                "author": [{"family": "Example", "given": "A."}],
+                                "issued": {"date-parts": [[2026]]},
+                                "title": "Example",
+                                "DOI": "http://dx.doi.org/10.1234/example",
+                            }
+                        ]
+                    ),
+                    encoding="utf-8",
+                )
+            elif command[0] == "pandoc":
+                output = next(Path(argument.split("=", 1)[1]) for argument in command if argument.startswith("--output="))
+                output.write_bytes(b"raw pdf")
+                metadata_path = next(Path(argument.split("=", 1)[1]) for argument in command if argument.startswith("--metadata-file="))
+                rendered_metadata.update(yaml.safe_load(metadata_path.read_text(encoding="utf-8")))
+                bibliography_path = next(Path(argument.split("=", 1)[1]) for argument in command if argument.startswith("--bibliography="))
+                rendered_bibliography.extend(json.loads(bibliography_path.read_text(encoding="utf-8")))
+            elif command[0] == "qpdf":
+                Path(command[-1]).write_bytes(b"normalized pdf")
+            elif command[0] == "pdftoppm":
+                Path(f"{command[-1]}.png").write_bytes(b"cover")
+
+        run_command.side_effect = create_outputs
+
+        manual_pdf.build_language(self.project, self.config, "en")
+
+        pandoc_command = run_command.call_args_list[1].args[0]
+        citeproc_index = pandoc_command.index("--citeproc")
+        filter_argument = f"--lua-filter={manual_pdf.DEFAULT_BIBLIOGRAPHY_FILTER}"
+        self.assertGreater(pandoc_command.index(filter_argument), citeproc_index)
+        self.assertTrue(any(argument.endswith("bibliography.json") for argument in pandoc_command))
+        self.assertIn("example", rendered_metadata["bibliography-sort-keys"])
+        self.assertEqual(rendered_metadata["bibliography-access"]["example"]["doi"], "10.1234/example")
+        self.assertEqual(rendered_metadata["bibliography-access"]["example"]["urls"], [])
+        self.assertEqual(rendered_bibliography[0]["DOI"], "10.1234/example")
 
     def test_editorial_metadata_does_not_infer_optional_publication_fields(self) -> None:
         self.config["unaltraweb"]["manual"]["metadata"] = {

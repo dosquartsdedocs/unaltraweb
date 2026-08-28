@@ -40,6 +40,8 @@ Typical content:
 
 The package scaffold provides a usable default writing profile; revise it before substantial drafting when the manual has project-specific editorial requirements. The site profile also includes a sticky chapter sidebar, right-hand table of contents, reader font controls and search index.
 
+The scaffold stores manual references in `_bibliography/manual.bib`. Manual bibliographies are alphabetical by contributor name, then year and title. This applies to the general bibliography and to the cited references emitted by a chapter with `manual_references: true`. On the web, the visible reference omits its trailing DOI or URL because the adjacent DOI/LINK buttons and expandable citation panel already expose that access information. The printable PDF keeps DOI and URL text, sorts the general bibliography alphabetically, and inserts an alphabetical references section in each chapter that requests one.
+
 Figures can use independent display constraints for each support. `data-figure-width-web` and `data-figure-height-web` control the browser presentation; `data-figure-width-pdf` and `data-figure-height-pdf` become print constraints while preserving the intrinsic aspect ratio. The older `data-figure-width` remains a shared fallback. Run `manual_source_quality_check` after adding a text-bearing SVG so the MCP can compare its effective text with body text and suggest separate web/PDF widths.
 
 In multilingual manuals, keep the default-language visual unsuffixed and insert `.<lang>` before the complete suffix for translated variants, such as `map.ca.svg`, `plot.ca.qmd`, `bars.ca.vl.json`, or `flow.ca.puml`. The requested language falls back to the unsuffixed source when its variant is absent; an existing localized source with a broken generated output remains a build error.
@@ -153,7 +155,7 @@ Use the companion `visualization_status`, `render_visualizations`, and `visualiz
 
 ## PDF Edition
 
-The optional PDF builder runs in a dedicated Docker image containing Pandoc, XeLaTeX, multilingual TeX packages, SVG conversion and Poppler. It reads the same localized manual home and chapter sources as Jekyll, orders chapters by `weight`, resolves rendered Mermaid, PlantUML and manifest-backed Vega outputs, converts Jekyll Scholar citations, and extracts the first PDF page as the web cover.
+The optional PDF builder runs in a dedicated Docker image containing Pandoc, XeLaTeX, multilingual TeX packages, SVG conversion and Poppler. It reads the same localized manual home and chapter sources as Jekyll, orders chapters by `weight`, resolves rendered Mermaid, PlantUML and manifest-backed Vega outputs, converts Jekyll Scholar citations, alphabetizes Citeproc output from structured contributor metadata, restores printable access links omitted by a CSL, and extracts the first PDF page as the web cover.
 
 ```yaml
 unaltraweb:

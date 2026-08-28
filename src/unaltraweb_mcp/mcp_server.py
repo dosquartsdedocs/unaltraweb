@@ -388,7 +388,7 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.bibliography_inventory(project)
 
     @mcp.tool()
-    def bibliography_add_entry(bibtex: str, path: str = "_bibliography/papers.bib", replace: bool = False) -> dict[str, Any]:
+    def bibliography_add_entry(bibtex: str, path: str = "", replace: bool = False) -> dict[str, Any]:
         """Append a verified BibTeX entry under _bibliography/. Replacements require replace=True."""
         return tools.bibliography_add_entry(project, bibtex, path=path, replace=replace)
 

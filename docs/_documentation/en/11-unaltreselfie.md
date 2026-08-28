@@ -36,3 +36,4 @@ Typical content:
 - `_posts/`, `_news/`, `_projects/`, `_bibliography/` and CV assets.
 
 The profile card, social links, highlights and publication summaries come from the core theme.
+Bibliographies use curriculum order: year and month descending, with author and title as stable tie-breakers inside the same date.

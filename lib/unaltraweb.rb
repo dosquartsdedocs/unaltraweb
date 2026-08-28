@@ -3,6 +3,7 @@
 require_relative "unaltraweb/version"
 
 %w[
+  bibliography_profiles
   localized_visual_sources
   callouts
   computation_figure_images

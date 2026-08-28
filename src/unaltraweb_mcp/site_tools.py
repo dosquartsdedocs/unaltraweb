@@ -252,7 +252,7 @@ PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     },
     "unaltreprojecte": {
         "description": "Research project, group, infrastructure, or output site.",
-        "recommended_paths": ["_pages", "_outputs", "_projects", "_data/team.yml"],
+        "recommended_paths": ["_pages", "_bibliography", "_outputs", "_projects", "_data/team.yml"],
         "config_keys": [],
         "content_notes": ["project landing pages", "team data", "outputs", "repositories", "news"],
     },
@@ -2520,7 +2520,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "syntax": ["{% cite key %}", "{% cite key1 key2 %}"],
                 "web": "supported through Jekyll Scholar",
                 "pdf": "supported through linked Pandoc citeproc citations",
-                "guidance": "Use verified bibliography keys and manual_references: true when a chapter needs its references section. Bibliographic citations use the citation color, distinct from external URLs and internal links.",
+                "guidance": "Use verified bibliography keys and manual_references: true when a chapter needs its references section. Manual references are alphabetical on web/PDF; the web exposes DOI/URL through controls while the PDF prints them. Bibliographic citations use the citation color, distinct from external URLs and internal links.",
             },
             {
                 "id": "links_and_cross_references",
@@ -3278,9 +3278,21 @@ def _bib_key(bibtex: str) -> str:
     return match.group(2).strip()
 
 
-def bibliography_add_entry(project: Path, bibtex: str, path: str = "_bibliography/papers.bib", replace: bool = False) -> dict[str, Any]:
+def _default_bibliography_path(project: Path) -> str:
+    config = site_config(project)
+    if site_profile(config) != "unaltremanual":
+        return "_bibliography/papers.bib"
+    manual = unaltraweb_config(config).get("manual")
+    manual = manual if isinstance(manual, dict) else {}
+    filename = str(manual.get("bibliography_file") or "manual.bib").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.bib", filename) or Path(filename).name != filename:
+        raise ValueError("unaltraweb.manual.bibliography_file must be a .bib filename under _bibliography/")
+    return f"_bibliography/{filename}"
+
+
+def bibliography_add_entry(project: Path, bibtex: str, path: str = "", replace: bool = False) -> dict[str, Any]:
     project = project_path(project)
-    target = _safe_relative_path(project, path, default="_bibliography/papers.bib")
+    target = _safe_relative_path(project, path, default=_default_bibliography_path(project))
     if not rel(project, target).startswith("_bibliography/"):
         raise ValueError("Bibliography writes are restricted to _bibliography/")
     entry = bibtex.strip()

@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,9 @@ except ImportError as exc:  # pragma: no cover - supplied by the builder image
 SCRIPT_ROOT = Path(__file__).resolve().parent
 DEFAULT_DOCKERFILE = SCRIPT_ROOT / "Dockerfile"
 DEFAULT_TEMPLATE = SCRIPT_ROOT / "templates" / "manual.tex"
+DEFAULT_BIBLIOGRAPHY_FILTER = SCRIPT_ROOT / "filters" / "bibliography.lua"
+BIB_ENTRY_HEADER_RE = re.compile(r"(?im)^\s*@(?:[A-Za-z]+)\s*[({]\s*([^,\s]+)\s*,")
+BIB_CUSTOM_URL_RE = re.compile(r'(?im)^\s*(?:manual_url|website)\s*=\s*(?:\{([^}\r\n]+)\}|"([^"\r\n]+)")\s*,?')
 FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)^---[ \t]*(?:\r?\n|\Z)", re.MULTILINE | re.DOTALL)
 CITE_RE = re.compile(r"{%\s*cite\s+([^%]+?)\s*%}")
 INCLUDE_RE = re.compile(r"{%\s*include\s+([^%]+?)\s*%}")
@@ -145,6 +149,7 @@ METADATA_LABELS = {
         "license": "Llicència",
         "source": "Edició web",
         "rights": "Drets",
+        "references": "Referències",
     },
     "es": {
         "title": "Créditos editoriales",
@@ -165,6 +170,7 @@ METADATA_LABELS = {
         "license": "Licencia",
         "source": "Edición web",
         "rights": "Derechos",
+        "references": "Referencias",
     },
     "en": {
         "title": "Editorial credits",
@@ -185,6 +191,7 @@ METADATA_LABELS = {
         "license": "License",
         "source": "Web edition",
         "rights": "Rights",
+        "references": "References",
     },
 }
 
@@ -770,6 +777,7 @@ def transform_markdown(
     source: Path,
     language: str = "en",
     config: dict[str, Any] | None = None,
+    citation_keys: list[str] | None = None,
 ) -> str:
     callout_labels, _ = resolve_callout_labels(project, config or {}, language)
     visual_default_language = str((config or {}).get("default_lang") or (config or {}).get("lang") or language)
@@ -807,6 +815,8 @@ def transform_markdown(
 
     def citations(match: re.Match[str]) -> str:
         keys = [key.lstrip("@").strip() for key in match.group(1).split() if key.strip()]
+        if citation_keys is not None:
+            citation_keys.extend(key for key in keys if key not in citation_keys)
         return "[" + "; ".join(f"@{key}" for key in keys) + "]"
 
     def table(match: re.Match[str]) -> str:
@@ -1033,6 +1043,7 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         "metadata-license-label": metadata_labels["license"],
         "metadata-source-label": metadata_labels["source"],
         "metadata-rights-label": metadata_labels["rights"],
+        "chapter-references-title": metadata_labels["references"],
         "lang": lang,
         "babel-lang": LANGUAGE_NAMES.get(source_lang, "english"),
         "toc": bool(pdf.get("toc", True)),
@@ -1084,7 +1095,13 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
         heading = f"# {title}"
         if front.get("manual_numbered") is False:
             heading += " {-}"
-        chunks.append(f"{heading}\n\n{transform_markdown(project, body, path, source_lang, config)}")
+        citation_keys: list[str] = []
+        transformed_body = transform_markdown(project, body, path, source_lang, config, citation_keys)
+        references_requested = bool(front.get("related_publications") or front.get("manual_references") or front.get("references"))
+        if citation_keys and references_requested and manual.get("bibliography", True) is not False:
+            marker = html.escape(",".join(citation_keys), quote=True)
+            transformed_body += f'\n\n::: {{.manual-chapter-citations data-citations="{marker}"}}\n:::'
+        chunks.append(f"{heading}\n\n{transformed_body}")
         included_chapters.append((path, front, body))
         source_paths.append(path)
 
@@ -1097,7 +1114,9 @@ def bibliography_source(project: Path, config: dict[str, Any]) -> Path | None:
     manual = nested(config, "unaltraweb", "manual")
     if manual.get("bibliography", True) is False:
         return None
-    filename = str(manual.get("bibliography_file") or "manual.bib")
+    filename = str(manual.get("bibliography_file") or "manual.bib").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.bib", filename) or Path(filename).name != filename:
+        raise ManualPdfError("unaltraweb.manual.bibliography_file must be a .bib filename under _bibliography/.")
     return safe_relative(project, f"_bibliography/{filename}", label="bibliography", must_exist=True)
 
 
@@ -1107,6 +1126,113 @@ def clean_bibliography(source: Path | None, destination: Path) -> None:
     text = source.read_text(encoding="utf-8")
     text = FRONT_MATTER_RE.sub("", text, count=1)
     destination.write_text(text, encoding="utf-8")
+
+
+def bibliography_custom_urls(text: str) -> dict[str, list[str]]:
+    matches = list(BIB_ENTRY_HEADER_RE.finditer(text))
+    urls: dict[str, list[str]] = {}
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        values = [(custom.group(1) or custom.group(2)).strip() for custom in BIB_CUSTOM_URL_RE.finditer(text, match.end(), end)]
+        if values:
+            urls[match.group(1)] = list(dict.fromkeys(values))
+    return urls
+
+
+def fold_bibliography_value(value: Any) -> str:
+    decomposed = unicodedata.normalize("NFKD", str(value or "").casefold())
+    return " ".join("".join(character for character in decomposed if not unicodedata.combining(character)).split())
+
+
+def contributor_sort_value(record: dict[str, Any]) -> str:
+    contributors: Any = []
+    for field in ("author", "editor", "collection-editor", "translator"):
+        if isinstance(record.get(field), list) and record[field]:
+            contributors = record[field]
+            break
+    values: list[str] = []
+    for contributor in contributors:
+        if not isinstance(contributor, dict):
+            continue
+        literal = str(contributor.get("literal") or "").strip()
+        if literal:
+            values.append(literal)
+            continue
+        family = str(contributor.get("family") or "").strip()
+        given = str(contributor.get("given") or "").strip()
+        values.append(", ".join(part for part in (family, given) if part))
+    if values:
+        return "; ".join(values)
+    return str(record.get("publisher") or record.get("container-title") or record.get("title") or "")
+
+
+def normalize_doi(value: Any) -> str:
+    return re.sub(r"(?i)^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", "", str(value or "").strip()).rstrip("/")
+
+
+def bibliography_filter_metadata(records: Any, custom_urls: dict[str, list[str]]) -> dict[str, dict[str, Any]]:
+    if not isinstance(records, list):
+        raise ManualPdfError("Pandoc returned invalid CSL bibliography data.")
+    sort_keys: dict[str, str] = {}
+    access: dict[str, dict[str, str]] = {}
+    for record in records:
+        if not isinstance(record, dict) or not str(record.get("id") or "").strip():
+            continue
+        key = str(record["id"]).strip()
+        issued = record.get("issued") if isinstance(record.get("issued"), dict) else {}
+        date_parts = issued.get("date-parts") if isinstance(issued, dict) else []
+        year = ""
+        if isinstance(date_parts, list) and date_parts and isinstance(date_parts[0], list) and date_parts[0]:
+            year = str(date_parts[0][0])
+        sort_keys[key] = " | ".join(
+            fold_bibliography_value(value)
+            for value in (contributor_sort_value(record), year, record.get("title"), key)
+        )
+        doi = normalize_doi(record.get("DOI") or record.get("doi"))
+        standard_url = str(record.get("URL") or record.get("url") or "").strip()
+        urls = list(dict.fromkeys(url for url in [standard_url, *custom_urls.get(key, [])] if url))
+        normalized_doi = doi.casefold()
+        if normalized_doi:
+            urls = [
+                url
+                for url in urls
+                if re.sub(r"(?i)^https?://(?:dx\.)?doi\.org/", "", url).rstrip("/").casefold() != normalized_doi
+            ]
+        if doi or urls:
+            access[key] = {"doi": doi, "urls": urls}
+    return {"bibliography-sort-keys": sort_keys, "bibliography-access": access}
+
+
+def extract_bibliography_metadata(source: Path, destination: Path, project: Path) -> dict[str, dict[str, Any]]:
+    csl_json = destination.with_suffix(".json")
+    run_command(
+        [
+            "pandoc",
+            str(destination),
+            "--from=biblatex",
+            "--to=csljson",
+            f"--output={csl_json}",
+        ],
+        project,
+    )
+    try:
+        records = json.loads(csl_json.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ManualPdfError(f"Could not read Pandoc CSL bibliography data: {exc}") from exc
+    metadata = bibliography_filter_metadata(records, bibliography_custom_urls(source.read_text(encoding="utf-8")))
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        doi = normalize_doi(record.get("DOI") or record.get("doi"))
+        if doi:
+            record["DOI"] = doi
+            record.pop("doi", None)
+            url = str(record.get("URL") or record.get("url") or "").strip()
+            if normalize_doi(url).casefold() == doi.casefold() and re.match(r"(?i)^https?://(?:dx\.)?doi\.org/", url):
+                record.pop("URL", None)
+                record.pop("url", None)
+    csl_json.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return metadata
 
 
 def configured_template(project: Path, config: dict[str, Any]) -> Path:
@@ -1129,6 +1255,7 @@ def build_dependencies(project: Path, metadata: dict[str, Any], source_paths: li
         ("builder:build_pdf.py", Path(__file__).resolve()),
         ("toolchain:Dockerfile", DEFAULT_DOCKERFILE),
         (f"template:{template.name}", template),
+        ("filter:bibliography.lua", DEFAULT_BIBLIOGRAPHY_FILTER),
     ]
     for path in source_paths:
         dependencies.append((f"source:{path.relative_to(project)}", path))
@@ -1214,8 +1341,10 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
     with tempfile.TemporaryDirectory(prefix=f".{lang}-", dir=paths["build_dir"].parent) as temporary:
         staged = paths_in_build_dir(paths, Path(temporary))
         staged["source"].write_text(markdown, encoding="utf-8")
-        staged["metadata"].write_text(yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False), encoding="utf-8")
         clean_bibliography(bibliography, staged["bibliography"])
+        if bibliography:
+            metadata.update(extract_bibliography_metadata(bibliography, staged["bibliography"], project))
+        staged["metadata"].write_text(yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False), encoding="utf-8")
         command = [
             "pandoc",
             str(staged["source"]),
@@ -1231,9 +1360,10 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
             f"--output={staged['pdf']}",
         ]
         if bibliography:
-            command.extend(["--citeproc", f"--bibliography={staged['bibliography']}"])
+            command.extend(["--citeproc", f"--bibliography={staged['bibliography'].with_suffix('.json')}"])
             if csl:
                 command.append(f"--csl={csl}")
+            command.append(f"--lua-filter={DEFAULT_BIBLIOGRAPHY_FILTER}")
         run_command(command, project)
         normalized_pdf = staged["pdf"].with_suffix(".normalized.pdf")
         run_command(

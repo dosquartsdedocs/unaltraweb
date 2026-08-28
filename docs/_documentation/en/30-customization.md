@@ -189,11 +189,11 @@ unaltraweb:
     collections: [chapters]
 
 scholar:
-  # Optional, useful when porting a GitBook/TIG-style course bibliography.
-  style: _bibliography/my-apa-cv-no-access.csl
-  bibliography_template: manual-bib
-  group_by: none
+  # Optional formatting override; profile ordering remains alphabetical.
+  style: apa
 ```
+
+`unaltremanual` uses `_bibliography/manual.bib` by default. Web reference cards suppress the trailing DOI/URL text while preserving DOI/LINK buttons and citation/BibTeX panels; the PDF retains printable access links. Personal and project profiles instead keep curriculum-style reverse chronological ordering.
 
 Create one localized home page per language with `layout: manual-home` and `ref: home`, then add chapters to `_chapters/<lang>/`:
 

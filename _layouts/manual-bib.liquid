@@ -20,6 +20,7 @@
 {% assign reference_url = entry.manual_url | default: entry.website | default: entry.url %}
 {% assign reference_url_label_key = 'manual_url_label_' | append: current_lang %}
 {% assign reference_url_label = entry[reference_url_label_key] | default: entry.manual_url_label %}
+{% assign reference_without_ids = reference | stripBibliographyIds %}
 <div id="{{ entry.key }}" class="manual-reference{% if reference_preview %} manual-reference--with-preview{% endif %}">
   {% if reference_preview %}
     <div class="manual-reference-preview">
@@ -50,13 +51,13 @@
         {% if reference_rating %}<span class="reading-rating"><i class="fa-solid fa-star" aria-hidden="true"></i>{{ reference_rating }}/5</span>{% endif %}
       </div>
     {% endif %}
-    <div class="manual-reference-text">{{ reference | replace: "\Textperiodcentered", "·" }}</div>
+    <div class="manual-reference-text">{{ reference_without_ids | stripBibliographyAccess: entry.doi, entry.url, entry.website, entry.manual_url | replace: "\Textperiodcentered", "·" }}</div>
     {% if reference_comment %}<div class="manual-reference-comment">{{ reference_comment | markdownify }}</div>{% endif %}
     {%
       include reading-biblio-controls.liquid
       item=entry
       id=entry.key
-      citation=reference
+      citation=reference_without_ids
       bibtex=entry.bibtex
       abstract=entry.abstract
       doi=entry.doi

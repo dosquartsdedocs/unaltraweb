@@ -121,6 +121,23 @@ jobs:
           cache-from: type=gha,scope=ci-runtime
           cache-to: type=gha,mode=max,scope=ci-runtime
 
+      - name: Test bibliography profile plugin
+        run: docker run --rm -v "$PWD:/work" -w /work --entrypoint bash unaltraweb-runtime:ci -lc 'bundle exec ruby test/plugins/bibliography_profiles_test.rb'
+
+      - name: Build manual PDF image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: scripts/manual
+          file: scripts/manual/Dockerfile
+          load: true
+          push: false
+          tags: unaltraweb-manual-pdf:ci
+          cache-from: type=gha,scope=manual-pdf
+          cache-to: type=gha,mode=max,scope=manual-pdf
+
+      - name: Test manual PDF bibliography filter
+        run: docker run --rm -v "$PWD:/work:ro" -w /work --entrypoint python3 unaltraweb-manual-pdf:ci -m unittest discover -s test/manual_pdf -p 'test_bibliography_filter_integration.py'
+
       - name: Build MCP image from the tested runtime
         run: docker build --build-arg UNALTRAWEB_RUNTIME_IMAGE=unaltraweb-runtime:ci -t unaltraweb-mcp:ci -f Dockerfile.mcp .
 

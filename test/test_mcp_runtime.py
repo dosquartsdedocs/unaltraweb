@@ -101,9 +101,38 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertIn("docker run", makefile)
                 self.assertIn("serve-native: site-check-native serve-capture-native", makefile)
                 self.assertIn("unaltraweb (= 0.3.0)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
+                self.assertIn("jekyll-scholar (>= 7.3, < 8)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
                 self.assertEqual((project / "context/writing-profile.md").is_file(), profile == "unaltremanual")
+                if profile == "unaltremanual":
+                    self.assertTrue((project / "_bibliography/manual.bib").is_file())
+                if profile == "unaltreselfie":
+                    self.assertTrue((project / "_bibliography/papers.bib").is_file())
+                if profile == "unaltreprojecte":
+                    self.assertTrue((project / "_bibliography/papers.bib").is_file())
                 for path in site_tools.PROFILE_CONTRACTS[profile]["recommended_paths"]:
                     self.assertTrue((project / path).exists(), path)
+
+    def test_bibliography_add_entry_uses_the_profile_default_file(self) -> None:
+        entry = "@book{example,\n  title = {Example}\n}"
+
+        personal = site_tools.bibliography_add_entry(self.project, entry)
+        self.assertEqual("_bibliography/papers.bib", personal["path"])
+
+        (self.project / "_config.yml").write_text(
+            "theme: unaltraweb\nunaltraweb:\n  site_profile: unaltremanual\n  manual:\n    bibliography_file: course.bib\n",
+            encoding="utf-8",
+        )
+        manual = site_tools.bibliography_add_entry(self.project, entry.replace("example", "manual"))
+        self.assertEqual("_bibliography/course.bib", manual["path"])
+
+    def test_bibliography_add_entry_rejects_an_unsafe_manual_default(self) -> None:
+        (self.project / "_config.yml").write_text(
+            "theme: unaltraweb\nunaltraweb:\n  site_profile: unaltremanual\n  manual:\n    bibliography_file: ../outside.bib\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "must be a .bib filename"):
+            site_tools.bibliography_add_entry(self.project, "@book{example,\n  title = {Example}\n}")
 
     def test_new_web_is_idempotent_for_the_same_inputs(self) -> None:
         project = self.project / "new-site"

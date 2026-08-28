@@ -25,6 +25,7 @@ RUN printf '%s\n' \
 
 COPY build_pdf.py /opt/unaltraweb/manual/build_pdf.py
 COPY Dockerfile /opt/unaltraweb/manual/Dockerfile
+COPY filters /opt/unaltraweb/manual/filters
 COPY templates /opt/unaltraweb/manual/templates
 
 ENTRYPOINT ["python3", "/opt/unaltraweb/manual/build_pdf.py"]

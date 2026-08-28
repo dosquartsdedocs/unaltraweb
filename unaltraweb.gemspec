@@ -47,7 +47,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency "jekyll-minifier"
   spec.add_runtime_dependency "jekyll-paginate-v2"
   spec.add_runtime_dependency "jekyll-regex-replace"
-  spec.add_runtime_dependency "jekyll-scholar"
+  spec.add_runtime_dependency "jekyll-scholar", ">= 7.3", "< 8"
   spec.add_runtime_dependency "jekyll-sitemap"
   spec.add_runtime_dependency "jekyll-socials"
   spec.add_runtime_dependency "jekyll-tabs"
