@@ -62,7 +62,7 @@ class ManualPdfBuilderTests(unittest.TestCase):
 
         self.assertIn(r"\DeclareCaptionFont{manualcaption}{\sffamily\fontsize{9.4}{11.2}\selectfont}", template)
         self.assertIn(r"\DeclareCaptionFont{manualsubcaption}{\sffamily\fontsize{8.8}{10.5}\selectfont}", template)
-        self.assertIn(r"\DeclareCaptionLabelFormat{manual}{#1\nobreakspace\textcolor{ManualSecondary}{#2}}", template)
+        self.assertIn(r"\DeclareCaptionLabelFormat{manual}{\textcolor{ManualSecondary}{#1\nobreakspace #2}}", template)
         self.assertIn("font={manualcaption,color=ManualMuted}", template)
         self.assertIn("labelformat=manual", template)
         self.assertIn("format=hang", template)
@@ -71,14 +71,15 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn("font={manualsubcaption,color=ManualMuted}", template)
         self.assertIn("labelfont={bf,sf,color=ManualSecondary}", template)
 
-    def test_template_colors_heading_numbers_without_coloring_titles(self) -> None:
+    def test_template_colors_complete_headings_and_keeps_chapter_number_with_title(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn(
-            r"\renewcommand{\@seccntformat}[1]{\textcolor{ManualSecondary}{\csname the#1\endcsname}\quad}",
-            template,
-        )
-        self.assertIn(r"{\@chapapp\space \textcolor{ManualSecondary}{\thechapter}}", template)
+        self.assertIn(r"\titleformat{\chapter}[hang]", template)
+        self.assertIn(r"{\thechapter.}{0.55em}{}", template)
+        self.assertIn(r"\normalfont\sffamily\LARGE\bfseries\color{ManualSecondary}", template)
+        self.assertIn(r"\titleformat{\section}", template)
+        self.assertIn(r"\normalfont\Large\bfseries\color{ManualSecondary}", template)
+        self.assertNotIn(r"\@chapapp", template)
 
     def test_code_block_label_uses_localized_site_data(self) -> None:
         i18n = self.project / "_data/i18n/ca.yml"
@@ -98,20 +99,20 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn(r"citecolor=ManualCitationLink", template)
         self.assertIn(r"\NewDocumentCommand\citeproctext{}{}", template)
         self.assertIn(r"\NewDocumentCommand\citeproc{mm}", template)
-        self.assertIn("$highlighting-macros$", template)
+        self.assertNotIn("$highlighting-macros$", template)
         self.assertIn(r"\renewcommand{\texttt}[1]", template)
 
     def test_template_renders_breakable_numbered_code_panels(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn(r"\usepackage{fvextra}", template)
-        self.assertIn(r"\RecustomVerbatimEnvironment{Highlighting}{Verbatim}", template)
+        self.assertIn(r"\usepackage{listings}", template)
+        self.assertIn(r"\lstdefinestyle{manualcode}", template)
         self.assertIn("breaklines=true", template)
-        self.assertIn("breaknonspaceingroup=true", template)
-        self.assertIn("breaksymbolleft={}", template)
-        self.assertIn("breakanywheresymbolpre={}", template)
-        self.assertIn(r"\newenvironment{manualcode}[1]", template)
-        self.assertIn("colbacktitle=ManualCodeHeader", template)
+        self.assertIn("breakatwhitespace=false", template)
+        self.assertIn("columns=fullflexible", template)
+        self.assertIn(r"\newtcblisting{manualcode}[2][]", template)
+        self.assertIn("colbacktitle=ManualSecondary", template)
+        self.assertIn("listing engine=listings", template)
         self.assertIn("breakable,", template)
 
     def test_template_keeps_callouts_together_without_floating_figures_through_them(self) -> None:
@@ -1047,10 +1048,10 @@ $$
 
         commands = [call.args[0] for call in run_command.call_args_list]
         self.assertEqual([command[0] for command in commands], ["pandoc", "qpdf", "pdftoppm"])
-        self.assertIn("--highlight-style=pygments", commands[0])
+        self.assertNotIn("--listings", commands[0])
         self.assertIn(f"--lua-filter={manual_pdf.DEFAULT_CODE_BLOCK_FILTER}", commands[0])
         self.assertIn(f"--lua-filter={manual_pdf.DEFAULT_FIGURE_FILTER}", commands[0])
-        self.assertNotIn("--no-highlight", commands[0])
+        self.assertNotIn("--highlight-style=pygments", commands[0])
         self.assertIn("--deterministic-id", commands[1])
         self.assertIn("--object-streams=generate", commands[1])
         self.assertIn("--recompress-flate", commands[1])

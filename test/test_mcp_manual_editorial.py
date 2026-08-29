@@ -120,7 +120,7 @@ Una font oficial ha d'identificar l'organisme responsable, la data de referènci
         self.assertIn("$x_i$", components["code_and_math"]["syntax"])
         self.assertIn("$\\eqref{eq:model}$", components["code_and_math"]["syntax"])
         self.assertIn("Rouge", components["code_and_math"]["web"])
-        self.assertIn("Skylighting", components["code_and_math"]["pdf"])
+        self.assertIn("listings", components["code_and_math"]["pdf"])
         self.assertIn("Do not use inline code", components["code_and_math"]["guidance"])
 
         inventory = site_tools.list_tools()

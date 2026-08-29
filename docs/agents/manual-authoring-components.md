@@ -200,7 +200,7 @@ Bibliographic citations, external URLs, and internal links are separate semantic
 See [the normalization criteria](#normalization) and the [OGC standards](https://www.ogc.org/).
 ```
 
-Use ordinary fenced code with an explicit language. Rouge highlights web code and Pandoc Skylighting highlights PDF code; inline code remains monospaced and visually distinct in both. Common identifiers include `bash`, `powershell`, `sql`, `python`, `r`, `haskell`, `javascript`, `yaml`, and `json`.
+Use ordinary fenced code with an explicit language. Rouge highlights web code and the PDF renderer uses `listings`; inline code remains monospaced and visually distinct in both. The PDF guarantees language-specific highlighting for `bash`, `sql`, `python`, and `r`, and renders other identifiers in the same numbered panel with a plain-text fallback.
 
 For mathematics in Markdown sources, use single dollar delimiters for inline expressions and double dollar delimiters on separate lines for displayed equations. Displayed equations are numbered by default on the web and in the PDF:
 

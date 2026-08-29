@@ -2555,7 +2555,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "id": "code_and_math",
                 "syntax": ["`inline_code()`", "```python ... ```", "$x_i$", "$$\nE = mc^2\n\\label{eq:model}\n$$", "$\\eqref{eq:model}$", "\\begin{equation*} ... \\end{equation*}"],
                 "web": "inline code and Rouge-highlighted language fences; MathJax math with display equations numbered by default",
-                "pdf": "styled inline code and Pandoc Skylighting language fences; LaTeX math with display equations numbered by default",
+                "pdf": "styled inline code and listings-based language fences; LaTeX math with display equations numbered by default",
                 "guidance": "Use explicit language names on fences. Use $...$ for inline math and $$ on separate lines for display math; display equations are numbered by default. Add \\label{eq:...} inside the display block and use $\\eqref{eq:...}$ for a cross-reference. Use equation* only when a displayed expression explicitly does not need a number. Do not use inline code for mathematical variables or \\(...\\) directly in Markdown sources.",
             },
             {

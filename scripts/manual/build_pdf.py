@@ -1417,7 +1417,6 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
             "--standalone",
             "--top-level-division=chapter",
             "--number-sections",
-            "--highlight-style=pygments",
             f"--metadata-file={staged['metadata']}",
             f"--template={template}",
             "--pdf-engine=xelatex",

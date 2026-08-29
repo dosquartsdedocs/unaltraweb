@@ -1264,23 +1264,58 @@ code {
 }
 
 .uw-code-block {
-  margin: 1.35rem 0;
+  margin: 1.6rem 0;
   overflow: hidden;
-  border: 1px solid var(--global-code-border-color);
-  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--global-theme-color) 42%, var(--global-code-border-color));
+  border-left: 0.25rem solid var(--global-theme-color);
+  border-radius: 10px;
   background: var(--global-code-bg-color);
+  box-shadow: 0 0.5rem 1.25rem color-mix(in srgb, var(--global-text-color) 10%, transparent);
 
   .uw-code-header {
     display: flex;
-    min-height: 2rem;
+    min-height: 2.4rem;
     align-items: center;
-    padding: 0.35rem 0.8rem;
-    border-bottom: 1px solid var(--global-code-border-color);
-    background: color-mix(in srgb, var(--global-theme-color) 8%, var(--global-bg-color));
+    gap: 0.55rem;
+    padding: 0.45rem 0.7rem 0.45rem 0.85rem;
+    background: var(--global-theme-color);
+
+    &::before {
+      content: "</>";
+      padding: 0.18rem 0.32rem;
+      border: 1px solid color-mix(in srgb, white 38%, transparent);
+      border-radius: 4px;
+      color: white;
+      font-family: monospace;
+      font-size: 0.68rem;
+      font-weight: 700;
+      line-height: 1;
+      opacity: 0.82;
+    }
+
+    .copy {
+      display: inline-grid;
+      width: 1.8rem;
+      height: 1.8rem;
+      margin-left: auto;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, white 35%, transparent);
+      border-radius: 5px;
+      background: color-mix(in srgb, white 10%, transparent);
+      color: white;
+      cursor: pointer;
+
+      &:focus-visible,
+      &:hover {
+        border-color: white;
+        background: color-mix(in srgb, white 20%, transparent);
+        outline: none;
+      }
+    }
   }
 
   .uw-code-language {
-    color: var(--global-theme-color);
+    color: white;
     font-family: inherit;
     font-size: 0.72rem;
     font-weight: 750;
@@ -1316,8 +1351,8 @@ code {
     position: sticky;
     left: 0;
     z-index: 1;
-    border-right: 1px solid var(--global-code-border-color) !important;
-    background: color-mix(in srgb, var(--global-code-border-color) 18%, var(--global-code-bg-color));
+    border-right: 1px solid color-mix(in srgb, var(--global-theme-color) 18%, var(--global-code-border-color)) !important;
+    background: color-mix(in srgb, var(--global-theme-color) 7%, var(--global-code-bg-color));
     user-select: none;
   }
 
@@ -1346,6 +1381,13 @@ code {
 
   .rouge-code pre {
     min-width: 100%;
+  }
+
+  &.language-text .rouge-code code,
+  &.language-plain .rouge-code code,
+  &.language-plaintext .rouge-code code,
+  &.language-txt .rouge-code code {
+    color: var(--global-text-color);
   }
 }
 

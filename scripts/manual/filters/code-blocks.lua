@@ -45,6 +45,15 @@ local language_labels = {
   yml = "YAML",
 }
 
+local listings_languages = {
+  bash = "bash",
+  python = "Python",
+  r = "R",
+  shell = "bash",
+  sh = "bash",
+  sql = "SQL",
+}
+
 local function normalized_language(meta)
   local raw = pandoc.utils.stringify(meta.lang or "en"):lower()
   return raw:match("^[^-_]+") or "en"
@@ -85,34 +94,32 @@ local function transform_code_block(block, generic_label)
   end
 
   local language = nil
-  local classes = {}
-  local numbered = false
   for _, class in ipairs(block.classes) do
-    if class == "numberLines" then
-      numbered = true
-      table.insert(classes, class)
-    else
-      table.insert(classes, class)
+    if class ~= "numberLines" then
       language = language or class
     end
   end
 
   if not language then
     language = "text"
-    table.insert(classes, 1, language)
-  end
-  if not numbered then
-    table.insert(classes, "numberLines")
   end
 
   language = language:lower()
   local label = generic_languages[language] and generic_label or language_labels[language] or title_case(language)
-  local decorated = pandoc.CodeBlock(block.text, pandoc.Attr(block.identifier, classes, block.attributes))
-  return {
-    pandoc.RawBlock("latex", "\\begin{manualcode}{" .. latex_escape(label) .. "}"),
-    decorated,
-    pandoc.RawBlock("latex", "\\end{manualcode}"),
-  }
+  local options = {}
+  if listings_languages[language] then
+    table.insert(options, "language=" .. listings_languages[language])
+  end
+  local first_number = block.attributes.startFrom
+  if first_number and first_number:match("^%d+$") then
+    table.insert(options, "firstnumber=" .. first_number)
+  end
+  local optional = #options > 0 and "[" .. table.concat(options, ",") .. "]" or ""
+  return pandoc.RawBlock(
+    "latex",
+    "\\begin{manualcode}" .. optional .. "{" .. latex_escape(label) .. "}\n" ..
+      block.text .. "\n\\end{manualcode}"
+  )
 end
 
 function Pandoc(document)

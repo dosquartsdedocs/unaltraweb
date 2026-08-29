@@ -7,7 +7,6 @@
 \usepackage{enumitem}
 \usepackage{etoolbox}
 \usepackage{fontspec}
-\usepackage{fvextra}
 \usepackage{float}
 \usepackage{framed}
 \usepackage{graphicx}
@@ -22,6 +21,8 @@
 \usepackage{setspace}
 \usepackage{subcaption}
 \usepackage{tikz}
+\usepackage{titlesec}
+\usepackage{listings}
 \usepackage[most]{tcolorbox}
 \usepackage{xcolor}
 \usepackage{xurl}
@@ -60,11 +61,15 @@
 \definecolor{ManualCitationLink}{HTML}{$citation-link-color$}
 \definecolor{ManualInlineCode}{HTML}{$inline-code-color$}
 \colorlet{ManualCodeBackground}{ManualMuted!5!white}
-\colorlet{ManualCodeHeader}{ManualSecondary!9!white}
-\colorlet{ManualCodeBorder}{ManualSecondary!28!white}
+\colorlet{ManualCodeBorder}{ManualSecondary!38!white}
+\colorlet{ManualCodeText}{ManualSecondary!82!black}
+\definecolor{ManualCodeKeyword}{HTML}{003F73}
+\definecolor{ManualCodeComment}{HTML}{39705A}
+\definecolor{ManualCodeString}{HTML}{9A3D45}
+\definecolor{ManualCodeNumber}{HTML}{687789}
 \DeclareCaptionFont{manualcaption}{\sffamily\fontsize{9.4}{11.2}\selectfont}
 \DeclareCaptionFont{manualsubcaption}{\sffamily\fontsize{8.8}{10.5}\selectfont}
-\DeclareCaptionLabelFormat{manual}{#1\nobreakspace\textcolor{ManualSecondary}{#2}}
+\DeclareCaptionLabelFormat{manual}{\textcolor{ManualSecondary}{#1\nobreakspace #2}}
 \captionsetup{
   font={manualcaption,color=ManualMuted},
   labelfont={bf,sf},
@@ -81,63 +86,91 @@
   margin=0pt,
   skip=5pt
 }
-\makeatletter
-\renewcommand{\@seccntformat}[1]{\textcolor{ManualSecondary}{\csname the#1\endcsname}\quad}
-\patchcmd{\@makechapterhead}
-  {\@chapapp\space \thechapter}
-  {\@chapapp\space \textcolor{ManualSecondary}{\thechapter}}
-  {}{}
-\makeatother
+\titleformat{\chapter}[hang]
+  {\normalfont\sffamily\LARGE\bfseries\color{ManualSecondary}}
+  {\thechapter.}{0.55em}{}
+\titlespacing*{\chapter}{0pt}{36pt}{30pt}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{ManualSecondary}}
+  {\thesection}{0.75em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{ManualSecondary}}
+  {\thesubsection}{0.75em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{ManualSecondary}}
+  {\thesubsubsection}{0.75em}{}
+\titleformat{\paragraph}[runin]
+  {\normalfont\normalsize\bfseries\color{ManualSecondary}}
+  {\theparagraph}{0.75em}{}
+\titleformat{\subparagraph}[runin]
+  {\normalfont\normalsize\bfseries\color{ManualSecondary}}
+  {\thesubparagraph}{0.75em}{}
 \definecolor{ManualCalloutInfo}{HTML}{2A5FB8}
 \definecolor{ManualCalloutExample}{HTML}{13795B}
 \definecolor{ManualCalloutWarning}{HTML}{A65D03}
 \definecolor{ManualCalloutObjectives}{HTML}{2F6FD6}
 \definecolor{ManualCalloutDanger}{HTML}{A12929}
 
-$if(highlighting-macros)$
-$highlighting-macros$
-\RecustomVerbatimEnvironment{Highlighting}{Verbatim}{
-  commandchars=\\\{\},
+\lstdefinestyle{manualcode}{
+  basicstyle=\ttfamily\small\color{ManualCodeText},
+  keywordstyle=\bfseries\color{ManualCodeKeyword},
+  commentstyle=\itshape\color{ManualCodeComment},
+  stringstyle=\color{ManualCodeString},
+  numberstyle=\scriptsize\ttfamily\color{ManualCodeNumber},
+  numbers=left,
+  numbersep=10pt,
+  xleftmargin=2.7em,
+  framexleftmargin=2.7em,
+  columns=fullflexible,
+  keepspaces=true,
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  tabsize=4,
+  upquote=true,
   breaklines=true,
-  breakanywhere=true,
-  breaknonspaceingroup=true,
-  breaksymbolleft={},
-  breaksymbolright={},
-  breakanywheresymbolpre={},
-  breakanywheresymbolpost={},
-  fontsize=\small,
-  numbersep=7pt
+  breakatwhitespace=false,
+  breakautoindent=true,
+  breakindent=1.25em,
+  postbreak=\mbox{\textcolor{ManualCodeNumber}{\scriptsize\ensuremath{\hookrightarrow}}\space},
+  aboveskip=0pt,
+  belowskip=0pt,
+  literate=
+    {à}{{\`a}}1 {á}{{\'a}}1 {è}{{\`e}}1 {é}{{\'e}}1
+    {í}{{\'i}}1 {ï}{{\"i}}1 {ò}{{\`o}}1 {ó}{{\'o}}1
+    {ú}{{\'u}}1 {ü}{{\"u}}1 {ç}{{\c{c}}}1
+    {À}{{\`A}}1 {Á}{{\'A}}1 {È}{{\`E}}1 {É}{{\'E}}1
+    {Í}{{\'I}}1 {Ï}{{\"I}}1 {Ò}{{\`O}}1 {Ó}{{\'O}}1
+    {Ú}{{\'U}}1 {Ü}{{\"U}}1 {Ç}{{\c{C}}}1
+    {·}{{\textperiodcentered}}1 {«}{{\guillemotleft}}1 {»}{{\guillemotright}}1
 }
-$endif$
-
-\renewcommand{\theFancyVerbLine}{\sffamily\tiny\color{ManualMuted}\arabic{FancyVerbLine}}
-
-\newenvironment{manualcode}[1]{%
-  \Needspace{5\baselineskip}%
-  \begin{tcolorbox}[
-    enhanced,
-    breakable,
-    colback=ManualCodeBackground,
-    colframe=ManualCodeBorder,
-    colbacktitle=ManualCodeHeader,
-    coltitle=ManualSecondary,
-    fonttitle=\sffamily\bfseries\footnotesize,
-    title={\strut #1},
-    boxrule=0.55pt,
-    titlerule=0.45pt,
-    arc=1.5pt,
-    outer arc=1.5pt,
-    left=7pt,
-    right=7pt,
-    top=5pt,
-    bottom=5pt,
-    toptitle=3.5pt,
-    bottomtitle=3.5pt,
-    before skip=0.9em,
-    after skip=0.9em
-  ]%
-}{%
-  \end{tcolorbox}
+\newtcblisting{manualcode}[2][]{
+  enhanced,
+  breakable,
+  listing only,
+  listing engine=listings,
+  listing options={style=manualcode,#1},
+  colback=ManualCodeBackground,
+  colframe=ManualCodeBorder,
+  colbacktitle=ManualSecondary,
+  coltitle=white,
+  fonttitle=\sffamily\bfseries\footnotesize,
+  title={\strut #2},
+  boxrule=0.55pt,
+  borderline west={2.2pt}{0pt}{ManualSecondary},
+  titlerule=0pt,
+  arc=1.8mm,
+  outer arc=1.8mm,
+  left=1pt,
+  right=6pt,
+  top=7pt,
+  bottom=7pt,
+  lefttitle=9pt,
+  righttitle=9pt,
+  toptitle=5pt,
+  bottomtitle=5pt,
+  before skip=1em,
+  after skip=1.1em
 }
 
 \let\ManualOriginalTexttt\texttt
