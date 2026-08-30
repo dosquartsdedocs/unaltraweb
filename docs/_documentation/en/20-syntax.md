@@ -202,15 +202,11 @@ annotations:
 
 ## Code Fences
 
-Use language names for syntax highlighting. Rouge renders code on the web and the manual PDF renderer uses `listings`. PDF highlighting is configured for `bash`, `sql`, `python`, and `r`; other language identifiers keep their visible label and use the numbered plain-text panel when no PDF definition is available. Both outputs add a compact language header and line numbers; web line numbers are hidden from assistive technology and excluded when copying code. A fence declared as `text`, `plaintext`, `plain`, or `txt`, or a fence with no language, uses the localized generic label `Code`, `Codi`, or `Código` without language-specific highlighting. Inline code uses single backticks and is styled separately from prose:
+Use language names for syntax highlighting. Rouge renders recognized languages on the web and the manual PDF renderer guarantees `listings` highlighting for `bash`, `shell`, `sh`, `sql`, `python`, and `r`. Use `url` for URLs or decomposed requests, `spreadsheet` for spreadsheet formulas, and `filetree` for file and directory listings; these semantic fences receive localized headers and dedicated highlighting on both outputs. Recognized blocks receive a compact language header and line numbers; web line numbers are hidden from assistive technology and excluded when copying code. A fence declared as `text`, `plaintext`, `plain`, or `txt`, a fence with no language, or a language unsupported by the renderer becomes an unnumbered verbatim panel without a header. Alternating line backgrounds aid tracking, and PDF lines wrap inside the printable page. Inline code uses single backticks and is styled separately from prose:
 
 ````markdown
 ```bash
 ogrinfo data/raw/roads.gpkg -so roads
-```
-
-```powershell
-ogrinfo data\raw\roads.gpkg -so roads
 ```
 
 ```sql
@@ -230,13 +226,6 @@ library(sf)
 Generic output or a value copied from an application.
 ```
 ````
-
-A consumer can replace the generic header through `_data/i18n/<lang>.yml`:
-
-```yaml
-code_blocks:
-  label: Source code
-```
 
 ## Links, Citations, And Equations
 

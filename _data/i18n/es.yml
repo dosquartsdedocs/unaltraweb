@@ -42,9 +42,6 @@ callouts:
   objectives: OBJETIVOS DE APRENDIZAJE
   danger: ATENCIÓN
 
-code_blocks:
-  label: Código
-
 bib:
   filter_placeholder: Escribe para filtrar
   and: y

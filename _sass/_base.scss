@@ -1267,31 +1267,16 @@ code {
   margin: 1.6rem 0;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--global-theme-color) 42%, var(--global-code-border-color));
-  border-left: 0.25rem solid var(--global-theme-color);
-  border-radius: 10px;
+  border-radius: 4px;
   background: var(--global-code-bg-color);
-  box-shadow: 0 0.5rem 1.25rem color-mix(in srgb, var(--global-text-color) 10%, transparent);
 
   .uw-code-header {
     display: flex;
     min-height: 2.4rem;
     align-items: center;
     gap: 0.55rem;
-    padding: 0.45rem 0.7rem 0.45rem 0.85rem;
+    padding: 0.38rem 0.6rem 0.38rem 0.75rem;
     background: var(--global-theme-color);
-
-    &::before {
-      content: "</>";
-      padding: 0.18rem 0.32rem;
-      border: 1px solid color-mix(in srgb, white 38%, transparent);
-      border-radius: 4px;
-      color: white;
-      font-family: monospace;
-      font-size: 0.68rem;
-      font-weight: 700;
-      line-height: 1;
-      opacity: 0.82;
-    }
 
     .copy {
       display: inline-grid;
@@ -1368,6 +1353,14 @@ code {
   pre {
     min-height: 100%;
     padding: 0.8rem;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 1.55em,
+      var(--global-code-row-alt-color) 1.55em,
+      var(--global-code-row-alt-color) 3.1em
+    );
+    background-origin: content-box;
     line-height: 1.55;
     tab-size: 4;
   }
@@ -1383,11 +1376,28 @@ code {
     min-width: 100%;
   }
 
-  &.language-text .rouge-code code,
-  &.language-plain .rouge-code code,
-  &.language-plaintext .rouge-code code,
-  &.language-txt .rouge-code code {
+  .highlight .c,
+  .highlight .c1,
+  .highlight .cm,
+  .highlight .cp,
+  .highlight .cs {
+    color: var(--global-code-comment-color);
+  }
+
+  &.uw-code-verbatim code {
     color: var(--global-text-color);
+  }
+
+  &.uw-code-verbatim {
+    .highlight {
+      overflow-x: visible;
+    }
+
+    pre,
+    code {
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
   }
 }
 

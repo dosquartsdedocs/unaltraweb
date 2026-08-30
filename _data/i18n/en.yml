@@ -42,9 +42,6 @@ callouts:
   objectives: LEARNING OBJECTIVES
   danger: CAUTION
 
-code_blocks:
-  label: Code
-
 bib:
   filter_placeholder: Type to filter
   and: and

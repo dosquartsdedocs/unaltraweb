@@ -81,16 +81,6 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn(r"\normalfont\Large\bfseries\color{ManualSecondary}", template)
         self.assertNotIn(r"\@chapapp", template)
 
-    def test_code_block_label_uses_localized_site_data(self) -> None:
-        i18n = self.project / "_data/i18n/ca.yml"
-        i18n.parent.mkdir(parents=True)
-        i18n.write_text("code_blocks:\n  label: Fragment de codi\n", encoding="utf-8")
-
-        label, dependencies = manual_pdf.resolve_code_block_label(self.project, self.config, "ca")
-
-        self.assertEqual(label, "Fragment de codi")
-        self.assertEqual(dependencies, [i18n])
-
     def test_template_distinguishes_link_categories_and_code(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
@@ -102,18 +92,28 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertNotIn("$highlighting-macros$", template)
         self.assertIn(r"\renewcommand{\texttt}[1]", template)
 
-    def test_template_renders_breakable_numbered_code_panels(self) -> None:
+    def test_template_renders_breakable_code_and_plain_verbatim_panels(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
         self.assertIn(r"\usepackage{listings}", template)
+        self.assertIn(r"\usepackage{lstlinebgrd}", template)
+        self.assertIn(r"\lstdefinestyle{manualbase}", template)
+        self.assertIn(r"\lstdefinelanguage{ManualURL}", template)
+        self.assertIn(r"\lstdefinelanguage{ManualSpreadsheet}", template)
+        self.assertIn(r"\lstdefinelanguage{ManualFileTree}", template)
         self.assertIn(r"\lstdefinestyle{manualcode}", template)
+        self.assertIn(r"\lstdefinestyle{manualverbatim}", template)
         self.assertIn("breaklines=true", template)
         self.assertIn("breakatwhitespace=false", template)
         self.assertIn("columns=fullflexible", template)
+        self.assertIn(r"linebackgroundcolor=\ManualCodeLineBackground", template)
+        self.assertIn("framexleftmargin=0pt", template)
         self.assertIn(r"\newtcblisting{manualcode}[2][]", template)
+        self.assertIn(r"\newtcblisting{manualverbatim}", template)
         self.assertIn("colbacktitle=ManualSecondary", template)
         self.assertIn("listing engine=listings", template)
         self.assertIn("breakable,", template)
+        self.assertNotIn(r"\hookrightarrow", template)
 
     def test_template_keeps_callouts_together_without_floating_figures_through_them(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")

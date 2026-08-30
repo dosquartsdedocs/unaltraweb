@@ -115,7 +115,6 @@ CALLOUT_LABELS = {
         "danger": "CAUTION",
     },
 }
-CODE_BLOCK_LABELS = {"ca": "Codi", "es": "Código", "en": "Code"}
 CAPTURE_SVG_ALLOWED_ELEMENTS = {
     "svg", "g", "defs", "metadata", "title", "desc", "image", "rect", "path", "text", "tspan",
     "marker", "polygon", "polyline", "line", "circle", "ellipse", "clippath", "mask", "lineargradient",
@@ -325,28 +324,6 @@ def resolve_callout_labels(project: Path, config: dict[str, Any], language: str)
     labels.update({str(key): "" if value is None else str(value) for key, value in configured.items()})
     dependencies = list(dict.fromkeys(path for path in (localized_path, default_path) if path is not None))
     return labels, dependencies
-
-
-def resolve_code_block_label(project: Path, config: dict[str, Any], language: str) -> tuple[str, list[Path]]:
-    normalized_language = normalize_callout_language(language)
-    default_language = normalize_callout_language(config.get("default_lang") or config.get("lang") or "en")
-    localized_data, localized_path = language_data(project, config, normalized_language)
-    if default_language == normalized_language:
-        default_data, default_path = localized_data, localized_path
-    else:
-        default_data, default_path = language_data(project, config, default_language)
-
-    localized_label = nested(localized_data, "code_blocks").get("label")
-    default_label = nested(default_data, "code_blocks").get("label")
-    label = str(
-        localized_label
-        or default_label
-        or CODE_BLOCK_LABELS.get(normalized_language)
-        or CODE_BLOCK_LABELS.get(default_language)
-        or CODE_BLOCK_LABELS["en"]
-    )
-    dependencies = list(dict.fromkeys(path for path in (localized_path, default_path) if path is not None))
-    return label, dependencies
 
 
 def language_list(config: dict[str, Any], pdf: dict[str, Any], requested: str = "") -> list[str]:
@@ -1134,8 +1111,7 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
     home_front: dict[str, Any] = {}
     chunks: list[str] = []
     _, callout_label_sources = resolve_callout_labels(project, config, source_lang)
-    code_block_label, code_block_label_sources = resolve_code_block_label(project, config, source_lang)
-    source_paths: list[Path] = list(dict.fromkeys([*callout_label_sources, *code_block_label_sources]))
+    source_paths: list[Path] = list(callout_label_sources)
     includes_home = bool(home and pdf.get("include_home", True))
 
     if includes_home:
@@ -1169,7 +1145,6 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
 
     metadata = build_metadata(project, config, lang, source_lang, home_front, included_chapters)
     metadata["include-home"] = includes_home
-    metadata["code-block-label"] = code_block_label
     return metadata, source_paths, "\n\n\\newpage\n\n".join(chunks) + "\n"
 
 

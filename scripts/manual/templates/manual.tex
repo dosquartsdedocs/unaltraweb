@@ -23,6 +23,7 @@
 \usepackage{tikz}
 \usepackage{titlesec}
 \usepackage{listings}
+\usepackage{lstlinebgrd}
 \usepackage[most]{tcolorbox}
 \usepackage{xcolor}
 \usepackage{xurl}
@@ -61,6 +62,7 @@
 \definecolor{ManualCitationLink}{HTML}{$citation-link-color$}
 \definecolor{ManualInlineCode}{HTML}{$inline-code-color$}
 \colorlet{ManualCodeBackground}{ManualMuted!5!white}
+\colorlet{ManualCodeStripe}{ManualSecondary!4!white}
 \colorlet{ManualCodeBorder}{ManualSecondary!38!white}
 \colorlet{ManualCodeText}{ManualSecondary!82!black}
 \definecolor{ManualCodeKeyword}{HTML}{003F73}
@@ -111,16 +113,38 @@
 \definecolor{ManualCalloutObjectives}{HTML}{2F6FD6}
 \definecolor{ManualCalloutDanger}{HTML}{A12929}
 
-\lstdefinestyle{manualcode}{
+\newcommand{\ManualCodeLineBackground}{%
+  \ifodd\value{lstnumber}\color{ManualCodeBackground}\else\color{ManualCodeStripe}\fi
+}
+\lstdefinelanguage{ManualURL}{
+  sensitive=true,
+  morecomment=[l]{\#},
+  morekeywords={http,https,SERVICE,REQUEST,VERSION,LAYERS,FORMAT,CRS,SRS,BBOX,WIDTH,HEIGHT},
+  morestring=[b]"
+}
+\lstdefinelanguage{ManualSpreadsheet}{
+  sensitive=false,
+  morekeywords={AND,AVERAGE,COUNTIF,DATEDIF,DATE,DAY,HEX2DEC,HLOOKUP,IF,ISBLANK,ISNUMBER,ISTEXT,LEFT,MID,MONTH,NA,NETWORKDAYS,ROUND,SI,SUM,SUMA,SUMIFS,TODAY,TRIM,VLOOKUP,WEEKDAY,XLOOKUP,YEAR},
+  morestring=[b]"
+}
+\lstdefinelanguage{ManualFileTree}{
+  sensitive=true,
+  morecomment=[l]{\#},
+  alsoletter={_-},
+  morekeywords={data,figures,maps,outputs,processed,qgis,raw,scripts,src},
+  emph={csv,geojson,gpkg,jpeg,jpg,pdf,png,qgz,svg,tif,tiff,xlsx},
+  emphstyle=\color{ManualCodeString}
+}
+\lstdefinestyle{manualbase}{
   basicstyle=\ttfamily\small\color{ManualCodeText},
   keywordstyle=\bfseries\color{ManualCodeKeyword},
   commentstyle=\itshape\color{ManualCodeComment},
   stringstyle=\color{ManualCodeString},
   numberstyle=\scriptsize\ttfamily\color{ManualCodeNumber},
-  numbers=left,
-  numbersep=10pt,
-  xleftmargin=2.7em,
-  framexleftmargin=2.7em,
+  numbers=none,
+  frame=none,
+  xleftmargin=0pt,
+  framexleftmargin=0pt,
   columns=fullflexible,
   keepspaces=true,
   showspaces=false,
@@ -131,8 +155,12 @@
   breaklines=true,
   breakatwhitespace=false,
   breakautoindent=true,
-  breakindent=1.25em,
-  postbreak=\mbox{\textcolor{ManualCodeNumber}{\scriptsize\ensuremath{\hookrightarrow}}\space},
+  breakindent=0.75em,
+  prebreak={},
+  postbreak={},
+  linebackgroundcolor=\ManualCodeLineBackground,
+  linebackgroundsep=0pt,
+  linebackgroundwidth=\linewidth,
   aboveskip=0pt,
   belowskip=0pt,
   literate=
@@ -143,6 +171,17 @@
     {Í}{{\'I}}1 {Ï}{{\"I}}1 {Ò}{{\`O}}1 {Ó}{{\'O}}1
     {Ú}{{\'U}}1 {Ü}{{\"U}}1 {Ç}{{\c{C}}}1
     {·}{{\textperiodcentered}}1 {«}{{\guillemotleft}}1 {»}{{\guillemotright}}1
+}
+\lstdefinestyle{manualcode}{
+  style=manualbase,
+  numbers=left,
+  numbersep=7pt,
+  xleftmargin=2.35em
+}
+\lstdefinestyle{manualverbatim}{
+  style=manualbase,
+  numbers=none,
+  xleftmargin=0pt
 }
 \newtcblisting{manualcode}[2][]{
   enhanced,
@@ -157,18 +196,35 @@
   fonttitle=\sffamily\bfseries\footnotesize,
   title={\strut #2},
   boxrule=0.55pt,
-  borderline west={2.2pt}{0pt}{ManualSecondary},
   titlerule=0pt,
-  arc=1.8mm,
-  outer arc=1.8mm,
-  left=1pt,
-  right=6pt,
-  top=7pt,
-  bottom=7pt,
+  arc=0.8mm,
+  outer arc=0.8mm,
+  left=2pt,
+  right=4pt,
+  top=6pt,
+  bottom=6pt,
   lefttitle=9pt,
   righttitle=9pt,
   toptitle=5pt,
   bottomtitle=5pt,
+  before skip=1em,
+  after skip=1.1em
+}
+\newtcblisting{manualverbatim}{
+  enhanced,
+  breakable,
+  listing only,
+  listing engine=listings,
+  listing options={style=manualverbatim},
+  colback=ManualCodeBackground,
+  colframe=ManualCodeBorder,
+  boxrule=0.55pt,
+  arc=0.8mm,
+  outer arc=0.8mm,
+  left=5pt,
+  right=5pt,
+  top=6pt,
+  bottom=6pt,
   before skip=1em,
   after skip=1.1em
 }

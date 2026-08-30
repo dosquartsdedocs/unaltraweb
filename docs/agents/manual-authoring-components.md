@@ -200,7 +200,7 @@ Bibliographic citations, external URLs, and internal links are separate semantic
 See [the normalization criteria](#normalization) and the [OGC standards](https://www.ogc.org/).
 ```
 
-Use ordinary fenced code with an explicit language. Rouge highlights web code and the PDF renderer uses `listings`; inline code remains monospaced and visually distinct in both. The PDF guarantees language-specific highlighting for `bash`, `sql`, `python`, and `r`, and renders other identifiers in the same numbered panel with a plain-text fallback.
+Use ordinary fenced code with an explicit language. Rouge highlights recognized web code and the PDF renderer uses `listings`; inline code remains monospaced and visually distinct in both. The PDF guarantees language-specific highlighting, headers, and line numbers for `bash`, `shell`, `sh`, `sql`, `python`, and `r`. Use `url` for URLs or decomposed web requests, `spreadsheet` for spreadsheet formulas, and `filetree` for short file or directory listings; these semantic fences receive localized headers and dedicated highlighting on web and PDF. Plain, unlabelled, and unsupported fences render as unnumbered verbatim without a header. Long PDF lines wrap within the printable page.
 
 For mathematics in Markdown sources, use single dollar delimiters for inline expressions and double dollar delimiters on separate lines for displayed equations. Displayed equations are numbered by default on the web and in the PDF:
 

@@ -37,22 +37,24 @@ class CodeBlockFilterIntegrationTests(unittest.TestCase):
         self.assertIn("print('hello')", output)
         self.assertIn(r"\end{manualcode}", output)
 
-    def test_uses_localized_standard_label_for_unlabelled_code(self) -> None:
+    def test_renders_unlabelled_code_as_plain_verbatim(self) -> None:
         output = self.render("---\nlang: ca\n---\n\n```\nplain\n```\n")
 
-        self.assertIn(r"\begin{manualcode}{Codi}", output)
+        self.assertIn(r"\begin{manualverbatim}", output)
         self.assertIn(r"plain", output)
+        self.assertNotIn(r"\begin{manualcode}", output)
 
-    def test_uses_configured_generic_label(self) -> None:
+    def test_does_not_add_a_configured_label_to_plain_verbatim(self) -> None:
         output = self.render("---\ncode-block-label: Terminal output\n---\n\n```text\nplain\n```\n")
 
-        self.assertIn(r"\begin{manualcode}{Terminal output}", output)
+        self.assertIn(r"\begin{manualverbatim}", output)
+        self.assertNotIn("Terminal output", output)
 
-    def test_keeps_unknown_language_label_with_plain_listings_fallback(self) -> None:
+    def test_renders_an_unsupported_language_as_plain_verbatim(self) -> None:
         output = self.render("```javascript\nconst answer = 42;\n```\n")
 
-        self.assertIn(r"\begin{manualcode}{JavaScript}", output)
-        self.assertNotIn("language=JavaScript", output)
+        self.assertIn(r"\begin{manualverbatim}", output)
+        self.assertNotIn("JavaScript", output)
 
     def test_maps_supported_teaching_languages_to_listings(self) -> None:
         cases = {
@@ -65,6 +67,18 @@ class CodeBlockFilterIntegrationTests(unittest.TestCase):
         for language, expected in cases.items():
             with self.subTest(language=language):
                 self.assertIn(expected, self.render(f"```{language}\nvalue <- 1\n```\n"))
+
+    def test_maps_semantic_fences_to_localized_listings(self) -> None:
+        cases = {
+            "url": r"\begin{manualcode}[language=ManualURL]{URL}",
+            "spreadsheet": r"\begin{manualcode}[language=ManualSpreadsheet]{Fórmula}",
+            "filetree": r"\begin{manualcode}[language=ManualFileTree]{Fitxers}",
+        }
+
+        for language, expected in cases.items():
+            with self.subTest(language=language):
+                source = f"---\nlang: ca\n---\n\n```{language}\nvalue\n```\n"
+                self.assertIn(expected, self.render(source))
 
     def test_preserves_explicit_start_number(self) -> None:
         output = self.render("```{.python startFrom=7}\nprint('hello')\n```\n")
@@ -95,7 +109,21 @@ metadata-page-title: Metadata
 # Language support
 
 ```bash
+# Descarrega dades sense escriure el comentari com una ordre.
 curl -fsSL "https://example.test/api?comarca=Tarragonès&format=json"
+```
+
+```url
+https://example.test/a/very/long/path/that/must/wrap/inside/the/printable/page/without/crossing/either/page/margin?format=geopackage&download=true
+```
+
+```spreadsheet
+=IF(AND(ISNUMBER(D2),D2>0),SUM(D2:D20),NA())
+```
+
+```filetree
+outputs/maps/
+  thematic-map.svg
 ```
 
 ```sql
@@ -135,3 +163,4 @@ summary(municipis$poblacio)
 
             self.assertEqual(0, completed.returncode, completed.stderr)
             self.assertGreater(output.stat().st_size, 0)
+            self.assertNotIn("Overfull \\hbox", completed.stderr)
