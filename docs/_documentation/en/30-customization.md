@@ -244,6 +244,18 @@ Manual chapters can also number teaching tables with the same localized counter 
 
 This renders a numbered table with localized labels such as `Table 1.`, `Taula 1.` or `Tabla 1.`. Tables and figures keep separate counters.
 
+Use a listing block to give one fenced code block a numbered caption on the web and in the PDF:
+
+````markdown
+::: listing "Inspect the roads layer"
+```bash
+ogrinfo data/raw/roads.gpkg -so roads
+```
+:::
+````
+
+The wrapper requires one non-empty double-quoted caption and exactly one fence. Captioned listings use a counter separate from figures and tables and appear in the PDF list of listings. Unwrapped fences remain valid and unindexed.
+
 Use fenced code blocks for programming examples and semantic technical notation. Recognized languages show a language header, line numbers, syntax highlighting, and alternating line backgrounds. The web uses Rouge for common TIG languages; the PDF guarantees the complete treatment for Bash/Linux shell, SQL/PostGIS, Python, R, URLs (`url`), spreadsheet formulas (`spreadsheet`), and file listings (`filetree`). The three semantic fences use localized headers. Use `text` or omit the language for unnumbered verbatim without a header. A language unsupported by one renderer also falls back to that plain presentation:
 
 ````markdown

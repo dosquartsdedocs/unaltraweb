@@ -1272,35 +1272,36 @@ code {
 
   .uw-code-header {
     display: flex;
-    min-height: 2.4rem;
+    min-height: 2.15rem;
     align-items: center;
     gap: 0.55rem;
-    padding: 0.38rem 0.6rem 0.38rem 0.75rem;
-    background: var(--global-theme-color);
+    border-bottom: 1px solid color-mix(in srgb, var(--global-theme-color) 18%, var(--global-code-border-color));
+    padding: 0.25rem 0.5rem 0.25rem 0.7rem;
+    background: color-mix(in srgb, var(--global-theme-color) 7%, var(--global-code-bg-color));
 
     .copy {
       display: inline-grid;
-      width: 1.8rem;
-      height: 1.8rem;
+      width: 1.65rem;
+      height: 1.65rem;
       margin-left: auto;
       place-items: center;
-      border: 1px solid color-mix(in srgb, white 35%, transparent);
+      border: 1px solid color-mix(in srgb, var(--global-theme-color) 24%, var(--global-code-border-color));
       border-radius: 5px;
-      background: color-mix(in srgb, white 10%, transparent);
-      color: white;
+      background: transparent;
+      color: var(--global-theme-color);
       cursor: pointer;
 
       &:focus-visible,
       &:hover {
-        border-color: white;
-        background: color-mix(in srgb, white 20%, transparent);
+        border-color: var(--global-theme-color);
+        background: color-mix(in srgb, var(--global-theme-color) 12%, transparent);
         outline: none;
       }
     }
   }
 
   .uw-code-language {
-    color: white;
+    color: color-mix(in srgb, var(--global-theme-color) 72%, var(--global-text-color));
     font-family: inherit;
     font-size: 0.72rem;
     font-weight: 750;

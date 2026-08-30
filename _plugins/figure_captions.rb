@@ -61,6 +61,15 @@ module Unaltraweb
       label.to_s
     end
 
+    def listing_label_for(site, lang)
+      i18n = site.data["i18n"] || {}
+      lang_data = i18n[lang] || i18n[site.config["default_lang"]] || {}
+      label = lang_data.dig("listings", "label") if lang_data.respond_to?(:dig)
+      label ||= lang_data["listing"]
+      label ||= "Listing"
+      label.to_s
+    end
+
     def transform_markdown_images(text, lang, label)
       out = +""
       source = text.to_s
@@ -136,9 +145,32 @@ module Unaltraweb
       out
     end
 
-    def transform_markdown_sugar(text, lang, figure_label, table_label)
+    def transform_markdown_listings(text, lang, label)
+      out = +""
+      source = text.to_s
+      index = 0
+      count = 0
+
+      while index < source.length
+        if (block = parse_listing_block(source, index))
+          html, count = listing_html(block, lang, label, count)
+          out << "\n\n" << html << "\n\n"
+          index = block[:end_idx]
+          next
+        end
+
+        out << source[index]
+        index += 1
+      end
+
+      out
+    end
+
+    def transform_markdown_sugar(text, lang, figure_label, table_label, listing_label = "Listing")
       transform_outside_code_fences(text) do |chunk|
-        transform_markdown_tables(transform_markdown_images(chunk, lang, figure_label), lang, table_label)
+        transformed = transform_markdown_images(chunk, lang, figure_label)
+        transformed = transform_markdown_tables(transformed, lang, table_label)
+        transform_markdown_listings(transformed, lang, listing_label)
       end
     end
 
@@ -194,6 +226,26 @@ module Unaltraweb
 
       {
         caption: match[1].to_s,
+        body: source[body_start...closing.begin(0)],
+        raw: source[start_index...closing.end(0)],
+        end_idx: closing.end(0)
+      }
+    end
+
+    def parse_listing_block(source, start_index)
+      return nil unless line_start?(source, start_index) && source[start_index, 3] == ":::"
+
+      line_end = source.index("\n", start_index) || source.length
+      opening = source[start_index...line_end]
+      match = opening.match(/\A:::\s*listing\s+"([^"]+)"\s*\z/)
+      return nil unless match
+
+      body_start = line_end == source.length ? line_end : line_end + 1
+      closing = source.match(/^:::\s*$/m, body_start)
+      return nil unless closing
+
+      {
+        caption: match[1],
         body: source[body_start...closing.begin(0)],
         raw: source[start_index...closing.end(0)],
         end_idx: closing.end(0)
@@ -267,6 +319,24 @@ module Unaltraweb
               </tbody>
             </table>
           </div>
+        </figure>
+      HTML
+
+      [html, count]
+    end
+
+    def listing_html(block, lang, label, count)
+      code_token = block[:body].to_s.strip
+      return [block[:raw], count] unless code_token.match?(/\AUNALTRAWEBFENCEDCODEBLOCK\d+\z/)
+
+      count += 1
+      caption = render_inline_markdown(block[:caption]).to_s.strip
+      caption_html = %(<figcaption class="md-code-caption"><span class="figlabel">#{h(label)} #{count}.</span> #{caption}</figcaption>)
+      html = <<~HTML.strip
+        <figure id="lst-#{h(lang)}-#{count}" class="md-code-listing" markdown="1">
+          #{caption_html}
+
+          #{code_token}
         </figure>
       HTML
 
@@ -704,7 +774,8 @@ class UnaltrawebFigureCaptionGenerator < Jekyll::Generator
         lang = Unaltraweb::FigureCaptions.detect_lang(doc)
         figure_label = Unaltraweb::FigureCaptions.label_for(site, lang)
         table_label = Unaltraweb::FigureCaptions.table_label_for(site, lang)
-        doc.content = Unaltraweb::FigureCaptions.transform_markdown_sugar(doc.content, lang, figure_label, table_label)
+        listing_label = Unaltraweb::FigureCaptions.listing_label_for(site, lang)
+        doc.content = Unaltraweb::FigureCaptions.transform_markdown_sugar(doc.content, lang, figure_label, table_label, listing_label)
       end
     end
   end
@@ -724,5 +795,6 @@ Jekyll::Hooks.register :pages, :pre_render do |page|
   lang = Unaltraweb::FigureCaptions.detect_lang(page)
   figure_label = Unaltraweb::FigureCaptions.label_for(page.site, lang)
   table_label = Unaltraweb::FigureCaptions.table_label_for(page.site, lang)
-  page.content = Unaltraweb::FigureCaptions.transform_markdown_sugar(page.content, lang, figure_label, table_label)
+  listing_label = Unaltraweb::FigureCaptions.listing_label_for(page.site, lang)
+  page.content = Unaltraweb::FigureCaptions.transform_markdown_sugar(page.content, lang, figure_label, table_label, listing_label)
 end

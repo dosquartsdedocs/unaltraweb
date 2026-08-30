@@ -259,6 +259,12 @@ manual:
   chapter: Chapter
 figures:
   label: Figure
+  list_title: List of figures
 
 tables:
   label: Table
+  list_title: List of tables
+
+listings:
+  label: Listing
+  list_title: List of listings

@@ -50,6 +50,10 @@ IMAGE_RE = re.compile(
     r"(?P<attrs>\{:[^}\n]*\})?"
 )
 TABLE_DIV_RE = re.compile(r'^::: table\s+["\'](.+?)["\']\s*\n(.*?)^:::\s*$', re.MULTILINE | re.DOTALL)
+LISTING_DIV_RE = re.compile(
+    r'^:::\s*listing\s+"(?P<caption>[^"]+)"\s*\n(?P<body>.*?)^:::\s*$',
+    re.MULTILINE | re.DOTALL,
+)
 PIPE_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?(?:\s*\|\s*:?-{3,}:?)+\s*\|?\s*$")
 TABLE_GUARD_AFTER_HEADING_RE = re.compile(
     r"^(?P<heading>#{2,6}\s+[^\n]+)\n\n```\{=latex\}\n"
@@ -158,6 +162,10 @@ METADATA_LABELS = {
         "source": "Edició web",
         "rights": "Drets",
         "references": "Referències",
+        "listing": "Llistat",
+        "list_of_figures": "Índex de figures",
+        "list_of_tables": "Índex de taules",
+        "list_of_listings": "Índex de llistats",
     },
     "es": {
         "title": "Créditos editoriales",
@@ -179,6 +187,10 @@ METADATA_LABELS = {
         "source": "Edición web",
         "rights": "Derechos",
         "references": "Referencias",
+        "listing": "Listado",
+        "list_of_figures": "Índice de figuras",
+        "list_of_tables": "Índice de tablas",
+        "list_of_listings": "Índice de listados",
     },
     "en": {
         "title": "Editorial credits",
@@ -200,6 +212,10 @@ METADATA_LABELS = {
         "source": "Web edition",
         "rights": "Rights",
         "references": "References",
+        "listing": "Listing",
+        "list_of_figures": "List of figures",
+        "list_of_tables": "List of tables",
+        "list_of_listings": "List of listings",
     },
 }
 
@@ -842,6 +858,34 @@ def transform_markdown(
             f"Table: {match.group(1).strip()}\n\n{body}"
         )
 
+    def listing(match: re.Match[str]) -> str:
+        token_match = protected_token_re.fullmatch(match.group("body").strip())
+        if not token_match:
+            raise ManualPdfError(
+                f"Listing block must contain exactly one fenced code block in {source.relative_to(project)}"
+            )
+
+        body = protected[int(token_match.group(1))]
+        opening_end = body.find("\n")
+        opening = body[:opening_end]
+        opening_match = re.fullmatch(r"(?P<indent>[ \t]*)(?P<fence>`{3,}|~{3,})(?P<info>[^\n]*)", opening)
+        if not opening_match:  # pragma: no cover - guarded by FENCED_CODE_BLOCK_RE
+            raise ManualPdfError(f"Malformed listing fence in {source.relative_to(project)}")
+
+        caption = match.group("caption").replace("\\", "\\\\").replace('"', '\\"')
+        info = opening_match.group("info").strip()
+        if info.startswith("{") and info.endswith("}"):
+            attributes = info[:-1].rstrip()
+            attributes += f' data-listing-caption="{caption}"}}'
+        else:
+            language_class = f".{info} " if info else ""
+            attributes = f'{{{language_class}data-listing-caption="{caption}"}}'
+        rewritten = (
+            f"{opening_match.group('indent')}{opening_match.group('fence')}{attributes}"
+            f"{body[opening_end:]}"
+        )
+        return protect(rewritten)
+
     def inline_code(match: re.Match[str]) -> str:
         value = html.unescape(match.group(1))
         longest_fence = max((len(run) for run in re.findall(r"`+", value)), default=0) + 1
@@ -966,6 +1010,7 @@ def transform_markdown(
         return "\n\n".join(rendered)
 
     transformed = FENCED_CODE_BLOCK_RE.sub(lambda match: protect(match.group(0)), text)
+    transformed = LISTING_DIV_RE.sub(listing, transformed)
     transformed = MARKDOWN_INLINE_CODE_RE.sub(lambda match: protect(match.group(0)), transformed)
     transformed = INLINE_CODE_RE.sub(lambda match: protect(inline_code(match)), transformed)
     transformed = DISPLAY_MATH_BLOCK_RE.sub(display_math, transformed)
@@ -981,6 +1026,8 @@ def transform_markdown(
     transformed = IMAGE_RE.sub(image, transformed)
     if re.search(r"^:::\s*subfigures\b", transformed, re.MULTILINE):
         raise ManualPdfError(f"Malformed subfigures block in {source.relative_to(project)}")
+    if re.search(r"^:::\s*listing\b", transformed, re.MULTILINE):
+        raise ManualPdfError(f"Malformed listing block in {source.relative_to(project)}")
     unknown_includes = [item for item in INCLUDE_RE.findall(transformed) if item.strip()]
     unknown_liquid = [item for item in LIQUID_RE.findall(transformed) if item.strip()]
     if unknown_includes or unknown_liquid:
@@ -1082,6 +1129,10 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         "metadata-source-label": metadata_labels["source"],
         "metadata-rights-label": metadata_labels["rights"],
         "chapter-references-title": metadata_labels["references"],
+        "listing-label": metadata_labels["listing"],
+        "list-of-figures-title": metadata_labels["list_of_figures"],
+        "list-of-tables-title": metadata_labels["list_of_tables"],
+        "list-of-listings-title": metadata_labels["list_of_listings"],
         "lang": lang,
         "babel-lang": LANGUAGE_NAMES.get(source_lang, "english"),
         "toc": bool(pdf.get("toc", True)),
@@ -1143,9 +1194,14 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
         included_chapters.append((path, front, body))
         source_paths.append(path)
 
+    assembled_markdown = "\n\n\\newpage\n\n".join(chunks) + "\n"
     metadata = build_metadata(project, config, lang, source_lang, home_front, included_chapters)
     metadata["include-home"] = includes_home
-    return metadata, source_paths, "\n\n\\newpage\n\n".join(chunks) + "\n"
+    metadata["has-listings"] = "data-listing-caption=" in assembled_markdown
+    prose_markdown = FENCED_CODE_BLOCK_RE.sub("", assembled_markdown)
+    metadata["has-figures"] = bool(IMAGE_RE.search(prose_markdown) or r"\begin{figure}" in prose_markdown)
+    metadata["has-tables"] = bool(re.search(r"^Table:\s+\S", prose_markdown, re.MULTILINE))
+    return metadata, source_paths, assembled_markdown
 
 
 def bibliography_source(project: Path, config: dict[str, Any]) -> Path | None:

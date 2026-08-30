@@ -2552,6 +2552,13 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "guidance": "Use explicit stable heading identifiers for cross-section links. Link text should name the destination; automatic figure and table number references are not currently generated.",
             },
             {
+                "id": "captioned_listings",
+                "syntax": ['::: listing "Descriptive caption"', "```python", "print(1)", "```", ":::"],
+                "web": "supported with localized, chapter-scoped numbering above the code panel",
+                "pdf": "supported with the same caption and an entry in the generated list of listings",
+                "guidance": "Use exactly one fenced block inside the wrapper. Keep its language explicit when highlighting is expected. Ordinary fences remain valid but are not numbered or indexed.",
+            },
+            {
                 "id": "code_and_math",
                 "syntax": ["`inline_code()`", "```python ... ```", "$x_i$", "$$\nE = mc^2\n\\label{eq:model}\n$$", "$\\eqref{eq:model}$", "\\begin{equation*} ... \\end{equation*}"],
                 "web": "inline code and Rouge-highlighted language fences; MathJax math with display equations numbered by default",

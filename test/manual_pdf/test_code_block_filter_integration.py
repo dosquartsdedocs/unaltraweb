@@ -85,6 +85,13 @@ class CodeBlockFilterIntegrationTests(unittest.TestCase):
 
         self.assertIn(r"\begin{manualcode}[language=Python,firstnumber=7]{Python}", output)
 
+    def test_wraps_captioned_code_for_the_list_of_listings(self) -> None:
+        output = self.render('```{.python data-listing-caption="Read roads"}\nprint("roads")\n```\n')
+
+        self.assertIn(r"\begin{manualcodelisting}{Read roads}", output)
+        self.assertIn(r"\begin{manualcode}[language=Python]{Python}", output)
+        self.assertIn(r"\end{manualcodelisting}", output)
+
     @unittest.skipUnless(shutil.which("xelatex"), "XeLaTeX is required for PDF integration tests")
     def test_compiles_supported_languages_and_unicode_with_the_manual_template(self) -> None:
         source = """---
@@ -104,6 +111,11 @@ inline-code-color: "6F2B70"
 series: Test series
 rights: Test rights
 metadata-page-title: Metadata
+listing-label: Listing
+list-of-figures-title: List of figures
+list-of-tables-title: List of tables
+list-of-listings-title: List of listings
+has-listings: true
 ---
 
 # Language support
@@ -130,7 +142,7 @@ outputs/maps/
 SELECT municipi FROM indicadors WHERE poblacio > 10000;
 ```
 
-```python
+```{.python data-listing-caption="Check the population"}
 # Comprova la població.
 print(dades["poblacio"])
 ```
@@ -164,3 +176,13 @@ summary(municipis$poblacio)
             self.assertEqual(0, completed.returncode, completed.stderr)
             self.assertGreater(output.stat().st_size, 0)
             self.assertNotIn("Overfull \\hbox", completed.stderr)
+            if shutil.which("pdftotext"):
+                extracted = subprocess.run(
+                    ["pdftotext", str(output), "-"],
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=True,
+                ).stdout
+                self.assertIn("List of listings", extracted)
+                self.assertGreaterEqual(extracted.count("Check the population"), 2)

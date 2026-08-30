@@ -82,6 +82,7 @@
 }
 \captionsetup[figure]{position=top,margin=1em,aboveskip=0pt,belowskip=7pt}
 \captionsetup[table]{position=top,margin=1em,aboveskip=0pt,belowskip=7pt}
+\captionsetup[lstlisting]{position=top,margin=0pt,aboveskip=0pt,belowskip=7pt}
 \captionsetup[subfigure]{
   font={manualsubcaption,color=ManualMuted},
   labelfont={bf,sf,color=ManualSecondary},
@@ -191,8 +192,8 @@
   listing options={style=manualcode,#1},
   colback=ManualCodeBackground,
   colframe=ManualCodeBorder,
-  colbacktitle=ManualSecondary,
-  coltitle=white,
+  colbacktitle=ManualSecondary!8!white,
+  coltitle=ManualSecondary,
   fonttitle=\sffamily\bfseries\footnotesize,
   title={\strut #2},
   boxrule=0.55pt,
@@ -210,6 +211,11 @@
   before skip=1em,
   after skip=1.1em
 }
+\newenvironment{manualcodelisting}[1]{%
+  \Needspace{6\baselineskip}%
+  \captionof{lstlisting}{#1}%
+  \vspace{-0.45em}%
+}{}
 \newtcblisting{manualverbatim}{
   enhanced,
   breakable,
@@ -306,6 +312,10 @@
 \makeatother
 \setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
 \floatplacement{figure}{H}
+\renewcommand{\lstlistingname}{$listing-label$}
+\renewcommand{\lstlistlistingname}{$list-of-listings-title$}
+\renewcommand{\listfigurename}{$list-of-figures-title$}
+\renewcommand{\listtablename}{$list-of-tables-title$}
 
 \usepackage{fancyhdr}
 \pagestyle{fancy}
@@ -444,6 +454,21 @@ $endif$
 $if(toc)$
 \tableofcontents
 \label{manual:toc-end}
+\clearpage
+$endif$
+
+$if(has-figures)$
+\listoffigures
+\clearpage
+$endif$
+
+$if(has-tables)$
+\listoftables
+\clearpage
+$endif$
+
+$if(has-listings)$
+\lstlistoflistings
 \clearpage
 $endif$
 

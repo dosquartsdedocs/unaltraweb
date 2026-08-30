@@ -259,6 +259,12 @@ manual:
   chapter: Capítol
 figures:
   label: Figura
+  list_title: Índex de figures
 
 tables:
   label: Taula
+  list_title: Índex de taules
+
+listings:
+  label: Llistat
+  list_title: Índex de llistats

@@ -227,6 +227,18 @@ Generic output or a value copied from an application.
 ```
 ````
 
+Wrap one fence in a `listing` block when it needs a descriptive caption and an index entry:
+
+````markdown
+::: listing "Inspect the roads layer"
+```bash
+ogrinfo data/raw/roads.gpkg -so roads
+```
+:::
+````
+
+The opening line requires a non-empty double-quoted caption and the wrapper must contain exactly one fenced block. Captioned listings have localized, chapter-scoped numbers on the web and in the PDF. The printable manual emits lists of figures, tables, and listings after the table of contents when those elements are present. Ordinary fences remain valid and do not enter the list of listings.
+
 ## Links, Citations, And Equations
 
 The web and manual PDF distinguish bibliographic citations, external URLs, and internal links by color. Use Jekyll Scholar for citations, ordinary Markdown for external links, and stable heading identifiers for internal links:

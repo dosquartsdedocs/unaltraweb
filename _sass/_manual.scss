@@ -596,6 +596,21 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   line-height: 1.4;
 }
 
+.md-code-listing {
+  margin: 1.8rem 0;
+}
+
+.md-code-caption {
+  margin-bottom: 0.55rem;
+  color: var(--global-text-color-light);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.md-code-listing .uw-code-block {
+  margin: 0;
+}
+
 .md-table-inner {
   overflow-x: auto;
   border: 1px solid var(--global-divider-color);

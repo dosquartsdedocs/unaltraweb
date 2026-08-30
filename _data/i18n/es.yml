@@ -259,6 +259,12 @@ manual:
   chapter: Capítulo
 figures:
   label: Figura
+  list_title: Índice de figuras
 
 tables:
   label: Tabla
+  list_title: Índice de tablas
+
+listings:
+  label: Listado
+  list_title: Índice de listados

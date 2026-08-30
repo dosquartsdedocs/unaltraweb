@@ -70,25 +70,27 @@ local function transform_code_block(block, lang)
 
   language = language:lower()
   local definition = listings_languages[language]
+  local rendered = nil
   if not definition then
-    return pandoc.RawBlock(
-      "latex",
-      "\\begin{manualverbatim}\n" .. block.text .. "\n\\end{manualverbatim}"
-    )
+    rendered = "\\begin{manualverbatim}\n" .. block.text .. "\n\\end{manualverbatim}"
+  else
+    local options = {}
+    table.insert(options, "language=" .. definition.listing)
+    local first_number = block.attributes.startFrom
+    if first_number and first_number:match("^%d+$") then
+      table.insert(options, "firstnumber=" .. first_number)
+    end
+    local optional = #options > 0 and "[" .. table.concat(options, ",") .. "]" or ""
+    rendered = "\\begin{manualcode}" .. optional .. "{" .. latex_escape(display_label(definition, lang)) .. "}\n" ..
+      block.text .. "\n\\end{manualcode}"
   end
 
-  local options = {}
-  table.insert(options, "language=" .. definition.listing)
-  local first_number = block.attributes.startFrom
-  if first_number and first_number:match("^%d+$") then
-    table.insert(options, "firstnumber=" .. first_number)
+  local caption = block.attributes["data-listing-caption"]
+  if caption and caption ~= "" then
+    rendered = "\\begin{manualcodelisting}{" .. latex_escape(caption) .. "}\n" .. rendered ..
+      "\n\\end{manualcodelisting}"
   end
-  local optional = #options > 0 and "[" .. table.concat(options, ",") .. "]" or ""
-  return pandoc.RawBlock(
-    "latex",
-    "\\begin{manualcode}" .. optional .. "{" .. latex_escape(display_label(definition, lang)) .. "}\n" ..
-      block.text .. "\n\\end{manualcode}"
-  )
+  return pandoc.RawBlock("latex", rendered)
 end
 
 function Pandoc(document)

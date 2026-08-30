@@ -34,7 +34,7 @@ Typical content:
 
 - Localized manual home pages with `layout: manual-home`.
 - Chapters under `_chapters/<lang>/`.
-- Callouts, figures, subfigures, numbered tables and Mermaid diagrams.
+- Callouts, figures, subfigures, captioned code listings, numbered tables and Mermaid diagrams.
 - Optional manual bibliography.
 - A local `context/writing-profile.md` for audience, voice, terminology, evidence, language, and review rules.
 

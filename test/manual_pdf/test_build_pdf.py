@@ -175,6 +175,16 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn("$metadata-rights-label$", template)
         self.assertNotIn(r"{\Huge\bfseries\sffamily\color{ManualSecondary}$metadata-page-title$}", template)
 
+    def test_template_adds_localized_content_indexes_when_present(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(r"\renewcommand{\lstlistingname}{$listing-label$}", template)
+        self.assertIn(r"\renewcommand{\listfigurename}{$list-of-figures-title$}", template)
+        self.assertIn("$if(has-figures)$\n\\listoffigures", template)
+        self.assertIn("$if(has-tables)$\n\\listoftables", template)
+        self.assertIn("$if(has-listings)$\n\\lstlistoflistings", template)
+        self.assertNotIn("--listings", template)
+
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.project = Path(self.temp.name).resolve()
@@ -363,6 +373,88 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn(r"\Needspace{10\baselineskip}", result)
         self.assertIn("Table: A useful table", result)
         self.assertIn("![Detailed flow](assets/diagrams/flow.mmd.edited.svg)", result)
+
+    def test_transform_converts_captioned_listing_to_a_pandoc_attribute(self) -> None:
+        source = self.project / "_chapters/en/chapter.md"
+        text = '''::: listing "Read a project's roads"
+```python
+print("roads")
+```
+:::'''
+
+        result = manual_pdf.transform_markdown(self.project, text, source)
+
+        self.assertEqual(
+            '```{.python data-listing-caption="Read a project\'s roads"}\nprint("roads")\n```',
+            result,
+        )
+
+    def test_transform_rejects_listing_with_more_than_one_fence(self) -> None:
+        source = self.project / "_chapters/en/chapter.md"
+        text = '''::: listing "Two blocks"
+```python
+print(1)
+```
+```python
+print(2)
+```
+:::'''
+
+        with self.assertRaisesRegex(manual_pdf.ManualPdfError, "exactly one fenced code block"):
+            manual_pdf.transform_markdown(self.project, text, source)
+
+    def test_transform_preserves_listing_syntax_inside_a_code_example(self) -> None:
+        source = self.project / "_chapters/en/chapter.md"
+        text = '''````markdown
+::: listing "Example"
+```python
+print(1)
+```
+:::
+````'''
+
+        self.assertEqual(text, manual_pdf.transform_markdown(self.project, text, source))
+
+    def test_assemble_marks_available_content_indexes_and_localizes_titles(self) -> None:
+        image = self.project / "assets/figure.svg"
+        image.parent.mkdir(parents=True)
+        image.write_text("<svg/>", encoding="utf-8")
+        write_markdown(
+            self.project / "_chapters/en/chapter.md",
+            {"title": "Chapter", "lang": "en", "weight": 10},
+            '''![Figure](assets/figure.svg "Figure caption")
+
+::: table "Table caption"
+| A | B |
+| --- | --- |
+| 1 | 2 |
+:::
+
+::: listing "Listing caption"
+```python
+print(1)
+```
+:::''',
+        )
+
+        metadata, _, _ = manual_pdf.assemble(
+            self.project,
+            self.config,
+            "en",
+            manual_pdf.artifact_paths(self.project, self.config, "en"),
+        )
+
+        self.assertTrue(metadata["has-figures"])
+        self.assertTrue(metadata["has-tables"])
+        self.assertTrue(metadata["has-listings"])
+        self.assertEqual("Listing", metadata["listing-label"])
+        self.assertEqual("List of listings", metadata["list-of-listings-title"])
+
+        catalan = manual_pdf.build_metadata(self.project, self.config, "ca", "ca", {}, [])
+        self.assertEqual("Llistat", catalan["listing-label"])
+        self.assertEqual("Índex de figures", catalan["list-of-figures-title"])
+        self.assertEqual("Índex de taules", catalan["list-of-tables-title"])
+        self.assertEqual("Índex de llistats", catalan["list-of-listings-title"])
 
     def test_transform_starts_oversized_tables_on_a_fresh_page(self) -> None:
         rows = "\n".join(f"| Row {index} | " + ("Long cell text. " * 12) + "|" for index in range(18))
