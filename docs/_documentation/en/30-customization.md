@@ -287,7 +287,7 @@ manhattan :: Int -> Int -> Int
 ```
 ````
 
-The manual profile also writes `assets/js/manual-search-index.json` during the build so the sidebar search can find terms anywhere in the localized manual.
+Every site profile writes `assets/js/content-search-index.json` during the build. Content search returns repeated whole-word occurrences separately, ignores diacritics when matching, and adds previous/next occurrence navigation to the destination page. Set `search_exclude: true` in a page or document's front matter when published content should remain outside that public index. The `search_enabled` setting only controls the separate Ninja Keys navigation and metadata palette.
 
 Mermaid and PlantUML source references are rewritten to SVG outputs. When a
 matching `*.edited.svg` exists it wins; otherwise the build targets the generated

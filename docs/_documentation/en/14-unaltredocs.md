@@ -64,6 +64,8 @@ The selected profile is stored in `localStorage` and mirrored to the `doc_profil
 
 Direct page links remain available even if the active profile would normally hide that page from navigation. In that case the page shows a short notice instead of hiding the content.
 
+Content search follows the active documentation profile and returns each matching occurrence separately. Matching is whole-word and diacritic-insensitive; opening a result highlights every occurrence on that page and provides previous/next navigation across the filtered result set.
+
 ## Reading Model
 
 `unaltredocs` is not a book. Previous/next links are disabled by default because operational documentation is usually task, reference and troubleshooting oriented. If a documentation site needs a linear path, set:

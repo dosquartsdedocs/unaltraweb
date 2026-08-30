@@ -13,8 +13,8 @@ layout: default
 {% assign documentation_previous_next = documentation_config.previous_next | default: false %}
 {% capture documentation_profile_notice_text %}{% include t.liquid key='documentation.profile_page_notice' default='This page is outside the active documentation profile, but direct links remain available.' %}{% endcapture %}
 <script>
-  window.unaltrawebContentSearchUrl = {{ '/assets/js/documentation-search-index.json' | relative_url | jsonify }};
-  window.unaltrawebContentSearchTarget = ".documentation-content";
+  window.unaltrawebContentSearchUrl = {{ '/assets/js/content-search-index.json' | relative_url | jsonify }};
+  window.unaltrawebContentSearchTarget = ".documentation-main";
 </script>
 
 <div class="documentation-layout">

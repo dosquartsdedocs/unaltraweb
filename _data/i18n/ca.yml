@@ -34,6 +34,12 @@ profiles:
 
 search:
   placeholder: Escriu per cercar
+  content_placeholder: Cerca contingut
+  content_results: Resultats de cerca
+  content_no_results: Sense resultats
+  content_match: Coincidència {current} de {total}
+  content_previous: Coincidència anterior
+  content_next: Coincidència següent
 
 callouts:
   info: NOTA

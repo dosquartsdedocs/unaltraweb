@@ -43,8 +43,8 @@ layout: default
 {% capture manual_no_chapters_text %}{% include t.liquid key='manual.no_chapters' default='No chapters available yet.' %}{% endcapture %}
 {% capture manual_download_text %}{% include t.liquid key='manual.download_pdf' default='Download PDF' %}{% endcapture %}
 <script>
-  window.unaltrawebContentSearchUrl = {{ '/assets/js/manual-search-index.json' | relative_url | jsonify }};
-  window.unaltrawebContentSearchTarget = ".manual-content";
+  window.unaltrawebContentSearchUrl = {{ '/assets/js/content-search-index.json' | relative_url | jsonify }};
+  window.unaltrawebContentSearchTarget = ".manual-main";
 </script>
 
 <div class="manual-layout manual-home-layout">

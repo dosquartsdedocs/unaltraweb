@@ -39,6 +39,12 @@
 {% capture toggle_navigation_text %}{% include t.liquid key='header.toggle_navigation' default='Toggle navigation' %}{% endcapture %}
 {% capture current_text %}{% include t.liquid key='header.current' default='current' %}{% endcapture %}
 {% capture search_text %}{% include t.liquid key='header.search' default='Search' %}{% endcapture %}
+{% capture content_search_text %}{% include t.liquid key='search.content_placeholder' default='Search content' %}{% endcapture %}
+{% capture content_search_results_text %}{% include t.liquid key='search.content_results' default='Search results' %}{% endcapture %}
+{% capture content_search_empty_text %}{% include t.liquid key='search.content_no_results' default='No results' %}{% endcapture %}
+{% capture content_search_match_text %}{% include t.liquid key='search.content_match' default='Match {current} of {total}' %}{% endcapture %}
+{% capture content_search_previous_text %}{% include t.liquid key='search.content_previous' default='Previous match' %}{% endcapture %}
+{% capture content_search_next_text %}{% include t.liquid key='search.content_next' default='Next match' %}{% endcapture %}
 {% capture change_theme_text %}{% include t.liquid key='header.change_theme' default='Change theme' %}{% endcapture %}
 {% capture language_text %}{% include t.liquid key='header.language' default='Language' %}{% endcapture %}
 {% capture default_language_text %}{% include t.liquid key='header.default_language' default='default' %}{% endcapture %}
@@ -236,11 +242,11 @@
             {% capture manual_font_decrease_text %}{% include t.liquid key='manual.font_decrease' default='Decrease text size' %}{% endcapture %}
             {% capture manual_font_increase_text %}{% include t.liquid key='manual.font_increase' default='Increase text size' %}{% endcapture %}
             {% capture manual_font_reset_text %}{% include t.liquid key='manual.font_reset' default='Reset text size' %}{% endcapture %}
-            <li class="nav-item documentation-navbar-search manual-navbar-search" role="search" data-content-search-box>
+            <li class="nav-item content-navbar-search documentation-navbar-search manual-navbar-search" role="search" data-content-search-box>
               <label class="sr-only" for="manual-navbar-search-input">{{ manual_search_text | strip }}</label>
               <span class="manual-navbar-search-icon" aria-hidden="true"><i class="ti ti-search"></i></span>
-              <input id="manual-navbar-search-input" class="documentation-search-input manual-navbar-search-input" type="search" data-content-search data-content-search-url="{{ '/assets/js/manual-search-index.json' | relative_url }}" data-content-search-target=".manual-content" data-content-search-empty="{{ manual_search_empty_text | strip | escape }}" placeholder="{{ manual_search_text | strip }}" autocomplete="off">
-              <div class="documentation-search-results manual-navbar-search-results" data-content-search-results data-content-search-empty="{{ manual_search_empty_text | strip | escape }}" hidden>
+              <input id="manual-navbar-search-input" class="content-search-input documentation-search-input manual-navbar-search-input" type="search" data-content-search data-content-search-url="{{ '/assets/js/content-search-index.json' | relative_url }}" data-content-search-target=".manual-main" data-content-search-empty="{{ manual_search_empty_text | strip | escape }}" data-content-search-match="{{ content_search_match_text | strip | escape }}" data-content-search-previous="{{ content_search_previous_text | strip | escape }}" data-content-search-next="{{ content_search_next_text | strip | escape }}" data-content-search-results-label="{{ manual_search_results_text | strip | escape }}" placeholder="{{ manual_search_text | strip }}" autocomplete="off" aria-controls="manual-navbar-search-results" aria-expanded="false">
+              <div id="manual-navbar-search-results" class="content-search-results documentation-search-results manual-navbar-search-results" data-content-search-results data-content-search-empty="{{ manual_search_empty_text | strip | escape }}" aria-live="polite" hidden>
                 <h2>{{ manual_search_results_text | strip }}</h2>
                 <ol data-content-search-list></ol>
               </div>
@@ -275,11 +281,11 @@
             {% capture docs_font_decrease_text %}{% include t.liquid key='documentation.font_decrease' default='Decrease text size' %}{% endcapture %}
             {% capture docs_font_increase_text %}{% include t.liquid key='documentation.font_increase' default='Increase text size' %}{% endcapture %}
             {% capture docs_font_reset_text %}{% include t.liquid key='documentation.font_reset' default='Reset text size' %}{% endcapture %}
-            <li class="nav-item documentation-navbar-search" role="search" data-content-search-box>
+            <li class="nav-item content-navbar-search documentation-navbar-search" role="search" data-content-search-box>
               <label class="sr-only" for="documentation-navbar-search-input">{{ docs_search_text | strip }}</label>
               <span class="documentation-navbar-search-icon" aria-hidden="true"><i class="ti ti-search"></i></span>
-              <input id="documentation-navbar-search-input" class="documentation-search-input" type="search" data-content-search data-content-search-url="{{ '/assets/js/documentation-search-index.json' | relative_url }}" data-content-search-target=".documentation-content" data-content-search-empty="{{ docs_search_empty_text | strip | escape }}" placeholder="{{ docs_search_text | strip }}" autocomplete="off">
-              <div class="documentation-search-results" data-content-search-results data-content-search-empty="{{ docs_search_empty_text | strip | escape }}" hidden>
+              <input id="documentation-navbar-search-input" class="content-search-input documentation-search-input" type="search" data-content-search data-content-search-url="{{ '/assets/js/content-search-index.json' | relative_url }}" data-content-search-target=".documentation-main" data-content-search-empty="{{ docs_search_empty_text | strip | escape }}" data-content-search-match="{{ content_search_match_text | strip | escape }}" data-content-search-previous="{{ content_search_previous_text | strip | escape }}" data-content-search-next="{{ content_search_next_text | strip | escape }}" data-content-search-results-label="{{ docs_search_results_text | strip | escape }}" placeholder="{{ docs_search_text | strip }}" autocomplete="off" aria-controls="documentation-navbar-search-results" aria-expanded="false">
+              <div id="documentation-navbar-search-results" class="content-search-results documentation-search-results" data-content-search-results data-content-search-empty="{{ docs_search_empty_text | strip | escape }}" aria-live="polite" hidden>
                 <h2>{{ docs_search_results_text | strip }}</h2>
                 <ol data-content-search-list></ol>
               </div>
@@ -412,6 +418,15 @@
       </div>
       {% if current_profile == 'unaltreprojecte' or current_profile == 'unaltreselfie' %}
         <ul class="navbar-nav profile-navbar-utilities flex-nowrap">
+          <li class="nav-item content-navbar-search profile-navbar-content-search" role="search" data-content-search-box>
+            <label class="sr-only" for="profile-navbar-content-search-input">{{ content_search_text | strip }}</label>
+            <span class="content-navbar-search-icon" aria-hidden="true"><i class="ti ti-search"></i></span>
+            <input id="profile-navbar-content-search-input" class="content-search-input" type="search" data-content-search data-content-search-url="{{ '/assets/js/content-search-index.json' | relative_url }}" data-content-search-target="[data-content-search-root]" data-content-search-empty="{{ content_search_empty_text | strip | escape }}" data-content-search-match="{{ content_search_match_text | strip | escape }}" data-content-search-previous="{{ content_search_previous_text | strip | escape }}" data-content-search-next="{{ content_search_next_text | strip | escape }}" data-content-search-results-label="{{ content_search_results_text | strip | escape }}" placeholder="{{ content_search_text | strip }}" autocomplete="off" aria-controls="profile-navbar-content-search-results" aria-expanded="false">
+            <div id="profile-navbar-content-search-results" class="content-search-results" data-content-search-results data-content-search-empty="{{ content_search_empty_text | strip | escape }}" aria-live="polite" hidden>
+              <h2>{{ content_search_results_text | strip }}</h2>
+              <ol data-content-search-list></ol>
+            </div>
+          </li>
           {% if site.search_enabled %}
             <li class="nav-item profile-navbar-search-item">
               <button id="search-toggle" title="{{ search_text | strip }}" onclick="openSearchModal()">

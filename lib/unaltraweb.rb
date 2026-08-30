@@ -18,7 +18,7 @@ require_relative "unaltraweb/version"
   hide-custom-bibtex
   inspirehep-citations
   mermaid_mmd_images
-  manual_search_index
+  content_search_index
   profile-pages
   remove-accents
   search-data

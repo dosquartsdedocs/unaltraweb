@@ -46,8 +46,8 @@ layout: default
 {% capture manual_next_text %}{% include t.liquid key='manual.next' default='Next' %}{% endcapture %}
 {% capture manual_references_text %}{% include t.liquid key='manual.references' default='References' %}{% endcapture %}
 <script>
-  window.unaltrawebContentSearchUrl = {{ '/assets/js/manual-search-index.json' | relative_url | jsonify }};
-  window.unaltrawebContentSearchTarget = ".manual-content";
+  window.unaltrawebContentSearchUrl = {{ '/assets/js/content-search-index.json' | relative_url | jsonify }};
+  window.unaltrawebContentSearchTarget = ".manual-main";
 </script>
 
 <div class="manual-layout manual-chapter-layout{% unless show_manual_page_toc %} manual-layout--without-page-toc{% endunless %}">

@@ -121,8 +121,8 @@ jobs:
           cache-from: type=gha,scope=ci-runtime
           cache-to: type=gha,mode=max,scope=ci-runtime
 
-      - name: Test bibliography profile plugin
-        run: docker run --rm -v "$PWD:/work" -w /work --entrypoint bash unaltraweb-runtime:ci -lc 'bundle exec ruby test/plugins/bibliography_profiles_test.rb'
+      - name: Test profile plugins
+        run: docker run --rm -v "$PWD:/work" -w /work --entrypoint bash unaltraweb-runtime:ci -lc 'bundle exec ruby test/plugins/bibliography_profiles_test.rb && bundle exec ruby test/plugins/content_search_index_test.rb'
 
       - name: Build manual PDF image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6

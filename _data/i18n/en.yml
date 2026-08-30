@@ -34,6 +34,12 @@ profiles:
 
 search:
   placeholder: Type to start searching
+  content_placeholder: Search content
+  content_results: Search results
+  content_no_results: No results
+  content_match: Match {current} of {total}
+  content_previous: Previous match
+  content_next: Next match
 
 callouts:
   info: NOTE

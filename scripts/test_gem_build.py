@@ -62,6 +62,9 @@ def inspect_gem(path: Path) -> None:
             names = set(payload.getnames())
     required = {
         "_plugins/bibliography_profiles.rb",
+        "_plugins/content_search_index.rb",
+        "assets/js/content-search-match.js",
+        "assets/js/content-search.js",
         "lib/unaltraweb/version.rb",
         "src/unaltraweb_mcp/component-contract.json",
         "src/unaltraweb_mcp/component-contract.schema.json",

@@ -428,6 +428,117 @@ a[rel~="external"] {
   }
 }
 
+.content-navbar-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.content-search-input {
+  width: 100%;
+  min-height: 2rem;
+  border: 1px solid var(--global-divider-color);
+  border-radius: 0.35rem;
+  background: var(--global-bg-color);
+  color: var(--global-text-color);
+  padding: 0.32rem 0.55rem;
+  font-size: 0.88rem;
+}
+
+.content-search-input:focus {
+  border-color: var(--global-theme-color);
+}
+
+.content-search-input:focus-visible {
+  outline: 2px solid var(--global-theme-color);
+  outline-offset: 2px;
+}
+
+.content-navbar-search-icon {
+  display: none;
+}
+
+.content-navbar-search .content-search-results {
+  position: absolute;
+  top: calc(100% + 0.42rem);
+  right: 0;
+  left: 0;
+  z-index: 1075;
+  text-align: left;
+}
+
+.content-search-results {
+  max-height: min(38vh, 320px);
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--global-divider-color) 78%, transparent);
+  border-radius: 0.35rem;
+  background: var(--global-bg-color);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
+  padding: 0.75rem;
+}
+
+.content-search-results h2 {
+  margin: 0 0 0.45rem;
+  color: var(--global-text-color-light);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.content-search-results ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.content-search-results li + li {
+  border-top: 1px solid var(--global-divider-color);
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+}
+
+.content-search-results a {
+  display: block;
+  color: var(--global-text-color);
+  font-weight: 750;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.content-search-results a:hover {
+  color: var(--global-theme-color);
+  text-decoration: none;
+}
+
+.content-search-results p,
+.content-search-results .content-search-meta {
+  color: var(--global-text-color-light);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.content-search-results p {
+  margin: 0.22rem 0 0;
+}
+
+.content-search-results .content-search-meta {
+  display: block;
+  margin-top: 0.12rem;
+  font-weight: 700;
+}
+
+.content-search-results mark {
+  background: color-mix(in srgb, var(--global-theme-color) 24%, transparent);
+  color: var(--global-text-color);
+  padding: 0 0.12rem;
+}
+
+.profile-navbar-content-search {
+  width: min(16rem, 24vw);
+  margin-right: 0.25rem;
+}
+
 .profile-navbar-utilities {
   display: flex;
   flex: 0 0 auto;
@@ -454,6 +565,61 @@ a[rel~="external"] {
 .profile-navbar-utilities #search-toggle .nav-link {
   min-width: 2rem;
   justify-content: center;
+}
+
+@media (max-width: 767px) {
+  .profile-navbar-content-search {
+    width: 2.2rem;
+    min-height: 2rem;
+  }
+
+  .profile-navbar-content-search .content-navbar-search-icon {
+    position: absolute;
+    top: 50%;
+    left: 0.62rem;
+    z-index: 1;
+    display: inline-flex;
+    color: var(--global-text-color);
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  .profile-navbar-content-search .content-search-input {
+    width: 2.2rem;
+    border-color: transparent;
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    padding-left: 2rem;
+  }
+
+  .profile-navbar-content-search .content-search-input::placeholder {
+    color: transparent;
+  }
+
+  .profile-navbar-content-search .content-search-input:focus {
+    position: fixed;
+    top: 0.55rem;
+    right: 0.75rem;
+    z-index: 1090;
+    width: calc(100vw - 1.5rem);
+    border-color: var(--global-divider-color);
+    background: var(--global-card-bg-color);
+    color: var(--global-text-color);
+    caret-color: var(--global-text-color);
+  }
+
+  .profile-navbar-content-search .content-search-input:focus::placeholder {
+    color: var(--global-text-color-light);
+  }
+
+  .profile-navbar-content-search .content-search-results {
+    position: fixed;
+    top: 3.35rem;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+  }
 }
 
 .site-profile-unaltreprojecte .navbar.profile-navbar-drawer .container,

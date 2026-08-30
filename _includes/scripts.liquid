@@ -204,9 +204,8 @@
 {% if unaltraweb_developer_mode and jekyll.environment != 'production' %}
   <script defer src="{{ '/assets/js/developer-mode.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% endif %}
-{% if unaltraweb_current_profile == 'unaltremanual' or page.layout == 'manual-home' or page.layout == 'manual-chapter' or page.layout == 'documentation-home' or page.layout == 'documentation-page' %}
-  <script defer src="{{ '/assets/js/content-search.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
-{% endif %}
+<script defer src="{{ '/assets/js/content-search-match.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
+<script defer src="{{ '/assets/js/content-search.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% if unaltraweb_current_profile == 'unaltremanual' or page.layout == 'manual-home' or page.layout == 'manual-chapter' %}
   <script defer src="{{ '/assets/js/manual.js' | relative_url | bust_file_cache }}" type="text/javascript"></script>
 {% endif %}

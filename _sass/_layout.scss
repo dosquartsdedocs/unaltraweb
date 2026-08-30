@@ -76,6 +76,48 @@ body.sticky-bottom-footer {
   padding: 0 0.12rem;
 }
 
+.content-search-hit-active {
+  background: color-mix(in srgb, var(--global-theme-color) 44%, transparent);
+  outline: 2px solid var(--global-theme-color);
+  outline-offset: 2px;
+}
+
+.content-search-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+  border: 1px solid var(--global-divider-color);
+  border-radius: 0.45rem;
+  background: var(--global-card-bg-color);
+  padding: 0.65rem 0.8rem;
+}
+
+.content-search-navigation-status {
+  color: var(--global-text-color-light);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.content-search-navigation-links {
+  display: inline-flex;
+  gap: 0.9rem;
+}
+
+.content-search-navigation a {
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (max-width: 575px) {
+  .content-search-navigation {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 // TODO: redefine content layout.
 
 .previous-next-nav {
