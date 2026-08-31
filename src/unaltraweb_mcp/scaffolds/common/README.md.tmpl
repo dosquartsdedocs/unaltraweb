@@ -1,0 +1,20 @@
+# __TITLE_TEXT__
+
+This repository is a thin `__PROFILE__` consumer of `unaltraweb`. Site identity and language policy live in `_config.yml`; reusable layouts, styles, plugins, build logic, and authoring tools belong to the core package.
+
+## Local workflow
+
+```bash
+make build
+make serve
+make test
+make down
+```
+
+These commands validate and preview the site. They do not publish it.
+
+## Agent workflow
+
+Open this directory as the IDE workspace and read `AGENTS.md`. Use the `unaltraweb` MCP tools to inspect `site_context`, run `site_doctor` and `site_check`, build the site, and start the labelled preview. Keep durable decisions in versioned files rather than chat history.
+
+If the selected MCP image cannot be pulled, ask the core maintainer for the published release or build the selected candidate in the `unaltraweb` factory checkout before retrying.

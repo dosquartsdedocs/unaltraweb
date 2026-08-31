@@ -12,7 +12,7 @@ Create a clean profile-specific repository locally or through the MCP:
 unaltraweb-mcp --project ./my-site new-web --site-profile unaltredocs --title "Project documentation" --default-lang en
 ```
 
-The command is idempotent for identical inputs and refuses differing files, symlinks, and unsafe language paths. It records the five package-managed runtime files in `.unaltraweb/scaffold.json`; an explicit `scaffold_sync` dry-run can later update only files that remain unchanged from that baseline. It does not require or inspect `unaltraweb-template`.
+The command is idempotent for identical inputs and refuses differing files, symlinks, and unsafe language paths. It records the four package-managed runtime files in `.unaltraweb/scaffold.json`; an explicit `scaffold_sync` dry-run can later update only files that remain unchanged from that baseline. It does not require or inspect `unaltraweb-template`.
 
 The wheel can verify its own modular distribution and a generated site without a factory checkout:
 

@@ -284,6 +284,7 @@ kramdown:
 include: ["_pages"]
 exclude:
   - .bundle/
+  - AGENTS.md
   - bin/
   - CONTRIBUTING.md
   - context/

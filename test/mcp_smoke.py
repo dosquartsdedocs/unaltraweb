@@ -88,7 +88,7 @@ async def smoke() -> None:
                 assert {"compute_python", "compute_r"}.issubset(distribution["selected_components"])
 
                 inventory = tool_payload(await session.call_tool("content_inventory", {}))
-                assert inventory["collections"]["_pages"]["documents"] == 1
+                assert inventory["collections"]["_pages"]["documents"] == 2
 
                 home = tool_payload(await session.call_tool("site_source_read", {"path": "_pages/en/index.md"}))
                 source_dry_run = tool_payload(await session.call_tool("site_source_write", {
@@ -133,6 +133,7 @@ async def smoke() -> None:
                 assert build["nested_container"] is False
                 assert build["html_audit"]["ok"] is True, build["html_audit"]
                 assert (project / "_site/index.html").is_file()
+                assert (project / "_site/en/index.html").is_file()
                 rendered_home = (project / "_site/en/metadata-hostile/index.html").read_text(encoding="utf-8")
                 metadata_parser = MetadataParser()
                 metadata_parser.feed(rendered_home)

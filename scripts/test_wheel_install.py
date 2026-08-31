@@ -57,7 +57,10 @@ def main() -> int:
             "unaltraweb_mcp/calibre_import.py",
             "unaltraweb_mcp/component-contract.json",
             "unaltraweb_mcp/component-contract.schema.json",
+            "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",
+            "unaltraweb_mcp/scaffolds/common/README.md.tmpl",
+            "unaltraweb_mcp/scaffolds/common/root.html.tmpl",
             "unaltraweb_mcp/scaffolds/profiles/unaltremanual/computations.yml.tmpl",
             "unaltraweb_mcp/scaffolds/profiles/unaltremanual/_bibliography/manual.bib",
             "unaltraweb_mcp/scaffolds/profiles/unaltreprojecte/_bibliography/papers.bib",
@@ -88,6 +91,16 @@ def main() -> int:
         manual_created = json.loads(run([str(cli), "--project", str(manual_site), "new-web", "--site-profile", "unaltremanual"], cwd=temp).stdout)
         if not manual_created["ok"]:
             raise RuntimeError(f"manual new-web failed from clean wheel: {manual_created}")
+        for required_path in [
+            "AGENTS.md",
+            "README.md",
+            "_pages/index.html",
+            "_chapters/en/.gitkeep",
+            "assets/quarto/.gitkeep",
+            "assets/img/generated/.gitkeep",
+        ]:
+            if not (manual_site / required_path).is_file():
+                raise RuntimeError(f"manual new-web did not create {required_path}")
         computation_config = (manual_site / ".unaltraweb/computations.yml").read_text(encoding="utf-8")
         contract = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text(encoding="utf-8"))
         for component_id in ["compute_python", "compute_r"]:

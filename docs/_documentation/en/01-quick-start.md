@@ -36,6 +36,8 @@ This path is enough for small content updates such as adding a bibliography entr
 
 ## Local Docker Editing
 
+For an agent-first IDE session, create or select an empty Git repository, open that directory as the workspace, register the `unaltraweb` factory, and restart the IDE so `${workspaceFolder}` is used as the confined consumer root. Then call `new_web`; the generated `AGENTS.md` is the durable local contract for subsequent agents.
+
 Create the site through the MCP, the installed package CLI, or this factory checkout:
 
 ```bash
@@ -43,7 +45,7 @@ unaltraweb-mcp --project ./my-site new-web --site-profile unaltreselfie --title 
 # or: make mcp-new-web PROJECT=./my-site NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
 ```
 
-The scaffold is bundled with the Python package and MCP image. Creation aborts before writing when a managed path is a symlink or a differing file already exists. After pushing the generated site, install Git, Docker and GNU Make, then clone it normally:
+The scaffold is bundled with the Python package and MCP image. Creation aborts before writing when a managed path is a symlink or a differing file already exists. A manual also receives a default-language chapter directory, computation source/output roots, `README.md`, `AGENTS.md`, and a package baseline for conservative runtime updates. After pushing the generated site, install Git, Docker and GNU Make, then clone it normally:
 
 ```bash
 git clone https://github.com/YOUR-ORG/YOUR-SITE.git
@@ -51,7 +53,7 @@ cd YOUR-SITE
 make serve
 ```
 
-The reusable layouts, styles, plugins and scripts come from the `unaltraweb` gem declared in the site's `Gemfile`. The global MCP image provides the normal containerized build runtime.
+The reusable layouts, styles, plugins and scripts come from the `unaltraweb` gem declared in the site's `Gemfile`. The selected MCP image provides the normal containerized build runtime. When working against an unpublished core candidate, build that image explicitly in the factory checkout first; a generated site reports this remediation instead of silently falling back to another version.
 
 Use these commands during normal local work:
 

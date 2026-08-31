@@ -7,7 +7,10 @@ LOCAL_GID ?= $(shell id -g)
 PORT ?= 4000
 CONTAINER ?= unaltraweb-site-$(shell printf '%s' '$(CURDIR)' | cksum | cut -d' ' -f1)
 
-.PHONY: local-gemfile site-check-native build-native serve-capture-native serve-native test-native build serve test down clean
+.PHONY: runtime-image local-gemfile site-check-native build-native serve-capture-native serve-native test-native build serve test down clean
+
+runtime-image:
+	@docker image inspect "$(MCP_IMAGE)" >/dev/null 2>&1 || docker pull "$(MCP_IMAGE)" >/dev/null 2>&1 || { printf '%s\n' 'Unable to use $(MCP_IMAGE). If this is an unpublished candidate, build it with make mcp-build in the unaltraweb factory checkout.' >&2; exit 1; }
 
 local-gemfile:
 	@mkdir -p tmp
@@ -31,13 +34,13 @@ serve-native: site-check-native serve-capture-native
 test-native: build-native
 	@unaltraweb-mcp --project "$(CURDIR)" mcp html-audit >/dev/null
 
-build:
+build: runtime-image
 	@docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -v "$(CURDIR):/workspace" -w /workspace --entrypoint make "$(MCP_IMAGE)" --silent build-native LOCAL_CORE=/opt/unaltraweb
 
-serve:
+serve: runtime-image
 	@docker run --rm --name "$(CONTAINER)" --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -p "$(PORT):$(PORT)" -v "$(CURDIR):/workspace" -w /workspace --entrypoint make "$(MCP_IMAGE)" --silent serve-native LOCAL_CORE=/opt/unaltraweb HOST=0.0.0.0 PORT="$(PORT)"
 
-test:
+test: runtime-image
 	@docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -v "$(CURDIR):/workspace" -w /workspace --entrypoint make "$(MCP_IMAGE)" --silent test-native LOCAL_CORE=/opt/unaltraweb
 
 down:

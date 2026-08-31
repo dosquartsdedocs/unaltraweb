@@ -9,6 +9,8 @@ workspace_rule:
   consumer_root: .
   init_creates:
     - .gitignore
+    - AGENTS.md
+    - README.md
     - .github/workflows/deploy.yml
     - _config.yml
     - Makefile
@@ -29,6 +31,8 @@ workspace_rule:
     - .github/workflows
     - .unaltraweb/scaffold.json
   source_paths:
+    - AGENTS.md
+    - README.md
     - _config.yml
     - .unaltraweb/computations.yml
     - .vegavisuals.yml
@@ -63,6 +67,7 @@ runtime:
   module: unaltraweb_mcp
 transport:
   type: stdio
+  cwd: '${workspaceFolder}'
   command:
     - make
     - -C

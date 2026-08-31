@@ -345,6 +345,18 @@ class SiteManagementQualityTests(unittest.TestCase):
         self.assertEqual([item["path"] for item in result["creates"]], [".gitignore"])
         self.assertEqual((self.project / ".gitignore").read_bytes(), site_tools._managed_scaffold_payloads()[Path(".gitignore")])
 
+    def test_scaffold_sync_retires_paths_that_are_no_longer_package_managed(self) -> None:
+        manifest_path = self.project / ".unaltraweb/scaffold.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"]["project-owned.txt"] = "0" * 64
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        result = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True)
+
+        self.assertEqual(result["retired"], ["project-owned.txt"])
+        updated = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertNotIn("project-owned.txt", updated["files"])
+
     def test_scaffold_sync_rechecks_every_target_before_applying(self) -> None:
         payloads = site_tools._managed_scaffold_payloads()
         updated = dict(payloads)

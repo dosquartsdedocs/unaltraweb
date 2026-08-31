@@ -273,12 +273,15 @@ PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
 }
 
 SCAFFOLD_TEMPLATE_FILES = {
+    "AGENTS.md.tmpl",
     "Gemfile.lock.tmpl",
     "Gemfile.tmpl",
     "Makefile.tmpl",
+    "README.md.tmpl",
     "_config.yml.tmpl",
     "computations.yml.tmpl",
     "home.md.tmpl",
+    "root.html.tmpl",
 }
 SCAFFOLD_MANIFEST_PATH = Path(".unaltraweb/scaffold.json")
 SCAFFOLD_MANAGED_PATHS = (
@@ -286,7 +289,6 @@ SCAFFOLD_MANAGED_PATHS = (
     Path("Makefile"),
     Path("Gemfile"),
     Path("Gemfile.lock"),
-    Path(".github/workflows/deploy.yml"),
 )
 LANGUAGE_RE = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 SITE_SOURCE_MAX_BYTES = 1024 * 1024
@@ -614,14 +616,29 @@ def _scaffold_root() -> Path:
 
 def scaffold_inventory() -> dict[str, Any]:
     root = _scaffold_root()
+    common_required = [
+        root / "common" / ".gitignore",
+        root / "common" / ".github/workflows/deploy.yml",
+        root / "common" / "AGENTS.md.tmpl",
+        root / "common" / "Gemfile.lock.tmpl",
+        root / "common" / "Gemfile.tmpl",
+        root / "common" / "Makefile.tmpl",
+        root / "common" / "README.md.tmpl",
+        root / "common" / "root.html.tmpl",
+    ]
     profiles = []
     for profile, contract in PROFILE_CONTRACTS.items():
         profile_root = root / "profiles" / profile
+        profile_required = [profile_root / "_config.yml.tmpl", profile_root / "home.md.tmpl"]
+        if profile == "unaltremanual":
+            profile_required.append(profile_root / "computations.yml.tmpl")
+        missing = [str(path.relative_to(root)) for path in profile_required if not path.is_file()]
         profiles.append(
             {
                 "profile": profile,
                 "description": contract["description"],
-                "available": (profile_root / "_config.yml.tmpl").is_file() and (profile_root / "home.md.tmpl").is_file(),
+                "available": not missing,
+                "missing": missing,
                 "recommended_paths": contract["recommended_paths"],
                 "scaffold_paths": contract.get("scaffold_paths", []),
                 "provisioned_features": contract.get("provisioned_features", []),
@@ -630,7 +647,8 @@ def scaffold_inventory() -> dict[str, Any]:
     return {
         "source": "unaltraweb_mcp package",
         "default": "unaltreselfie",
-        "common_available": (root / "common" / "Makefile.tmpl").is_file() and (root / "common" / "Gemfile.tmpl").is_file(),
+        "common_available": all(path.is_file() for path in common_required),
+        "common_missing": [str(path.relative_to(root)) for path in common_required if not path.is_file()],
         "profiles": profiles,
     }
 
@@ -674,7 +692,16 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
     root = _scaffold_root()
     common_root = root / "common"
     profile_root = root / "profiles" / profile
-    required = [common_root / "Makefile.tmpl", common_root / "Gemfile.tmpl", common_root / "Gemfile.lock.tmpl", profile_root / "_config.yml.tmpl", profile_root / "home.md.tmpl"]
+    required = [
+        common_root / "AGENTS.md.tmpl",
+        common_root / "Makefile.tmpl",
+        common_root / "Gemfile.tmpl",
+        common_root / "Gemfile.lock.tmpl",
+        common_root / "README.md.tmpl",
+        common_root / "root.html.tmpl",
+        profile_root / "_config.yml.tmpl",
+        profile_root / "home.md.tmpl",
+    ]
     if profile == "unaltremanual":
         required.append(profile_root / "computations.yml.tmpl")
     missing = [str(path) for path in required if not path.is_file()]
@@ -693,12 +720,16 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
                 raise RuntimeError(f"Duplicate package-owned scaffold path: {relative}")
             payloads[relative] = source.read_bytes()
 
+    normalized_baseurl = f"/{baseurl.strip('/')}" if baseurl.strip("/") else ""
+    site_path = f"{normalized_baseurl}/{default_lang}/"
+    site_root = f"{url.rstrip('/')}{site_path}" if url.strip() else site_path
     replacements = {
         "TITLE": _yaml_scalar(title),
         "URL": _yaml_scalar(url),
         "BASEURL": _yaml_scalar(baseurl),
         "DEFAULT_LANG": _yaml_scalar(default_lang),
         "LANGUAGES": _yaml_inline_list(languages),
+        "SITE_ROOT": _yaml_scalar(site_root),
     }
     common_replacements = {
         "GEM_VERSION": str(component("gem")["version"]),
@@ -706,6 +737,18 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
     }
     for name in ["Makefile", "Gemfile", "Gemfile.lock"]:
         payloads[Path(name)] = _render_scaffold_template(common_root / f"{name}.tmpl", common_replacements)
+    workspace_replacements = {
+        "PROFILE": profile,
+        "TITLE_TEXT": " ".join(title.split()),
+        "DEFAULT_LANG_TEXT": default_lang,
+        "LANGUAGES_TEXT": ", ".join(f"`{language}`" for language in languages),
+    }
+    for name in ["AGENTS.md", "README.md"]:
+        payloads[Path(name)] = _render_scaffold_template(common_root / f"{name}.tmpl", workspace_replacements)
+    payloads[Path("_pages/index.html")] = _render_scaffold_template(
+        common_root / "root.html.tmpl",
+        {"DEFAULT_LANG_TEXT": default_lang},
+    )
     payloads[Path("_config.yml")] = _render_scaffold_template(profile_root / "_config.yml.tmpl", replacements)
     if profile == "unaltremanual":
         computation_replacements = {
@@ -715,11 +758,14 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
         payloads[Path(".unaltraweb/computations.yml")] = _render_scaffold_template(
             profile_root / "computations.yml.tmpl", computation_replacements
         )
+        payloads[Path("_chapters") / default_lang / ".gitkeep"] = b""
+        payloads[Path("assets/quarto/.gitkeep")] = b""
+        payloads[Path("assets/img/generated/.gitkeep")] = b""
     for language in languages:
         home_replacements = {
             "TITLE": _yaml_scalar(title),
             "LANG": _yaml_scalar(language),
-            "PERMALINK": _yaml_scalar("/" if language == default_lang else f"/{language}/"),
+            "PERMALINK": _yaml_scalar(f"/{language}/"),
         }
         payloads[Path("_pages") / language / "index.md"] = _render_scaffold_template(profile_root / "home.md.tmpl", home_replacements)
     payloads[SCAFFOLD_MANIFEST_PATH] = _scaffold_manifest_bytes(
@@ -732,7 +778,6 @@ def _managed_scaffold_payloads() -> dict[Path, bytes]:
     common_root = _scaffold_root() / "common"
     payloads = {
         Path(".gitignore"): (common_root / ".gitignore").read_bytes(),
-        Path(".github/workflows/deploy.yml"): (common_root / ".github/workflows/deploy.yml").read_bytes(),
     }
     replacements = {
         "GEM_VERSION": str(component("gem")["version"]),
@@ -1018,7 +1063,12 @@ def new_web(
         "unchanged_count": len(unchanged),
         "unchanged": [str(path) for path in unchanged],
         "profile_check": check,
-        "next_steps": ["Edit the generated configuration and home page", "Run site_check", "Run build_site"],
+        "next_steps": [
+            "Read AGENTS.md and edit the generated configuration and home page",
+            "For a manual, revise context/writing-profile.md and add the first default-language chapter",
+            "Run site_doctor and site_check",
+            "Run build_site, start the labelled preview, and review the rendered result",
+        ],
     }
 
 
@@ -1087,7 +1137,8 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
                 conflicts.append({"path": path, "reason": "new package-managed path already exists with different content"})
 
         retired = sorted(path for path in baseline if path not in {item.as_posix() for item in SCAFFOLD_MANAGED_PATHS})
-        next_baseline = dict(baseline)
+        managed_paths = {item.as_posix() for item in SCAFFOLD_MANAGED_PATHS}
+        next_baseline = {path: digest for path, digest in baseline.items() if path in managed_paths}
         next_baseline.update({path.as_posix(): _source_hash(payloads[path]) for path in SCAFFOLD_MANAGED_PATHS})
         next_manifest = _scaffold_manifest_bytes(next_baseline)
         return {
@@ -4392,8 +4443,12 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
     lang = default_language(config).strip("/")
     route = f"{prefix}/{lang}/" if lang else f"{prefix}/"
     image = os.environ.get("UNALTRAWEB_MCP_IMAGE", component_reference("mcp"))
-    owner = os.environ.get("UNALTRAWEB_PROJECT_USER", "").strip()
-    if owner and not re.fullmatch(r"\d+:\d+", owner):
+    project_metadata = project.stat()
+    owner = os.environ.get(
+        "UNALTRAWEB_PROJECT_USER",
+        f"{project_metadata.st_uid}:{project_metadata.st_gid}",
+    ).strip()
+    if not re.fullmatch(r"\d+:\d+", owner):
         raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
 
     command = [
@@ -4411,8 +4466,7 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
         "-v", f"{host_project}:/workspace",
         "-w", "/workspace",
     ]
-    if owner:
-        command.extend(["--user", owner])
+    command.extend(["--user", owner])
     command.extend([
         "--entrypoint", "make", image,
         "--no-print-directory", "serve-native", "LOCAL_CORE=/opt/unaltraweb",

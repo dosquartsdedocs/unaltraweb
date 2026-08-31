@@ -82,6 +82,8 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertEqual(set(available), set(site_tools.PROFILE_CONTRACTS))
         self.assertTrue(all(available.values()))
         self.assertTrue(status["common_available"])
+        self.assertEqual(status["common_missing"], [])
+        self.assertTrue(all(not item["missing"] for item in status["profiles"]))
         manual = next(item for item in status["profiles"] if item["profile"] == "unaltremanual")
         self.assertEqual(manual["scaffold_paths"], [".unaltraweb/computations.yml"])
         self.assertEqual(set(manual["provisioned_features"]), {"manual_computations_python", "manual_computations_r"})
@@ -93,6 +95,12 @@ class McpRuntimeTests(unittest.TestCase):
             "unaltremanual": "manual-home",
             "unaltredocs": "documentation-home",
         }
+        expected_features = {
+            "unaltreselfie": {"news": True, "blog": True, "cv": True, "projects": True, "publications": True, "metrics": False, "docs": False, "manual": False, "readings": True},
+            "unaltreprojecte": {"news": True, "blog": False, "cv": False, "projects": True, "publications": True, "metrics": False, "docs": False, "manual": False, "readings": True},
+            "unaltremanual": {"news": False, "blog": False, "cv": False, "projects": False, "publications": False, "metrics": False, "docs": False, "manual": True, "readings": True},
+            "unaltredocs": {"news": False, "blog": False, "cv": False, "projects": False, "publications": False, "metrics": False, "docs": True, "manual": False, "readings": False},
+        }
         for profile, layout in expected_layouts.items():
             with self.subTest(profile=profile):
                 project = self.project / profile
@@ -100,13 +108,32 @@ class McpRuntimeTests(unittest.TestCase):
 
                 self.assertTrue(result["ok"], result)
                 self.assertEqual(site_tools.site_profile(site_tools.site_config(project)), profile)
-                expected_features = {"manual_computations_python", "manual_computations_r"} if profile == "unaltremanual" else set()
-                self.assertEqual(set(result["provisioned_features"]), expected_features)
-                self.assertIn(f"layout: {layout}", (project / "_pages/en/index.md").read_text(encoding="utf-8"))
+                expected_provisioned = {"manual_computations_python", "manual_computations_r"} if profile == "unaltremanual" else set()
+                self.assertEqual(set(result["provisioned_features"]), expected_provisioned)
+                home = (project / "_pages/en/index.md").read_text(encoding="utf-8")
+                self.assertIn(f"layout: {layout}", home)
+                self.assertIn('permalink: "/en/"', home)
+                root_redirect = (project / "_pages/index.html").read_text(encoding="utf-8")
+                self.assertIn("{% assign home_path = '/en/' %}", root_redirect)
+                self.assertIn('permalink: /', root_redirect)
+                config = yaml.safe_load((project / "_config.yml").read_text(encoding="utf-8"))
+                self.assertNotIn("plugins", config)
+                self.assertEqual(config["description"], "")
+                self.assertEqual(config["copyright_holder"], f"Test {profile}")
+                self.assertEqual(config["unaltraweb"]["features"], expected_features[profile])
+                if profile == "unaltremanual":
+                    self.assertEqual(config["unaltraweb"]["footer"]["brand_url"], "/en/")
+                self.assertTrue((project / "README.md").is_file())
+                readme = (project / "README.md").read_text(encoding="utf-8")
+                self.assertTrue(readme.startswith(f"# Test {profile}\n"))
+                self.assertIn(f"`{profile}`", readme)
+                self.assertTrue((project / "AGENTS.md").is_file())
+                self.assertIn("Default language: `en`", (project / "AGENTS.md").read_text(encoding="utf-8"))
                 self.assertTrue((project / ".github/workflows/deploy.yml").is_file())
                 makefile = (project / "Makefile").read_text(encoding="utf-8")
                 self.assertIn("docker run", makefile)
                 self.assertIn("serve-native: site-check-native serve-capture-native", makefile)
+                self.assertIn("runtime-image", makefile)
                 self.assertIn("group :jekyll_plugins do", makefile)
                 self.assertIn("group :jekyll_plugins do", (project / "Gemfile").read_text(encoding="utf-8"))
                 self.assertIn("unaltraweb (= 0.3.0)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
@@ -116,6 +143,9 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertEqual(computations_path.is_file(), profile == "unaltremanual")
                 if profile == "unaltremanual":
                     self.assertTrue((project / "_bibliography/manual.bib").is_file())
+                    self.assertTrue((project / "_chapters/en/.gitkeep").is_file())
+                    self.assertTrue((project / "assets/quarto/.gitkeep").is_file())
+                    self.assertTrue((project / "assets/img/generated/.gitkeep").is_file())
                     computations = yaml.safe_load(computations_path.read_text(encoding="utf-8"))
                     self.assertTrue(computations["enabled"])
                     self.assertEqual(computations["source_roots"], ["_chapters", "assets/quarto"])
@@ -123,6 +153,9 @@ class McpRuntimeTests(unittest.TestCase):
                     self.assertEqual(computations["engines"]["r"]["image"], component_reference("compute_r"))
                     scaffold = json.loads((project / ".unaltraweb/scaffold.json").read_text(encoding="utf-8"))
                     self.assertNotIn(".unaltraweb/computations.yml", scaffold["files"])
+                    self.assertNotIn(".github/workflows/deploy.yml", scaffold["files"])
+                    self.assertNotIn("AGENTS.md", scaffold["files"])
+                    self.assertNotIn("README.md", scaffold["files"])
                 if profile == "unaltreselfie":
                     self.assertTrue((project / "_bibliography/papers.bib").is_file())
                 if profile == "unaltreprojecte":
@@ -161,6 +194,17 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertGreater(first["created_count"], 0)
         self.assertEqual(second["created_count"], 0)
         self.assertEqual(second["unchanged_count"], first["created_count"])
+
+    def test_new_manual_uses_the_selected_default_language_for_chapters(self) -> None:
+        project = self.project / "manual-ca"
+
+        site_tools.new_web(project, site_profile_value="unaltremanual", default_lang="ca", languages="ca,en")
+
+        self.assertTrue((project / "_chapters/ca/.gitkeep").is_file())
+        self.assertFalse((project / "_chapters/en/.gitkeep").exists())
+        agents = (project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("Default language: `ca`", agents)
+        self.assertIn("Maintained languages: `ca`, `en`", agents)
 
     def test_new_web_preflights_all_collisions_before_writing(self) -> None:
         project = self.project / "collision"
@@ -390,6 +434,8 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         run_args = docker.call_args.args[0]
         self.assertIn("sha256:controller", run_args)
+        metadata = self.project.stat()
+        self.assertEqual(run_args[run_args.index("--user") + 1], f"{metadata.st_uid}:{metadata.st_gid}")
         self.assertEqual(run_args[run_args.index("--entrypoint") + 2], "sha256:controller")
 
     def test_project_id_matches_preview_identity(self) -> None:
@@ -553,6 +599,7 @@ class McpRuntimeTests(unittest.TestCase):
             manifest["transport"]["command"],
             ["make", "-C", "${factoryRoot}", "mcp-stdio", "PROJECT=${workspaceFolder}"],
         )
+        self.assertEqual(manifest["transport"]["cwd"], "${workspaceFolder}")
         self.assertNotIn("init", manifest["commands"])
         self.assertNotIn("down", manifest["commands"])
         self.assertTrue(all(not dependency["init"] for dependency in manifest["mcp_dependencies"]))
