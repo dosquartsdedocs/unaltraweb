@@ -129,8 +129,9 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         jobs = workflow.get("jobs", {})
         preflight = jobs.get("preflight", {})
         preflight_commands = _run_text(preflight)
-        if "distribution-release-check" not in preflight_commands:
-            errors.append(f"{name}: preflight must run strict distribution-release-check")
+        required_gate = "distribution-release-check" if name == "project-compute-image.yml" else "distribution-check"
+        if required_gate not in preflight_commands:
+            errors.append(f"{name}: preflight must run {required_gate}")
         if "GITHUB_REF_TYPE" not in json.dumps(preflight) and "--validate-publish-ref" not in preflight_commands:
             errors.append(f"{name}: preflight must validate the publication ref and version")
         if "login-action" in "\n".join(str(step.get("uses", "")) for step in preflight.get("steps", [])):
@@ -197,7 +198,7 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
 
     package = workflows.get("package-prepare.yml", {})
     package_text = json.dumps(package)
-    for marker in ["distribution-release-check", "wheel-check", "gem-check", "sha256sum", "actions/upload-artifact@"]:
+    for marker in ["distribution-check", "wheel-check", "gem-check", "sha256sum", "actions/upload-artifact@"]:
         if marker not in package_text:
             errors.append(f"package-prepare.yml: missing release preparation step {marker}")
     for forbidden in ["gem push", "twine upload", "gh release create", "docker push"]:

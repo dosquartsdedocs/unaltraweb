@@ -46,7 +46,7 @@ Docs deploys, link checks, publication metrics and all publication workflows rem
 
 Automatic CI deliberately uses the structural gate. It verifies that pending companion releases are represented truthfully but does not require them to be published, so normal feature work can remain green before a coordinated release.
 
-`make distribution-release-check` is stricter: it exits nonzero while any selected component is `pending` or `unavailable`. Manual image workflows and the package-candidate workflow run that strict gate, exact ref/version validation and relevant tests before any registry login or image push is reachable. Starting a manual workflow is still an explicit approval; package preparation only uploads commit-SHA-named workflow artifacts and does not publish to RubyGems/PyPI or create a GitHub release.
+`make distribution-release-check` is stricter: it exits nonzero while any selected component is `pending` or `unavailable`. Core artifact workflows use the structural gate while publishing the pending candidates, plus exact ref/version validation and relevant tests before any registry login or image push is reachable. After every immutable artifact exists, update its contract status to `released` and run the strict gate before creating the coordinated release. Starting a manual workflow is still an explicit approval; package preparation only uploads commit-SHA-named workflow artifacts and does not publish to RubyGems/PyPI or create a GitHub release.
 
 ## Core Build
 

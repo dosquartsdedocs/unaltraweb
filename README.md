@@ -195,11 +195,11 @@ Sites created by `new_web` include a manual GitHub Pages workflow that delegates
 
 ## CI Scope
 
-`.github/workflows/ci.yml` runs automatically for pushes and pull requests. It compiles and unit-tests supported Python versions, checks patch whitespace, validates workflow and distribution structure, builds/tests the wheel and gem, then uses cached Docker builds for the MCP smoke test and reference docs. This normal CI intentionally runs `distribution-check`, not the strict release gate, so truthful `pending` companion releases do not block ordinary development.
+`.github/workflows/ci.yml` runs automatically for pushes and pull requests. It compiles and unit-tests supported Python versions, checks patch whitespace, validates workflow and distribution structure, builds/tests the wheel and gem, then uses cached Docker builds for the MCP smoke test and reference docs. This normal CI intentionally runs `distribution-check`, not the strict release gate, so truthful `pending` releases do not block ordinary development.
 
 CodeQL separately analyzes JavaScript/TypeScript, Python and Ruby on pull requests, default-branch pushes and a weekly schedule. Docs deployment, link checks, publication metrics, package preparation and image publication remain manual.
 
-`distribution-release-check` is the publication boundary. Every image workflow runs it, validates the selected ref against the BOM version, runs relevant tests and builds without credentials before a dependent job can log in or push. `.github/workflows/package-prepare.yml` applies the same strict gate, builds checked gem/wheel candidates, writes SHA-256 checksums and uploads a workflow artifact named with the commit SHA. It does not upload to RubyGems or PyPI, create a GitHub release, tag the repository or publish an image. Those operations still require a separate explicit maintainer approval and action.
+Core artifact workflows run `distribution-check` while selected candidates are truthfully `pending`; they also validate the selected ref against the BOM version, run relevant tests and build without credentials before a dependent job can log in or push. After every immutable artifact exists, mark it `released` and run `distribution-release-check` before creating the coordinated release. `.github/workflows/package-prepare.yml` builds checked gem/wheel candidates, writes SHA-256 checksums and uploads a workflow artifact named with the commit SHA. It does not upload to RubyGems or PyPI, create a GitHub release, tag the repository or publish an image. Those operations still require a separate explicit maintainer approval and action.
 
 ## Attribution
 

@@ -96,8 +96,6 @@ def component_contract_semantic_errors(value: dict[str, Any]) -> list[str]:
         if component_release != f"v{version}":
             errors.append(f"{component_id} release must equal v plus its version")
         kind = selected["kind"]
-        if selected["release_status"] != "released" and kind != "companion":
-            errors.append(f"{component_id} may be pending or unavailable only when it is an external companion")
         if kind == "gem" and reference != f"{selected['name']} (= {version})":
             errors.append(f"{component_id} gem reference does not match its version")
         elif kind == "python-wheel" and reference != f"{selected['name']}=={version}":
@@ -649,7 +647,7 @@ def distribution_doctor(
             "warning",
             f"published immutable release {selected['release']}",
             "pending",
-            f"Use an explicitly selected current {component_id} checkout for compatibility; do not publish the modular release until the tag exists.",
+            f"Use an explicitly selected local {component_id} candidate for development; do not publish the coordinated release until this component is available.",
             component_id=component_id,
         ))
     for component_id in unavailable_components:

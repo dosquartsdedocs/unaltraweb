@@ -15,10 +15,14 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 3.2"
 
   repo_root = File.expand_path(__dir__)
-  tracked_files = `git -c safe.directory=#{repo_root.shellescape} ls-files -z`.split("\x0")
+  tracked_files = if File.exist?(File.join(repo_root, ".git"))
+                    `git -c safe.directory=#{repo_root.shellescape} ls-files -z`.split("\x0")
+                  else
+                    []
+                  end
   discovered_files = Dir.chdir(repo_root) do
     (Dir.glob("{_data/i18n,_includes,_layouts,_sass,_plugins,_scripts,assets,lib,scripts,docs}/**/*", File::FNM_DOTMATCH) +
-      ["src/unaltraweb_mcp/component-contract.json", "src/unaltraweb_mcp/component-contract.schema.json"]).reject do |file|
+      ["_config.yml", "Makefile", "requirements.txt", "src/unaltraweb_mcp/component-contract.json", "src/unaltraweb_mcp/component-contract.schema.json"]).reject do |file|
       File.directory?(file)
     end
   end

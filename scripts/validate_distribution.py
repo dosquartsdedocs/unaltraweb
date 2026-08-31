@@ -274,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--require-release-ready",
         action="store_true",
-        help="Fail when a selected external component release is pending or unavailable.",
+        help="Fail when a selected component release is pending or unavailable.",
     )
     parser.add_argument(
         "--validate-publish-ref",

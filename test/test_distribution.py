@@ -58,8 +58,8 @@ class DistributionTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertTrue(result["offline"])
         self.assertTrue(result["limited"])
-        self.assertTrue(result["release_ready"])
-        self.assertEqual(result["pending_releases"], [])
+        self.assertFalse(result["release_ready"])
+        self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
         self.assertEqual(result["unavailable_releases"], [])
         self.assertEqual(result["receipt_contract"]["input_inventory"], "exact")
         self.assertEqual(result["mode"], "wheel")
@@ -79,7 +79,7 @@ class DistributionTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertFalse(result["release_ready"])
-        self.assertEqual(result["pending_releases"], [])
+        self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
         self.assertEqual(result["unavailable_releases"], ["vegavisuals"])
         self.assertIn("UW-DIST-COMPANION-RELEASE-UNAVAILABLE", {item["code"] for item in result["findings"]})
 
@@ -260,8 +260,8 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
         result = json.loads(completed.stdout)
         self.assertTrue(result["ok"])
-        self.assertTrue(result["release_ready"])
-        self.assertEqual(result["pending_releases"], [])
+        self.assertFalse(result["release_ready"])
+        self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
 
         release = subprocess.run(
             [sys.executable, str(root / "scripts/validate_distribution.py"), "--require-release-ready"],
@@ -271,8 +271,8 @@ class DistributionTests(unittest.TestCase):
             stderr=subprocess.PIPE,
             check=False,
         )
-        self.assertEqual(release.returncode, 0, release.stderr or release.stdout)
-        self.assertTrue(json.loads(release.stdout)["release_ready"])
+        self.assertEqual(release.returncode, 2, release.stderr or release.stdout)
+        self.assertFalse(json.loads(release.stdout)["release_ready"])
 
     def test_publish_ref_must_match_the_distribution_release(self) -> None:
         contract = distribution_contract()
@@ -303,6 +303,7 @@ class DistributionTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         gemspec = (root / "unaltraweb.gemspec").read_text(encoding="utf-8")
         self.assertIn('spec.required_ruby_version = ">= 3.2"', gemspec)
+        self.assertIn('File.exist?(File.join(repo_root, ".git"))', gemspec)
         self.assertGreaterEqual(gemspec.count('"src/unaltraweb_mcp/component-contract.schema.json"'), 2)
 
 
