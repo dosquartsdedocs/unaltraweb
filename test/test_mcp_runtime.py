@@ -116,6 +116,7 @@ class McpRuntimeTests(unittest.TestCase):
                 root_redirect = (project / "_pages/index.html").read_text(encoding="utf-8")
                 self.assertIn("{% assign home_path = '/en/' %}", root_redirect)
                 self.assertIn('permalink: /', root_redirect)
+                self.assertIn('search_exclude: true', root_redirect)
                 config = yaml.safe_load((project / "_config.yml").read_text(encoding="utf-8"))
                 self.assertNotIn("plugins", config)
                 self.assertEqual(config["description"], "")

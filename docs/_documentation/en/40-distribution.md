@@ -29,7 +29,7 @@ The template is the better place to validate gem consumption, centralized styles
 
 The BOM is an interoperability contract, not a bundle. The wheel contains only its Python control/inspection modules, schema/BOM, and clean package-owned scaffolds. In particular it does not contain Ruby theme assets, Docker image layers, factory Make/scripts/docs, TeX, Chromium, computation environments, `diavisuals`, or `vegavisuals`.
 
-For the selected release, the core-owned container references use `0.3.0`; the BOM selects the published `diavisuals v0.3.1` and `vegavisuals v0.3.1` releases. Current checkouts can be used through `suggested_path`, while the immutable tag references remain the distribution contract. `distribution-check` validates structural contract integrity for normal CI. `distribution-release-check` additionally requires every selected external release to be marked published and blocks future publication if any component returns to `pending` or `unavailable`.
+For the selected release, the core-owned container references use `0.3.0`; the BOM selects the published `diavisuals v0.3.1` and `vegavisuals v0.3.1` releases. Current checkouts can be used through `suggested_path`, while immutable release references remain the distribution contract. `distribution-check` validates structural integrity for normal CI. `distribution-release-check` blocks coordinated publication while any component is `pending` or `unavailable`; reviewed source authorized to produce the final same-commit candidates is `ready`, while an already-published component is `released`.
 
 ## Wheel And Doctor
 
@@ -41,7 +41,7 @@ unaltraweb-mcp doctor --project /path/to/site
 unaltraweb-mcp doctor --project /path/to/site --docker
 ```
 
-Doctor performs no network requests. It reports limited wheel mode as an informational healthy state, reads `_config.yml`, Gemfile/lock, Make pins, computation settings, capture recipes, PDF enablement, and companion manifests when a project is supplied, and checks only components relevant to those features. `release_ready` is separate from operational `ok`, so a pending or unavailable companion release is visible without making package-only inspection unusable. `--docker` optionally inspects local Docker and selected image presence; it never pulls or builds. Every finding has stable `code`, `severity`, `expected`, `actual`, and `remediation` fields.
+Doctor performs no network requests. It reports limited wheel mode as an informational healthy state, reads `_config.yml`, Gemfile/lock, Make pins, computation settings, capture recipes, PDF enablement, and companion manifests when a project is supplied, and checks only components relevant to those features. `release_ready` is separate from operational `ok`, so any pending or unavailable component release is visible without making package-only inspection unusable. Companion-specific findings retain their stable companion codes; core package and image releases use the generic release codes. `--docker` optionally inspects local Docker and selected image presence; it never pulls or builds. Every finding has stable `code`, `severity`, `expected`, `actual`, and `remediation` fields.
 
 Factory-backed MCP serving, site preflight/build, computations, captures, PDF operations, bibliometrics, and prompt loading still require the checkout or the selected MCP image. A wheel invocation fails those commands explicitly and tells the caller to set `UNALTRAWEB_FACTORY_DIR`; it does not pretend the factory assets were bundled.
 
@@ -99,9 +99,9 @@ For that reason:
 
 ## Docker Runtime
 
-The selected consumer runtime is `ghcr.io/dosquartsdedocs/unaltraweb:0.3.0`. Release tags are published only by manually running the Docker workflow from the exact BOM tag. The workflow may also publish `main`/`latest` from the default branch, but those mutable channels are maintainer development channels and are not consumer defaults. Local maintainer images use explicit names such as `unaltraweb:dev`.
+The pending `0.3.0` contract names the intended semver runtime target. Before release, a maintainer may manually run the Docker workflow from the final reviewed default-branch commit to publish `main`, `latest`, and a `sha-<full-commit>` candidate. Local maintainer images use explicit names such as `unaltraweb:dev`.
 
-The same rule applies to workers: consumer defaults select the `0.3.0` computation, capture, and PDF images. The manual workflows retain explicitly declared `main` and `sha-*` channels for maintainers while producing the semver tag required by the BOM. The image set remains separate so ordinary site or wheel installs do not acquire Chromium, TeX, Python/R computation stacks, or Docker layers they do not use.
+The same rule applies to workers. The final reviewed source commit marks components `ready` before candidate publication. Default-branch workflows publish candidates from that exact SHA. Their immutable image digests and package checksums are recorded in a `release-candidates.json` child commit that may change no other path. Validation requires the parent to belong to the default branch, requires each image digest to use the component's declared GHCR repository, and checks exact package names. Before promotion, each workflow also proves that the source commit's candidate tag still resolves to the recorded digest. Tag workflows then use `docker buildx imagetools create` to add semver aliases without rebuilding or trusting a moved tag. Excluding the receipt from image and package contents avoids an impossible self-digest for the MCP.
 
 The image is not the source of layouts or styles. Child sites still get those from the `unaltraweb` gem declared in their `Gemfile`. This keeps updates centralized in two places:
 
@@ -110,20 +110,42 @@ The image is not the source of layouts or styles. Child sites still get those fr
 
 Before recommending the local Docker workflow to unauthenticated users, complete this first-publish checklist:
 
-- Create the release tag, then run the manual `.github/workflows/docker-image.yml` workflow from `v0.3.0` to publish the runtime, MCP and manual PDF images.
+- Mark the components `ready` in the final reviewed source commit.
+- Run the image and package-preparation workflows from that exact default-branch commit to publish `sha-<full-commit>` images and prepare the gem/wheel candidates without creating a release tag.
+- Add only `release-candidates.json` in the next commit, recording the parent source SHA, immutable image references, package basenames and SHA-256 checksums.
+- Run `make distribution-release-check`, create the exact release tag on the receipt commit, then run the image workflows from the tag to promote the recorded manifests to semver aliases.
 - Open the `ghcr.io/dosquartsdedocs/unaltraweb` package settings in GitHub.
 - Make the package public.
 - Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb:0.3.0` works without `docker login`.
 - Make the `ghcr.io/dosquartsdedocs/unaltraweb-mcp` package public after its first publication.
 - Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0` works without `docker login`.
 
+The receipt uses a full source commit and different evidence by component kind. This abbreviated example shows both forms; the real `components` object must contain exactly every component marked `ready`:
+
+```json
+{
+  "schema_version": 1,
+  "release": "v0.3.0",
+  "source_commit": "0123456789abcdef0123456789abcdef01234567",
+  "components": {
+    "runtime": {
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb@sha256:<64 lowercase hex characters>"
+    },
+    "gem": {
+      "artifact": "unaltraweb-0.3.0.gem",
+      "sha256": "<64 lowercase hex characters>"
+    }
+  }
+}
+```
+
 This checklist describes future publication verification; changing the contract does not publish, tag, or release any artifact.
 
 ## CI And Release Gates
 
-Automatic `.github/workflows/ci.yml` uses `distribution-check`. It validates schema/version/reference parity and release-status declarations, but permits a selected companion to remain explicitly `pending` or `unavailable`. It also runs Python compile/unit/diff checks, wheel/gem checks, workflow policy, MCP smoke and the docs build. CodeQL is an independent automatic security check for JavaScript/TypeScript, Python and Ruby.
+Automatic `.github/workflows/ci.yml` uses `distribution-check`. It validates schema/version/reference parity and release-status declarations, but permits a selected component to remain explicitly `pending` or `unavailable`. It also runs Python compile/unit/diff checks, wheel/gem checks, workflow policy, MCP smoke and the docs build. CodeQL is an independent automatic security check for JavaScript/TypeScript, Python and Ruby.
 
-`distribution-release-check` is the strict coordinated-release gate. Core artifact workflows use `distribution-check` while the selected artifacts are truthfully `pending`; they also validate the default-branch or exact semver release ref, run relevant tests and complete a no-push build before the dependent package-write job can log in. Once the immutable artifacts exist, mark them `released` and run `distribution-release-check` before creating the coordinated release. Downstream reusable image publication also requires that strict released-core gate. Published images enable BuildKit SBOM and maximum provenance attestations. The MCP publication consumes the immutable digest emitted by the runtime publication build, not `main`, `latest` or a version tag.
+`distribution-release-check` is the strict coordinated-release gate. The final reviewed source commit marks authorized candidate components `ready`; already-published components may be `released`, and released containers except MCP must use digest references. Core artifact workflows prepare or publish candidates only after tests and a no-push preflight. The receipt-only child commit binds every `ready` component to an immutable image digest or package checksum and binds those candidates to its parent source SHA. An exact semver release tag is rejected unless that complete evidence is valid. Tag jobs promote the receipt's manifests rather than rebuilding, preserving their SBOM and provenance attestations. The MCP candidate consumes the exact runtime digest emitted by the candidate runtime build.
 
 The manual `.github/workflows/package-prepare.yml` builds and checks the gem and wheel, writes `SHA256SUMS`, and uploads an immutable workflow artifact whose name includes the source commit SHA. It does not call RubyGems, PyPI or GitHub Releases. Passing CI, preparing candidates, and later passing the strict coordinated-release gate are evidence for a release, not authorization to publish: tagging, starting a credentialed image workflow, uploading language packages and creating a GitHub release remain separate explicit maintainer approvals.
 
@@ -131,7 +153,7 @@ The manual `.github/workflows/package-prepare.yml` builds and checks the gem and
 
 Core changes should be validated in two layers:
 
-- Run `make workflow-check`, `make distribution-check`, `make wheel-check`, and `make gem-check` for workflow publication policy, version/schema parity, selected release metadata, CLI/wheel boundaries, clean wheel installation, and built-gem content. Run `make distribution-release-check` after all immutable artifacts have been published and before creating the coordinated release. `gem-check` uses local RubyGems or an already-local selected runtime image and never pulls implicitly.
+- Run `make workflow-check`, `make distribution-check`, `make wheel-check`, and `make gem-check` for workflow publication policy, version/schema parity, selected release metadata, CLI/wheel boundaries, clean wheel installation, and built-gem content. Run `make distribution-release-check` after all final-commit candidates are verified and before creating the coordinated tag. `gem-check` uses local RubyGems or an already-local selected runtime image and never pulls implicitly.
 - Build the core repository to catch internal Jekyll errors.
 - Build or test `../unaltraweb-template` with `LOCAL_CORE=../unaltraweb` to catch consumer-path regressions.
 

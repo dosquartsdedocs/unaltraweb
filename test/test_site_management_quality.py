@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import stat
@@ -356,6 +357,24 @@ class SiteManagementQualityTests(unittest.TestCase):
         self.assertEqual(result["retired"], ["project-owned.txt"])
         updated = json.loads(manifest_path.read_text(encoding="utf-8"))
         self.assertNotIn("project-owned.txt", updated["files"])
+
+    def test_scaffold_sync_retires_an_edited_deploy_workflow_without_touching_it(self) -> None:
+        deploy_path = self.project / ".github/workflows/deploy.yml"
+        original = deploy_path.read_bytes()
+        edited = original + b"\n# project-owned customization\n"
+        deploy_path.write_bytes(edited)
+        manifest_path = self.project / ".unaltraweb/scaffold.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"][".github/workflows/deploy.yml"] = hashlib.sha256(original).hexdigest()
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        result = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True)
+
+        self.assertTrue(result["applied"])
+        self.assertEqual(result["retired"], [".github/workflows/deploy.yml"])
+        self.assertEqual(deploy_path.read_bytes(), edited)
+        updated = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertNotIn(".github/workflows/deploy.yml", updated["files"])
 
     def test_scaffold_sync_rechecks_every_target_before_applying(self) -> None:
         payloads = site_tools._managed_scaffold_payloads()

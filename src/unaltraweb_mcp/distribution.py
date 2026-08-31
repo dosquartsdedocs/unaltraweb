@@ -93,15 +93,37 @@ def component_contract_semantic_errors(value: dict[str, Any]) -> list[str]:
         component_release = str(selected["release"])
         reference = str(selected["reference"])
         repository = str(selected["repository"])
+        image_repository = str(selected.get("image_repository") or "")
+        image_repository_valid = re.fullmatch(
+            r"ghcr\.io/dosquartsdedocs/[a-z0-9._-]+",
+            image_repository,
+        ) is not None
+        digest_pinned = bool(image_repository_valid and re.fullmatch(
+            rf"{re.escape(image_repository)}@sha256:[0-9a-f]{{64}}",
+            reference,
+        ))
         if component_release != f"v{version}":
             errors.append(f"{component_id} release must equal v plus its version")
         kind = selected["kind"]
+        if component_id == "mcp" and selected["release_status"] == "released":
+            errors.append("mcp release status must remain ready because its publication digest is recorded externally")
+        if kind == "container" and not image_repository_valid:
+            errors.append(f"{component_id} container must declare a valid image repository")
+        elif kind != "container" and image_repository:
+            errors.append(f"{component_id} non-container must not declare an image repository")
+        if kind == "companion" and selected["release_status"] == "ready":
+            errors.append(f"{component_id} companion must be released before coordinated publication")
         if kind == "gem" and reference != f"{selected['name']} (= {version})":
             errors.append(f"{component_id} gem reference does not match its version")
         elif kind == "python-wheel" and reference != f"{selected['name']}=={version}":
             errors.append(f"{component_id} wheel reference does not match its version")
-        elif kind == "container" and "@sha256:" not in reference and not reference.endswith(f":{version}"):
+        elif kind == "container" and not (
+            reference == f"{image_repository}:{version}"
+            or digest_pinned
+        ):
             errors.append(f"{component_id} container reference does not match its version")
+        elif kind == "container" and component_id != "mcp" and selected["release_status"] == "released" and not digest_pinned:
+            errors.append(f"{component_id} released container reference must use an immutable digest")
         elif kind == "companion" and reference != f"{repository}.git@{component_release}":
             errors.append(f"{component_id} companion reference does not match its repository and release")
     included = {name for name, item in value["components"].items() if item["included_in_wheel"]}
@@ -642,8 +664,9 @@ def distribution_doctor(
     ]
     for component_id in pending_components:
         selected = contract["components"][component_id]
+        code = "UW-DIST-COMPANION-RELEASE-PENDING" if selected["kind"] == "companion" else "UW-DIST-RELEASE-PENDING"
         findings.append(_finding(
-            "UW-DIST-COMPANION-RELEASE-PENDING",
+            code,
             "warning",
             f"published immutable release {selected['release']}",
             "pending",
@@ -652,8 +675,9 @@ def distribution_doctor(
         ))
     for component_id in unavailable_components:
         selected = contract["components"][component_id]
+        code = "UW-DIST-COMPANION-RELEASE-UNAVAILABLE" if selected["kind"] == "companion" else "UW-DIST-RELEASE-UNAVAILABLE"
         findings.append(_finding(
-            "UW-DIST-COMPANION-RELEASE-UNAVAILABLE",
+            code,
             "warning",
             f"published immutable release {selected['release']}",
             "unavailable",

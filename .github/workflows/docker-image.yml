@@ -18,6 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Python
@@ -102,36 +103,56 @@ jobs:
 
       - name: Runtime metadata
         id: runtime-meta
+        if: github.ref_type == 'branch'
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/dosquartsdedocs/unaltraweb
           tags: |
             type=raw,value=main,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=ref,event=tag
+            type=raw,value=sha-${{ github.sha }},enable={{is_default_branch}}
 
       - name: MCP metadata
         id: mcp-meta
+        if: github.ref_type == 'branch'
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/dosquartsdedocs/unaltraweb-mcp
           tags: |
             type=raw,value=main,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=ref,event=tag
+            type=raw,value=sha-${{ github.sha }},enable={{is_default_branch}}
 
       - name: Manual PDF metadata
         id: manual-meta
+        if: github.ref_type == 'branch'
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf
           tags: |
             type=raw,value=main,enable={{is_default_branch}}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=ref,event=tag
+            type=raw,value=sha-${{ github.sha }},enable={{is_default_branch}}
+
+      - name: Read release version
+        id: release
+        if: github.ref_type == 'tag'
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+
+          contract = json.load(open("src/unaltraweb_mcp/component-contract.json"))
+          receipt = json.load(open("release-candidates.json"))
+          print(f"version={contract['release']['version']}")
+          print(f"source_commit={receipt['source_commit']}")
+          for component_id in ["runtime", "mcp", "manual_pdf"]:
+              component = contract["components"][component_id]
+              source = component["reference"] if component["release_status"] == "released" else receipt["components"][component_id]["reference"]
+              print(f"{component_id}={source}")
+              print(f"{component_id}_repository={component['image_repository']}")
+              candidate = f"{component['image_repository']}:sha-{receipt['source_commit']}" if component["release_status"] == "ready" else ""
+              print(f"{component_id}_candidate={candidate}")
+          PY
 
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -140,8 +161,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify recorded candidate digests
+        if: github.ref_type == 'tag'
+        env:
+          MANUAL_PDF_CANDIDATE: ${{ steps.release.outputs.manual_pdf_candidate }}
+          MANUAL_PDF_SOURCE: ${{ steps.release.outputs.manual_pdf }}
+          MCP_CANDIDATE: ${{ steps.release.outputs.mcp_candidate }}
+          MCP_SOURCE: ${{ steps.release.outputs.mcp }}
+          RUNTIME_CANDIDATE: ${{ steps.release.outputs.runtime_candidate }}
+          RUNTIME_SOURCE: ${{ steps.release.outputs.runtime }}
+        run: |
+          verify_candidate() {
+            candidate="$1"
+            source="$2"
+            if [ -z "$candidate" ]; then return; fi
+            actual="$(docker buildx imagetools inspect "$candidate" --format '{{.Manifest.Digest}}')"
+            expected="${source##*@}"
+            if [ "$actual" != "$expected" ]; then
+              printf 'candidate digest mismatch: %s resolves to %s, expected %s\n' "$candidate" "$actual" "$expected" >&2
+              return 1
+            fi
+          }
+          verify_candidate "$RUNTIME_CANDIDATE" "$RUNTIME_SOURCE"
+          verify_candidate "$MCP_CANDIDATE" "$MCP_SOURCE"
+          verify_candidate "$MANUAL_PDF_CANDIDATE" "$MANUAL_PDF_SOURCE"
+
       - name: Build and publish runtime
         id: runtime
+        if: github.ref_type == 'branch'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -154,6 +201,7 @@ jobs:
           provenance: mode=max
 
       - name: Build and publish MCP from runtime digest
+        if: github.ref_type == 'branch'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -168,6 +216,7 @@ jobs:
           provenance: mode=max
 
       - name: Build and publish manual PDF image
+        if: github.ref_type == 'branch'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: scripts/manual
@@ -179,3 +228,39 @@ jobs:
           cache-to: type=gha,mode=max,scope=manual-pdf
           sbom: true
           provenance: mode=max
+
+      - name: Promote reviewed runtime candidate
+        if: github.ref_type == 'tag'
+        env:
+          REPOSITORY: ${{ steps.release.outputs.runtime_repository }}
+          SOURCE: ${{ steps.release.outputs.runtime }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${REPOSITORY}:${VERSION}" \
+            --tag "${REPOSITORY}:v${VERSION}" \
+            "$SOURCE"
+
+      - name: Promote reviewed MCP candidate
+        if: github.ref_type == 'tag'
+        env:
+          REPOSITORY: ${{ steps.release.outputs.mcp_repository }}
+          SOURCE: ${{ steps.release.outputs.mcp }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${REPOSITORY}:${VERSION}" \
+            --tag "${REPOSITORY}:v${VERSION}" \
+            "$SOURCE"
+
+      - name: Promote reviewed manual PDF candidate
+        if: github.ref_type == 'tag'
+        env:
+          REPOSITORY: ${{ steps.release.outputs.manual_pdf_repository }}
+          SOURCE: ${{ steps.release.outputs.manual_pdf }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${REPOSITORY}:${VERSION}" \
+            --tag "${REPOSITORY}:v${VERSION}" \
+            "$SOURCE"

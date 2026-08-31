@@ -34,6 +34,7 @@ IMAGE_WORKFLOWS = {
     "project-compute-image.yml",
     "web-capture-image.yml",
 }
+PROMOTED_CORE_IMAGE_WORKFLOWS = {"compute-images.yml", "docker-image.yml", "web-capture-image.yml"}
 FULLY_PINNED_WORKFLOWS = IMAGE_WORKFLOWS | {"ci.yml", "package-prepare.yml"}
 
 
@@ -169,9 +170,34 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         if concurrency.get("cancel-in-progress") is not False:
             errors.append(f"{name}: publication concurrency must not cancel an in-progress publish")
 
+        if name in PROMOTED_CORE_IMAGE_WORKFLOWS:
+            workflow_text = json.dumps(workflow)
+            if "sha-${{ github.sha }}" not in workflow_text:
+                errors.append(f"{name}: default-branch candidates must use the full source commit SHA")
+            if "imagetools create" not in workflow_text:
+                errors.append(f"{name}: release tags must promote a reviewed candidate manifest")
+            if "release-candidates.json" not in workflow_text:
+                errors.append(f"{name}: release-tag promotion must read the external candidate receipt")
+            if "Manifest.Digest" not in workflow_text:
+                errors.append(f"{name}: release-tag promotion must verify the candidate tag still resolves to the recorded digest")
+            for job_name, step in _steps(workflow):
+                if not (
+                    str(step.get("uses", "")).startswith("docker/build-push-action@")
+                    and step.get("with", {}).get("push") is True
+                ):
+                    continue
+                if str(step.get("if", "")) != "github.ref_type == 'branch'":
+                    errors.append(f"{name}:{job_name}: image builds may push only default-branch candidates")
+
     docker_text = (root / "docker-image.yml").read_text(encoding="utf-8") if (root / "docker-image.yml").exists() else ""
     if "UNALTRAWEB_RUNTIME_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb@${{ steps.runtime.outputs.digest }}" not in docker_text:
         errors.append("docker-image.yml: MCP publication must use the exact runtime build digest")
+
+    project_compute = workflows.get("project-compute-image.yml", {})
+    project_compute_steps = _steps(project_compute)
+    strict_gate_steps = [step for _, step in project_compute_steps if "distribution-release-check" in str(step.get("run", ""))]
+    if not strict_gate_steps or strict_gate_steps[0].get("env", {}).get("GITHUB_DEFAULT_BRANCH") != "main":
+        errors.append("project-compute-image.yml: release gate must declare the core default branch")
 
     codeql = workflows.get("codeql.yml", {})
     codeql_on = codeql.get("on", {})

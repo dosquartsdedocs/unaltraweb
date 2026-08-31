@@ -23,7 +23,7 @@ It provides the runtime environment: Ruby, Bundler, Jekyll system dependencies, 
 
 The image is not the source of layouts and styles. Those come from the `unaltraweb` gem in the child site's `Gemfile`.
 
-The GHCR package is kept because it makes the local Docker workflow cheap and repeatable. Publishing the image is manual: run `.github/workflows/docker-image.yml` only when runtime dependencies change and after reviewing its strict release preflight. The versioned tag is the consumer default. `main`/`latest` are mutable maintainer channels published from the default branch; they are not release pins. The workflow builds and tests all images before registry login, emits SBOM/provenance attestations, and builds the MCP image from the exact newly published runtime digest.
+The GHCR package is kept because it makes the local Docker workflow cheap and repeatable. Publishing is manual. A default-branch run builds the reviewed candidates, publishes `main`, `latest`, and `sha-<full-commit>` with SBOM/provenance attestations, and builds the MCP candidate from the exact runtime digest produced in that run. A receipt-only child commit records the immutable candidate digests outside the image contents. After the BOM and receipt are release-ready, an exact-tag run promotes those recorded manifests to the versioned consumer aliases without rebuilding them or resolving mutable tags.
 
 During local core development, use the locally built image:
 
@@ -148,7 +148,7 @@ The target prepares the image, mounts the project at `/home/rstudio/project`, ma
 
 ### Publish To GHCR
 
-Core maintainers publish both base images with the manual `Compute images` workflow in `.github/workflows/compute-images.yml`. Its strict, no-credentials preflight and no-push build matrix must complete before its package-write matrix can start. Published Python and R packages carry SBOM/provenance and default-branch `main`, commit `sha-*`, and semver/release-tag metadata. Consumer defaults use the semver tag; `main` and `sha-*` are explicitly maintainer channels. Packages intended for child sites must allow unauthenticated pulls.
+Core maintainers publish both base images with the manual `Compute images` workflow in `.github/workflows/compute-images.yml`. Its strict, no-credentials preflight and no-push build matrix must complete before its package-write matrix can start. Candidate Python and R images carry SBOM/provenance and default-branch `main` plus full-commit `sha-*` channels; release-tag runs promote a recorded immutable digest instead of rebuilding. Consumer defaults use the digest-pinned references selected by the BOM. Packages intended for child sites must allow unauthenticated pulls.
 
 Projects can call `.github/workflows/project-compute-image.yml` to publish their own extension package. Use a separate package name such as `example-compute-r`; do not encode project dependencies as variants of `unaltraweb-compute-r`.
 

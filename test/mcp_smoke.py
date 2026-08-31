@@ -134,6 +134,8 @@ async def smoke() -> None:
                 assert build["html_audit"]["ok"] is True, build["html_audit"]
                 assert (project / "_site/index.html").is_file()
                 assert (project / "_site/en/index.html").is_file()
+                search_index = json.loads((project / "_site/assets/js/content-search-index.json").read_text(encoding="utf-8"))
+                assert all(entry["url"] != "/" for entry in search_index)
                 rendered_home = (project / "_site/en/metadata-hostile/index.html").read_text(encoding="utf-8")
                 metadata_parser = MetadataParser()
                 metadata_parser.feed(rendered_home)

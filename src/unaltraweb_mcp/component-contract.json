@@ -54,6 +54,7 @@
       "release": "v0.3.0",
       "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb:0.3.0",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["jekyll-runtime"]
@@ -65,6 +66,7 @@
       "release": "v0.3.0",
       "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-mcp",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["mcp", "consumer-build", "preview"]
@@ -76,6 +78,7 @@
       "release": "v0.3.0",
       "release_status": "released",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python@sha256:18cb269811bd4005800382da25a480ec2bca7eac8d0501ad1ef36bad1c0f8cd9",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["manual-computations", "python"]
@@ -87,6 +90,7 @@
       "release": "v0.3.0",
       "release_status": "released",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r@sha256:928ffb93f221e09e8b929157dee473b838e061915a2eb67224e4124b85f81837",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["manual-computations", "r"]
@@ -98,6 +102,7 @@
       "release": "v0.3.0",
       "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-web-capture",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["web-captures"]
@@ -109,6 +114,7 @@
       "release": "v0.3.0",
       "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["manual-pdf"]

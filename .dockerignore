@@ -13,5 +13,6 @@ sandbox/
 tmp/
 vendor/
 node_modules/
+release-candidates.json
 **/__pycache__/
 *.pyc

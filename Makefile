@@ -71,7 +71,7 @@ endif
 distribution-check: ## Validate component/version parity, release selections, and the wheel boundary
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) scripts/validate_distribution.py
 
-distribution-release-check: ## Require every selected component release to be published
+distribution-release-check: ## Require every selected component to be ready for coordinated publication
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) scripts/validate_distribution.py --require-release-ready
 
 distribution-doctor: ## Inspect the selected distribution and PROJECT without network access
