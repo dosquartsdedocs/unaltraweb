@@ -240,8 +240,9 @@
     integrity="{{ site.third_party_libraries.mathjax.integrity.js }}"
     crossorigin="anonymous"
   ></script>
+  <script>window.unaltrawebMathJaxTags = {{ site.unaltraweb.mathjax.tags | default: 'all' | jsonify }};</script>
+  <script src="{{ '/assets/js/mathjax-setup.js' | relative_url | bust_file_cache }}"></script>
   {% unless page.pseudocode %}
-    <script src="{{ '/assets/js/mathjax-setup.js' | relative_url | bust_file_cache }}"></script>
     <script
       defer
       src="{{ site.third_party_libraries.polyfill.url.js }}"

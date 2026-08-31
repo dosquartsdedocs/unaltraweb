@@ -18,7 +18,7 @@
   "wheel_contract": {
     "package": "unaltraweb-mcp",
     "role": "Modular control, scaffolding, and offline inspection plane for unaltraweb sites.",
-    "package_only_commands": ["doctor", "new-web", "version"],
+    "package_only_commands": ["doctor", "import-calibre", "new-web", "version"],
     "factory_required_commands": ["factory-dir"],
     "package_only_mcp": ["bibliography-add-entry", "bibliography-inventory", "build-health", "content-approval-inventory", "content-freshness-check", "content-inventory", "detect-site", "html-audit", "http-check", "initialize-site", "language-policy", "list-tools", "manual-authoring-capabilities", "manual-editorial-quality-check", "manual-source-quality-check", "new-web", "preview-start", "preview-status", "preview-stop", "profile-check", "profile-prune", "profile-prune-plan", "scaffold-sync", "site-context", "site-doctor", "site-source-delete", "site-source-read", "site-source-write", "starter-templates", "translation-plan"],
     "factory_required_mcp": ["bibliometrics-check", "bibliometrics-fetch-scimago", "bibliometrics-update", "build-site", "manual-computation-check", "manual-computation-render", "manual-computation-render-figures", "manual-computation-status", "manual-pdf-build", "manual-pdf-publish", "manual-pdf-status", "prompts", "serve", "site-check", "web-capture-check", "web-capture-render", "web-capture-status"],
@@ -45,7 +45,7 @@
       "reference": "unaltraweb-mcp==0.3.0",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": true,
-      "features": ["doctor", "new-web", "offline-inspection", "mcp-control-plane"]
+      "features": ["calibre-import", "doctor", "new-web", "offline-inspection", "mcp-control-plane"]
     },
     "runtime": {
       "kind": "container",

@@ -3,13 +3,26 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sys
 import tempfile
+from html.parser import HTMLParser
 from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from unaltraweb_mcp import site_tools
+
+
+class MetadataParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.twitter_title: dict[str, str | None] | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "meta" and values.get("name") == "twitter:title":
+            self.twitter_title = values
 
 
 def tool_payload(result: object) -> dict[str, object]:
@@ -86,6 +99,27 @@ async def smoke() -> None:
                 assert source_dry_run["dry_run"] is True
                 assert (project / "_pages/en/index.md").read_text(encoding="utf-8") == home["content"]
 
+                hostile_title = 'A "</script><img src=x onerror=alert(1)>" title'
+                source_write = tool_payload(await session.call_tool("site_source_write", {
+                    "path": "_pages/en/metadata-hostile.md",
+                    "content": (
+                        "---\nlayout: default\nlang: en\nprofiles: [unaltremanual]\n"
+                        "permalink: /en/metadata-hostile/\n"
+                        f"title: '{hostile_title}'\nredirect: javascript:alert(1)\n---\n"
+                    ),
+                    "create_only": True,
+                    "dry_run": False,
+                }))
+                assert source_write["ok"] is True, source_write
+                config = tool_payload(await session.call_tool("site_source_read", {"path": "_config.yml"}))
+                config_write = tool_payload(await session.call_tool("site_source_write", {
+                    "path": "_config.yml",
+                    "content": config["content"] + "\nserve_og_meta: true\nserve_schema_org: true\n",
+                    "expected_sha256": config["sha256"],
+                    "dry_run": False,
+                }))
+                assert config_write["ok"] is True, config_write
+
                 scaffold = tool_payload(await session.call_tool("scaffold_sync", {}))
                 assert scaffold["ok"] is True, scaffold
                 assert scaffold["dry_run"] is True
@@ -99,6 +133,15 @@ async def smoke() -> None:
                 assert build["nested_container"] is False
                 assert build["html_audit"]["ok"] is True, build["html_audit"]
                 assert (project / "_site/index.html").is_file()
+                rendered_home = (project / "_site/en/metadata-hostile/index.html").read_text(encoding="utf-8")
+                metadata_parser = MetadataParser()
+                metadata_parser.feed(rendered_home)
+                assert metadata_parser.twitter_title == {"name": "twitter:title", "content": hostile_title}
+                assert "javascript:alert(1)" not in rendered_home
+                assert "</script><img" not in rendered_home
+                schema_match = re.search(r'<script type="application/ld\+json">\s*(\{.*?\})\s*</script>', rendered_home, re.DOTALL)
+                assert schema_match is not None
+                assert json.loads(schema_match.group(1))["headline"] == hostile_title
 
                 checks = tool_payload(await session.call_tool("site_check", {}))
                 assert checks["ok"] is True, checks

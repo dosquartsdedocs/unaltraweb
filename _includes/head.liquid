@@ -80,7 +80,25 @@
   <link rel="shortcut icon" href="{{ unaltraweb_site_icon_url }}">
 {% endif %}
 <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url | bust_css_cache }}">
-<link rel="canonical" href="{{ page.url | replace:'index.html','' | absolute_url }}">
+{% assign unaltraweb_canonical_url = page.url | replace: 'index.html', '' %}
+{% if page.redirect == true %}
+  {% assign unaltraweb_canonical_url = '/' %}
+{% elsif page.redirect %}
+  {% assign unaltraweb_redirect_http_scheme = page.redirect | slice: 0, 7 | downcase %}
+  {% assign unaltraweb_redirect_https_scheme = page.redirect | slice: 0, 8 | downcase %}
+  {% if page.redirect contains ':' %}
+    {% if unaltraweb_redirect_http_scheme == 'http://' or unaltraweb_redirect_https_scheme == 'https://' %}
+      {% assign unaltraweb_canonical_url = page.redirect %}
+    {% endif %}
+  {% else %}
+    {% assign unaltraweb_canonical_url = page.redirect %}
+  {% endif %}
+{% endif %}
+{% if unaltraweb_canonical_url contains '://' %}
+  <link rel="canonical" href="{{ unaltraweb_canonical_url | escape }}">
+{% else %}
+  <link rel="canonical" href="{{ unaltraweb_canonical_url | absolute_url | escape }}">
+{% endif %}
 
 {% if site.enable_darkmode %}
   <!-- Dark Mode -->

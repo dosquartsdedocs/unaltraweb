@@ -272,5 +272,5 @@ tables:
   list_title: List of tables
 
 listings:
-  label: Listing
-  list_title: List of listings
+  label: Code example
+  list_title: List of code examples

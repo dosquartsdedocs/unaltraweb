@@ -61,6 +61,9 @@ def inspect_gem(path: Path) -> None:
         with tarfile.open(fileobj=io.BytesIO(data_member.read()), mode="r:gz") as payload:
             names = set(payload.getnames())
     required = {
+        "_data/i18n/ca.yml",
+        "_data/i18n/en.yml",
+        "_data/i18n/es.yml",
         "_plugins/bibliography_profiles.rb",
         "_plugins/content_search_index.rb",
         "assets/js/content-search-match.js",
@@ -72,6 +75,9 @@ def inspect_gem(path: Path) -> None:
     missing = sorted(required - names)
     if missing:
         raise RuntimeError(f"Built gem is missing required files: {missing}")
+    unexpected_data = sorted(name for name in names if name.startswith("_data/") and not name.startswith("_data/i18n/"))
+    if unexpected_data:
+        raise RuntimeError(f"Built gem contains non-runtime data files: {unexpected_data}")
 
 
 def main() -> int:

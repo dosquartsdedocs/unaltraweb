@@ -51,7 +51,7 @@ unaltraweb:
     render: true
     format: svg
     family: benizar
-    compatibility: mermaid-11.4.2-plantuml-1.2026.1
+    compatibility: mermaid-11.16.0-plantuml-1.2026.1
     diavisuals_command:
     fail_on_render_error: false
   manual:
@@ -59,7 +59,7 @@ unaltraweb:
     cover_image:
     logo:
     logo_inverse:
-    logo_cafe: /assets/img/brand/dosquartsdedocs-logo-cafe.svg
+    logo_cafe:
     bibliography: true
     bibliography_file: manual.bib
     metadata:
@@ -301,6 +301,7 @@ exclude:
   - package-lock.json
   - purgecss.config.js
   - README.md
+  - sandbox/
   - tmp/
   - vendor
   - _site/
@@ -325,7 +326,6 @@ plugins:
   - jekyll-sitemap
   - jekyll-socials
   - jekyll-tabs
-  - jekyll-terser
   - jekyll-toc
   - jekyll-twitter-plugin
   - jemoji
@@ -377,16 +377,8 @@ sass:
 # -----------------------------------------------------------------------------
 
 jekyll-minifier:
-  compress_javascript: false # set to false since we are using terser as the js minifier
+  compress_javascript: true
   exclude: ["robots.txt", "assets/js/search/*.js"]
-
-# -----------------------------------------------------------------------------
-# Terser
-# -----------------------------------------------------------------------------
-
-terser:
-  compress:
-    drop_console: true
 
 # -----------------------------------------------------------------------------
 # Jekyll Archives
@@ -698,10 +690,13 @@ third_party_libraries:
     version: "2.11.5"
   mathjax:
     integrity:
+      cancel: "sha256-DSY+zyZx0cwTE1uLSvzcpNQBUamupRtpQC5ord5M+Mk="
       js: "sha256-MASABpB4tYktI2Oitl4t+78w/lyA+D7b/s9GEP0JOGI="
     local:
+      cancel: "input/tex/extensions/cancel.js"
       fonts: "output/chtml/fonts/woff-v2/"
     url:
+      cancel: "https://cdn.jsdelivr.net/npm/mathjax@{{version}}/es5/input/tex/extensions/cancel.js"
       fonts: "https://cdn.jsdelivr.net/npm/mathjax@{{version}}/es5/output/chtml/fonts/woff-v2/"
       js: "https://cdn.jsdelivr.net/npm/mathjax@{{version}}/es5/tex-mml-chtml.js"
     version: "3.2.2"

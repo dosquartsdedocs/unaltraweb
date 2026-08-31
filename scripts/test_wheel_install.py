@@ -54,6 +54,7 @@ def main() -> int:
         if leaked:
             raise RuntimeError(f"Factory assets leaked into wheel: {leaked}")
         required = [
+            "unaltraweb_mcp/calibre_import.py",
             "unaltraweb_mcp/component-contract.json",
             "unaltraweb_mcp/component-contract.schema.json",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",

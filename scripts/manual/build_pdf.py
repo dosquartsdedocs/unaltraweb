@@ -162,10 +162,10 @@ METADATA_LABELS = {
         "source": "Edició web",
         "rights": "Drets",
         "references": "Referències",
-        "listing": "Llistat",
+        "listing": "Codi",
         "list_of_figures": "Índex de figures",
         "list_of_tables": "Índex de taules",
-        "list_of_listings": "Índex de llistats",
+        "list_of_listings": "Índex de codis",
     },
     "es": {
         "title": "Créditos editoriales",
@@ -187,10 +187,10 @@ METADATA_LABELS = {
         "source": "Edición web",
         "rights": "Derechos",
         "references": "Referencias",
-        "listing": "Listado",
+        "listing": "Código",
         "list_of_figures": "Índice de figuras",
         "list_of_tables": "Índice de tablas",
-        "list_of_listings": "Índice de listados",
+        "list_of_listings": "Índice de códigos",
     },
     "en": {
         "title": "Editorial credits",
@@ -212,10 +212,10 @@ METADATA_LABELS = {
         "source": "Web edition",
         "rights": "Rights",
         "references": "References",
-        "listing": "Listing",
+        "listing": "Code example",
         "list_of_figures": "List of figures",
         "list_of_tables": "List of tables",
-        "list_of_listings": "List of listings",
+        "list_of_listings": "List of code examples",
     },
 }
 

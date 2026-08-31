@@ -107,6 +107,8 @@ class McpRuntimeTests(unittest.TestCase):
                 makefile = (project / "Makefile").read_text(encoding="utf-8")
                 self.assertIn("docker run", makefile)
                 self.assertIn("serve-native: site-check-native serve-capture-native", makefile)
+                self.assertIn("group :jekyll_plugins do", makefile)
+                self.assertIn("group :jekyll_plugins do", (project / "Gemfile").read_text(encoding="utf-8"))
                 self.assertIn("unaltraweb (= 0.3.0)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
                 self.assertIn("jekyll-scholar (>= 7.3, < 8)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
                 self.assertEqual((project / "context/writing-profile.md").is_file(), profile == "unaltremanual")

@@ -74,13 +74,13 @@ class FigureCaptionsTest < Minitest::Test
       "en",
       "Figure",
       "Table",
-      "Listing"
+      "Code example"
     )
     fragment = Nokogiri::HTML::DocumentFragment.parse(result)
     listing = fragment.at_css("figure.md-code-listing")
 
     assert_equal "lst-en-1", listing["id"]
-    assert_equal "Listing 1. Read a layer", listing.at_css(".md-code-caption").text.strip
+    assert_equal "Code example 1. Read a layer", listing.at_css(".md-code-caption").text.strip
     assert_includes result, "```python\nprint(\"roads\")\n```"
   end
 

@@ -254,7 +254,7 @@ ogrinfo data/raw/roads.gpkg -so roads
 :::
 ````
 
-The wrapper requires one non-empty double-quoted caption and exactly one fence. Captioned listings use a counter separate from figures and tables and appear in the PDF list of listings. Unwrapped fences remain valid and unindexed.
+The wrapper requires one non-empty double-quoted caption and exactly one fence. Captioned code examples use a counter separate from figures and tables and appear in the PDF list of code examples. Unwrapped fences remain valid and unindexed.
 
 Use fenced code blocks for programming examples and semantic technical notation. Recognized languages show a language header, line numbers, syntax highlighting, and alternating line backgrounds. The web uses Rouge for common TIG languages; the PDF guarantees the complete treatment for Bash/Linux shell, SQL/PostGIS, Python, R, URLs (`url`), spreadsheet formulas (`spreadsheet`), and file listings (`filetree`). The three semantic fences use localized headers. Use `text` or omit the language for unnumbered verbatim without a header. A language unsupported by one renderer also falls back to that plain presentation:
 

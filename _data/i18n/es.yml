@@ -272,5 +272,5 @@ tables:
   list_title: Índice de tablas
 
 listings:
-  label: Listado
-  list_title: Índice de listados
+  label: Código
+  list_title: Índice de códigos

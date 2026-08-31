@@ -116,7 +116,7 @@ The template tests are intentionally heavier because they run browser smoke test
 
 ## Modular Wheel And Doctor
 
-The `unaltraweb-mcp` wheel is intentionally a small control and inspection package. A wheel-only install supports `version`, `new-web`, top-level `doctor`, constrained SHA-256 source edits, baseline-aware `scaffold_sync`, `site-doctor`, `html-audit`, and package-only inspections such as `detect-site`, `profile-check`, `content-inventory`, and `build-health`. Commands that execute factory Make targets or serve MCP require a factory checkout and fail with an explicit `UNALTRAWEB_FACTORY_DIR` remediation when it is absent.
+The `unaltraweb-mcp` wheel is intentionally a small control and inspection package. A wheel-only install supports `version`, `new-web`, top-level `doctor`, the host-only `import-calibre` command, constrained SHA-256 source edits, baseline-aware `scaffold_sync`, `site-doctor`, `html-audit`, and package-only inspections such as `detect-site`, `profile-check`, `content-inventory`, and `build-health`. Commands that execute factory Make targets or serve MCP require a factory checkout and fail with an explicit `UNALTRAWEB_FACTORY_DIR` remediation when it is absent.
 
 ```bash
 unaltraweb-mcp version

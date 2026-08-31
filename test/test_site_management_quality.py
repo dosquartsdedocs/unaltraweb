@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import sys
 import tempfile
 import unittest
@@ -159,6 +160,39 @@ class SiteManagementQualityTests(unittest.TestCase):
                 )
         self.assertEqual((self.project / path).read_text(encoding="utf-8"), "raced\n")
         self.assertEqual(outside.read_text(encoding="utf-8"), "outside\n")
+
+    def test_site_source_write_rolls_back_directory_fsync_failures(self) -> None:
+        path = "_pages/en/index.md"
+        before = site_tools.site_source_read(self.project, path)
+        original_fsync = os.fsync
+
+        def fail_directory_fsync(file_descriptor):
+            if stat.S_ISDIR(os.fstat(file_descriptor).st_mode):
+                raise OSError("simulated directory fsync failure")
+            return original_fsync(file_descriptor)
+
+        with patch("unaltraweb_mcp.site_tools.os.fsync", side_effect=fail_directory_fsync):
+            with self.assertRaisesRegex(OSError, "simulated directory fsync failure"):
+                site_tools.site_source_write(
+                    self.project,
+                    path,
+                    before["content"] + "changed\n",
+                    expected_sha256=before["sha256"],
+                    dry_run=False,
+                )
+        self.assertEqual(site_tools.site_source_read(self.project, path)["sha256"], before["sha256"])
+
+        created_path = "_pages/en/fsync-failure.md"
+        with patch("unaltraweb_mcp.site_tools.os.fsync", side_effect=fail_directory_fsync):
+            with self.assertRaisesRegex(OSError, "simulated directory fsync failure"):
+                site_tools.site_source_write(
+                    self.project,
+                    created_path,
+                    "new source\n",
+                    create_only=True,
+                    dry_run=False,
+                )
+        self.assertFalse((self.project / created_path).exists())
 
     def test_site_source_detects_final_window_update_and_delete_edits(self) -> None:
         path = "_pages/en/index.md"

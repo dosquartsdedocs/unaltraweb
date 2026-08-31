@@ -118,11 +118,11 @@ Una font oficial ha d'identificar l'organisme responsable, la data de referènci
         self.assertIn("#stable-heading", components["links_and_cross_references"]["syntax"][2])
         self.assertIn("distinct", components["links_and_cross_references"]["pdf"])
         self.assertIn('::: listing "Descriptive caption"', components["captioned_listings"]["syntax"])
-        self.assertIn("list of listings", components["captioned_listings"]["pdf"])
+        self.assertIn("list of code examples", components["captioned_listings"]["pdf"])
         self.assertIn("$x_i$", components["code_and_math"]["syntax"])
         self.assertIn("$\\eqref{eq:model}$", components["code_and_math"]["syntax"])
         self.assertIn("Rouge", components["code_and_math"]["web"])
-        self.assertIn("listings", components["code_and_math"]["pdf"])
+        self.assertIn("code fences", components["code_and_math"]["pdf"])
         self.assertIn("Do not use inline code", components["code_and_math"]["guidance"])
 
         inventory = site_tools.list_tools()

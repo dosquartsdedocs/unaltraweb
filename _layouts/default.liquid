@@ -6,14 +6,21 @@
   <!-- Head -->
   <head>
     {% if page.redirect %}
+      {% assign redirect = nil %}
       {% if page.redirect == true %}
         {% assign redirect = site.baseurl | append: '/' %}
-      {% elsif page.redirect contains '://' %}
-        {% assign redirect = page.redirect %}
+      {% elsif page.redirect contains ':' %}
+        {% assign redirect_http_scheme = page.redirect | slice: 0, 7 | downcase %}
+        {% assign redirect_https_scheme = page.redirect | slice: 0, 8 | downcase %}
+        {% if redirect_http_scheme == 'http://' or redirect_https_scheme == 'https://' %}
+          {% assign redirect = page.redirect %}
+        {% endif %}
       {% else %}
         {% assign redirect = page.redirect | relative_url %}
       {% endif %}
-      <meta http-equiv="refresh" content="{{ page.redirect_delay | default: 0 }}; url={{ redirect }}">
+      {% if redirect %}
+        <meta http-equiv="refresh" content="{{ page.redirect_delay | default: 0 }}; url={{ redirect | escape }}">
+      {% endif %}
     {% endif %}
     {% include head.liquid %}
   </head>

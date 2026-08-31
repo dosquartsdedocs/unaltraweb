@@ -111,10 +111,10 @@ inline-code-color: "6F2B70"
 series: Test series
 rights: Test rights
 metadata-page-title: Metadata
-listing-label: Listing
+listing-label: Code example
 list-of-figures-title: List of figures
 list-of-tables-title: List of tables
-list-of-listings-title: List of listings
+list-of-listings-title: List of code examples
 has-listings: true
 ---
 
@@ -184,5 +184,5 @@ summary(municipis$poblacio)
                     stderr=subprocess.PIPE,
                     check=True,
                 ).stdout
-                self.assertIn("List of listings", extracted)
+                self.assertIn("List of code examples", extracted)
                 self.assertGreaterEqual(extracted.count("Check the population"), 2)

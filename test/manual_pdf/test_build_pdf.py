@@ -447,14 +447,14 @@ print(1)
         self.assertTrue(metadata["has-figures"])
         self.assertTrue(metadata["has-tables"])
         self.assertTrue(metadata["has-listings"])
-        self.assertEqual("Listing", metadata["listing-label"])
-        self.assertEqual("List of listings", metadata["list-of-listings-title"])
+        self.assertEqual("Code example", metadata["listing-label"])
+        self.assertEqual("List of code examples", metadata["list-of-listings-title"])
 
         catalan = manual_pdf.build_metadata(self.project, self.config, "ca", "ca", {}, [])
-        self.assertEqual("Llistat", catalan["listing-label"])
+        self.assertEqual("Codi", catalan["listing-label"])
         self.assertEqual("Índex de figures", catalan["list-of-figures-title"])
         self.assertEqual("Índex de taules", catalan["list-of-tables-title"])
-        self.assertEqual("Índex de llistats", catalan["list-of-listings-title"])
+        self.assertEqual("Índex de codis", catalan["list-of-listings-title"])
 
     def test_transform_starts_oversized_tables_on_a_fresh_page(self) -> None:
         rows = "\n".join(f"| Row {index} | " + ("Long cell text. " * 12) + "|" for index in range(18))

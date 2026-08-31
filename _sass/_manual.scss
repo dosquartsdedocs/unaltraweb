@@ -642,6 +642,13 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   white-space: nowrap;
 }
 
+.manual-content a {
+  em,
+  strong {
+    color: inherit;
+  }
+}
+
 .manual-chapter-header {
   margin-bottom: 1.4rem;
   padding-bottom: 1rem;
@@ -1266,6 +1273,14 @@ html[data-theme="light"] .figlabel {
 }
 
 @media (max-width: 575px) {
+  .container[role="main"] .manual-content code {
+    overflow-wrap: anywhere;
+  }
+
+  .container[role="main"] .manual-content .md-table code {
+    white-space: normal;
+  }
+
   .site-profile-unaltremanual {
     .navbar-collapse {
       text-align: left !important;

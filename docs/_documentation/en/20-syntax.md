@@ -237,7 +237,7 @@ ogrinfo data/raw/roads.gpkg -so roads
 :::
 ````
 
-The opening line requires a non-empty double-quoted caption and the wrapper must contain exactly one fenced block. Captioned listings have localized, chapter-scoped numbers on the web and in the PDF. The printable manual emits lists of figures, tables, and listings after the table of contents when those elements are present. Ordinary fences remain valid and do not enter the list of listings.
+The opening line requires a non-empty double-quoted caption and the wrapper must contain exactly one fenced block. Captioned code examples have localized, chapter-scoped numbers on the web and in the PDF. The printable manual emits lists of figures, tables, and code examples after the table of contents when those elements are present. Ordinary fences remain valid and do not enter the list of code examples.
 
 ## Links, Citations, And Equations
 

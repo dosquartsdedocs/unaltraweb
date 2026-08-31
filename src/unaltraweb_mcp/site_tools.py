@@ -2555,14 +2555,14 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "id": "captioned_listings",
                 "syntax": ['::: listing "Descriptive caption"', "```python", "print(1)", "```", ":::"],
                 "web": "supported with localized, chapter-scoped numbering above the code panel",
-                "pdf": "supported with the same caption and an entry in the generated list of listings",
+                "pdf": "supported with the same caption and an entry in the generated list of code examples",
                 "guidance": "Use exactly one fenced block inside the wrapper. Keep its language explicit when highlighting is expected. Ordinary fences remain valid but are not numbered or indexed.",
             },
             {
                 "id": "code_and_math",
                 "syntax": ["`inline_code()`", "```python ... ```", "$x_i$", "$$\nE = mc^2\n\\label{eq:model}\n$$", "$\\eqref{eq:model}$", "\\begin{equation*} ... \\end{equation*}"],
                 "web": "inline code and Rouge-highlighted language fences; MathJax math with display equations numbered by default",
-                "pdf": "styled inline code and listings-based language fences; LaTeX math with display equations numbered by default",
+                "pdf": "styled inline code and language-aware code fences; LaTeX math with display equations numbered by default",
                 "guidance": "Use explicit language names on fences. Use url for URLs or decomposed requests, spreadsheet for spreadsheet formulas, and filetree for short file or directory listings. Recognized languages receive highlighting, a header, and line numbers; plain, unlabelled, or unsupported fences remain unnumbered verbatim without a header. Use $...$ for inline math and $$ on separate lines for display math; display equations are numbered by default. Add \\label{eq:...} inside the display block and use $\\eqref{eq:...}$ for a cross-reference. Use equation* only when a displayed expression explicitly does not need a number. Do not use inline code for mathematical variables or \\(...\\) directly in Markdown sources.",
             },
             {
@@ -3091,6 +3091,7 @@ def _atomic_site_source_write(
     temp_fd: int | None = None
     backup_present = False
     installed_identity: tuple[int, int] | None = None
+    committed = False
     try:
         fcntl.flock(parent_fd, fcntl.LOCK_EX)
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
@@ -3103,6 +3104,7 @@ def _atomic_site_source_write(
                 os.link(temporary, relative.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd, follow_symlinks=False)
             except FileExistsError as exc:
                 raise RuntimeError(f"Source path appeared while the create was being applied: {relative}") from exc
+            installed_identity = _path_identity(os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False))
         else:
             current, metadata = _read_source_at(parent_fd, relative.name)
             if _source_hash(current) != expected_sha256:
@@ -3131,17 +3133,23 @@ def _atomic_site_source_write(
                 backup_present = False
                 installed_identity = None
                 raise RuntimeError(f"Source changed in the final update window: {relative}")
+        os.fsync(parent_fd)
+        os.unlink(temporary, dir_fd=parent_fd)
+        temporary = ""
+        if backup_present:
             os.unlink(backup, dir_fd=parent_fd)
             backup_present = False
-        if temporary:
-            os.unlink(temporary, dir_fd=parent_fd)
-            temporary = ""
-        os.fsync(parent_fd)
+        committed = True
     finally:
         if backup_present:
             try:
                 _restore_private_backup(parent_fd, relative.name, backup, installed_identity)
             except (OSError, RuntimeError):
+                pass
+        elif not committed and installed_identity is not None:
+            try:
+                _unlink_if_identity(parent_fd, relative.name, installed_identity)
+            except OSError:
                 pass
         if temp_fd is not None:
             os.close(temp_fd)

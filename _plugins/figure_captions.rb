@@ -66,7 +66,7 @@ module Unaltraweb
       lang_data = i18n[lang] || i18n[site.config["default_lang"]] || {}
       label = lang_data.dig("listings", "label") if lang_data.respond_to?(:dig)
       label ||= lang_data["listing"]
-      label ||= "Listing"
+      label ||= "Code example"
       label.to_s
     end
 
@@ -166,7 +166,7 @@ module Unaltraweb
       out
     end
 
-    def transform_markdown_sugar(text, lang, figure_label, table_label, listing_label = "Listing")
+    def transform_markdown_sugar(text, lang, figure_label, table_label, listing_label = "Code example")
       transform_outside_code_fences(text) do |chunk|
         transformed = transform_markdown_images(chunk, lang, figure_label)
         transformed = transform_markdown_tables(transformed, lang, table_label)
