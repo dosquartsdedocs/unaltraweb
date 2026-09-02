@@ -1,12 +1,21 @@
 #!/bin/sh
 set -eu
 
-project="${1:-${UNALTRAWEB_PROJECT:-${PROJECT:-$PWD}}}"
+project="${1:-${MCP_CONSUMER_WORKSPACE:-${UNALTRAWEB_PROJECT:-$PWD}}}"
 
 if [ "$#" -gt 1 ]; then
   printf '%s\n' 'Usage: unaltraweb-mcp-project-id [PROJECT]' >&2
   exit 2
 fi
+newline='
+'
+carriage_return=$(printf '\r')
+case "$project" in
+  *"$newline"*|*"$carriage_return"*)
+    printf '%s\n' 'Project paths must not contain carriage returns or newlines.' >&2
+    exit 2
+    ;;
+esac
 if [ ! -d "$project" ]; then
   printf 'Project directory not found: %s\n' "$project" >&2
   exit 1

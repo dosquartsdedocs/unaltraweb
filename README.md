@@ -55,7 +55,7 @@ unaltraweb-mcp --project ./my-site new-web --site-profile unaltreselfie --title 
 From this factory checkout, the equivalent command is:
 
 ```bash
-make mcp-new-web PROJECT=./my-site NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
+MCP_CONSUMER_WORKSPACE=./my-site make mcp-new-web NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
 ```
 
 The operation uses only assets shipped in `unaltraweb_mcp`, preflights all managed paths, writes `.unaltraweb/scaffold.json`, and never overwrites differing files. Later `scaffold_sync` calls can update only unchanged baseline runtime files and never touch config or content. `dosquartsdedocs/unaltraweb-template` remains available when a full multi-profile demo with Playwright tests is more useful than a clean profile-specific site.
@@ -136,25 +136,26 @@ make mcp-build
 make mcp-smoke
 ```
 
-ContExt reads the canonical manifest transport `make -C ${factoryRoot} mcp-stdio PROJECT=${workspaceFolder}`. For global Codex and OpenCode registration, the manager converts the workspace placeholder into a launch-time shell wrapper so `$PWD` is captured before `make -C` changes directory. The manifest itself continues to use `make`, an allowed container host launcher, and does not require a `runtime.allowed_host_launchers` exception. An equivalent OpenCode `command` array is:
+ContExt reads the canonical manifest transport `make -C ${factoryRoot} mcp-stdio` and supplies `MCP_CONSUMER_WORKSPACE=${workspaceFolder}` through the process environment. The manifest continues to use `make`, an allowed container host launcher, but no consumer path is parsed by Make or interpolated into shell source. An equivalent direct launch is:
 
-```json
-[
-  "/bin/sh",
-  "-c",
-  "workspace=$PWD; exec make --silent --no-print-directory -C /path/to/unaltraweb mcp-stdio PROJECT=\"$workspace\""
-]
+```bash
+MCP_CONSUMER_WORKSPACE="$PWD" make --silent --no-print-directory -C /path/to/unaltraweb mcp-stdio
 ```
 
-Replace `/path/to/unaltraweb` with this checkout's absolute path and restart the client after changing its configuration. Do not use `PROJECT=.` after `make -C` in a global registration. Each session mounts its resolved project at `/workspace` and at its canonical host path, so Docker-backed authoring tools pass valid bind paths to the host daemon. `build_site` runs Jekyll directly in that MCP runtime and returns the offline HTML audit. `preview_start`, `preview_status`, and `preview_stop` manage one labelled preview container per project; `http_check` derives its origin only from that owned preview and never accepts an arbitrary URL.
+Replace `/path/to/unaltraweb` with this checkout's absolute path and restart the client after changing its configuration. Each session canonicalizes the inherited workspace after launch, then mounts it at `/workspace` and at its canonical host path, so Docker-backed authoring tools pass valid bind paths to the host daemon. `build_site` runs Jekyll directly in that MCP runtime and returns the offline HTML audit. `preview_start`, `preview_status`, and `preview_stop` manage one labelled preview container per project. By default, Docker publishes container port `4000` on a free loopback host port, so previews from distinct workspaces can run concurrently; pass a nonzero `port` only when a fixed host port is required. A running preview created by the former fixed-port default remains idempotently usable until stopped, after which the dynamic default applies. `http_check` derives its origin only from that owned preview and never accepts an arbitrary URL.
 
 Dependency preparation builds images and required companions only; it does not initialize a consumer website, and companion `init` aggregation is disabled. Create a site explicitly with the `new_web` MCP tool. To clean up one consumer project, pass the same canonical project path used at launch:
 
 ```bash
-make mcp-down PROJECT=/path/to/consumer
+MCP_CONSUMER_WORKSPACE=/path/to/consumer make mcp-down
+# If the path was moved or deleted:
+MCP_CONSUMER_WORKSPACE=/old/absent/path MCP_PROJECT_ID=0123456789abcdef make mcp-down
+# Or explicitly remove a stale inherited workspace binding:
+env -u MCP_CONSUMER_WORKSPACE MCP_PROJECT_ID=0123456789abcdef make mcp-down
 ```
 
-This selects only resources carrying both `io.context.mcp-factory=unaltraweb` and that project's stable `io.context.mcp-project` label. Maintainers can deliberately clean every labelled unaltraweb MCP resource with `make mcp-down-all`; neither target deletes images or touches unlabelled containers and networks.
+When the workspace is live, a supplied `MCP_PROJECT_ID` must match its canonical path. A retained ID is accepted only without a live workspace, making stale-resource cleanup explicit. Cleanup selects only resources carrying both `io.context.mcp-factory=unaltraweb` and that project's stable `io.context.mcp-project` label. Maintainers can deliberately clean every labelled unaltraweb MCP resource with `make mcp-down-all`; neither target deletes images or touches unlabelled containers and networks.
+Replace the example retained ID with the 16-hex value from that project's `io.context.mcp-project` Docker label.
 
 ## Bibliometrics
 

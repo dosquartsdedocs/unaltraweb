@@ -7,12 +7,18 @@ import io
 import json
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from unaltraweb_mcp.docker_mount import docker_bind_mount
+
+
 CONTRACT = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text(encoding="utf-8"))
 RUNTIME_IMAGE = str(CONTRACT["components"]["runtime"]["reference"])
 
@@ -47,7 +53,8 @@ def build(output: Path) -> str:
         raise RuntimeError(f"Gem smoke requires the already-local runtime image {RUNTIME_IMAGE}; it never pulls implicitly.")
     run([
         "docker", "run", "--rm", "--network", "none",
-        "-v", f"{ROOT}:/repo:ro", "-v", f"{output.parent}:/out:rw", "-w", "/repo",
+        "--mount", docker_bind_mount(ROOT, "/repo", readonly=True),
+        "--mount", docker_bind_mount(output.parent, "/out"), "-w", "/repo",
         RUNTIME_IMAGE, "gem", "build", "unaltraweb.gemspec", "--output", f"/out/{output.name}",
     ])
     return "docker-runtime"
@@ -62,8 +69,12 @@ def inspect_gem(path: Path) -> None:
             names = set(payload.getnames())
     required = {
         "lib/unaltraweb/version.rb",
+        "scripts/unaltraweb-docker-mount.sh",
+        "scripts/unaltraweb-mcp-cleanup.sh",
+        "scripts/unaltraweb-mcp-project-id.sh",
         "src/unaltraweb_mcp/component-contract.json",
         "src/unaltraweb_mcp/component-contract.schema.json",
+        "src/unaltraweb_mcp/docker_mount.py",
     }
     missing = sorted(required - names)
     if missing:

@@ -57,6 +57,7 @@ def main() -> int:
             "unaltraweb_mcp/component-contract.json",
             "unaltraweb_mcp/component-contract.schema.json",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",
+            "unaltraweb_mcp/scaffolds/common/.unaltraweb/docker-mount.sh",
         ]
         missing = [name for name in required if name not in names]
         if missing:

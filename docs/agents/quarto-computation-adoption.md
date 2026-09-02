@@ -73,8 +73,8 @@ RUN python3 -m pip install --no-cache-dir -r /tmp/requirements-compute.txt
 Then the authoring workflow should be:
 
 ```bash
-make -C ../unaltraweb manual-compute-image-python PROJECT=$PWD
-make -C ../unaltraweb manual-compute-render PROJECT=$PWD COMPUTE_SOURCE=assets/quarto/color-cartography/palette-reference-swatches.qmd
+MCP_CONSUMER_WORKSPACE="$PWD" make -C ../unaltraweb manual-compute-image-python
+MCP_CONSUMER_WORKSPACE="$PWD" make -C ../unaltraweb manual-compute-render COMPUTE_SOURCE=assets/quarto/color-cartography/palette-reference-swatches.qmd
 make build
 ```
 

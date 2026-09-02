@@ -423,8 +423,8 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.html_audit(project)
 
     @mcp.tool()
-    def preview_start(port: int = 4000, site_profile: str = "", timeout_seconds: float = 60.0) -> dict[str, Any]:
-        """Start the single labelled Jekyll preview container for this project and wait for HTTP readiness."""
+    def preview_start(port: int = 0, site_profile: str = "", timeout_seconds: float = 60.0) -> dict[str, Any]:
+        """Start this project's labelled preview, using an automatic host port when port is zero."""
         return tools.preview_start(project, port=port, site_profile=site_profile, timeout_seconds=timeout_seconds)
 
     @mcp.tool()

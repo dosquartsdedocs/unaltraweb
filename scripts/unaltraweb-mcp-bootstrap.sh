@@ -6,12 +6,12 @@ usage() {
 Usage: unaltraweb-mcp-bootstrap [--project PATH] [--image IMAGE]
 
 Start one Dockerized unaltraweb MCP stdio server for the selected workspace.
-If --project is omitted, UNALTRAWEB_PROJECT is used, then the current directory.
+If --project is omitted, MCP_CONSUMER_WORKSPACE is used, then the current directory.
 USAGE
 }
 
 image="${UNALTRAWEB_MCP_IMAGE:-ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0}"
-project="${UNALTRAWEB_PROJECT:-${PROJECT:-}}"
+project="${MCP_CONSUMER_WORKSPACE:-${UNALTRAWEB_PROJECT:-}}"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -40,6 +40,15 @@ done
 if [ -z "$project" ]; then
   project="$PWD"
 fi
+newline='
+'
+carriage_return=$(printf '\r')
+case "$project" in
+  *"$newline"*|*"$carriage_return"*)
+    printf '%s\n' 'Project paths must not contain carriage returns or newlines.' >&2
+    exit 2
+    ;;
+esac
 if [ ! -d "$project" ]; then
   printf 'Project directory not found: %s\n' "$project" >&2
   exit 1
@@ -50,6 +59,8 @@ owner="${UNALTRAWEB_PROJECT_USER:-$(id -u):$(id -g)}"
 docker_socket="${UNALTRAWEB_DOCKER_SOCKET:-/var/run/docker.sock}"
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)"
 project_id="$(/bin/sh "$script_dir/unaltraweb-mcp-project-id.sh" "$project")"
+workspace_mount="$(/bin/sh "$script_dir/unaltraweb-docker-mount.sh" "$project" /workspace)"
+mirror_mount="$(/bin/sh "$script_dir/unaltraweb-docker-mount.sh" "$project" "$project")"
 
 if ! resolved_image="$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/null)"; then
   docker pull "$image" >/dev/null
@@ -64,18 +75,19 @@ set -- docker run --rm -i \
   -e HOME=/tmp \
   -e COMPUTE_CORE=/opt/unaltraweb \
   -e LOCAL_CORE=/opt/unaltraweb \
-  -e "PROJECT=$project" \
+  -e "MCP_CONSUMER_WORKSPACE=$project" \
   -e "UNALTRAWEB_DOCKER_ROOT=$project" \
   -e UNALTRAWEB_FACTORY_DIR=/opt/unaltraweb \
   -e "UNALTRAWEB_MCP_IMAGE=$resolved_image" \
   -e "UNALTRAWEB_PROJECT_USER=$owner" \
-  -v "$project:/workspace" \
-  -v "$project:$project" \
+  --mount "$workspace_mount" \
+  --mount "$mirror_mount" \
   -w "$project"
 
 if [ -S "$docker_socket" ]; then
   socket_group="$(stat -c '%g' "$docker_socket")"
-  set -- "$@" --group-add "$socket_group" -v "$docker_socket:/var/run/docker.sock"
+  socket_mount="$(/bin/sh "$script_dir/unaltraweb-docker-mount.sh" "$docker_socket" /var/run/docker.sock)"
+  set -- "$@" --group-add "$socket_group" --mount "$socket_mount"
 fi
 
 exec "$@" "$resolved_image" --project "$project" mcp serve

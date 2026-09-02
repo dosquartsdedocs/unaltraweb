@@ -206,8 +206,8 @@ manual_pdf_status
 manual_pdf_build
 manual_pdf_publish                      # dry-run by default
 manual_pdf_publish(dry_run=false, confirm_publish=true)
-factory: make manual-pdf-sync PROJECT=/path/to/site
-factory: make manual-pdf-check PROJECT=/path/to/site
+factory: MCP_CONSUMER_WORKSPACE=/path/to/site make manual-pdf-sync
+factory: MCP_CONSUMER_WORKSPACE=/path/to/site make manual-pdf-check
 ```
 
 Builds remain under `tmp/manual-pdf/<lang>/`. Each language build creates both the PDF and a PNG extracted from its first page. The default template derives XeTeX's trailer ID from the build fingerprint, and the builder canonicalizes the lossless PDF streams with qpdf, so identical inputs produce byte-identical PDFs. A custom template must put `\special{pdf:trailerid [<$trailer-id$><$trailer-id$>]}` on its first output page to preserve that property. Publication copies those reviewed artefacts together into the configured project-relative public paths; it does not commit, push, deploy, or write outside the site. `manual-pdf-status` accepts a fresh reviewed build that is still waiting to be copied, while `manual-pdf-check` rejects missing or obsolete public copies. The download button appears automatically when the configured PDF exists among the site's static files, so it cannot point to a missing build. Chapters can opt out with `pdf: false`.

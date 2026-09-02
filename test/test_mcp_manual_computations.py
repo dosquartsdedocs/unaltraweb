@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -97,10 +98,10 @@ Chapter source.
                     "-C",
                     str(FACTORY_ROOT),
                     "manual-compute-render-figures",
-                    f"PROJECT={project}",
                     "COMPUTE_MODE=chapter",
                     "COMPUTE_STALE_ONLY=0",
                 ],
+                env={**os.environ, "MCP_CONSUMER_WORKSPACE": str(project)},
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -122,19 +123,16 @@ Chapter source.
         with self.assertRaisesRegex(ValueError, "safe project-relative"):
             site_tools.manual_computation_status(Path("/tmp/site"), Path("/tmp/factory"), source="$(shell touch /tmp/pwned)")
 
-    def test_factory_delegation_rejects_shell_substitution_in_project_path(self) -> None:
-        with patch("unaltraweb_mcp.site_tools.project_path", side_effect=[Path("/tmp/factory"), Path("/tmp/`touch pwned`")]):
-            with self.assertRaisesRegex(ValueError, "unsafe for Make delegation"):
-                site_tools.run_factory_make(Path("/tmp/factory"), Path("/tmp/site"), "manual-compute-status")
-
     @patch("unaltraweb_mcp.site_tools.run_process")
-    def test_factory_delegation_accepts_spaces_in_project_path(self, run) -> None:
+    def test_factory_delegation_passes_adversarial_project_path_only_in_environment(self, run) -> None:
         run.return_value = subprocess.CompletedProcess([], 0, '{"ok": true}', "")
-        with patch("unaltraweb_mcp.site_tools.project_path", side_effect=[Path("/tmp/factory"), Path("/tmp/My Site")]):
+        adversarial = Path("/tmp/My:Site $Site `tick` 'single' \"double\" $(shell printf BAD)")
+        with patch("unaltraweb_mcp.site_tools.project_path", side_effect=[Path("/tmp/factory"), adversarial]):
             result = site_tools.run_factory_make(Path("/tmp/factory"), Path("/tmp/site"), "manual-compute-status")
 
         self.assertTrue(result["ok"])
-        self.assertIn("PROJECT=/tmp/My Site", run.call_args.args[0])
+        self.assertNotIn(str(adversarial), run.call_args.args[0])
+        self.assertEqual(run.call_args.kwargs["env"]["MCP_CONSUMER_WORKSPACE"], str(adversarial))
 
     @patch("unaltraweb_mcp.site_tools.run_process")
     def test_factory_delegation_fails_closed_on_invalid_or_truncated_json(self, run) -> None:
@@ -164,14 +162,15 @@ Chapter source.
         self.assertFalse(truncated["ok"])
         self.assertIn("truncated", truncated["output_error"])
 
-    def test_factory_make_preserves_project_path_with_spaces(self) -> None:
+    def test_factory_make_preserves_adversarial_project_path(self) -> None:
         root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "My Site"
+            project = Path(temporary) / "My:Site $Site `tick` 'single' \"double\" $(shell printf BAD)"
             project.mkdir()
 
             completed = subprocess.run(
-                ["make", "--silent", "--no-print-directory", "-C", str(root), "manual-compute-status", f"PROJECT={project}"],
+                ["make", "--silent", "--no-print-directory", "-C", str(root), "manual-compute-status"],
+                env={**os.environ, "MCP_CONSUMER_WORKSPACE": str(project)},
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

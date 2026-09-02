@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .distribution import component, component_reference
+from .docker_mount import docker_bind_mount
 from .processes import ProcessResult, run_process
 
 try:
@@ -274,6 +275,7 @@ SCAFFOLD_TEMPLATE_FILES = {"Gemfile.lock.tmpl", "Gemfile.tmpl", "Makefile.tmpl",
 SCAFFOLD_MANIFEST_PATH = Path(".unaltraweb/scaffold.json")
 SCAFFOLD_MANAGED_PATHS = (
     Path(".gitignore"),
+    Path(".unaltraweb/docker-mount.sh"),
     Path("Makefile"),
     Path("Gemfile"),
     Path("Gemfile.lock"),
@@ -711,6 +713,7 @@ def _managed_scaffold_payloads() -> dict[Path, bytes]:
     common_root = _scaffold_root() / "common"
     payloads = {
         Path(".gitignore"): (common_root / ".gitignore").read_bytes(),
+        Path(".unaltraweb/docker-mount.sh"): (common_root / ".unaltraweb/docker-mount.sh").read_bytes(),
         Path(".github/workflows/deploy.yml"): (common_root / ".github/workflows/deploy.yml").read_bytes(),
     }
     replacements = {
@@ -3599,6 +3602,17 @@ def run_make(
     return {"target": target, "command": command, **_process_payload(completed)}
 
 
+def _docker_host_project(project: Path, env: dict[str, str] | None = None) -> str:
+    values = env if env is not None else os.environ
+    raw = values.get("UNALTRAWEB_DOCKER_ROOT")
+    host_project = raw if raw is not None and raw != "" else str(project)
+    if any(character in host_project for character in "\r\n"):
+        raise RuntimeError("UNALTRAWEB_DOCKER_ROOT must not contain carriage returns or newlines.")
+    if not Path(host_project).is_absolute():
+        raise RuntimeError("UNALTRAWEB_DOCKER_ROOT must be an absolute host path.")
+    return host_project
+
+
 def run_factory_make(
     factory: Path,
     project: Path,
@@ -3610,17 +3624,15 @@ def run_factory_make(
 ) -> dict[str, Any]:
     factory_root = project_path(factory)
     project_root = project_path(project)
-    unsafe = set("$`\"'\\\r\n")
-    if any(character in str(path) for path in [factory_root, project_root] for character in unsafe):
-        raise ValueError("Factory and project paths contain characters that are unsafe for Make delegation.")
-    command = ["make", "--silent", "--no-print-directory", "-C", str(factory_root), target, f"PROJECT={project_root}", *(extra_args or [])]
+    command = ["make", "--silent", "--no-print-directory", "-C", str(factory_root), target, *(extra_args or [])]
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
+    merged_env["MCP_CONSUMER_WORKSPACE"] = str(project_root)
     worker_role = WORKER_TARGET_ROLES.get(target, "")
     worker_context: dict[str, str] = {}
     if worker_role:
-        host_project = os.environ.get("UNALTRAWEB_DOCKER_ROOT", "").strip() or str(project_root)
+        host_project = _docker_host_project(project_root, merged_env)
         project_id = hashlib.sha256(host_project.encode("utf-8")).hexdigest()[:16]
         token = hashlib.sha256(f"{project_id}:{target}:{time.time_ns()}".encode("utf-8")).hexdigest()[:16]
         worker_context = {"role": worker_role, "project_id": project_id, "token": token}
@@ -4111,9 +4123,120 @@ PREVIEW_FACTORY_LABEL = "io.context.mcp-factory"
 PREVIEW_ROLE_LABEL = "io.context.mcp-role"
 PREVIEW_PROJECT_LABEL = "io.context.mcp-project"
 PREVIEW_PORT_LABEL = "io.context.mcp-port"
+PREVIEW_CONTAINER_PORT_LABEL = "io.context.mcp-container-port"
 PREVIEW_PROFILE_LABEL = "io.context.mcp-profile"
 PREVIEW_BASEURL_LABEL = "io.context.mcp-baseurl"
 PREVIEW_PATH_LABEL = "io.context.mcp-path"
+
+
+def _preview_route(baseurl: str, permalink: str = "/") -> str:
+    base = baseurl.strip()
+    if base == "/":
+        base = ""
+    parsed_base = urllib.parse.urlsplit(base)
+    if parsed_base.scheme or parsed_base.netloc or parsed_base.query or parsed_base.fragment:
+        raise ValueError("Preview baseurl must be a local path.")
+    if base and not base.startswith("/"):
+        base = "/" + base
+    base = base.rstrip("/")
+    target = permalink.strip() or "/"
+    parsed = urllib.parse.urlsplit(target)
+    if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment or not parsed.path.startswith("/"):
+        raise ValueError("Preview permalink must be an absolute local path.")
+    route = f"{base}/{parsed.path.lstrip('/')}" if parsed.path != "/" else f"{base}/"
+    return _validated_http_paths([route], 1.0)[0]
+
+
+def _preview_output_exists(project: Path, baseurl: str, route: str) -> bool:
+    try:
+        route_path = urllib.parse.urlsplit(_validated_http_paths([route], 1.0)[0]).path
+        base_path = urllib.parse.urlsplit(_preview_route(baseurl)).path.rstrip("/")
+    except ValueError:
+        return False
+    if base_path:
+        if route_path in {base_path, f"{base_path}/"}:
+            relative_text = ""
+        elif route_path.startswith(f"{base_path}/"):
+            relative_text = route_path[len(base_path) + 1 :]
+        else:
+            return False
+    else:
+        relative_text = route_path.lstrip("/")
+    relative = Path(urllib.parse.unquote(relative_text).lstrip("/"))
+    destination = project / "_site"
+    if not relative_text or route_path.endswith("/"):
+        candidates = [destination / relative / "index.html"]
+    else:
+        candidates = [destination / relative, destination / f"{relative}.html", destination / relative / "index.html"]
+    return any(candidate.is_file() for candidate in candidates)
+
+
+def _preview_configured_route(project: Path, config: dict[str, Any]) -> str:
+    baseurl = str(config.get("baseurl") or "")
+    language = default_language(config).strip("/")
+    candidates = [
+        project / "_pages" / language / "index.md" if language else None,
+        project / "_pages" / language / "index.html" if language else None,
+        project / "index.md",
+        project / "index.html",
+        project / "_pages" / "index.md",
+        project / "_pages" / "index.html",
+    ]
+    primary_candidates = {candidate for candidate in candidates if candidate is not None}
+    pages = project / "_pages"
+    if pages.is_dir():
+        candidates.extend(sorted(path for path in pages.rglob("*") if path.suffix.lower() in {".md", ".html"}))
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if candidate is None or candidate in seen or not candidate.is_file():
+            continue
+        seen.add(candidate)
+        front_matter = read_front_matter(candidate)
+        permalink = front_matter.get("permalink")
+        if isinstance(permalink, str) and permalink.strip():
+            if candidate not in primary_candidates and permalink.strip() != "/":
+                continue
+            try:
+                return _preview_route(baseurl, permalink)
+            except ValueError:
+                continue
+        if candidate.parent == project or candidate.parent == pages:
+            return _preview_route(baseurl)
+        if language and candidate.parent == pages / language and candidate.stem == "index":
+            return _preview_route(baseurl, f"/{language}/")
+    return _preview_route(baseurl)
+
+
+def _preview_probe_paths(project: Path, preview: dict[str, Any]) -> list[str]:
+    baseurl = str(preview.get("baseurl") or "")
+    configured = str(preview.get("configured_path") or preview.get("path") or "/")
+    candidates: list[str] = []
+    if _preview_output_exists(project, baseurl, configured):
+        candidates.append(configured)
+    destination = project / "_site"
+    if (destination / "index.html").is_file():
+        try:
+            candidates.append(_preview_route(baseurl))
+        except ValueError:
+            pass
+    language = default_language(site_config(project)).strip("/")
+    if language and (destination / language / "index.html").is_file():
+        try:
+            candidates.append(_preview_route(baseurl, f"/{language}/"))
+        except ValueError:
+            pass
+    candidates.append(configured)
+
+    paths: list[str] = []
+    for candidate in candidates:
+        try:
+            validated = _validated_http_paths([candidate], 1.0)[0]
+        except ValueError:
+            continue
+        if validated not in paths:
+            paths.append(validated)
+    return paths or ["/"]
 
 
 def _docker(args: list[str]) -> ProcessResult:
@@ -4159,7 +4282,7 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
             "--network-alias", service,
             "-e", "HOME=/tmp",
             "-e", "JEKYLL_ENV=development",
-            "-v", f"{host_project}:/workspace",
+            "--mount", docker_bind_mount(host_project, "/workspace"),
             "-w", "/workspace",
             "--entrypoint", "make", image,
             "--no-print-directory", "serve-capture-native", "LOCAL_CORE=/opt/unaltraweb",
@@ -4169,10 +4292,11 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
             raise RuntimeError(started.stderr or started.stdout or "Could not start the isolated web capture site.")
 
         ready = False
+        ready_route = _preview_configured_route(project, site_config(project))
         deadline = time.monotonic() + 60
         while time.monotonic() < deadline:
-            probe = _docker(["exec", service, "curl", "--silent", "--output", "/dev/null", "http://127.0.0.1:4000/"])
-            if probe.returncode == 0:
+            probe = _docker(["exec", service, "curl", "--silent", "--output", "/dev/null", "--write-out", "%{http_code}", f"http://127.0.0.1:4000{ready_route}"])
+            if probe.returncode == 0 and re.fullmatch(r"2\d\d", probe.stdout.strip()):
                 ready = True
                 break
             running = _docker(["inspect", service, "--format", "{{.State.Running}}"])
@@ -4196,9 +4320,8 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
 
 
 def _preview_identity(project: Path) -> tuple[str, str, str]:
-    host_project = os.environ.get("UNALTRAWEB_DOCKER_ROOT", "").strip() or str(project_path(project))
-    if not Path(host_project).is_absolute():
-        raise RuntimeError("UNALTRAWEB_DOCKER_ROOT must be an absolute host path.")
+    project = project_path(project)
+    host_project = _docker_host_project(project)
     project_id = hashlib.sha256(host_project.encode("utf-8")).hexdigest()[:16]
     return host_project, project_id, f"unaltraweb-preview-{project_id}"
 
@@ -4242,8 +4365,16 @@ def _preview_payload(project: Path, info: dict[str, Any], *, include_logs: bool 
         (str(network.get("IPAddress") or "") for network in networks.values() if network.get("IPAddress")),
         "",
     )
-    port = int(labels.get(PREVIEW_PORT_LABEL) or 0)
-    route = str(labels.get(PREVIEW_PATH_LABEL) or "/")
+    requested_port = int(labels.get(PREVIEW_PORT_LABEL) or 0)
+    container_port = int(labels.get(PREVIEW_CONTAINER_PORT_LABEL) or requested_port or 4000)
+    legacy_default_port = PREVIEW_CONTAINER_PORT_LABEL not in labels and requested_port == 4000
+    bindings = (info.get("NetworkSettings", {}).get("Ports", {}) or {}).get(f"{container_port}/tcp") or []
+    port = next(
+        (int(binding["HostPort"]) for binding in bindings if str(binding.get("HostPort") or "").isdigit()),
+        requested_port,
+    )
+    configured_route = str(labels.get(PREVIEW_PATH_LABEL) or "/")
+    baseurl = str(labels.get(PREVIEW_BASEURL_LABEL) or "")
     payload = {
         "project": str(project_path(project)),
         "host_project": host_project,
@@ -4254,10 +4385,22 @@ def _preview_payload(project: Path, info: dict[str, Any], *, include_logs: bool 
         "status": str(state.get("Status") or ""),
         "exit_code": state.get("ExitCode"),
         "port": port,
+        "requested_port": requested_port,
+        "container_port": container_port,
+        "legacy_default_port": legacy_default_port,
         "profile": str(labels.get(PREVIEW_PROFILE_LABEL) or ""),
-        "url": f"http://127.0.0.1:{port}{route}" if port else "",
-        "internal_url": f"http://{ip_address}:{port}{route}" if ip_address and port else "",
+        "baseurl": baseurl,
+        "configured_path": configured_route,
+        "path": configured_route,
+        "url": f"http://127.0.0.1:{port}{configured_route}" if port else "",
+        "internal_url": f"http://{ip_address}:{container_port}{configured_route}" if ip_address else "",
     }
+    effective_paths = _preview_probe_paths(project, payload)
+    if effective_paths:
+        route = effective_paths[0]
+        payload["path"] = route
+        payload["url"] = f"http://127.0.0.1:{port}{route}" if port else ""
+        payload["internal_url"] = f"http://{ip_address}:{container_port}{route}" if ip_address else ""
     if include_logs:
         payload["logs"] = _preview_logs(name)
     return payload
@@ -4285,6 +4428,7 @@ def _wait_for_preview(project: Path, name: str, timeout_seconds: float) -> tuple
     deadline = time.monotonic() + timeout_seconds
     latest: dict[str, Any] = {}
     ready = False
+    ready_path = ""
     while True:
         info = _preview_inspect(name)
         if info is None:
@@ -4296,8 +4440,15 @@ def _wait_for_preview(project: Path, name: str, timeout_seconds: float) -> tuple
         if internal_url:
             parsed = urllib.parse.urlsplit(internal_url)
             origin = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
-            if _http_probe(origin, [parsed.path or "/"], timeout_seconds=1.0)["ok"]:
-                ready = True
+            for path in _preview_probe_paths(project, latest):
+                if _http_probe(origin, [path], timeout_seconds=1.0)["ok"]:
+                    ready_path = path
+                    latest["internal_url"] = origin + path
+                    if latest.get("port"):
+                        latest["url"] = f"http://127.0.0.1:{latest['port']}{path}"
+                    ready = True
+                    break
+            if ready:
                 break
         if time.monotonic() >= deadline:
             break
@@ -4306,13 +4457,20 @@ def _wait_for_preview(project: Path, name: str, timeout_seconds: float) -> tuple
     info = _preview_inspect(name)
     if info is not None:
         latest = _preview_payload(project, info, include_logs=not ready)
+        if ready_path:
+            latest["ready_path"] = ready_path
+            internal = urllib.parse.urlsplit(str(latest.get("internal_url") or ""))
+            if internal.scheme and internal.netloc:
+                latest["internal_url"] = urllib.parse.urlunsplit((internal.scheme, internal.netloc, ready_path, "", ""))
+            if latest.get("port"):
+                latest["url"] = f"http://127.0.0.1:{latest['port']}{ready_path}"
     return ready, latest
 
 
-def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", timeout_seconds: float = 60.0) -> dict[str, Any]:
+def preview_start(project: Path, *, port: int = 0, site_profile: str = "", timeout_seconds: float = 60.0) -> dict[str, Any]:
     project, detection = _require_site_runtime(project, "serve_native")
-    if not 1024 <= port <= 65535:
-        raise ValueError("Preview port must be between 1024 and 65535.")
+    if port != 0 and not 1024 <= port <= 65535:
+        raise ValueError("Preview port must be 0 for automatic allocation or between 1024 and 65535.")
     if not 0 <= timeout_seconds <= 300:
         raise ValueError("Preview timeout must be between 0 and 300 seconds.")
     profile_args = _site_profile_arg(site_profile)
@@ -4324,7 +4482,8 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
         status = _preview_payload(project, existing, include_logs=True)
         if status["running"]:
             requested_profile = site_profile.strip()
-            if status["port"] != port or status["profile"] != requested_profile:
+            port_matches = status["requested_port"] == port or (port == 0 and status["legacy_default_port"])
+            if not port_matches or status["profile"] != requested_profile:
                 raise RuntimeError(
                     f"Preview {name} is already running on port {status['port']} with profile "
                     f"{status['profile'] or '(default)'}. Stop it before changing preview settings."
@@ -4337,12 +4496,9 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
 
     config = site_config(project)
     baseurl = str(config.get("baseurl") or "").strip()
-    if baseurl == "/":
-        baseurl = ""
-    prefix = "/" + baseurl.strip("/") if baseurl else ""
-    lang = default_language(config).strip("/")
-    route = f"{prefix}/{lang}/" if lang else f"{prefix}/"
+    route = _preview_configured_route(project, config)
     image = os.environ.get("UNALTRAWEB_MCP_IMAGE", component_reference("mcp"))
+    container_port = 4000
     owner = os.environ.get("UNALTRAWEB_PROJECT_USER", "").strip()
     if owner and not re.fullmatch(r"\d+:\d+", owner):
         raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
@@ -4353,13 +4509,14 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
         "--label", f"{PREVIEW_ROLE_LABEL}=preview",
         "--label", f"{PREVIEW_PROJECT_LABEL}={project_id}",
         "--label", f"{PREVIEW_PORT_LABEL}={port}",
+        "--label", f"{PREVIEW_CONTAINER_PORT_LABEL}={container_port}",
         "--label", f"{PREVIEW_PROFILE_LABEL}={site_profile.strip()}",
         "--label", f"{PREVIEW_BASEURL_LABEL}={baseurl}",
         "--label", f"{PREVIEW_PATH_LABEL}={route}",
         "-e", "HOME=/tmp",
         "-e", "JEKYLL_ENV=development",
-        "-p", f"127.0.0.1:{port}:{port}",
-        "-v", f"{host_project}:/workspace",
+        "-p", f"127.0.0.1:{port if port else ''}:{container_port}",
+        "--mount", docker_bind_mount(host_project, "/workspace"),
         "-w", "/workspace",
     ]
     if owner:
@@ -4367,7 +4524,7 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
     command.extend([
         "--entrypoint", "make", image,
         "--no-print-directory", "serve-native", "LOCAL_CORE=/opt/unaltraweb",
-        "HOST=0.0.0.0", f"PORT={port}", "LIVERELOAD=", "DEVELOPER_MODE=false",
+        "HOST=0.0.0.0", f"PORT={container_port}", "LIVERELOAD=", "DEVELOPER_MODE=false",
         "PROFILE_DEMO_TITLES=0", *profile_args,
     ])
     started = _docker(command)

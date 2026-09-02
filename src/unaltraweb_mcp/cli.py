@@ -104,7 +104,7 @@ def factory_dir(command: str = "") -> Path:
 
 
 def project_dir(raw: str | None) -> Path:
-    return tools.project_path(raw)
+    return tools.project_path(raw or os.environ.get("MCP_CONSUMER_WORKSPACE"))
 
 
 def print_json(payload: object, *, enforce_ok: bool = False) -> int:
@@ -417,7 +417,7 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--site-profile", default="")
 
     preview_start = mcp_sub.add_parser("preview-start")
-    preview_start.add_argument("--port", type=int, default=4000)
+    preview_start.add_argument("--port", type=int, default=0, help="Host port, or 0 to let Docker allocate a free loopback port")
     preview_start.add_argument("--site-profile", default="")
     preview_start.add_argument("--timeout-seconds", type=float, default=60.0)
 

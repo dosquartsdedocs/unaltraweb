@@ -40,7 +40,7 @@ Create the site through the MCP, the installed package CLI, or this factory chec
 
 ```bash
 unaltraweb-mcp --project ./my-site new-web --site-profile unaltreselfie --title "My site" --default-lang en
-# or: make mcp-new-web PROJECT=./my-site NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
+# or: MCP_CONSUMER_WORKSPACE=./my-site make mcp-new-web NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
 ```
 
 The scaffold is bundled with the Python package and MCP image. Creation aborts before writing when a managed path is a symlink or a differing file already exists. After pushing the generated site, install Git, Docker and GNU Make, then clone it normally:

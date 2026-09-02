@@ -6,9 +6,11 @@ description: Reusable Jekyll website factory with package-owned site creation an
 repository: https://github.com/dosquartsdedocs/unaltraweb
 install_scope: user
 workspace_rule:
+  binding: consumer
   consumer_root: .
   init_creates:
     - .gitignore
+    - .unaltraweb/docker-mount.sh
     - .github/workflows/deploy.yml
     - _config.yml
     - Makefile
@@ -58,10 +60,12 @@ transport:
   type: stdio
   command:
     - make
+    - --no-print-directory
     - -C
     - '${factoryRoot}'
     - mcp-stdio
-    - 'PROJECT=${workspaceFolder}'
+  env:
+    MCP_CONSUMER_WORKSPACE: '${workspaceFolder}'
 commands:
   build:
     - make
@@ -72,13 +76,16 @@ commands:
   smoke:
     - make
     - mcp-smoke
+  down:
+    - make
+    - mcp-down
 discovery:
   suggested_scan_roots:
     - ~/git
   notes:
     - Consumer website repositories remain the workspace root.
     - The on-demand stdio launcher mounts the current workspace into the Dockerized MCP runtime.
-    - Site builds execute inside the MCP runtime; previews use one labelled container per consumer project.
+    - Site builds execute inside the MCP runtime; previews use one labelled container and a dynamically allocated loopback port per consumer project.
     - Durable website state belongs in versioned site files, not in chat history.
 release:
   default: v0.3.0

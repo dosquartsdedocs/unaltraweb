@@ -1,6 +1,6 @@
 PYTHON ?= python3
-PROJECT ?= .
-PROJECT_ROOT := $(shell realpath -m -- "$(PROJECT)")
+override PROJECT := $${MCP_CONSUMER_WORKSPACE:?MCP_CONSUMER_WORKSPACE is required}
+override PROJECT_ROOT := $(PROJECT)
 MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0
 MCP_DOCKER_BUILD_NETWORK ?= default
@@ -21,6 +21,7 @@ COMPUTE_CONFIRM_OVERWRITE ?= 0
 COMPUTE_STALE_ONLY ?= 0
 COMPUTE_MODE ?=
 COMPUTE_SCRIPT := $(CURDIR)/scripts/computations/render.py
+DOCKER_MOUNT_SCRIPT := $(CURDIR)/scripts/unaltraweb-docker-mount.sh
 COMPUTE_PYTHON_LOCAL_IMAGE ?= unaltraweb-compute-python:dev
 COMPUTE_R_LOCAL_IMAGE ?= unaltraweb-compute-r:dev
 COMPUTE_DOCKER_BUILD_NETWORK ?= default
@@ -37,8 +38,6 @@ WEB_CAPTURE_SCRIPT := $(CURDIR)/scripts/web_captures/render.py
 WEB_CAPTURE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0
 WEB_CAPTURE_DEV_IMAGE ?= unaltraweb-web-capture:dev
 WEB_CAPTURE_DOCKER_BUILD_NETWORK ?= default
-VEGAVISUALS_PATH ?= $(PROJECT_ROOT)/../vegavisuals
-VEGAVISUALS_ROOT := $(shell realpath -m -- "$(VEGAVISUALS_PATH)")
 VEGAVISUALS_CLI ?=
 DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 MANUAL_PDF_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0
@@ -59,6 +58,15 @@ PUBLISH_WORKTREE ?= tmp/publish-$(PUBLISH_BRANCH)
 PUBLISH_DRY_RUN ?= 0
 LOCAL_UID ?= $(shell id -u)
 LOCAL_GID ?= $(shell id -g)
+
+ifneq ($(filter mcp-stdio,$(MAKECMDGOALS)),)
+ifneq ($(origin MCP_CONSUMER_WORKSPACE),environment)
+ifneq ($(origin MCP_CONSUMER_WORKSPACE),environment override)
+$(error MCP_CONSUMER_WORKSPACE must be inherited through the process environment)
+endif
+endif
+endif
+
 SCIMAGO_ARGS :=
 ifneq ($(strip $(SCIMAGO_INPUT)),)
 SCIMAGO_ARGS += --input "$(SCIMAGO_INPUT)"
@@ -66,6 +74,10 @@ endif
 
 .PHONY: distribution-check distribution-release-check distribution-doctor workflow-check wheel-check gem-check docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check manual-pdf-image manual-pdf-image-dev manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio compute-base-image-python compute-base-image-r web-capture-status web-capture-check web-capture-render web-capture-image visualization-status visualization-check visualization-render
 .PHONY: mcp-runtime-image mcp-image mcp-build mcp-check mcp-smoke mcp-smoke-prebuilt mcp-stdio mcp-down mcp-down-all mcp-list-tools mcp-starter-templates mcp-new-web mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
+
+REPOSITORY_CONTEXT_TARGETS := distribution-doctor manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio web-capture-status web-capture-check web-capture-render visualization-status visualization-check visualization-render manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync metrics-scimago-fetch metrics-update metrics-update-all metrics-check
+$(REPOSITORY_CONTEXT_TARGETS): override PROJECT = $${MCP_CONSUMER_WORKSPACE:-$$PWD}
+$(REPOSITORY_CONTEXT_TARGETS): override PROJECT_ROOT = $${MCP_CONSUMER_WORKSPACE:-$$PWD}
 
 distribution-check: ## Validate component/version parity, release selections, and the wheel boundary
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) scripts/validate_distribution.py
@@ -104,23 +116,21 @@ mcp-smoke-prebuilt: ## Prove a real MCP stdio connection using the selected preb
 	@mkdir -p "$(CURDIR)/tmp/mcp-preview-smoke"
 	@docker_socket="$${UNALTRAWEB_DOCKER_SOCKET:-/var/run/docker.sock}"; socket_group=$$(stat -c '%g' "$$docker_socket"); \
 	image_id=$$(docker image inspect --format '{{.Id}}' "$(MCP_IMAGE)"); \
-	preview_port=$$(docker run --rm --network host --entrypoint python3 "$$image_id" -c 'import socket; listener=socket.socket(); listener.bind(("127.0.0.1", 0)); print(listener.getsockname()[1]); listener.close()'); \
+	socket_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$$docker_socket" /var/run/docker.sock); \
+	project_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(CURDIR)/tmp/mcp-preview-smoke" /workspace); \
 	docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" --group-add "$$socket_group" \
 	  -e HOME=/tmp -e "UNALTRAWEB_DOCKER_ROOT=$(CURDIR)/tmp/mcp-preview-smoke" \
 	  -e "UNALTRAWEB_PROJECT_USER=$(LOCAL_UID):$(LOCAL_GID)" -e "UNALTRAWEB_MCP_IMAGE=$$image_id" \
-	  -e "UNALTRAWEB_PREVIEW_PORT=$$preview_port" \
-	  -v "$$docker_socket:/var/run/docker.sock" -v "$(CURDIR)/tmp/mcp-preview-smoke:/workspace" -w /workspace \
+	  --mount "$$socket_mount" \
+	  --mount "$$project_mount" -w /workspace \
 	  --entrypoint python3 "$$image_id" /opt/unaltraweb/test/mcp_preview_smoke.py
 
-mcp-stdio: ## Serve the current PROJECT through the Dockerized stdio MCP
+mcp-stdio: ## Serve MCP_CONSUMER_WORKSPACE through the Dockerized stdio MCP
+	@test -n "$${MCP_CONSUMER_WORKSPACE:-}" || { printf '%s\n' 'MCP_CONSUMER_WORKSPACE is required' >&2; exit 2; }
 	@exec "$(CURDIR)/scripts/unaltraweb-mcp-bootstrap.sh" --image "$(MCP_IMAGE)"
 
-mcp-down: ## Remove MCP resources owned by PROJECT
-	@project_id="$$(/bin/sh "$(CURDIR)/scripts/unaltraweb-mcp-project-id.sh" "$(PROJECT_ROOT)")" || exit $$?; \
-	containers="$$(docker ps -aq --filter "label=io.context.mcp-factory=unaltraweb" --filter "label=io.context.mcp-project=$$project_id")" || exit $$?; \
-	if [ -n "$$containers" ]; then docker rm -f $$containers || exit $$?; fi; \
-	networks="$$(docker network ls -q --filter "label=io.context.mcp-factory=unaltraweb" --filter "label=io.context.mcp-project=$$project_id")" || exit $$?; \
-	if [ -n "$$networks" ]; then docker network rm $$networks; fi
+mcp-down: ## Remove MCP resources owned by MCP_CONSUMER_WORKSPACE or MCP_PROJECT_ID
+	@exec "$(CURDIR)/scripts/unaltraweb-mcp-cleanup.sh"
 
 mcp-down-all: ## Remove all MCP resources owned by this factory (maintainers only)
 	@containers="$$(docker ps -aq --filter "label=io.context.mcp-factory=unaltraweb")" || exit $$?; \
@@ -223,6 +233,8 @@ manual-compute-render: ## Execute sources and atomically publish Markdown and fi
 	runtime_dir="$(PROJECT_ROOT)/tmp/.unaltraweb/computations"; \
 	mkdir -p "$$runtime_dir"; runtime_script=$$(mktemp "$$runtime_dir/render.XXXXXX"); cp "$(COMPUTE_SCRIPT)" "$$runtime_script"; \
 	results=$$(mktemp); cidfiles=""; trap 'rm -f "$$results" "$$runtime_script" $$cidfiles' EXIT; \
+	project_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(PROJECT_ROOT)" /project); \
+	runtime_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$$runtime_script" /opt/unaltraweb/computations/render.py readonly); \
 	status=$$(COMPUTE_PYTHON_IMAGE="$(COMPUTE_PYTHON_IMAGE)" COMPUTE_R_IMAGE="$(COMPUTE_R_IMAGE)" $(PYTHON) "$(COMPUTE_SCRIPT)" status --project "$(PROJECT_ROOT)" $(if $(strip $(COMPUTE_SOURCE)),--source "$(COMPUTE_SOURCE)",) $(if $(strip $(COMPUTE_MODE)),--mode "$(COMPUTE_MODE)",)); \
 	engines=$$(printf '%s' "$$status" | $(PYTHON) -c 'import json,sys; data=json.load(sys.stdin); print(" ".join(f"{engine}={image}" for engine,image in sorted({(item["engine"], item["image"]["image"]) for item in data["sources"]})))'); \
 	for selection in $$engines; do \
@@ -238,11 +250,13 @@ manual-compute-render: ## Execute sources and atomically publish Markdown and fi
 	  docker run --rm "$$@" $(WORKER_LABEL_ARGS) --user "$(LOCAL_UID):$(LOCAL_GID)" --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit "$(COMPUTE_PIDS_LIMIT)" --cpus "$(COMPUTE_CPUS)" --memory "$(COMPUTE_MEMORY)" --tmpfs /tmp:rw,noexec,nosuid,size=1g \
 	    -e HOME=/tmp -e COMPUTE_PYTHON_IMAGE="$$python_image" -e COMPUTE_R_IMAGE="$$r_image" \
 	    -e UNALTRAWEB_COMPUTE_IMAGE_ID="$$identity" -e UNALTRAWEB_COMPUTE_IMAGE_DIGEST="$$digest" \
-	    -v "$(PROJECT_ROOT):/project:rw" -v "$$runtime_script:/opt/unaltraweb/computations/render.py:ro" -w /project --entrypoint python3 "$$image" \
+	    --mount "$$project_mount" \
+	    --mount "$$runtime_mount" \
+	    -w /project --entrypoint python3 "$$image" \
 	    /opt/unaltraweb/computations/render.py render --project /project --engine "$$engine" $(if $(strip $(COMPUTE_SOURCE)),--source "$(COMPUTE_SOURCE)",) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_CONFIRM_OVERWRITE)),--confirm-overwrite,) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_STALE_ONLY)),--stale-only,) $(if $(strip $(COMPUTE_MODE)),--mode "$(COMPUTE_MODE)",) >> "$$results"; \
 	done; \
 	if test -z "$(strip $(COMPUTE_SOURCE))"; then $(PYTHON) "$(COMPUTE_SCRIPT)" prune --project "$(PROJECT_ROOT)" >/dev/null; fi; \
-	$(PYTHON) -c 'import json,sys; text=open(sys.argv[1], encoding="utf-8").read(); decoder=json.JSONDecoder(); items=[]; index=0; exec("while index < len(text):\n index += len(text[index:]) - len(text[index:].lstrip())\n if index >= len(text): break\n item,index = decoder.raw_decode(text,index)\n items.append(item)"); rendered=[entry for item in items for entry in item.get("rendered", [])]; print(json.dumps({"project":"$(PROJECT_ROOT)","rendered":rendered,"rendered_count":len(rendered),"ok":all(item.get("ok",False) for item in items)}, indent=2))' "$$results"
+	$(PYTHON) -c 'import json,sys; text=open(sys.argv[1], encoding="utf-8").read(); decoder=json.JSONDecoder(); items=[]; index=0; exec("while index < len(text):\n index += len(text[index:]) - len(text[index:].lstrip())\n if index >= len(text): break\n item,index = decoder.raw_decode(text,index)\n items.append(item)"); rendered=[entry for item in items for entry in item.get("rendered", [])]; print(json.dumps({"project":sys.argv[2],"rendered":rendered,"rendered_count":len(rendered),"ok":all(item.get("ok",False) for item in items)}, indent=2))' "$$results" "$(PROJECT_ROOT)"
 
 manual-compute-render-figures: override COMPUTE_STALE_ONLY := 1
 manual-compute-render-figures: override COMPUTE_MODE := figure
@@ -264,7 +278,8 @@ compute-base-image-r: ## Build the reusable local R computation image
 
 manual-compute-rstudio: manual-compute-image-r ## Open the selected R computation image in RStudio Server
 	@image=$$(COMPUTE_PYTHON_IMAGE="$(COMPUTE_PYTHON_IMAGE)" COMPUTE_R_IMAGE="$(COMPUTE_R_IMAGE)" $(PYTHON) "$(COMPUTE_SCRIPT)" resolve --project "$(PROJECT_ROOT)" --engine r | $(PYTHON) -c 'import json,sys; print(json.load(sys.stdin)["image"])'); \
-	docker run --rm -it -p "127.0.0.1:$(RSTUDIO_PORT):8787" -e DISABLE_AUTH=true -e USERID="$(LOCAL_UID)" -e GROUPID="$(LOCAL_GID)" -v "$(PROJECT_ROOT):/home/rstudio/project" -w /home/rstudio/project "$$image" /init
+	mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(PROJECT_ROOT)" /home/rstudio/project); \
+	docker run --rm -it -p "127.0.0.1:$(RSTUDIO_PORT):8787" -e DISABLE_AUTH=true -e USERID="$(LOCAL_UID)" -e GROUPID="$(LOCAL_GID)" --mount "$$mount" -w /home/rstudio/project "$$image" /init
 
 web-capture-status: ## Inspect web capture recipes and generated artefacts
 	@WEB_CAPTURE_IMAGE="$(WEB_CAPTURE_IMAGE)" $(PYTHON) "$(WEB_CAPTURE_SCRIPT)" status --project "$(PROJECT_ROOT)" $(if $(strip $(WEB_CAPTURE_SOURCE)),--source "$(WEB_CAPTURE_SOURCE)",)
@@ -279,12 +294,13 @@ web-capture-image: ## Build the isolated Playwright web capture image
 	docker build --network "$(WEB_CAPTURE_DOCKER_BUILD_NETWORK)" -f scripts/web_captures/Dockerfile -t "$(WEB_CAPTURE_DEV_IMAGE)" .
 
 define run_vegavisuals
-	@if test ! -f "$(PROJECT_ROOT)/.vegavisuals.yml"; then \
+	@visuals_root="$${VEGAVISUALS_PATH:-$(PROJECT_ROOT)/../vegavisuals}"; visuals_root="$$(realpath -m -- "$$visuals_root")"; \
+	if test ! -f "$(PROJECT_ROOT)/.vegavisuals.yml"; then \
 	  printf '%s\n' 'No .vegavisuals.yml; skipping visualization $(1).'; \
 	elif test -n "$(strip $(VEGAVISUALS_CLI))"; then \
 	  "$(VEGAVISUALS_CLI)" --project "$(PROJECT_ROOT)" $(1); \
-	elif test -f "$(VEGAVISUALS_ROOT)/src/vegavisuals/cli.py"; then \
-	  PYTHONPATH="$(VEGAVISUALS_ROOT)/src$${PYTHONPATH:+:$$PYTHONPATH}" $(PYTHON) -m vegavisuals.cli --project "$(PROJECT_ROOT)" $(1); \
+	elif test -f "$$visuals_root/src/vegavisuals/cli.py"; then \
+	  PYTHONPATH="$$visuals_root/src$${PYTHONPATH:+:$$PYTHONPATH}" $(PYTHON) -m vegavisuals.cli --project "$(PROJECT_ROOT)" $(1); \
 	elif command -v vegavisuals >/dev/null 2>&1; then \
 	  vegavisuals --project "$(PROJECT_ROOT)" $(1); \
 	else \
@@ -311,13 +327,14 @@ manual-pdf-image-dev: ## Build the explicitly named maintainer PDF development i
 define run_manual_pdf_worker
 	@set -e; runtime_dir="$(PROJECT_ROOT)/tmp/.unaltraweb/manual-pdf"; mkdir -p "$$runtime_dir"; set --; cidfile=""; \
 	if test -n "$(UNALTRAWEB_WORKER_TOKEN)"; then cidfile="$$runtime_dir/worker-$(UNALTRAWEB_WORKER_TOKEN).cid"; rm -f "$$cidfile"; set -- --cidfile "$$cidfile"; fi; \
+	mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(PROJECT_ROOT)" /project); \
 	trap 'test -z "$$cidfile" || rm -f "$$cidfile"' EXIT; \
-	docker run --rm "$$@" $(WORKER_LABEL_ARGS) --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -v "$(PROJECT_ROOT):/project" -w /project "$(MANUAL_PDF_IMAGE)" $(1) --project /project $(if $(strip $(MANUAL_PDF_LANG)),--language "$(MANUAL_PDF_LANG)",) $(2)
+	docker run --rm "$$@" $(WORKER_LABEL_ARGS) --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp --mount "$$mount" -w /project "$(MANUAL_PDF_IMAGE)" $(1) --project /project $(if $(strip $(MANUAL_PDF_LANG)),--language "$(MANUAL_PDF_LANG)",) $(2)
 endef
 
 manual-pdf-preflight: ## Run required PDF gates without contaminating the worker JSON stream
-	@$(MAKE) --silent --no-print-directory manual-compute-check PROJECT="$(PROJECT_ROOT)" >/dev/null
-	@$(MAKE) --silent --no-print-directory web-capture-check PROJECT="$(PROJECT_ROOT)" >/dev/null
+	@$(MAKE) --silent --no-print-directory manual-compute-check >/dev/null
+	@$(MAKE) --silent --no-print-directory web-capture-check >/dev/null
 	@docker image inspect "$(MANUAL_PDF_IMAGE)" >/dev/null 2>&1 || docker pull "$(MANUAL_PDF_IMAGE)" >/dev/null
 
 manual-pdf-status: manual-pdf-preflight ## Inspect manual PDF configuration and artefacts
@@ -336,11 +353,11 @@ manual-pdf-sync: manual-pdf-preflight ## Build and copy changed manual PDFs to t
 	$(call run_manual_pdf_worker,sync)
 
 docs-build: visualization-check
-	docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e BUNDLE_GEMFILE=docs/Gemfile -e BUNDLE_APP_CONFIG=/work/tmp/docs_bundle_config -e BUNDLE_PATH=/work/tmp/docs_bundle_path -v "$(CURDIR):/work" -w /work $(DOCKER_IMAGE) bash -lc 'git config --global --add safe.directory /work >/dev/null 2>&1 || true; mkdir -p tmp/docs_bundle_config tmp/docs_bundle_path; bundle check || bundle install; core_config=$$(bundle exec ruby -e "spec = Gem::Specification.find_by_name(\"unaltraweb\"); print File.join(spec.full_gem_path, \"_config.yml\")"); bundle exec jekyll build --source docs --destination tmp/docs-site --config "$$core_config,docs/_config.yml" --disable-disk-cache'
+	@mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$$PWD" /work); docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e BUNDLE_GEMFILE=docs/Gemfile -e BUNDLE_APP_CONFIG=/work/tmp/docs_bundle_config -e BUNDLE_PATH=/work/tmp/docs_bundle_path --mount "$$mount" -w /work $(DOCKER_IMAGE) bash -lc 'git config --global --add safe.directory /work >/dev/null 2>&1 || true; mkdir -p tmp/docs_bundle_config tmp/docs_bundle_path; bundle check || bundle install; core_config=$$(bundle exec ruby -e "spec = Gem::Specification.find_by_name(\"unaltraweb\"); print File.join(spec.full_gem_path, \"_config.yml\")"); bundle exec jekyll build --source docs --destination tmp/docs-site --config "$$core_config,docs/_config.yml" --disable-disk-cache'
 
 docs-serve: visualization-check
 	-docker rm -f "$(DOCS_CONTAINER)" >/dev/null 2>&1 || true
-	docker run --name "$(DOCS_CONTAINER)" --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e BUNDLE_GEMFILE=docs/Gemfile -e BUNDLE_APP_CONFIG=/work/tmp/docs_bundle_config -e BUNDLE_PATH=/work/tmp/docs_bundle_path -p "$(DOCS_PORT):$(DOCS_PORT)" -v "$(CURDIR):/work" -w /work $(DOCKER_IMAGE) bash -lc 'git config --global --add safe.directory /work >/dev/null 2>&1 || true; mkdir -p tmp/docs_bundle_config tmp/docs_bundle_path; bundle check || bundle install; core_config=$$(bundle exec ruby -e "spec = Gem::Specification.find_by_name(\"unaltraweb\"); print File.join(spec.full_gem_path, \"_config.yml\")"); bundle exec jekyll serve --source docs --destination tmp/docs-site --config "$$core_config,docs/_config.yml" --host $(DOCS_HOST) --port $(DOCS_PORT) --disable-disk-cache'
+	@mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$$PWD" /work); docker run --name "$(DOCS_CONTAINER)" --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e BUNDLE_GEMFILE=docs/Gemfile -e BUNDLE_APP_CONFIG=/work/tmp/docs_bundle_config -e BUNDLE_PATH=/work/tmp/docs_bundle_path -p "$(DOCS_PORT):$(DOCS_PORT)" --mount "$$mount" -w /work $(DOCKER_IMAGE) bash -lc 'git config --global --add safe.directory /work >/dev/null 2>&1 || true; mkdir -p tmp/docs_bundle_config tmp/docs_bundle_path; bundle check || bundle install; core_config=$$(bundle exec ruby -e "spec = Gem::Specification.find_by_name(\"unaltraweb\"); print File.join(spec.full_gem_path, \"_config.yml\")"); bundle exec jekyll serve --source docs --destination tmp/docs-site --config "$$core_config,docs/_config.yml" --host $(DOCS_HOST) --port $(DOCS_PORT) --disable-disk-cache'
 
 docs-publish: docs-build
 	PUBLISH_REMOTE="$(PUBLISH_REMOTE)" PUBLISH_BRANCH="$(PUBLISH_BRANCH)" PUBLISH_SOURCE="$(PUBLISH_SOURCE)" PUBLISH_WORKTREE="$(PUBLISH_WORKTREE)" PUBLISH_DRY_RUN="$(PUBLISH_DRY_RUN)" scripts/deploy/publish_branch.sh
@@ -349,14 +366,14 @@ docs-down:
 	-docker rm -f "$(DOCS_CONTAINER)" >/dev/null 2>&1 || true
 
 metrics-scimago-fetch:
-	@cd "$(PROJECT_ROOT)" && "$(CURDIR)/scripts/biblio/fetch_scimago_csv.sh" $(SCIMAGO_ARGS) 1>&2 && $(PYTHON) -c 'import json; print(json.dumps({"ok": True, "project": "$(PROJECT_ROOT)", "scimago": ".cache/scimago/scimagojr.csv"}, indent=2))'
+	@cd "$(PROJECT_ROOT)" && "$(CURDIR)/scripts/biblio/fetch_scimago_csv.sh" $(SCIMAGO_ARGS) 1>&2 && $(PYTHON) -c 'import json,sys; print(json.dumps({"ok": True, "project": sys.argv[1], "scimago": ".cache/scimago/scimagojr.csv"}, indent=2))' "$(PROJECT_ROOT)"
 
 metrics-update:
-	@cd "$(PROJECT_ROOT)" && $(PYTHON) "$(CURDIR)/scripts/biblio/metrics_update.py" $(METRICS_ARGS) 1>&2 && $(PYTHON) -c 'import json; print(json.dumps({"ok": True, "project": "$(PROJECT_ROOT)", "updated": True}, indent=2))'
+	@cd "$(PROJECT_ROOT)" && $(PYTHON) "$(CURDIR)/scripts/biblio/metrics_update.py" $(METRICS_ARGS) 1>&2 && $(PYTHON) -c 'import json,sys; print(json.dumps({"ok": True, "project": sys.argv[1], "updated": True}, indent=2))' "$(PROJECT_ROOT)"
 
 metrics-update-all:
-	@$(MAKE) --silent --no-print-directory metrics-scimago-fetch PROJECT="$(PROJECT_ROOT)" SCIMAGO_INPUT="$(SCIMAGO_INPUT)" 1>&2
-	@$(MAKE) --silent --no-print-directory metrics-update PROJECT="$(PROJECT_ROOT)" METRICS_ARGS="$(METRICS_ARGS)"
+	@$(MAKE) --silent --no-print-directory metrics-scimago-fetch SCIMAGO_INPUT="$(SCIMAGO_INPUT)" 1>&2
+	@$(MAKE) --silent --no-print-directory metrics-update METRICS_ARGS="$(METRICS_ARGS)"
 
 metrics-check:
-	@cd "$(PROJECT_ROOT)" && $(PYTHON) "$(CURDIR)/scripts/biblio/metrics_update.py" --offline --dry-run $(METRICS_ARGS) 1>&2 && $(PYTHON) -c 'import json; print(json.dumps({"ok": True, "project": "$(PROJECT_ROOT)", "offline": True, "dry_run": True}, indent=2))'
+	@cd "$(PROJECT_ROOT)" && $(PYTHON) "$(CURDIR)/scripts/biblio/metrics_update.py" --offline --dry-run $(METRICS_ARGS) 1>&2 && $(PYTHON) -c 'import json,sys; print(json.dumps({"ok": True, "project": sys.argv[1], "offline": True, "dry_run": True}, indent=2))' "$(PROJECT_ROOT)"

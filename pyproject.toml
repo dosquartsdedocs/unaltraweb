@@ -40,6 +40,7 @@ unaltraweb_mcp = [
   "component-contract.schema.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore",
+  "scaffolds/common/.unaltraweb/*.sh",
   "scaffolds/common/.github/workflows/*.yml",
   "scaffolds/profiles/*/*.tmpl",
   "scaffolds/profiles/*/**/*",

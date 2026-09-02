@@ -120,29 +120,29 @@ jobs:
         run: |
           python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
-          make -C "$core_dir" manual-compute-check PROJECT="$GITHUB_WORKSPACE"
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" manual-compute-check
 
       - name: Check web capture freshness
         if: ${{ inputs.check-web-captures }}
         run: |
           python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
-          make -C "$core_dir" web-capture-check PROJECT="$GITHUB_WORKSPACE"
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" web-capture-check
 
       - name: Check Vega visualization freshness
         if: ${{ inputs.check-visualizations }}
         run: |
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
           vegavisuals_cli="$(command -v vegavisuals || true)"
-          make -C "$core_dir" visualization-check PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli"
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" visualization-check VEGAVISUALS_CLI="$vegavisuals_cli"
 
       - name: Check published manual PDFs
         if: ${{ inputs.check-manual-pdf }}
         run: |
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
           vegavisuals_cli="$(command -v vegavisuals || true)"
-          make -C "$core_dir" manual-pdf-build PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
-          make -C "$core_dir" manual-pdf-check PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" manual-pdf-build VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" manual-pdf-check VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
 
       - name: Sync manual PDFs
         if: ${{ inputs.sync-manual-pdf }}
@@ -151,7 +151,7 @@ jobs:
           if python -c 'import sys,yaml; data=yaml.safe_load(open("_config.yml", encoding="utf-8")) or {}; sys.exit(0 if data.get("unaltraweb", {}).get("manual", {}).get("pdf", {}).get("enabled") is True else 1)'; then
             core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
             vegavisuals_cli="$(command -v vegavisuals || true)"
-            make -C "$core_dir" manual-pdf-sync PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
+            MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" manual-pdf-sync VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
           else
             echo "Manual PDF generation is disabled; skipping synchronization."
           fi
