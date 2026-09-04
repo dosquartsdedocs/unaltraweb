@@ -457,6 +457,15 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   line-height: 1.55;
 }
 
+.manual-release-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0.75rem 0 0;
+  color: var(--global-text-color-light);
+  font-size: 0.84rem;
+}
+
 .manual-download {
   display: inline-flex;
   align-items: center;
@@ -596,6 +605,21 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   line-height: 1.4;
 }
 
+.md-code-listing {
+  margin: 1.8rem 0;
+}
+
+.md-code-caption {
+  margin-bottom: 0.55rem;
+  color: var(--global-text-color-light);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.md-code-listing .uw-code-block {
+  margin: 0;
+}
+
 .md-table-inner {
   overflow-x: auto;
   border: 1px solid var(--global-divider-color);
@@ -625,6 +649,13 @@ html[data-theme="cafe"] .site-profile-unaltremanual .manual-navbar-logo-cafe {
   padding: 0.1rem 0.32rem;
   font-weight: 650;
   white-space: nowrap;
+}
+
+.manual-content a {
+  em,
+  strong {
+    color: inherit;
+  }
 }
 
 .manual-chapter-header {
@@ -1251,6 +1282,14 @@ html[data-theme="light"] .figlabel {
 }
 
 @media (max-width: 575px) {
+  .container[role="main"] .manual-content code {
+    overflow-wrap: anywhere;
+  }
+
+  .container[role="main"] .manual-content .md-table code {
+    white-space: normal;
+  }
+
   .site-profile-unaltremanual {
     .navbar-collapse {
       text-align: left !important;
@@ -1338,7 +1377,11 @@ html[data-theme="light"] .figlabel {
     }
 
     .manual-navbar-search .manual-navbar-search-input:focus {
-      width: min(13rem, 46vw);
+      position: fixed;
+      top: 0.55rem;
+      right: 0.75rem;
+      z-index: 1090;
+      width: calc(100vw - 1.5rem);
       border-color: var(--global-divider-color);
       background: var(--global-card-bg-color);
       color: var(--global-text-color);
@@ -1351,12 +1394,12 @@ html[data-theme="light"] .figlabel {
     }
 
     .manual-navbar-search .manual-navbar-search-results {
-      position: absolute;
-      top: calc(100% + 0.42rem);
-      right: 0;
-      left: auto;
-      width: min(16rem, 80vw);
-      margin-top: 0.42rem;
+      position: fixed;
+      top: 3.35rem;
+      right: 0.75rem;
+      left: 0.75rem;
+      width: auto;
+      margin-top: 0;
     }
   }
 }

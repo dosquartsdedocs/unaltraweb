@@ -58,6 +58,22 @@ unaltraweb-mcp --project . mcp html-audit
 
 The generated `make test` builds and runs the offline HTML audit. `build_site` returns the same audit after a successful build. External URLs are inventoried but never fetched.
 
+## Calibre Metadata Import
+
+The installed host CLI can import book metadata and `cover.jpg` files from an external Calibre library into `_books/` and `assets/img/books/`. It never copies ebook files. The command is a dry run unless `--write` is explicit:
+
+```bash
+unaltraweb-mcp --project /path/to/site import-calibre \
+  --library /path/to/Calibre-Library \
+  --source-key geography \
+  --collection-name "Geography readings" \
+  --profiles unaltreselfie
+
+# Repeat the reviewed command with --write to create project files.
+```
+
+Use `--ids 12,34` or `--limit 10` to select records. `--refresh-existing` updates a Markdown file only when its front matter has the same `calibre_source` and `calibre_id`; unrelated Markdown and cover collisions stop the whole preflight without writing. Library paths and cover sources are checked for traversal and symlinks. This is deliberately a host CLI command, not an MCP tool, because external Calibre libraries are not mounted in the MCP container.
+
 ## Integration Template Commands
 
 Run these from a child site created from `unaltraweb-template`:

@@ -10,6 +10,8 @@
   --global-code-bg-color: #{$code-bg-color-light};
   --global-code-text-color: #5a1f5f;
   --global-code-border-color: #d7bfd9;
+  --global-code-row-alt-color: #edf2f7;
+  --global-code-comment-color: #39705a;
   --global-text-color: #{$black-color};
   --global-text-color-light: #{$grey-color};
   --global-theme-color: #{$purple-color};
@@ -91,6 +93,8 @@ html[data-theme="dark"] {
   --global-code-bg-color: #{$code-bg-color-dark};
   --global-code-text-color: #f2b8ff;
   --global-code-border-color: #596169;
+  --global-code-row-alt-color: #303840;
+  --global-code-comment-color: #91c9a9;
   --global-text-color: #{$grey-color-light};
   --global-text-color-light: #{$grey-color};
   --global-theme-color: #{$cyan-color};
@@ -143,6 +147,8 @@ html[data-theme="cafe"] {
   --global-code-bg-color: #ede0c2;
   --global-code-text-color: #6d3d68;
   --global-code-border-color: #b8a887;
+  --global-code-row-alt-color: #e3d5b6;
+  --global-code-comment-color: #52705d;
   --global-text-color: #463524;
   --global-text-color-light: #756349;
   --global-theme-color: #7a591b;

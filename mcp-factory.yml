@@ -2,7 +2,7 @@ schema_version: 1
 name: unaltraweb
 kind: codex-mcp-factory
 version: 0.3.0
-description: Reusable Jekyll website factory with package-owned site creation and MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, and build checks.
+description: Reusable Jekyll website factory with package-owned site creation and MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, build checks, and local manual release candidates.
 repository: https://github.com/dosquartsdedocs/unaltraweb
 install_scope: user
 workspace_rule:
@@ -11,6 +11,9 @@ workspace_rule:
   init_creates:
     - .gitignore
     - .unaltraweb/docker-mount.sh
+    - AGENTS.md
+    - README.md
+    - .github/pull_request_template.md
     - .github/workflows/deploy.yml
     - _config.yml
     - Makefile
@@ -27,10 +30,16 @@ workspace_rule:
     - _data
     - assets
     - context
+    - .unaltraweb/computations.yml
     - .github/workflows
     - .unaltraweb/scaffold.json
   source_paths:
+    - AGENTS.md
+    - README.md
     - _config.yml
+    - .unaltraweb/docker-mount.sh
+    - .unaltraweb/computations.yml
+    - .vegavisuals.yml
     - _pages
     - _posts
     - _news
@@ -41,11 +50,15 @@ workspace_rule:
     - _books
     - _theses
     - _data
+    - assets
     - context
   generated_paths:
     - _site
     - tmp
     - .cache/scimago
+    - .unaltraweb/computations.lock.json
+    - .unaltraweb/receipts/diavisuals.json
+    - .unaltraweb/receipts/vegavisuals.json
     - assets/diagrams/**/*.svg from Mermaid or PlantUML sources
     - assets/**/*.capture.png and assets/**/*.capture.svg from selector-based web capture recipes
     - .vegavisuals.lock.json and outputs declared by .vegavisuals.yml
@@ -87,6 +100,7 @@ discovery:
     - The on-demand stdio launcher mounts the current workspace into the Dockerized MCP runtime.
     - Site builds execute inside the MCP runtime; previews use one labelled container and a dynamically allocated loopback port per consumer project.
     - Durable website state belongs in versioned site files, not in chat history.
+    - Manual release tools prepare local candidates only; publication remains a human-controlled GitHub Actions operation.
 release:
   default: v0.3.0
 contracts:
@@ -142,6 +156,9 @@ mcp:
     - manual_pdf_status
     - manual_pdf_build
     - manual_pdf_publish
+    - manual_release_status
+    - manual_release_check
+    - manual_release_prepare
     - profile_prune_plan
     - profile_prune
     - content_inventory
@@ -168,17 +185,27 @@ mcp_dependencies:
     install: true
     build: true
     init: false
+    check: true
+    smoke: true
+    update: false
     remote: https://github.com/dosquartsdedocs/diavisuals.git
     package: diavisuals
+    uv_spec: "diavisuals[mcp] @ git+https://github.com/dosquartsdedocs/diavisuals.git@v0.3.1"
     version: 0.3.1
     release: v0.3.1
     release_status: released
     extras:
       - mcp
     required_tools:
+      - compatibility_status
+      - release_status
+      - factory_manifest
       - project_check
       - render_diagram
       - render_diagram_text
+    required_resources:
+      - diavisuals://project/check
+      - diavisuals://factory-manifest
     suggested_path: ../diavisuals
     reason: Mermaid and PlantUML rendering/styles are owned by diavisuals.
   - name: vegavisuals
@@ -187,18 +214,29 @@ mcp_dependencies:
     install: true
     build: true
     init: false
+    check: true
+    smoke: true
+    update: false
     remote: https://github.com/dosquartsdedocs/vegavisuals.git
     package: vegavisuals
+    uv_spec: "vegavisuals[mcp] @ git+https://github.com/dosquartsdedocs/vegavisuals.git@v0.3.1"
     version: 0.3.1
     release: v0.3.1
     release_status: released
     extras:
       - mcp
     required_tools:
+      - initialize_project
       - validate_visualization
       - render_visualization
       - visualization_status
       - visualization_check
       - render_visualizations
+      - compatibility_status
+      - release_status
+      - factory_manifest
+    required_resources:
+      - vegavisuals://project/check
+      - vegavisuals://factory-manifest
     suggested_path: ../vegavisuals
     reason: Vega-Lite and Vega validation, rendering, themes, and freshness are owned by vegavisuals.

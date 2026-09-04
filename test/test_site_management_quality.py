@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import stat
 import sys
 import tempfile
 import unittest
@@ -160,6 +162,39 @@ class SiteManagementQualityTests(unittest.TestCase):
         self.assertEqual((self.project / path).read_text(encoding="utf-8"), "raced\n")
         self.assertEqual(outside.read_text(encoding="utf-8"), "outside\n")
 
+    def test_site_source_write_rolls_back_directory_fsync_failures(self) -> None:
+        path = "_pages/en/index.md"
+        before = site_tools.site_source_read(self.project, path)
+        original_fsync = os.fsync
+
+        def fail_directory_fsync(file_descriptor):
+            if stat.S_ISDIR(os.fstat(file_descriptor).st_mode):
+                raise OSError("simulated directory fsync failure")
+            return original_fsync(file_descriptor)
+
+        with patch("unaltraweb_mcp.site_tools.os.fsync", side_effect=fail_directory_fsync):
+            with self.assertRaisesRegex(OSError, "simulated directory fsync failure"):
+                site_tools.site_source_write(
+                    self.project,
+                    path,
+                    before["content"] + "changed\n",
+                    expected_sha256=before["sha256"],
+                    dry_run=False,
+                )
+        self.assertEqual(site_tools.site_source_read(self.project, path)["sha256"], before["sha256"])
+
+        created_path = "_pages/en/fsync-failure.md"
+        with patch("unaltraweb_mcp.site_tools.os.fsync", side_effect=fail_directory_fsync):
+            with self.assertRaisesRegex(OSError, "simulated directory fsync failure"):
+                site_tools.site_source_write(
+                    self.project,
+                    created_path,
+                    "new source\n",
+                    create_only=True,
+                    dry_run=False,
+                )
+        self.assertFalse((self.project / created_path).exists())
+
     def test_site_source_detects_final_window_update_and_delete_edits(self) -> None:
         path = "_pages/en/index.md"
         before = site_tools.site_source_read(self.project, path)
@@ -275,7 +310,7 @@ class SiteManagementQualityTests(unittest.TestCase):
         self.assertTrue(protected.is_file())
 
     def test_scaffold_sync_updates_baseline_files_and_never_overwrites_conflicts(self) -> None:
-        original_payloads = site_tools._managed_scaffold_payloads()
+        original_payloads = site_tools._managed_scaffold_payloads(self.project)
         updated_payloads = dict(original_payloads)
         updated_payloads[Path("Makefile")] += b"\n# package update\n"
 
@@ -298,21 +333,129 @@ class SiteManagementQualityTests(unittest.TestCase):
         self.assertEqual((conflict_site / "Makefile").read_text(encoding="utf-8"), "locally edited\n")
         self.assertEqual((conflict_site / "Gemfile").read_bytes(), gemfile_before)
 
+    def test_scaffold_sync_rejects_manual_output_config_races_before_any_managed_write(self) -> None:
+        replacements = [
+            ("output: assets/pdf/manual-{lang}.pdf", "output: downloads/raced-{lang}.pdf"),
+            ("cover_output: assets/img/manual-cover-{lang}.png", "cover_output: covers/raced-{lang}.png"),
+        ]
+        for index, (original, replacement) in enumerate(replacements):
+            with self.subTest(config_key=original.split(":", 1)[0]):
+                project = self.root / f"config-lock-race-{index}"
+                site_tools.new_web(project, site_profile_value="unaltremanual")
+                managed_paths = [*site_tools.SCAFFOLD_MANAGED_PATHS, site_tools.SCAFFOLD_MANIFEST_PATH]
+                managed_before = {path: (project / path).read_bytes() for path in managed_paths}
+                config_path = project / "_config.yml"
+                original_flock = site_tools.fcntl.flock
+                raced = False
+
+                def race_before_lock(file_descriptor, operation):
+                    nonlocal raced
+                    if operation == site_tools.fcntl.LOCK_EX and not raced:
+                        text = config_path.read_text(encoding="utf-8")
+                        self.assertIn(original, text)
+                        config_path.write_text(text.replace(original, replacement), encoding="utf-8")
+                        raced = True
+                    return original_flock(file_descriptor, operation)
+
+                with patch("unaltraweb_mcp.site_tools.fcntl.flock", side_effect=race_before_lock):
+                    with self.assertRaisesRegex(RuntimeError, "_config.yml changed after scaffold_sync preflight"):
+                        site_tools.scaffold_sync(project, dry_run=False, confirm_sync=True)
+
+                self.assertTrue(raced)
+                self.assertIn(replacement, config_path.read_text(encoding="utf-8"))
+                self.assertEqual({path: (project / path).read_bytes() for path in managed_paths}, managed_before)
+                self.assertFalse(list(project.rglob(".unaltraweb-scaffold-*")))
+
+    def test_scaffold_sync_rolls_back_if_cover_config_changes_before_manifest_commit(self) -> None:
+        project = self.root / "config-manifest-race"
+        site_tools.new_web(project, site_profile_value="unaltremanual")
+        managed_paths = [*site_tools.SCAFFOLD_MANAGED_PATHS, site_tools.SCAFFOLD_MANIFEST_PATH]
+        managed_before = {path: (project / path).read_bytes() for path in managed_paths}
+        payloads = site_tools._managed_scaffold_payloads(project)
+        updated = dict(payloads)
+        updated[Path("Makefile")] += b"\n# package transaction\n"
+        config_path = project / "_config.yml"
+        original_verify = site_tools._verify_applied_managed_transaction
+        raced = False
+
+        def race_before_manifest(applied):
+            nonlocal raced
+            original_verify(applied)
+            if not raced:
+                text = config_path.read_text(encoding="utf-8")
+                original = "cover_output: assets/img/manual-cover-{lang}.png"
+                replacement = "cover_output: covers/raced-{lang}.png"
+                self.assertIn(original, text)
+                config_path.write_text(text.replace(original, replacement), encoding="utf-8")
+                raced = True
+
+        with patch("unaltraweb_mcp.site_tools._managed_scaffold_payloads", return_value=updated), patch(
+            "unaltraweb_mcp.site_tools._verify_applied_managed_transaction",
+            side_effect=race_before_manifest,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "_config.yml changed before scaffold_sync manifest commit"):
+                site_tools.scaffold_sync(project, dry_run=False, confirm_sync=True)
+
+        self.assertTrue(raced)
+        self.assertIn("cover_output: covers/raced-{lang}.png", config_path.read_text(encoding="utf-8"))
+        self.assertEqual({path: (project / path).read_bytes() for path in managed_paths}, managed_before)
+        self.assertFalse(list(project.rglob(".unaltraweb-scaffold-*")))
+
     def test_scaffold_sync_creates_only_new_missing_managed_paths(self) -> None:
         manifest_path = self.project / ".unaltraweb/scaffold.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest["files"].pop(".gitignore")
+        manifest["files"].pop(".github/pull_request_template.md")
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         (self.project / ".gitignore").unlink()
+        (self.project / ".github/pull_request_template.md").unlink()
 
         result = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True)
 
         self.assertTrue(result["applied"])
-        self.assertEqual([item["path"] for item in result["creates"]], [".gitignore"])
-        self.assertEqual((self.project / ".gitignore").read_bytes(), site_tools._managed_scaffold_payloads()[Path(".gitignore")])
+        self.assertEqual(
+            [item["path"] for item in result["creates"]],
+            [".gitignore", ".github/pull_request_template.md"],
+        )
+        self.assertEqual((self.project / ".gitignore").read_bytes(), site_tools._managed_scaffold_payloads(self.project)[Path(".gitignore")])
+        self.assertEqual(
+            (self.project / ".github/pull_request_template.md").read_bytes(),
+            site_tools._managed_scaffold_payloads(self.project)[Path(".github/pull_request_template.md")],
+        )
+
+    def test_scaffold_sync_retires_paths_that_are_no_longer_package_managed(self) -> None:
+        manifest_path = self.project / ".unaltraweb/scaffold.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"]["project-owned.txt"] = "0" * 64
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        result = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True)
+
+        self.assertEqual(result["retired"], ["project-owned.txt"])
+        updated = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertNotIn("project-owned.txt", updated["files"])
+
+    def test_scaffold_sync_retires_an_edited_legacy_file_without_touching_it(self) -> None:
+        retired_relative = ".unaltraweb/legacy-runtime.sh"
+        retired_path = self.project / retired_relative
+        original = b"package-owned legacy runtime\n"
+        edited = original + b"\n# project-owned customization\n"
+        retired_path.write_bytes(edited)
+        manifest_path = self.project / ".unaltraweb/scaffold.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"][retired_relative] = hashlib.sha256(original).hexdigest()
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        result = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True)
+
+        self.assertTrue(result["applied"])
+        self.assertEqual(result["retired"], [retired_relative])
+        self.assertEqual(retired_path.read_bytes(), edited)
+        updated = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertNotIn(retired_relative, updated["files"])
 
     def test_scaffold_sync_rechecks_every_target_before_applying(self) -> None:
-        payloads = site_tools._managed_scaffold_payloads()
+        payloads = site_tools._managed_scaffold_payloads(self.project)
         updated = dict(payloads)
         updated[Path("Makefile")] += b"\n# update one\n"
         updated[Path("Gemfile")] += b"\n# update two\n"
@@ -334,7 +477,7 @@ class SiteManagementQualityTests(unittest.TestCase):
         self.assertEqual((self.project / "Gemfile").read_bytes(), gemfile_before)
 
     def test_scaffold_sync_rolls_back_all_files_and_manifest_on_apply_failure(self) -> None:
-        payloads = site_tools._managed_scaffold_payloads()
+        payloads = site_tools._managed_scaffold_payloads(self.project)
         updated = dict(payloads)
         updated[Path("Makefile")] += b"\n# transaction one\n"
         updated[Path("Gemfile")] += b"\n# transaction two\n"
@@ -361,7 +504,7 @@ class SiteManagementQualityTests(unittest.TestCase):
         self.assertFalse(list(self.project.rglob(".unaltraweb-scaffold-*")))
 
     def test_scaffold_sync_preserves_a_final_window_local_edit(self) -> None:
-        payloads = site_tools._managed_scaffold_payloads()
+        payloads = site_tools._managed_scaffold_payloads(self.project)
         updated = dict(payloads)
         updated[Path("Makefile")] += b"\n# proposed package update\n"
         manifest_before = (self.project / site_tools.SCAFFOLD_MANIFEST_PATH).read_bytes()
@@ -398,7 +541,7 @@ class SiteManagementQualityTests(unittest.TestCase):
                     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
                 manifest_before = manifest_path.read_bytes()
                 makefile_before = (project / "Makefile").read_bytes()
-                payloads = site_tools._managed_scaffold_payloads()
+                payloads = site_tools._managed_scaffold_payloads(project)
                 updated = dict(payloads)
                 updated[Path("Makefile")] += b"\n# package transaction\n"
                 original_verify = site_tools._verify_applied_managed_transaction

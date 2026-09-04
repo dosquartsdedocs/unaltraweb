@@ -34,6 +34,12 @@ profiles:
 
 search:
   placeholder: Escribe para buscar
+  content_placeholder: Buscar contenido
+  content_results: Resultados de búsqueda
+  content_no_results: Sin resultados
+  content_match: Coincidencia {current} de {total}
+  content_previous: Coincidencia anterior
+  content_next: Coincidencia siguiente
 
 callouts:
   info: NOTA
@@ -233,6 +239,8 @@ documentation:
 manual:
   contents: Contenidos
   download_pdf: Descargar PDF
+  release_channel: Canal de publicación
+  release_version: Versión publicada
   on_this_page: En esta página
   on_this_chapter: En este capítulo
   previous: Anterior
@@ -259,6 +267,12 @@ manual:
   chapter: Capítulo
 figures:
   label: Figura
+  list_title: Índice de figuras
 
 tables:
   label: Tabla
+  list_title: Índice de tablas
+
+listings:
+  label: Código
+  list_title: Índice de códigos

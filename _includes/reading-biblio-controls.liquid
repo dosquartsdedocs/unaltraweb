@@ -11,9 +11,19 @@
 {% assign biblio_url_label = include.url_label | default: biblio_item.manual_url_label | default: 'LINK' %}
 {% assign biblio_doi = include.doi | default: biblio_item.doi | strip %}
 {% assign biblio_doi_url = include.doi_url %}
+{% assign biblio_doi_http_prefix = biblio_doi_url | slice: 0, 7 | downcase %}
+{% assign biblio_doi_https_prefix = biblio_doi_url | slice: 0, 8 | downcase %}
+{% unless biblio_doi_http_prefix == 'http://' or biblio_doi_https_prefix == 'https://' %}
+  {% assign biblio_doi_url = nil %}
+{% endunless %}
 {% if biblio_doi_url == nil and biblio_doi != '' %}
   {% assign biblio_doi_url = 'https://doi.org/' | append: biblio_doi %}
 {% endif %}
+{% assign biblio_url_http_prefix = biblio_url | slice: 0, 7 | downcase %}
+{% assign biblio_url_https_prefix = biblio_url | slice: 0, 8 | downcase %}
+{% unless biblio_url_http_prefix == 'http://' or biblio_url_https_prefix == 'https://' %}
+  {% assign biblio_url = nil %}
+{% endunless %}
 {% capture cite_button_text %}{% include t.liquid key='reading.cite' default='Cite' %}{% endcapture %}
 {% capture bib_button_text %}{% include t.liquid key='bib.buttons.bib' default='Bib' %}{% endcapture %}
 {% capture abstract_button_text %}{% include t.liquid key='bib.buttons.abstract' default='Abs' %}{% endcapture %}
@@ -25,8 +35,8 @@
   <div class="links {{ biblio_actions_class }}">
     {% if biblio_citation != '' %}<a class="cite btn btn-sm z-depth-0" role="button" aria-expanded="false">{{ cite_button_text | strip | upcase }}</a>{% endif %}
     {% if biblio_bibtex != '' %}<a class="bibtex btn btn-sm z-depth-0" role="button" aria-expanded="false">{{ bib_button_text | strip | upcase }}</a>{% endif %}
-    {% if biblio_doi_url %}<a href="{{ biblio_doi_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">DOI</a>{% endif %}
-    {% if biblio_url %}<a href="{{ biblio_url }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">{{ biblio_url_label | strip | default: 'LINK' | upcase }}</a>{% endif %}
+    {% if biblio_doi_url %}<a href="{{ biblio_doi_url | escape }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">DOI</a>{% endif %}
+    {% if biblio_url %}<a href="{{ biblio_url | escape }}" class="btn btn-sm z-depth-0" role="button" target="_blank" rel="noopener noreferrer">{{ biblio_url_label | strip | default: 'LINK' | upcase | escape }}</a>{% endif %}
     {% if biblio_abstract != '' %}<a class="abstract btn btn-sm z-depth-0" role="button" aria-expanded="false">{{ abstract_button_text | strip | upcase }}</a>{% endif %}
   </div>
 
@@ -37,7 +47,7 @@
         <button class="reading-copy-button" type="button" data-copy-target="#{{ biblio_id }}-cite-copy" data-copy-label="{{ copy_text | strip | escape }}" data-copy-done="{{ copied_text | strip | escape }}">{{ copy_text | strip }}</button>
       </div>
       <div id="{{ biblio_id }}-cite-copy" class="reading-copy-source reading-citation-text">{{ biblio_citation }}</div>
-      {% if biblio_doi_url %}<p class="reading-citation-doi"><strong>{{ doi_text | strip }}:</strong> <a href="{{ biblio_doi_url }}" target="_blank" rel="noopener noreferrer">{{ biblio_doi_url }}</a></p>{% endif %}
+      {% if biblio_doi_url and include.hide_citation_access != true %}<p class="reading-citation-doi"><strong>{{ doi_text | strip }}:</strong> <a href="{{ biblio_doi_url | escape }}" target="_blank" rel="noopener noreferrer">{{ biblio_doi_url | escape }}</a></p>{% endif %}
     </div>
   {% endif %}
 
@@ -49,7 +59,7 @@
         <h3>{{ bib_button_text | strip }}</h3>
         <button class="reading-copy-button" type="button" data-copy-target="#{{ biblio_id }}-bib-copy" data-copy-label="{{ copy_text | strip | escape }}" data-copy-done="{{ copied_text | strip | escape }}">{{ copy_text | strip }}</button>
       </div>
-      <pre id="{{ biblio_id }}-bib-copy" class="reading-copy-source"><code class="language-bibtex">{{ biblio_bibtex | hideCustomBibtex | escape }}</code></pre>
+      <pre id="{{ biblio_id }}-bib-copy" class="reading-copy-source"><code class="language-bibtex">{{ biblio_bibtex | hideCustomBibtex | escape | escapeLiquidMarkers }}</code></pre>
     </div>
   {% endif %}
 </div>

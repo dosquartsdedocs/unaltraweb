@@ -16,9 +16,15 @@ class ManualPdfMcpTests(unittest.TestCase):
         project = Path("/tmp/manual-site")
         factory = Path("/tmp/factory")
 
-        site_tools.manual_pdf_build(project, factory, language="ca")
+        site_tools.manual_pdf_build(project, factory, language="ca", release_selector="v2026.09")
 
-        run_factory_make.assert_called_once_with(factory, project, "manual-pdf-build", extra_args=["MANUAL_PDF_LANG=ca"])
+        run_factory_make.assert_called_once_with(
+            factory,
+            project,
+            "manual-pdf-build",
+            extra_args=["MANUAL_PDF_LANG=ca"],
+            env={"MANUAL_RELEASE_SELECTOR": "v2026.09"},
+        )
 
     @patch("unaltraweb_mcp.site_tools.run_factory_make")
     def test_publish_defaults_to_dry_run(self, run_factory_make) -> None:
@@ -29,7 +35,13 @@ class ManualPdfMcpTests(unittest.TestCase):
         result = site_tools.manual_pdf_publish(project, factory)
 
         self.assertTrue(result["dry_run"])
-        run_factory_make.assert_called_once_with(factory, project, "manual-pdf-publish", extra_args=["MANUAL_PDF_PUBLISH_DRY_RUN=1"])
+        run_factory_make.assert_called_once_with(
+            factory,
+            project,
+            "manual-pdf-publish",
+            extra_args=["MANUAL_PDF_PUBLISH_DRY_RUN=1"],
+            env={"MANUAL_RELEASE_SELECTOR": "latest"},
+        )
 
     @patch("unaltraweb_mcp.site_tools.run_factory_make")
     def test_real_publish_requires_confirmation(self, run_factory_make) -> None:

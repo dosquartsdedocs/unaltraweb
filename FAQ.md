@@ -16,9 +16,9 @@ Call the `new_web` MCP tool or run `unaltraweb-mcp --project ./my-site new-web -
 
 Use `unaltraweb.site_profile` in `_config.yml`. Supported profiles are currently `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs`.
 
-## Why is search disabled by default?
+## What does the search setting control?
 
-The inherited site-wide search still needs a cleaner generated-core workflow. Manual profile search has its own generated `assets/js/manual-search-index.json`. General search remains disabled by default to avoid missing generated search assets in child sites.
+Every profile builds `assets/js/content-search-index.json` and exposes full-text content search. Results represent individual occurrences, including repeated terms on one page, and destination pages provide previous/next occurrence navigation. The older `search_enabled` setting controls the separate Ninja Keys navigation and metadata palette; bibliography filtering also remains a separate, page-local tool.
 
 ## Can Jekyll builds fetch metrics from external services?
 

@@ -92,7 +92,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
         with:
-          ruby-version: "3.3.5"
+          ruby-version: "3.3.11"
 
       - name: Build and inspect gem
         run: make gem-check
@@ -121,8 +121,28 @@ jobs:
           cache-from: type=gha,scope=ci-runtime
           cache-to: type=gha,mode=max,scope=ci-runtime
 
+      - name: Test all Ruby files
+        run: docker run --rm -v "$PWD:/work:ro" -w /work --entrypoint bash unaltraweb-runtime:ci -lc 'set -euo pipefail; shopt -s nullglob globstar; tests=(test/**/*_test.rb); ((${#tests[@]})); for test_file in "${tests[@]}"; do bundle exec ruby "$test_file"; done'
+
+      - name: Build manual PDF image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: scripts/manual
+          file: scripts/manual/Dockerfile
+          load: true
+          push: false
+          tags: unaltraweb-manual-pdf:ci
+          cache-from: type=gha,scope=manual-pdf
+          cache-to: type=gha,mode=max,scope=manual-pdf
+
+      - name: Test all manual PDF integrations
+        run: docker run --rm -v "$PWD:/work:ro" -w /work --entrypoint python3 unaltraweb-manual-pdf:ci -m unittest discover -s test/manual_pdf -p 'test_*_integration.py'
+
       - name: Build MCP image from the tested runtime
         run: docker build --build-arg UNALTRAWEB_RUNTIME_IMAGE=unaltraweb-runtime:ci -t unaltraweb-mcp:ci -f Dockerfile.mcp .
+
+      - name: Check reproducible packaged Jekyll build
+        run: make reproducible-site-check DOCKER_IMAGE=unaltraweb-mcp:ci
 
       - name: Smoke test MCP
         run: make mcp-smoke-prebuilt MCP_IMAGE=unaltraweb-mcp:ci

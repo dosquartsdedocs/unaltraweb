@@ -54,7 +54,7 @@
 {% endif %}
 <figure class="cover reading-cover">
 {% if linked %}
-<a class="cover-link" href="{{ item.url | relative_url }}">
+<a class="cover-link" href="{{ item.url | relative_url | escape }}">
 {% else %}
 <div class="cover-link reading-cover-static" aria-label="{{ item_title | escape }}">
 {% endif %}
@@ -64,16 +64,16 @@
 {% else %}
 {% assign item_cover = item.cover | relative_url %}
 {% endif %}
-<img alt="{{ item_title | escape }}" src="{{ item_cover }}" style="height: 220px">
+<img alt="{{ item_title | escape }}" src="{{ item_cover | escape }}" style="height: 220px">
 {% elsif item.olid %}
-<img alt="{{ item_title | escape }}" src="https://covers.openlibrary.org/b/olid/{{ item.olid }}-L.jpg?default=false" style="height: 220px">
+<img alt="{{ item_title | escape }}" src="https://covers.openlibrary.org/b/olid/{{ item.olid | escape }}-L.jpg?default=false" style="height: 220px">
 {% elsif item.isbn %}
-<img alt="{{ item_title | escape }}" src="https://covers.openlibrary.org/b/isbn/{{ item.isbn }}-L.jpg?default=false" style="height: 220px">
+<img alt="{{ item_title | escape }}" src="https://covers.openlibrary.org/b/isbn/{{ item.isbn | escape }}-L.jpg?default=false" style="height: 220px">
 {% else %}
 <img alt="{{ item_title | escape }}" src="{{ '/assets/img/11.jpg' | relative_url }}" style="height: 220px">
 {% endif %}
 {% if ribbon_label %}
-<figcaption class="reading-ribbon{% if ribbon_is_custom %} custom{% endif %} {{ ribbon_slug }}"{% if ribbon_style != '' %} style="{{ ribbon_style }}"{% endif %}>{{ ribbon_label }}</figcaption>
+<figcaption class="reading-ribbon{% if ribbon_is_custom %} custom{% endif %} {{ ribbon_slug }}"{% if ribbon_style != '' %} style="{{ ribbon_style }}"{% endif %}>{{ ribbon_label | escape }}</figcaption>
 {% endif %}
 {% if linked %}
 </a>
@@ -82,12 +82,12 @@
 {% endif %}
 <div class="reading-cover-meta">
 {% if linked %}
-<a href="{{ item.url | relative_url }}" class="reading-cover-title">{{ item_title }}</a>
+<a href="{{ item.url | relative_url | escape }}" class="reading-cover-title">{{ item_title | escape }}</a>
 {% else %}
-<span class="reading-cover-title">{{ item_title }}</span>
+<span class="reading-cover-title">{{ item_title | escape }}</span>
 {% endif %}
-{% if item_author %}<span class="reading-cover-author">{{ item_author }}</span>{% endif %}
-{% if item_year %}<span class="reading-cover-year">{{ item_year }}</span>{% endif %}
+{% if item_author %}<span class="reading-cover-author">{{ item_author | escape }}</span>{% endif %}
+{% if item_year %}<span class="reading-cover-year">{{ item_year | escape }}</span>{% endif %}
 {% if item_rating_html != '' %}{{ item_rating_html }}{% endif %}
 </div>
 </figure>

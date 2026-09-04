@@ -6,11 +6,12 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from . import calibre_import
 from .distribution import distribution_doctor
 from . import site_tools as tools
 
 
-PACKAGE_ONLY_COMMANDS = {"doctor", "new-web", "version"}
+PACKAGE_ONLY_COMMANDS = {"doctor", "import-calibre", "new-web", "version"}
 FACTORY_REQUIRED_COMMANDS = {"factory-dir"}
 FACTORY_REQUIRED_MCP_COMMANDS = {
     "serve",
@@ -25,6 +26,9 @@ FACTORY_REQUIRED_MCP_COMMANDS = {
     "manual-pdf-status",
     "manual-pdf-build",
     "manual-pdf-publish",
+    "manual-release-status",
+    "manual-release-check",
+    "manual-release-prepare",
     "bibliometrics-check",
     "bibliometrics-fetch-scimago",
     "bibliometrics-update",
@@ -98,7 +102,7 @@ def factory_dir(command: str = "") -> Path:
         return factory
     label = f"MCP command '{command}'" if command else "This command"
     raise SystemExit(
-        f"{label} requires the unaltraweb factory checkout. The modular wheel provides version, doctor, new-web, "
+        f"{label} requires the unaltraweb factory checkout. The modular wheel provides version, doctor, new-web, import-calibre, "
         "and package-only inspection without factory assets; set UNALTRAWEB_FACTORY_DIR to a checkout containing mcp-factory.yml."
     )
 
@@ -144,6 +148,36 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         distribution_doctor(project=project, factory=find_factory_dir(), check_docker=args.docker),
         enforce_ok=True,
     )
+
+
+def cmd_import_calibre(args: argparse.Namespace) -> int:
+    labels = {
+        lang: label
+        for lang, label in {
+            "en": args.collection_en,
+            "es": args.collection_es,
+            "ca": args.collection_ca,
+        }.items()
+        if label
+    }
+    result = calibre_import.import_calibre(
+        project_dir(args.project),
+        library=args.library,
+        source_key=args.source_key,
+        collection_name=args.collection_name,
+        collection_ref=args.collection_ref,
+        collection_labels=labels,
+        profiles=args.profiles,
+        ids=args.ids,
+        lang=args.lang,
+        status=args.status,
+        rating=args.rating,
+        limit=args.limit,
+        write=args.write,
+        refresh_existing=args.refresh_existing,
+    )
+    calibre_import.print_summary(result)
+    return 0
 
 
 def cmd_mcp(args: argparse.Namespace) -> int:
@@ -236,11 +270,35 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "web-capture-render":
         return print_json(tools.web_capture_render(project, factory, source=args.source, confirm_overwrite=args.confirm_overwrite))
     if command == "manual-pdf-status":
-        return print_json(tools.manual_pdf_status(project, factory, language=args.language))
+        return print_json(tools.manual_pdf_status(project, factory, language=args.language, release_selector=args.release_selector))
     if command == "manual-pdf-build":
-        return print_json(tools.manual_pdf_build(project, factory, language=args.language))
+        return print_json(tools.manual_pdf_build(project, factory, language=args.language, release_selector=args.release_selector))
     if command == "manual-pdf-publish":
-        return print_json(tools.manual_pdf_publish(project, factory, language=args.language, dry_run=not args.apply, confirm_publish=args.confirm_publish))
+        return print_json(
+            tools.manual_pdf_publish(
+                project,
+                factory,
+                language=args.language,
+                release_selector=args.release_selector,
+                dry_run=not args.apply,
+                confirm_publish=args.confirm_publish,
+            )
+        )
+    if command == "manual-release-status":
+        return print_json(tools.manual_release_status(project, factory, selector=args.selector), enforce_ok=True)
+    if command == "manual-release-check":
+        return print_json(tools.manual_release_check(project, factory, selector=args.selector), enforce_ok=True)
+    if command == "manual-release-prepare":
+        return print_json(
+            tools.manual_release_prepare(
+                project,
+                factory,
+                selector=args.selector,
+                dry_run=not args.apply,
+                confirm_prepare=args.confirm_prepare,
+            ),
+            enforce_ok=True,
+        )
     if command == "profile-prune-plan":
         return print_json(tools.profile_prune_plan(project, site_profile_value=args.site_profile))
     if command == "profile-prune":
@@ -276,7 +334,15 @@ def cmd_mcp(args: argparse.Namespace) -> int:
             )
         )
     if command == "build-site":
-        return print_json(tools.build_site(project, factory, site_profile=args.site_profile), enforce_ok=True)
+        return print_json(
+            tools.build_site(
+                project,
+                factory,
+                site_profile=args.site_profile,
+                release_selector=args.release_selector,
+            ),
+            enforce_ok=True,
+        )
     if command == "build-health":
         return print_json(tools.build_health(project))
     if command == "html-audit":
@@ -310,6 +376,13 @@ def build_parser() -> argparse.ArgumentParser:
     new_web = sub.add_parser("new-web", help="Create a website from a package-owned profile scaffold")
     _add_new_web_arguments(new_web)
     new_web.set_defaults(func=cmd_new_web)
+
+    calibre = sub.add_parser(
+        "import-calibre",
+        help="Import Calibre metadata and covers from a host library (dry-run unless --write is passed)",
+    )
+    _add_calibre_arguments(calibre)
+    calibre.set_defaults(func=cmd_import_calibre)
 
     mcp = sub.add_parser("mcp", help="MCP server and JSON helper commands")
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
@@ -361,11 +434,22 @@ def build_parser() -> argparse.ArgumentParser:
     for name in ["manual-pdf-status", "manual-pdf-build"]:
         manual_pdf = mcp_sub.add_parser(name)
         manual_pdf.add_argument("--language", default="")
+        manual_pdf.add_argument("--release-selector", default="latest")
 
     manual_pdf_publish = mcp_sub.add_parser("manual-pdf-publish")
     manual_pdf_publish.add_argument("--language", default="")
+    manual_pdf_publish.add_argument("--release-selector", default="latest")
     manual_pdf_publish.add_argument("--apply", action="store_true")
     manual_pdf_publish.add_argument("--confirm-publish", action="store_true")
+
+    for name in ["manual-release-status", "manual-release-check"]:
+        manual_release = mcp_sub.add_parser(name)
+        manual_release.add_argument("--selector", default=os.environ.get("MANUAL_RELEASE_SELECTOR", "latest"))
+
+    manual_release_prepare = mcp_sub.add_parser("manual-release-prepare")
+    manual_release_prepare.add_argument("--selector", default=os.environ.get("MANUAL_RELEASE_SELECTOR", "latest"))
+    manual_release_prepare.add_argument("--apply", action="store_true")
+    manual_release_prepare.add_argument("--confirm-prepare", action="store_true")
 
     init_site = mcp_sub.add_parser("initialize-site")
     init_site.add_argument("--template-path", default="")
@@ -400,7 +484,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_bib = mcp_sub.add_parser("bibliography-add-entry")
     add_bib.add_argument("--bibtex", required=True)
-    add_bib.add_argument("--path", default="_bibliography/papers.bib")
+    add_bib.add_argument("--path", default="")
     add_bib.add_argument("--replace", action="store_true")
 
     fetch = mcp_sub.add_parser("bibliometrics-fetch-scimago")
@@ -415,6 +499,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     build = mcp_sub.add_parser("build-site")
     build.add_argument("--site-profile", default="")
+    build.add_argument("--release-selector", default="latest")
 
     preview_start = mcp_sub.add_parser("preview-start")
     preview_start.add_argument("--port", type=int, default=0, help="Host port, or 0 to let Docker allocate a free loopback port")
@@ -439,6 +524,28 @@ def _add_new_web_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--url", default="")
     parser.add_argument("--default-lang", default="")
     parser.add_argument("--languages", default="")
+
+
+def _add_calibre_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--library", required=True, type=Path, help="Calibre library directory")
+    parser.add_argument("--source-key", required=True, type=calibre_import.parse_source_key, help="Stable source key, for example gis")
+    parser.add_argument("--collection-name", required=True, help="Reading collection name")
+    parser.add_argument("--collection-ref", help="Stable reading collection key")
+    parser.add_argument("--collection-en", help="English reading collection label")
+    parser.add_argument("--collection-es", help="Spanish reading collection label")
+    parser.add_argument("--collection-ca", help="Catalan reading collection label")
+    parser.add_argument("--profiles", required=True, type=calibre_import.parse_profiles, help="Comma-separated profiles")
+    parser.add_argument("--ids", type=calibre_import.parse_ids, help="Comma-separated Calibre book IDs to import")
+    parser.add_argument("--lang", type=calibre_import.parse_language, help="Generated page language; defaults to the site's default language")
+    parser.add_argument("--status", default="queued", help="Reading status")
+    parser.add_argument(
+        "--rating",
+        type=calibre_import.parse_rating,
+        help="Manual project rating from 0 to 5; Calibre ratings are never imported",
+    )
+    parser.add_argument("--limit", type=calibre_import.parse_limit, help="Limit number of new books")
+    parser.add_argument("--write", action="store_true", help="Write Markdown files and copy covers")
+    parser.add_argument("--refresh-existing", action="store_true", help="Rewrite matching imported Markdown files")
 
 
 def main(argv: list[str] | None = None) -> int:

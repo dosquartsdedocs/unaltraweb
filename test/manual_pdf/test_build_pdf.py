@@ -5,7 +5,7 @@ import io
 import json
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -60,8 +60,26 @@ class ManualPdfBuilderTests(unittest.TestCase):
     def test_template_distinguishes_captions_from_body_text(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn(r"\captionsetup{font=small,labelfont=bf}", template)
-        self.assertIn(r"\captionsetup[subfigure]{font=small,labelfont=bf}", template)
+        self.assertIn(r"\DeclareCaptionFont{manualcaption}{\sffamily\fontsize{9.4}{11.2}\selectfont}", template)
+        self.assertIn(r"\DeclareCaptionFont{manualsubcaption}{\sffamily\fontsize{8.8}{10.5}\selectfont}", template)
+        self.assertIn(r"\DeclareCaptionLabelFormat{manual}{\textcolor{ManualSecondary}{#1\nobreakspace #2}}", template)
+        self.assertIn("font={manualcaption,color=ManualMuted}", template)
+        self.assertIn("labelformat=manual", template)
+        self.assertIn("format=hang", template)
+        self.assertIn("justification=RaggedRight", template)
+        self.assertIn(r"\captionsetup[figure]{position=top,margin=1em,aboveskip=0pt,belowskip=7pt}", template)
+        self.assertIn("font={manualsubcaption,color=ManualMuted}", template)
+        self.assertIn("labelfont={bf,sf,color=ManualSecondary}", template)
+
+    def test_template_colors_complete_headings_and_keeps_chapter_number_with_title(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(r"\titleformat{\chapter}[hang]", template)
+        self.assertIn(r"{\thechapter.}{0.55em}{}", template)
+        self.assertIn(r"\normalfont\sffamily\LARGE\bfseries\color{ManualSecondary}", template)
+        self.assertIn(r"\titleformat{\section}", template)
+        self.assertIn(r"\normalfont\Large\bfseries\color{ManualSecondary}", template)
+        self.assertNotIn(r"\@chapapp", template)
 
     def test_template_distinguishes_link_categories_and_code(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -71,14 +89,50 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn(r"citecolor=ManualCitationLink", template)
         self.assertIn(r"\NewDocumentCommand\citeproctext{}{}", template)
         self.assertIn(r"\NewDocumentCommand\citeproc{mm}", template)
-        self.assertIn("$highlighting-macros$", template)
+        self.assertNotIn("$highlighting-macros$", template)
         self.assertIn(r"\renewcommand{\texttt}[1]", template)
+
+    def test_template_renders_breakable_code_and_plain_verbatim_panels(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(r"\usepackage{listings}", template)
+        self.assertIn(r"\usepackage{lstlinebgrd}", template)
+        self.assertIn(r"\lstdefinestyle{manualbase}", template)
+        self.assertIn(r"\lstdefinelanguage{ManualURL}", template)
+        self.assertIn(r"\lstdefinelanguage{ManualSpreadsheet}", template)
+        self.assertIn(r"\lstdefinelanguage{ManualFileTree}", template)
+        self.assertIn(r"\lstdefinestyle{manualcode}", template)
+        self.assertIn(r"\lstdefinestyle{manualverbatim}", template)
+        self.assertIn("breaklines=true", template)
+        self.assertIn("breakatwhitespace=false", template)
+        self.assertIn("columns=fullflexible", template)
+        self.assertIn(r"linebackgroundcolor=\ManualCodeLineBackground", template)
+        self.assertIn("framexleftmargin=0pt", template)
+        self.assertIn(r"\newtcblisting{manualcode}[2][]", template)
+        self.assertIn(r"\newtcblisting{manualverbatim}", template)
+        self.assertIn("colbacktitle=ManualSecondary", template)
+        self.assertIn("listing engine=listings", template)
+        self.assertIn("breakable,", template)
+        self.assertNotIn(r"\hookrightarrow", template)
 
     def test_template_keeps_callouts_together_without_floating_figures_through_them(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        callout = template.split(r"\newenvironment{manualcallout}", 1)[1].split(r"\hypersetup", 1)[0]
 
-        self.assertIn("breakable,", template)
+        self.assertNotIn("breakable,", callout)
+        self.assertIn(r"\newenvironment{manualcallout}[3][enhanced]", template)
+        self.assertIn("colback=#2!6!white", template)
+        self.assertIn(r"\color{#2}#3", template)
         self.assertIn(r"\floatplacement{figure}{H}", template)
+
+    def test_template_avoids_stretched_pages_and_orphaned_headings(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(r"\raggedbottom", template)
+        self.assertIn(r"\clubpenalty=10000", template)
+        self.assertIn(r"\widowpenalty=10000", template)
+        self.assertIn(r"\pretocmd{\section}{\Needspace{6\baselineskip}}{}{}", template)
+        self.assertIn(r"\setlength{\LTpre}{0.6em}", template)
 
     def test_template_keeps_figures_in_source_order(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
@@ -121,6 +175,16 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn("$metadata-rights-label$", template)
         self.assertNotIn(r"{\Huge\bfseries\sffamily\color{ManualSecondary}$metadata-page-title$}", template)
 
+    def test_template_adds_localized_content_indexes_when_present(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(r"\renewcommand{\lstlistingname}{$listing-label$}", template)
+        self.assertIn(r"\renewcommand{\listfigurename}{$list-of-figures-title$}", template)
+        self.assertIn("$if(has-figures)$\n\\listoffigures", template)
+        self.assertIn("$if(has-tables)$\n\\listoftables", template)
+        self.assertIn("$if(has-listings)$\n\\lstlistoflistings", template)
+        self.assertNotIn("--listings", template)
+
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.project = Path(self.temp.name).resolve()
@@ -158,6 +222,62 @@ class ManualPdfBuilderTests(unittest.TestCase):
 
         self.assertEqual("\n@book{example, title={Example}}\n", destination.read_text(encoding="utf-8"))
 
+    def test_bibliography_source_rejects_a_path_in_the_filename_setting(self) -> None:
+        self.config["unaltraweb"]["manual"].update({"bibliography": True, "bibliography_file": "../outside.bib"})
+
+        with self.assertRaisesRegex(manual_pdf.ManualPdfError, "must be a .bib filename"):
+            manual_pdf.bibliography_source(self.project, self.config)
+
+    def test_bibliography_filter_metadata_uses_contributors_and_custom_urls(self) -> None:
+        records = [
+            {
+                "id": "zulu",
+                "author": [{"family": "Zulu", "given": "Ada"}],
+                "issued": {"date-parts": [[2026]]},
+                "title": "Last",
+                "DOI": "10.1234/zulu",
+            },
+            {
+                "id": "agency",
+                "author": [{"literal": "Àrea Example"}],
+                "issued": {"date-parts": [[2025]]},
+                "title": "First",
+                "URL": "https://example.test/standard",
+            },
+        ]
+
+        metadata = manual_pdf.bibliography_filter_metadata(records, {"agency": ["https://example.test/agency"]})
+
+        self.assertTrue(metadata["bibliography-sort-keys"]["agency"].startswith("area example | 2025"))
+        self.assertTrue(metadata["bibliography-sort-keys"]["zulu"].startswith("zulu, ada | 2026"))
+        self.assertEqual(metadata["bibliography-access"]["zulu"]["doi"], "10.1234/zulu")
+        self.assertEqual(
+            metadata["bibliography-access"]["agency"]["urls"],
+            ["https://example.test/standard", "https://example.test/agency"],
+        )
+
+    def test_bibliography_custom_urls_reads_website_and_manual_url_fields(self) -> None:
+        text = (
+            "@book{first,\n  website = {https://example.test/first},\n  manual_url = {https://example.test/manual-first}\n}\n\n"
+            "@book{second,\n  manual_url = \"https://example.test/second\"\n}\n"
+        )
+
+        self.assertEqual(
+            manual_pdf.bibliography_custom_urls(text),
+            {
+                "first": ["https://example.test/first", "https://example.test/manual-first"],
+                "second": ["https://example.test/second"],
+            },
+        )
+
+    def test_bibliography_filter_metadata_deduplicates_doi_urls(self) -> None:
+        records = [{"id": "article", "title": "Article", "DOI": "http://dx.doi.org/10.1234/article", "URL": "https://doi.org/10.1234/article"}]
+
+        metadata = manual_pdf.bibliography_filter_metadata(records, {"article": ["http://dx.doi.org/10.1234/article"]})
+
+        self.assertEqual(metadata["bibliography-access"]["article"], {"doi": "10.1234/article", "urls": []})
+        self.assertEqual(manual_pdf.normalize_doi("https://doi.org/10.1234/article"), "10.1234/article")
+
     def write_fresh_artifacts(self) -> dict[str, Path]:
         write_markdown(self.project / "_chapters/en/chapter.md", {"title": "Chapter", "lang": "en", "weight": 10, "content_status": "approved"})
         paths = manual_pdf.artifact_paths(self.project, self.config, "en")
@@ -168,6 +288,8 @@ class ManualPdfBuilderTests(unittest.TestCase):
         manifest = {
             "language": "en",
             "fingerprint": fingerprint,
+            "release_selector": "latest",
+            "release_channel": "latest",
             "pdf": str(paths["pdf"].relative_to(self.project)),
             "cover": str(paths["cover"].relative_to(self.project)),
             "public_pdf": str(paths["public_pdf"].relative_to(self.project)),
@@ -250,8 +372,143 @@ class ManualPdfBuilderTests(unittest.TestCase):
         result = manual_pdf.transform_markdown(self.project, text, source)
 
         self.assertIn("[@one; @two]", result)
+        self.assertIn(r"\Needspace{10\baselineskip}", result)
         self.assertIn("Table: A useful table", result)
         self.assertIn("![Detailed flow](assets/diagrams/flow.mmd.edited.svg)", result)
+
+    def test_transform_converts_captioned_listing_to_a_pandoc_attribute(self) -> None:
+        source = self.project / "_chapters/en/chapter.md"
+        text = '''::: listing "Read a project's roads"
+```python
+print("roads")
+```
+:::'''
+
+        result = manual_pdf.transform_markdown(self.project, text, source)
+
+        self.assertEqual(
+            '```{.python data-listing-caption="Read a project\'s roads"}\nprint("roads")\n```',
+            result,
+        )
+
+    def test_transform_rejects_listing_with_more_than_one_fence(self) -> None:
+        source = self.project / "_chapters/en/chapter.md"
+        text = '''::: listing "Two blocks"
+```python
+print(1)
+```
+```python
+print(2)
+```
+:::'''
+
+        with self.assertRaisesRegex(manual_pdf.ManualPdfError, "exactly one fenced code block"):
+            manual_pdf.transform_markdown(self.project, text, source)
+
+    def test_transform_preserves_listing_syntax_inside_a_code_example(self) -> None:
+        source = self.project / "_chapters/en/chapter.md"
+        text = '''````markdown
+::: listing "Example"
+```python
+print(1)
+```
+:::
+````'''
+
+        self.assertEqual(text, manual_pdf.transform_markdown(self.project, text, source))
+
+    def test_assemble_marks_available_content_indexes_and_localizes_titles(self) -> None:
+        image = self.project / "assets/figure.svg"
+        image.parent.mkdir(parents=True)
+        image.write_text("<svg/>", encoding="utf-8")
+        write_markdown(
+            self.project / "_chapters/en/chapter.md",
+            {"title": "Chapter", "lang": "en", "weight": 10},
+            '''![Figure](assets/figure.svg "Figure caption")
+
+::: table "Table caption"
+| A | B |
+| --- | --- |
+| 1 | 2 |
+:::
+
+::: listing "Listing caption"
+```python
+print(1)
+```
+:::''',
+        )
+
+        metadata, _, _ = manual_pdf.assemble(
+            self.project,
+            self.config,
+            "en",
+            manual_pdf.artifact_paths(self.project, self.config, "en"),
+        )
+
+        self.assertTrue(metadata["has-figures"])
+        self.assertTrue(metadata["has-tables"])
+        self.assertTrue(metadata["has-listings"])
+        self.assertEqual("Code example", metadata["listing-label"])
+        self.assertEqual("List of code examples", metadata["list-of-listings-title"])
+
+        catalan = manual_pdf.build_metadata(self.project, self.config, "ca", "ca", {}, [])
+        self.assertEqual("Codi", catalan["listing-label"])
+        self.assertEqual("Índex de figures", catalan["list-of-figures-title"])
+        self.assertEqual("Índex de taules", catalan["list-of-tables-title"])
+        self.assertEqual("Índex de codis", catalan["list-of-listings-title"])
+
+    def test_transform_starts_oversized_tables_on_a_fresh_page(self) -> None:
+        rows = "\n".join(f"| Row {index} | " + ("Long cell text. " * 12) + "|" for index in range(18))
+        text = f'''::: table "Large table"
+| Item | Description |
+| --- | --- |
+{rows}
+:::'''
+
+        result = manual_pdf.transform_markdown(
+            self.project,
+            text,
+            self.project / "_chapters/en/chapter.md",
+        )
+
+        self.assertIn("```{=latex}\n\\clearpage\n```", result)
+        self.assertIn("Table: Large table", result)
+
+    def test_transform_moves_table_page_guard_before_an_immediate_heading(self) -> None:
+        text = '''## Review table
+
+::: table "Compact table"
+| Item | Description |
+| --- | --- |
+| One | Short description |
+:::'''
+
+        result = manual_pdf.transform_markdown(
+            self.project,
+            text,
+            self.project / "_chapters/en/chapter.md",
+        )
+
+        self.assertIn("```{=latex}\n\\Needspace{16\\baselineskip}\n```\n\n## Review table", result)
+        self.assertLess(result.index(r"\Needspace"), result.index("## Review table"))
+
+    def test_transform_collects_unique_citation_keys_outside_code(self) -> None:
+        citation_keys: list[str] = []
+        source = self.project / "_chapters/en/chapter.md"
+        text = """{% cite zeta alpha %}
+
+```liquid
+{% cite ignored %}
+```
+
+{% cite alpha beta %}
+"""
+
+        result = manual_pdf.transform_markdown(self.project, text, source, citation_keys=citation_keys)
+
+        self.assertIn("[@zeta; @alpha]", result)
+        self.assertEqual(["zeta", "alpha", "beta"], citation_keys)
 
     def test_transform_allows_apostrophes_in_double_quoted_image_titles(self) -> None:
         source = self.project / "_chapters/en/chapter.md"
@@ -318,6 +575,17 @@ $$
         self.assertIn("- Comproveu les unitats.", result)
         self.assertEqual(result.count(r"\end{manualcallout}"), 2)
         self.assertNotIn(">>>>", result)
+
+    def test_transform_allows_oversized_callouts_to_continue(self) -> None:
+        body = "\n".join(f">> This is long callout line {index}. " + ("More text. " * 8) for index in range(24))
+
+        result = manual_pdf.transform_markdown(
+            self.project,
+            body,
+            self.project / "_chapters/en/chapter.md",
+        )
+
+        self.assertIn(r"\begin{manualcallout}[enhanced,breakable]{ManualCalloutInfo}{NOTE}", result)
 
     def test_transform_uses_web_callout_i18n_customization(self) -> None:
         i18n = self.project / "_data/i18n/ca.yml"
@@ -629,6 +897,9 @@ $$
         self.assertNotIn("data-figure-width", result)
         self.assertNotIn("UNALTRAWEBMANUALPROTECTED", result)
         self.assertIn(r"\caption{Bars \& \texttt{points} at 50\%}", result)
+        self.assertIn(r"{\color{ManualMuted!45}\rule{\linewidth}{0.35pt}}", result)
+        self.assertLess(result.index(r"\caption{Bars"), result.index(r"\rule{\linewidth}{0.35pt}"))
+        self.assertLess(result.index(r"\caption{Bars"), result.index(r"\begin{subfigure}"))
         self.assertIn(r"\begin{figure}[H]", result)
         self.assertEqual(result.count(r"\begin{subfigure}[t]{0.48\linewidth}"), 2)
         self.assertEqual(result.count(r"\begin{subfigure}[t]{0.92\linewidth}"), 1)
@@ -815,6 +1086,60 @@ $$
         with self.assertRaisesRegex(manual_pdf.ManualPdfError, "cover path must use"):
             manual_pdf.artifact_paths(self.project, self.config, "en")
 
+    def test_multilingual_pdf_and_cover_destinations_must_be_unique(self) -> None:
+        pdf = self.config["unaltraweb"]["manual"]["pdf"]
+        pdf["languages"] = ["en", "ca"]
+        for key, path in [
+            ("output", "assets/pdf/manual.pdf"),
+            ("cover_output", "assets/img/manual-cover.png"),
+        ]:
+            with self.subTest(key=key):
+                pdf[key] = path
+                with self.assertRaisesRegex(
+                    manual_pdf.ManualPdfError,
+                    rf"destination collision: .*'en'.*'ca'.*{Path(path).name}",
+                ):
+                    manual_pdf.artifact_plan(self.project, self.config, manual_pdf.language_list(self.config, pdf))
+                pdf[key] = "assets/pdf/manual-{lang}.pdf" if key == "output" else "assets/img/manual-{lang}.png"
+
+    def test_duplicate_pdf_languages_are_rejected_as_destination_collisions(self) -> None:
+        pdf = self.config["unaltraweb"]["manual"]["pdf"]
+        pdf["languages"] = ["en", "en"]
+
+        with self.assertRaisesRegex(manual_pdf.ManualPdfError, "destination collision"):
+            manual_pdf.artifact_plan(self.project, self.config, manual_pdf.language_list(self.config, pdf))
+
+    def test_single_language_paths_may_omit_language_placeholder(self) -> None:
+        pdf = self.config["unaltraweb"]["manual"]["pdf"]
+        pdf["output"] = "assets/pdf/manual.pdf"
+        pdf["cover_output"] = "assets/img/manual-cover.png"
+
+        plan = manual_pdf.artifact_plan(self.project, self.config, manual_pdf.language_list(self.config, pdf))
+
+        self.assertEqual(plan[0][1]["public_pdf"], self.project / "assets/pdf/manual.pdf")
+        self.assertEqual(plan[0][1]["public_cover"], self.project / "assets/img/manual-cover.png")
+
+    def test_destination_collisions_fail_before_mutating_commands(self) -> None:
+        pdf = self.config["unaltraweb"]["manual"]["pdf"]
+        pdf["languages"] = ["en", "ca"]
+        pdf["output"] = "assets/pdf/manual.pdf"
+        (self.project / "_config.yml").write_text(yaml.safe_dump(self.config), encoding="utf-8")
+
+        for command, operation_name in [
+            ("build", "build_language"),
+            ("publish", "publish_language"),
+            ("sync", "sync_language"),
+        ]:
+            with self.subTest(command=command), patch.object(manual_pdf, operation_name) as operation:
+                with redirect_stderr(io.StringIO()):
+                    status = manual_pdf.main([command, "--project", str(self.project), "--language", "en"])
+                self.assertEqual(status, 2)
+                operation.assert_not_called()
+
+        with redirect_stderr(io.StringIO()):
+            status = manual_pdf.main(["public-paths", "--project", str(self.project), "--language", "en"])
+        self.assertEqual(status, 2)
+
     def test_artifact_extensions_are_fixed(self) -> None:
         self.config["unaltraweb"]["manual"]["pdf"]["output"] = "assets/pdf/manifest.json"
         with self.assertRaisesRegex(manual_pdf.ManualPdfError, "PDF path must use"):
@@ -871,8 +1196,10 @@ $$
 
         commands = [call.args[0] for call in run_command.call_args_list]
         self.assertEqual([command[0] for command in commands], ["pandoc", "qpdf", "pdftoppm"])
-        self.assertIn("--highlight-style=pygments", commands[0])
-        self.assertNotIn("--no-highlight", commands[0])
+        self.assertNotIn("--listings", commands[0])
+        self.assertIn(f"--lua-filter={manual_pdf.DEFAULT_CODE_BLOCK_FILTER}", commands[0])
+        self.assertIn(f"--lua-filter={manual_pdf.DEFAULT_FIGURE_FILTER}", commands[0])
+        self.assertNotIn("--highlight-style=pygments", commands[0])
         self.assertIn("--deterministic-id", commands[1])
         self.assertIn("--object-streams=generate", commands[1])
         self.assertIn("--recompress-flate", commands[1])
@@ -923,6 +1250,24 @@ $$
         self.assertEqual(metadata["source"], "https://example.test/manual")
         self.assertEqual(metadata["metadata-page-title"], "Editorial credits")
         self.assertEqual(metadata["metadata-instructors-label"], "Authors")
+        self.assertEqual(metadata["release-selector"], "latest")
+        self.assertEqual(metadata["release-channel"], "latest")
+
+    def test_release_selector_is_visible_and_changes_the_pdf_fingerprint(self) -> None:
+        write_markdown(
+            self.project / "_chapters/en/chapter.md",
+            {"title": "Chapter", "lang": "en", "weight": 10, "content_status": "approved"},
+        )
+        _, _, _, _, _, _, _, latest = manual_pdf.prepare_build(self.project, self.config, "en")
+        with patch.dict(manual_pdf.os.environ, {"UNALTRAWEB_MANUAL_RELEASE_SELECTOR": "v2026.09"}):
+            metadata, _, _, _, _, _, _, stable = manual_pdf.prepare_build(self.project, self.config, "en")
+
+        self.assertEqual(metadata["release-selector"], "v2026.09")
+        self.assertEqual(metadata["release-channel"], "stable")
+        self.assertNotEqual(latest, stable)
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        self.assertIn("$metadata-release-channel-label$", template)
+        self.assertIn("$metadata-release-version-label$", template)
 
     def test_pdf_metadata_separates_link_and_inline_code_colors(self) -> None:
         self.config["unaltraweb"]["manual"]["pdf"].update(
@@ -941,6 +1286,81 @@ $$
         self.assertEqual(metadata["external-link-color"], "AA3300")
         self.assertEqual(metadata["citation-link-color"], "CC2277")
         self.assertEqual(metadata["inline-code-color"], "552266")
+        self.assertEqual(metadata["chapter-references-title"], "References")
+
+    def test_assemble_marks_requested_chapter_references_for_pdf(self) -> None:
+        self.config["unaltraweb"]["manual"]["bibliography"] = True
+        write_markdown(
+            self.project / "_chapters/en/chapter.md",
+            {"title": "Chapter", "lang": "en", "weight": 10, "manual_references": True},
+            body="First {% cite zeta alpha %}, then {% cite alpha beta %}.",
+        )
+
+        _, _, markdown = manual_pdf.assemble(
+            self.project,
+            self.config,
+            "en",
+            manual_pdf.artifact_paths(self.project, self.config, "en"),
+        )
+
+        self.assertIn('::: {.manual-chapter-citations data-citations="zeta,alpha,beta"}', markdown)
+
+    @patch.object(manual_pdf, "run_command")
+    def test_pdf_passes_structured_sort_and_access_metadata_to_post_citeproc_filter(self, run_command) -> None:
+        self.config["unaltraweb"]["manual"]["bibliography"] = True
+        bibliography = self.project / "_bibliography/manual.bib"
+        bibliography.parent.mkdir(parents=True)
+        bibliography.write_text("@book{example, author={Example, A.}, title={Example}, year={2026}}\n", encoding="utf-8")
+        write_markdown(
+            self.project / "_chapters/en/chapter.md",
+            {"title": "Chapter", "lang": "en", "content_status": "approved"},
+        )
+
+        rendered_metadata: dict[str, object] = {}
+        rendered_bibliography: list[dict[str, object]] = []
+
+        def create_outputs(command: list[str], _project: Path) -> None:
+            if command[0] == "pandoc" and "--to=csljson" in command:
+                output = next(Path(argument.split("=", 1)[1]) for argument in command if argument.startswith("--output="))
+                output.write_text(
+                    json.dumps(
+                        [
+                            {
+                                "id": "example",
+                                "author": [{"family": "Example", "given": "A."}],
+                                "issued": {"date-parts": [[2026]]},
+                                "title": "Example",
+                                "DOI": "http://dx.doi.org/10.1234/example",
+                            }
+                        ]
+                    ),
+                    encoding="utf-8",
+                )
+            elif command[0] == "pandoc":
+                output = next(Path(argument.split("=", 1)[1]) for argument in command if argument.startswith("--output="))
+                output.write_bytes(b"raw pdf")
+                metadata_path = next(Path(argument.split("=", 1)[1]) for argument in command if argument.startswith("--metadata-file="))
+                rendered_metadata.update(yaml.safe_load(metadata_path.read_text(encoding="utf-8")))
+                bibliography_path = next(Path(argument.split("=", 1)[1]) for argument in command if argument.startswith("--bibliography="))
+                rendered_bibliography.extend(json.loads(bibliography_path.read_text(encoding="utf-8")))
+            elif command[0] == "qpdf":
+                Path(command[-1]).write_bytes(b"normalized pdf")
+            elif command[0] == "pdftoppm":
+                Path(f"{command[-1]}.png").write_bytes(b"cover")
+
+        run_command.side_effect = create_outputs
+
+        manual_pdf.build_language(self.project, self.config, "en")
+
+        pandoc_command = run_command.call_args_list[1].args[0]
+        citeproc_index = pandoc_command.index("--citeproc")
+        filter_argument = f"--lua-filter={manual_pdf.DEFAULT_BIBLIOGRAPHY_FILTER}"
+        self.assertGreater(pandoc_command.index(filter_argument), citeproc_index)
+        self.assertTrue(any(argument.endswith("bibliography.json") for argument in pandoc_command))
+        self.assertIn("example", rendered_metadata["bibliography-sort-keys"])
+        self.assertEqual(rendered_metadata["bibliography-access"]["example"]["doi"], "10.1234/example")
+        self.assertEqual(rendered_metadata["bibliography-access"]["example"]["urls"], [])
+        self.assertEqual(rendered_bibliography[0]["DOI"], "10.1234/example")
 
     def test_editorial_metadata_does_not_infer_optional_publication_fields(self) -> None:
         self.config["unaltraweb"]["manual"]["metadata"] = {
@@ -1048,6 +1468,17 @@ $$
         self.assertEqual(status_code, 0)
         self.assertEqual(json.loads(output.getvalue())["skipped"], True)
 
+    def test_public_paths_are_empty_when_manual_pdf_is_disabled(self) -> None:
+        self.config["unaltraweb"]["manual"]["pdf"]["enabled"] = False
+        (self.project / "_config.yml").write_text(yaml.safe_dump(self.config), encoding="utf-8")
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            status_code = manual_pdf.main(["public-paths", "--project", str(self.project)])
+
+        self.assertEqual(status_code, 0)
+        self.assertEqual(json.loads(output.getvalue())["paths"], [])
+
     def test_tampered_artifact_cannot_be_published(self) -> None:
         write_markdown(self.project / "_chapters/en/chapter.md", {"title": "Chapter", "lang": "en", "weight": 10, "content_status": "approved"})
         paths = manual_pdf.artifact_paths(self.project, self.config, "en")
@@ -1058,6 +1489,8 @@ $$
         manifest = {
             "language": "en",
             "fingerprint": fingerprint,
+            "release_selector": "latest",
+            "release_channel": "latest",
             "pdf": str(paths["pdf"].relative_to(self.project)),
             "cover": str(paths["cover"].relative_to(self.project)),
             "public_pdf": str(paths["public_pdf"].relative_to(self.project)),

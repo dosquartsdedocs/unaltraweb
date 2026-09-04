@@ -44,6 +44,13 @@ MANUAL_PDF_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0
 MANUAL_PDF_DEV_IMAGE ?= unaltraweb-manual-pdf:dev
 MANUAL_PDF_LANG ?=
 MANUAL_PDF_PUBLISH_DRY_RUN ?= 1
+MANUAL_RELEASE_SELECTOR ?= latest
+MANUAL_RELEASE_DRY_RUN ?= 1
+MANUAL_RELEASE_CONFIRM_PREPARE ?= 0
+override MANUAL_RELEASE_SELECTOR := $(value MANUAL_RELEASE_SELECTOR)
+override MANUAL_RELEASE_DRY_RUN := $(value MANUAL_RELEASE_DRY_RUN)
+override MANUAL_RELEASE_CONFIRM_PREPARE := $(value MANUAL_RELEASE_CONFIRM_PREPARE)
+export MANUAL_RELEASE_SELECTOR
 UNALTRAWEB_WORKER_ROLE ?=
 UNALTRAWEB_WORKER_PROJECT ?=
 UNALTRAWEB_WORKER_TOKEN ?=
@@ -72,17 +79,17 @@ ifneq ($(strip $(SCIMAGO_INPUT)),)
 SCIMAGO_ARGS += --input "$(SCIMAGO_INPUT)"
 endif
 
-.PHONY: distribution-check distribution-release-check distribution-doctor workflow-check wheel-check gem-check docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check manual-pdf-image manual-pdf-image-dev manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio compute-base-image-python compute-base-image-r web-capture-status web-capture-check web-capture-render web-capture-image visualization-status visualization-check visualization-render
-.PHONY: mcp-runtime-image mcp-image mcp-build mcp-check mcp-smoke mcp-smoke-prebuilt mcp-stdio mcp-down mcp-down-all mcp-list-tools mcp-starter-templates mcp-new-web mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
+.PHONY: distribution-check distribution-release-check distribution-doctor workflow-check wheel-check gem-check reproducible-site-check docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check manual-pdf-image manual-pdf-image-dev manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-release-status manual-release-check manual-release-prepare manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio compute-base-image-python compute-base-image-r web-capture-status web-capture-check web-capture-render web-capture-image visualization-status visualization-check visualization-render
+.PHONY: mcp-runtime-image mcp-image mcp-build mcp-check mcp-smoke mcp-smoke-prebuilt mcp-stdio mcp-down mcp-down-all mcp-list-tools mcp-starter-templates mcp-new-web mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-manual-release-status mcp-manual-release-check mcp-manual-release-prepare mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
 
-REPOSITORY_CONTEXT_TARGETS := distribution-doctor manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio web-capture-status web-capture-check web-capture-render visualization-status visualization-check visualization-render manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync metrics-scimago-fetch metrics-update metrics-update-all metrics-check
+REPOSITORY_CONTEXT_TARGETS := distribution-doctor manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio web-capture-status web-capture-check web-capture-render visualization-status visualization-check visualization-render manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-release-status manual-release-check manual-release-prepare metrics-scimago-fetch metrics-update metrics-update-all metrics-check
 $(REPOSITORY_CONTEXT_TARGETS): override PROJECT = $${MCP_CONSUMER_WORKSPACE:-$$PWD}
 $(REPOSITORY_CONTEXT_TARGETS): override PROJECT_ROOT = $${MCP_CONSUMER_WORKSPACE:-$$PWD}
 
 distribution-check: ## Validate component/version parity, release selections, and the wheel boundary
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) scripts/validate_distribution.py
 
-distribution-release-check: ## Require every selected component release to be published
+distribution-release-check: ## Require every selected component to be ready for coordinated publication
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) scripts/validate_distribution.py --require-release-ready
 
 distribution-doctor: ## Inspect the selected distribution and PROJECT without network access
@@ -96,6 +103,9 @@ wheel-check: ## Build and exercise a clean factory-free wheel install
 
 gem-check: ## Build the gem and verify its package-owned contract files
 	@$(PYTHON) scripts/test_gem_build.py
+
+reproducible-site-check: ## Build the same fixed-epoch Jekyll fixture twice and compare every output
+	@DOCKER_IMAGE="$(DOCKER_IMAGE)" $(PYTHON) scripts/test_reproducible_jekyll_build.py
 
 mcp-runtime-image: ## Build the reusable Jekyll runtime used by the MCP
 	docker build --network "$(MCP_DOCKER_BUILD_NETWORK)" -t "$(MCP_RUNTIME_IMAGE)" .
@@ -194,6 +204,15 @@ mcp-manual-pdf-build: ## Build the manual PDF for PROJECT
 
 mcp-manual-pdf-publish: ## Dry-run manual PDF publication for PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-pdf-publish --language "$(MANUAL_PDF_LANG)"
+
+mcp-manual-release-status: ## Inspect local manual release readiness without publishing
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-release-status
+
+mcp-manual-release-check: ## Require a current verified local manual release candidate
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-release-check
+
+mcp-manual-release-prepare: ## Dry-run local manual release preparation unless explicitly confirmed
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-release-prepare $(if $(filter 0 false FALSE no NO n N,$(MANUAL_RELEASE_DRY_RUN)),--apply,) $(if $(filter 1 true TRUE yes YES y Y,$(MANUAL_RELEASE_CONFIRM_PREPARE)),--confirm-prepare,)
 
 mcp-profile-prune-plan: ## Print JSON dry-run prune candidates for the active or selected profile
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp profile-prune-plan --site-profile "$(SITE_PROFILE)"
@@ -325,11 +344,11 @@ manual-pdf-image-dev: ## Build the explicitly named maintainer PDF development i
 	docker build -f scripts/manual/Dockerfile -t "$(MANUAL_PDF_DEV_IMAGE)" scripts/manual
 
 define run_manual_pdf_worker
-	@set -e; runtime_dir="$(PROJECT_ROOT)/tmp/.unaltraweb/manual-pdf"; mkdir -p "$$runtime_dir"; set --; cidfile=""; \
-	if test -n "$(UNALTRAWEB_WORKER_TOKEN)"; then cidfile="$$runtime_dir/worker-$(UNALTRAWEB_WORKER_TOKEN).cid"; rm -f "$$cidfile"; set -- --cidfile "$$cidfile"; fi; \
+	@set -e; set --; cidfile=""; \
+	if test -n "$(UNALTRAWEB_WORKER_TOKEN)"; then runtime_dir="$(PROJECT_ROOT)/tmp/.unaltraweb/manual-pdf"; mkdir -p "$$runtime_dir"; cidfile="$$runtime_dir/worker-$(UNALTRAWEB_WORKER_TOKEN).cid"; rm -f "$$cidfile"; set -- --cidfile "$$cidfile"; fi; \
 	mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(PROJECT_ROOT)" /project); \
 	trap 'test -z "$$cidfile" || rm -f "$$cidfile"' EXIT; \
-	docker run --rm "$$@" $(WORKER_LABEL_ARGS) --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp --mount "$$mount" -w /project "$(MANUAL_PDF_IMAGE)" $(1) --project /project $(if $(strip $(MANUAL_PDF_LANG)),--language "$(MANUAL_PDF_LANG)",) $(2)
+	docker run --rm "$$@" $(WORKER_LABEL_ARGS) --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e "UNALTRAWEB_MANUAL_RELEASE_SELECTOR=$${MANUAL_RELEASE_SELECTOR}" --mount "$$mount" -w /project "$(MANUAL_PDF_IMAGE)" $(1) --project /project $(if $(strip $(MANUAL_PDF_LANG)),--language "$(MANUAL_PDF_LANG)",) $(2)
 endef
 
 manual-pdf-preflight: ## Run required PDF gates without contaminating the worker JSON stream
@@ -337,11 +356,11 @@ manual-pdf-preflight: ## Run required PDF gates without contaminating the worker
 	@$(MAKE) --silent --no-print-directory web-capture-check >/dev/null
 	@docker image inspect "$(MANUAL_PDF_IMAGE)" >/dev/null 2>&1 || docker pull "$(MANUAL_PDF_IMAGE)" >/dev/null
 
-manual-pdf-status: manual-pdf-preflight ## Inspect manual PDF configuration and artefacts
-	$(call run_manual_pdf_worker,status)
+manual-pdf-status: ## Inspect manual PDF configuration and artefacts without Docker, network, or writes
+	@UNALTRAWEB_MANUAL_RELEASE_SELECTOR="$${MANUAL_RELEASE_SELECTOR}" $(PYTHON) "$(CURDIR)/scripts/manual/build_pdf.py" status --project "$(PROJECT_ROOT)" $(if $(strip $(MANUAL_PDF_LANG)),--language "$(MANUAL_PDF_LANG)",)
 
-manual-pdf-check: manual-pdf-preflight ## Reject stale or unpublished manual PDF artefacts
-	$(call run_manual_pdf_worker,check)
+manual-pdf-check: ## Reject stale or unpublished manual PDF artefacts without Docker or network
+	@UNALTRAWEB_MANUAL_RELEASE_SELECTOR="$${MANUAL_RELEASE_SELECTOR}" $(PYTHON) "$(CURDIR)/scripts/manual/build_pdf.py" check --project "$(PROJECT_ROOT)" $(if $(strip $(MANUAL_PDF_LANG)),--language "$(MANUAL_PDF_LANG)",)
 
 manual-pdf-build: manual-pdf-preflight ## Build manual PDFs and cover previews under tmp
 	$(call run_manual_pdf_worker,build)
@@ -351,6 +370,20 @@ manual-pdf-publish: manual-pdf-preflight ## Copy built PDF artefacts to configur
 
 manual-pdf-sync: manual-pdf-preflight ## Build and copy changed manual PDFs to their public paths
 	$(call run_manual_pdf_worker,sync)
+
+define run_manual_release_worker
+	@{ $(MAKE) --silent --no-print-directory manual-pdf-status MANUAL_PDF_LANG= || true; } | \
+	UNALTRAWEB_MANUAL_RELEASE_SELECTOR="$${MANUAL_RELEASE_SELECTOR}" PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.manual_release $(1) --project "$(PROJECT_ROOT)" $(2)
+endef
+
+manual-release-status: ## Inspect release readiness and local candidate state without publishing or writing
+	$(call run_manual_release_worker,status)
+
+manual-release-check: ## Fail unless the selected local candidate exactly matches verified current outputs
+	$(call run_manual_release_worker,check)
+
+manual-release-prepare: ## Prepare only a local candidate; defaults to dry-run and never publishes
+	$(call run_manual_release_worker,prepare,$(if $(filter 0 false FALSE no NO n N,$(MANUAL_RELEASE_DRY_RUN)),--apply,) $(if $(filter 1 true TRUE yes YES y Y,$(MANUAL_RELEASE_CONFIRM_PREPARE)),--confirm-prepare,))
 
 docs-build: visualization-check
 	@mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$$PWD" /work); docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e BUNDLE_GEMFILE=docs/Gemfile -e BUNDLE_APP_CONFIG=/work/tmp/docs_bundle_config -e BUNDLE_PATH=/work/tmp/docs_bundle_path --mount "$$mount" -w /work $(DOCKER_IMAGE) bash -lc 'git config --global --add safe.directory /work >/dev/null 2>&1 || true; mkdir -p tmp/docs_bundle_config tmp/docs_bundle_path; bundle check || bundle install; core_config=$$(bundle exec ruby -e "spec = Gem::Specification.find_by_name(\"unaltraweb\"); print File.join(spec.full_gem_path, \"_config.yml\")"); bundle exec jekyll build --source docs --destination tmp/docs-site --config "$$core_config,docs/_config.yml" --disable-disk-cache'

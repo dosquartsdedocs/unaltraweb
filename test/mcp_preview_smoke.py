@@ -13,19 +13,18 @@ def create_site(project: Path) -> None:
         "title: Preview smoke\n"
         "baseurl: /preview-smoke\n"
         "theme: unaltraweb\n"
-        "plugins: [unaltraweb]\n"
         "unaltraweb:\n"
         "  site_profile: unaltreselfie\n",
         encoding="utf-8",
     )
-    (project / "Gemfile").write_text('gem "unaltraweb"\n', encoding="utf-8")
+    (project / "Gemfile").write_text('group :jekyll_plugins do\n  gem "unaltraweb"\nend\n', encoding="utf-8")
     (project / "Makefile").write_text(
         "LOCAL_CORE ?= /opt/unaltraweb\n"
         "LOCAL_GEMFILE := tmp/Gemfile.local\n\n"
         ".PHONY: local-gemfile build-native serve-native\n\n"
         "local-gemfile:\n"
         "\t@mkdir -p tmp\n"
-        "\t@printf '%s\\n' 'source \"https://rubygems.org\"' 'gem \"unaltraweb\", path: \"$(LOCAL_CORE)\"' > $(LOCAL_GEMFILE)\n\n"
+        "\t@printf '%s\\n' 'source \"https://rubygems.org\"' '' 'group :jekyll_plugins do' '  gem \"unaltraweb\", path: \"$(LOCAL_CORE)\"' 'end' > $(LOCAL_GEMFILE)\n\n"
         "build-native: local-gemfile\n"
         "\t@BUNDLE_GEMFILE=$(LOCAL_GEMFILE) bundle lock --local\n"
         "\t@BUNDLE_GEMFILE=$(LOCAL_GEMFILE) bundle check\n"

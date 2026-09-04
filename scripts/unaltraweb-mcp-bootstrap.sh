@@ -66,6 +66,17 @@ if ! resolved_image="$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/n
   docker pull "$image" >/dev/null
   resolved_image="$(docker image inspect --format '{{.Id}}' "$image")"
 fi
+image_reference="$image"
+case "$image_reference" in
+  ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:*) ;;
+  *)
+    for repository_digest in $(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image"); do
+      case "$repository_digest" in
+        ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:*) image_reference="$repository_digest"; break ;;
+      esac
+    done
+    ;;
+esac
 
 set -- docker run --rm -i \
   --label io.context.mcp-factory=unaltraweb \
@@ -79,6 +90,7 @@ set -- docker run --rm -i \
   -e "UNALTRAWEB_DOCKER_ROOT=$project" \
   -e UNALTRAWEB_FACTORY_DIR=/opt/unaltraweb \
   -e "UNALTRAWEB_MCP_IMAGE=$resolved_image" \
+  -e "UNALTRAWEB_MCP_IMAGE_REFERENCE=$image_reference" \
   -e "UNALTRAWEB_PROJECT_USER=$owner" \
   --mount "$workspace_mount" \
   --mount "$mirror_mount" \

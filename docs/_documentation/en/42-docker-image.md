@@ -13,7 +13,7 @@ weight: 140
 permalink: "/docker-image/"
 nav_title: Docker Image
 ---
-The shared image is published from the core repository:
+The pending distribution contract selects this eventual shared image, which is published manually from the core repository and may not exist remotely yet:
 
 ```text
 ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
@@ -23,7 +23,23 @@ It provides the runtime environment: Ruby, Bundler, Jekyll system dependencies, 
 
 The image is not the source of layouts and styles. Those come from the `unaltraweb` gem in the child site's `Gemfile`.
 
-The GHCR package is kept because it makes the local Docker workflow cheap and repeatable. Publishing the image is manual: run `.github/workflows/docker-image.yml` only when runtime dependencies change and after reviewing its strict release preflight. The versioned tag is the consumer default. `main`/`latest` are mutable maintainer channels published from the default branch; they are not release pins. The workflow builds and tests all images before registry login, emits SBOM/provenance attestations, and builds the MCP image from the exact newly published runtime digest.
+The GHCR package is kept because it makes the local Docker workflow cheap and repeatable. Publishing is manual. Its unprivileged `preflight` job performs package and source checks without a registry login or Docker build. A default-branch run then crosses three separate credential boundaries:
+
+1. `build-candidates` has package-write, attestation-write, and OIDC signing authority but never executes a candidate. It checks that the runtime, MCP, and manual PDF `sha-<full-commit>` tags are absent, builds and pushes each image exactly once under only its SHA tag, and builds MCP from the runtime build's exact digest. Each build retains BuildKit SBOM and maximum provenance and is immediately followed by a GitHub-signed SLSA build-provenance attestation for the exact repository and digest, stored with the image in GHCR.
+2. `test-candidates` has only read permissions. It authenticates to GHCR with its read-scoped token, verifies each exact digest's registry-stored attestation against repository `dosquartsdedocs/unaltraweb`, signer workflow `dosquartsdedocs/unaltraweb/.github/workflows/docker-image.yml`, and the current source commit, then pulls and checks the OCI revision labels. It explicitly logs out and destroys its dedicated Docker credential directory before candidate execution. No `GH_TOKEN` is present while it runs every `test/**/*_test.rb` file from a read-only source mount, all manual PDF integration tests, reproducibility and MCP smoke with the MCP digest, and docs with the runtime digest. Only digests that pass every gate become job outputs.
+3. `promote-candidates` regains package-write authority but never executes a candidate. It rechecks the signed attestations, SHA tags, and revision labels, then points `sha-<full-commit>`, `main`, and `latest` at the tested digests with `docker buildx imagetools create` and verifies all resulting tag digests. A failed test run therefore cannot advance broad aliases, and no image is rebuilt after testing.
+
+GHCR does not provide this workflow with a compare-and-swap tag update. The absence check before the build and the equality checks before and after promotion reduce accidental clobbering, but a package administrator can still race those separate registry operations. The durable evidence is the signed, source-bound digest that the read-only job tested, not a claim that the SHA tag update is atomic.
+
+A receipt-only child commit records the immutable candidate digests outside the image contents. On the exact release tag, the package-write `promote-release` job executes no candidate and performs no rebuild. It requires each receipt-derived SHA tag to resolve to the recorded digest, verifies the GitHub-signed provenance with `--source-digest` set to `receipt.source_commit`, checks the revision label against that same commit, and only then creates and verifies version aliases. The hosted runner uses the following verification shape for each digest; an OCI verification requires read authentication to GHCR:
+
+```bash
+gh attestation verify oci://ghcr.io/dosquartsdedocs/unaltraweb@sha256:<digest> \
+  --bundle-from-oci \
+  --repo dosquartsdedocs/unaltraweb \
+  --signer-workflow dosquartsdedocs/unaltraweb/.github/workflows/docker-image.yml \
+  --source-digest <source-commit>
+```
 
 During local core development, use the locally built image:
 
@@ -39,8 +55,8 @@ After the first GHCR publish, make the package public and confirm unauthenticate
 Executable manual chapters use separate images from the Jekyll runtime and PDF builder:
 
 ```text
-ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0
-ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0
+ghcr.io/dosquartsdedocs/unaltraweb-compute-python@sha256:18cb269811bd4005800382da25a480ec2bca7eac8d0501ad1ef36bad1c0f8cd9
+ghcr.io/dosquartsdedocs/unaltraweb-compute-r@sha256:928ffb93f221e09e8b929157dee473b838e061915a2eb67224e4124b85f81837
 ```
 
 The Python image provides Quarto, Jupyter, NumPy, pandas, Matplotlib, GeoPandas, and geospatial libraries. The R image builds on `rocker/geospatial`, preserves RStudio Server, and adds Quarto, `knitr`, `rmarkdown`, `renv`, and the computation driver.
@@ -53,7 +69,7 @@ make manual-compute-image-r
 make manual-compute-images
 ```
 
-An image already available locally is reused. Otherwise the target pulls a selected published image or builds a configured project extension.
+An image already available locally is reused. Otherwise the target pulls a selected published image or builds a configured project extension. New `unaltremanual` sites select both release workers in `.unaltraweb/computations.yml`, and `manual_computation_render` performs this preparation automatically for each engine that has discovered sources.
 
 The factory owns the `manual-compute-*` Make targets and exposes them to child repositories through the MCP computation tools. Package-created sites keep a small build/serve Makefile instead of copying the computation implementation. Rendering and project image preparation run through the factory because they need the core scripts and Docker contracts.
 
@@ -148,7 +164,7 @@ The target prepares the image, mounts the project at `/home/rstudio/project`, ma
 
 ### Publish To GHCR
 
-Core maintainers publish both base images with the manual `Compute images` workflow in `.github/workflows/compute-images.yml`. Its strict, no-credentials preflight and no-push build matrix must complete before its package-write matrix can start. Published Python and R packages carry SBOM/provenance and default-branch `main`, commit `sha-*`, and semver/release-tag metadata. Consumer defaults use the semver tag; `main` and `sha-*` are explicitly maintainer channels. Packages intended for child sites must allow unauthenticated pulls.
+Core maintainers publish both base images with the manual `Compute images` workflow in `.github/workflows/compute-images.yml`. Its strict, no-credentials preflight and no-push build matrix must complete before its package-write matrix can start. Candidate Python and R images carry SBOM/provenance and default-branch `main` plus full-commit `sha-*` channels; release-tag runs promote a recorded immutable digest instead of rebuilding. Consumer defaults use the digest-pinned references selected by the BOM. Packages intended for child sites must allow unauthenticated pulls.
 
 Projects can call `.github/workflows/project-compute-image.yml` to publish their own extension package. Use a separate package name such as `example-compute-r`; do not encode project dependencies as variants of `unaltraweb-compute-r`.
 
@@ -164,6 +180,6 @@ ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0
 
 The image contains pinned Playwright/Chromium, the capture worker, the Python status controller, and the core visual sources used in fingerprints. `make web-capture-image` builds the explicitly named `unaltraweb-web-capture:dev` maintainer image; set `WEB_CAPTURE_IMAGE` to that name when testing it. The manual `Web capture image` workflow publishes default-branch, commit, and semver/release tags to GHCR.
 
-Manual PDF commands similarly consume `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0` by default. `manual-pdf-image` reuses or pulls that selected image instead of rebuilding it locally. Maintainers use `make manual-pdf-image-dev` and then pass `MANUAL_PDF_IMAGE=unaltraweb-manual-pdf:dev` for local PDF runtime changes.
+Manual PDF commands similarly consume `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0` by default. `manual-pdf-image` reuses or pulls that selected image instead of rebuilding it locally. A pending release may therefore fail to pull until it is actually published. Maintainers use `make manual-pdf-image-dev` and then pass `MANUAL_PDF_IMAGE=unaltraweb-manual-pdf:dev` for local PDF runtime changes.
 
 Rendering creates an ephemeral Docker `--internal` network shared only by Jekyll and Chromium, keeps browser requests on the preview origin, blocks service workers, popups, and WebSockets, drops Linux capabilities, uses a read-only container root and bounded resources, and writes only the declared PNG/SVG outputs under the mounted project. Ordinary checks run without browser execution or network access.

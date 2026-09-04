@@ -32,7 +32,7 @@ layout: default
   {% if page.related_publications %}
     <h2>{% include t.liquid key='page.references' default='References' %}</h2>
     <div class="publications">
-      {% bibliography --cited_in_order %}
+      {% bibliography --cited %}
     </div>
   {% endif %}
 

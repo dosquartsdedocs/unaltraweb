@@ -43,14 +43,18 @@ codeBlocks.forEach(function (codeBlock) {
       }, waitFor);
     });
 
-    // create wrapper div
-    var wrapper = document.createElement("div");
-    wrapper.className = "code-display-wrapper";
-
-    // add copy button and code block to wrapper div
-    const parent = codeBlock.parentElement;
-    parent.insertBefore(wrapper, codeBlock);
-    wrapper.append(codeBlock);
-    wrapper.append(copyButton);
+    var manualBlock = codeBlock.closest(".uw-code-block");
+    var manualHeader = manualBlock ? manualBlock.querySelector(".uw-code-header") : null;
+    if (manualHeader) {
+      manualHeader.append(copyButton);
+    } else {
+      // Preserve the generic overlay for preformatted blocks outside manual panels.
+      var wrapper = document.createElement("div");
+      wrapper.className = "code-display-wrapper";
+      const parent = codeBlock.parentElement;
+      parent.insertBefore(wrapper, codeBlock);
+      wrapper.append(codeBlock);
+      wrapper.append(copyButton);
+    }
   }
 });

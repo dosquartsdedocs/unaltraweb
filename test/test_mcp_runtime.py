@@ -17,6 +17,7 @@ import yaml
 from unaltraweb_mcp import cli
 from unaltraweb_mcp import site_tools
 from unaltraweb_mcp.docker_mount import docker_bind_mount
+from unaltraweb_mcp.distribution import companion_dependency_requirements, component_reference
 
 
 class McpRuntimeTests(unittest.TestCase):
@@ -85,6 +86,11 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertEqual(set(available), set(site_tools.PROFILE_CONTRACTS))
         self.assertTrue(all(available.values()))
         self.assertTrue(status["common_available"])
+        self.assertEqual(status["common_missing"], [])
+        self.assertTrue(all(not item["missing"] for item in status["profiles"]))
+        manual = next(item for item in status["profiles"] if item["profile"] == "unaltremanual")
+        self.assertEqual(manual["scaffold_paths"], [".unaltraweb/computations.yml"])
+        self.assertEqual(set(manual["provisioned_features"]), {"manual_computations_python", "manual_computations_r"})
 
     def test_new_web_creates_each_profile_and_passes_its_contract(self) -> None:
         expected_layouts = {
@@ -93,6 +99,24 @@ class McpRuntimeTests(unittest.TestCase):
             "unaltremanual": "manual-home",
             "unaltredocs": "documentation-home",
         }
+        expected_features = {
+            "unaltreselfie": {"news": True, "blog": True, "cv": True, "projects": True, "publications": True, "metrics": False, "docs": False, "manual": False, "readings": True},
+            "unaltreprojecte": {"news": True, "blog": False, "cv": False, "projects": True, "publications": True, "metrics": False, "docs": False, "manual": False, "readings": True},
+            "unaltremanual": {"news": False, "blog": False, "cv": False, "projects": False, "publications": False, "metrics": False, "docs": False, "manual": True, "readings": True},
+            "unaltredocs": {"news": False, "blog": False, "cv": False, "projects": False, "publications": False, "metrics": False, "docs": True, "manual": False, "readings": False},
+        }
+        expected_descriptions = {
+            "unaltreselfie": "Personal academic or professional site.",
+            "unaltreprojecte": "Research project, group, infrastructure, or output site.",
+            "unaltremanual": "Book-like manual, course, or teaching site.",
+            "unaltredocs": "Technical or operational documentation portal.",
+        }
+        expected_profile_paths = {
+            "unaltreselfie": "`_posts/` and `_news/`",
+            "unaltreprojecte": "`_data/team.yml`",
+            "unaltremanual": "`_chapters/<lang>/`",
+            "unaltredocs": "`_documentation/<lang>/`",
+        }
         for profile, layout in expected_layouts.items():
             with self.subTest(profile=profile):
                 project = self.project / profile
@@ -100,17 +124,148 @@ class McpRuntimeTests(unittest.TestCase):
 
                 self.assertTrue(result["ok"], result)
                 self.assertEqual(site_tools.site_profile(site_tools.site_config(project)), profile)
-                self.assertIn(f"layout: {layout}", (project / "_pages/en/index.md").read_text(encoding="utf-8"))
+                expected_provisioned = {"manual_computations_python", "manual_computations_r"} if profile == "unaltremanual" else set()
+                self.assertEqual(set(result["provisioned_features"]), expected_provisioned)
+                home = (project / "_pages/en/index.md").read_text(encoding="utf-8")
+                self.assertIn(f"layout: {layout}", home)
+                self.assertIn('permalink: "/en/"', home)
+                root_redirect = (project / "_pages/index.html").read_text(encoding="utf-8")
+                self.assertIn("{% assign home_path = '/en/' %}", root_redirect)
+                self.assertIn('permalink: /', root_redirect)
+                self.assertIn('search_exclude: true', root_redirect)
+                config = yaml.safe_load((project / "_config.yml").read_text(encoding="utf-8"))
+                self.assertNotIn("plugins", config)
+                self.assertEqual(config["description"], "")
+                self.assertEqual(config["copyright_holder"], f"Test {profile}")
+                self.assertEqual(config["unaltraweb"]["features"], expected_features[profile])
+                if profile == "unaltremanual":
+                    self.assertEqual(config["unaltraweb"]["footer"]["brand_url"], "/en/")
+                self.assertTrue((project / "README.md").is_file())
+                self.assertTrue((project / "AGENTS.md").is_file())
+                self.assertIn("Default language: `en`", (project / "AGENTS.md").read_text(encoding="utf-8"))
                 self.assertTrue((project / ".github/workflows/deploy.yml").is_file())
+                deploy = yaml.safe_load((project / ".github/workflows/deploy.yml").read_text(encoding="utf-8"))
+                dispatch = deploy[True]["workflow_dispatch"]
+                self.assertTrue(dispatch["inputs"]["reviewed_sha"]["required"])
+                self.assertIn("refs/heads/main", json.dumps(deploy))
+                deploy_job = deploy["jobs"]["deploy"]
+                self.assertEqual(deploy_job["needs"], "validate")
+                self.assertEqual(
+                    deploy_job["uses"],
+                    "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@6427c5963d6d32845cd774dd8537fe935b42d381",
+                )
+                self.assertEqual(deploy_job["with"], {"check-manual-pdf": False, "sync-manual-pdf": True})
                 self.assertTrue((project / ".unaltraweb/docker-mount.sh").is_file())
                 makefile = (project / "Makefile").read_text(encoding="utf-8")
                 self.assertIn("docker run", makefile)
                 self.assertIn(".unaltraweb/docker-mount.sh", makefile)
                 self.assertIn("serve-native: site-check-native serve-capture-native", makefile)
+                self.assertIn("runtime-image", makefile)
+                self.assertIn("group :jekyll_plugins do", makefile)
+                self.assertIn("group :jekyll_plugins do", (project / "Gemfile").read_text(encoding="utf-8"))
                 self.assertIn("unaltraweb (= 0.3.0)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
+                self.assertIn("jekyll-scholar (>= 7.3, < 8)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
                 self.assertEqual((project / "context/writing-profile.md").is_file(), profile == "unaltremanual")
+                computations_path = project / ".unaltraweb/computations.yml"
+                self.assertEqual(computations_path.is_file(), profile == "unaltremanual")
+                if profile == "unaltremanual":
+                    self.assertTrue((project / "_bibliography/manual.bib").is_file())
+                    self.assertTrue((project / "_chapters/en/.gitkeep").is_file())
+                    self.assertTrue((project / "assets/quarto/.gitkeep").is_file())
+                    self.assertTrue((project / "assets/img/generated/.gitkeep").is_file())
+                    computations = yaml.safe_load(computations_path.read_text(encoding="utf-8"))
+                    self.assertTrue(computations["enabled"])
+                    self.assertEqual(computations["source_roots"], ["_chapters", "assets/quarto"])
+                    self.assertEqual(computations["engines"]["python"]["image"], component_reference("compute_python"))
+                    self.assertEqual(computations["engines"]["r"]["image"], component_reference("compute_r"))
+                if profile == "unaltreselfie":
+                    self.assertTrue((project / "_bibliography/papers.bib").is_file())
+                if profile == "unaltreprojecte":
+                    self.assertTrue((project / "_bibliography/papers.bib").is_file())
+                readme = (project / "README.md").read_text(encoding="utf-8")
+                pull_request_template = (project / ".github/pull_request_template.md").read_text(encoding="utf-8")
+                self.assertTrue(readme.startswith("# GitHub Web Editing Workflow\n"))
+                self.assertIn(f"**`{profile}`** profile: {expected_descriptions[profile]}", readme)
+                self.assertIn(f"## Editable Content For `{profile}`", readme)
+                self.assertIn(expected_profile_paths[profile], readme)
+                self.assertNotIn(f"Test {profile}", readme, "README rendering must not interpolate the user-controlled title")
+                for known_profile in expected_layouts:
+                    self.assertIn(f"`{known_profile}`", readme)
+                self.assertIn("only one active editor per file", readme)
+                self.assertIn("Never edit or commit directly to `main`", readme)
+                self.assertIn("Draft pull request", readme)
+                self.assertIn("ask the maintainer to coordinate it", readme)
+                self.assertIn("Runs the site's local checks and every required", readme)
+                self.assertIn("Starts the deploy workflow manually", readme)
+                self.assertIn("one task on one branch", pull_request_template)
+                self.assertIn("no other active editor", pull_request_template)
+                self.assertIn("Required local checks and renders pass", pull_request_template)
+                combined_guidance = readme + pull_request_template
+                for forbidden in ["${{", "secrets.", "GITHUB_TOKEN", "id-token:", "contents: write", "on:\n  push:"]:
+                    self.assertNotIn(forbidden, combined_guidance)
+                for forbidden in ["publishes automatically", "deploys automatically", "automatic deployment"]:
+                    self.assertNotIn(forbidden, combined_guidance.lower())
+                if profile == "unaltremanual":
+                    self.assertIn("## unaltremanual Publishing Channels", readme)
+                    self.assertIn("`latest` is a manual-only deployment", readme)
+                    self.assertIn("Pushing or merging to `main` does not publish the manual", readme)
+                    self.assertIn("are generated for deployment and are not versioned", readme)
+                    self.assertIn("`vYYYY.MM(.N)`", readme)
+                    self.assertIn("Release checks reject `legacy/` or `sandbox/`", readme)
+                    config = yaml.safe_load((project / "_config.yml").read_text(encoding="utf-8"))
+                    self.assertEqual(config["unaltraweb"]["manual"]["release"]["selector"], "latest")
+                    self.assertIs(config["unaltraweb"]["manual"]["pdf"]["enabled"], False)
+                else:
+                    self.assertNotIn("## unaltremanual Publishing Channels", readme)
+                ignore_lines = (project / ".gitignore").read_text(encoding="utf-8").splitlines()
+                self.assertEqual("/assets/pdf/manual-en.pdf" in ignore_lines, profile == "unaltremanual")
+                self.assertEqual("/assets/img/manual-cover-en.png" in ignore_lines, profile == "unaltremanual")
+                self.assertNotIn("*.pdf", ignore_lines)
+                self.assertNotIn("*.png", ignore_lines)
+                if profile in {"unaltreselfie", "unaltreprojecte"}:
+                    self.assertIn("`_books/`", readme)
+                if profile == "unaltreprojecte":
+                    self.assertIn("`_data/repositories.yml`", readme)
+                self.assertIn("## Local Maintainer Workflow", readme)
+                self.assertIn("## MCP Agent Workflow", readme)
+                scaffold = json.loads((project / ".unaltraweb/scaffold.json").read_text(encoding="utf-8"))
+                self.assertEqual(set(scaffold["files"]), {
+                    ".gitignore",
+                    ".unaltraweb/docker-mount.sh",
+                    "Makefile",
+                    "Gemfile",
+                    "Gemfile.lock",
+                    ".github/pull_request_template.md",
+                    ".github/workflows/deploy.yml",
+                })
+                for site_owned in ["README.md", "AGENTS.md", "_config.yml"]:
+                    self.assertNotIn(site_owned, scaffold["files"])
                 for path in site_tools.PROFILE_CONTRACTS[profile]["recommended_paths"]:
                     self.assertTrue((project / path).exists(), path)
+
+    def test_manual_generated_ignores_follow_configured_languages_and_paths(self) -> None:
+        project = self.project / "custom-manual"
+        site_tools.new_web(
+            project,
+            site_profile_value="unaltremanual",
+            title="Custom manual",
+            languages="en,ca",
+        )
+        config = yaml.safe_load((project / "_config.yml").read_text(encoding="utf-8"))
+        config["unaltraweb"]["manual"]["pdf"]["output"] = "downloads/edition-{lang}.pdf"
+        config["unaltraweb"]["manual"]["pdf"]["cover_output"] = "covers/edition-{lang}.png"
+        (project / "_config.yml").write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+        generated = site_tools._managed_scaffold_payloads(project)[Path(".gitignore")].decode("utf-8").splitlines()
+
+        for path in [
+            "/covers/edition-ca.png",
+            "/covers/edition-en.png",
+            "/downloads/edition-ca.pdf",
+            "/downloads/edition-en.pdf",
+        ]:
+            self.assertIn(path, generated)
+        self.assertNotIn("/assets/pdf/manual-en.pdf", generated)
 
     def test_generated_native_targets_do_not_reparse_the_checkout_path(self) -> None:
         project = self.project / "site,source=tmp \"$(path-pwn)\" `path-pwn` 'quoted'"
@@ -139,6 +294,28 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertFalse(marker.exists())
         self.assertEqual(capture.read_bytes().split(b"\0")[:-1], [b"--project", os.fsencode(project.resolve()), b"mcp", b"site-check"])
 
+    def test_bibliography_add_entry_uses_the_profile_default_file(self) -> None:
+        entry = "@book{example,\n  title = {Example}\n}"
+
+        personal = site_tools.bibliography_add_entry(self.project, entry)
+        self.assertEqual("_bibliography/papers.bib", personal["path"])
+
+        (self.project / "_config.yml").write_text(
+            "theme: unaltraweb\nunaltraweb:\n  site_profile: unaltremanual\n  manual:\n    bibliography_file: course.bib\n",
+            encoding="utf-8",
+        )
+        manual = site_tools.bibliography_add_entry(self.project, entry.replace("example", "manual"))
+        self.assertEqual("_bibliography/course.bib", manual["path"])
+
+    def test_bibliography_add_entry_rejects_an_unsafe_manual_default(self) -> None:
+        (self.project / "_config.yml").write_text(
+            "theme: unaltraweb\nunaltraweb:\n  site_profile: unaltremanual\n  manual:\n    bibliography_file: ../outside.bib\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "must be a .bib filename"):
+            site_tools.bibliography_add_entry(self.project, "@book{example,\n  title = {Example}\n}")
+
     def test_new_web_is_idempotent_for_the_same_inputs(self) -> None:
         project = self.project / "new-site"
 
@@ -148,6 +325,17 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertGreater(first["created_count"], 0)
         self.assertEqual(second["created_count"], 0)
         self.assertEqual(second["unchanged_count"], first["created_count"])
+
+    def test_new_manual_uses_the_selected_default_language_for_chapters(self) -> None:
+        project = self.project / "manual-ca"
+
+        site_tools.new_web(project, site_profile_value="unaltremanual", default_lang="ca", languages="ca,en")
+
+        self.assertTrue((project / "_chapters/ca/.gitkeep").is_file())
+        self.assertFalse((project / "_chapters/en/.gitkeep").exists())
+        agents = (project / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn("Default language: `ca`", agents)
+        self.assertIn("Maintained languages: `ca`, `en`", agents)
 
     def test_new_web_preflights_all_collisions_before_writing(self) -> None:
         project = self.project / "collision"
@@ -452,6 +640,8 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         run_args = docker.call_args.args[0]
         self.assertIn("sha256:controller", run_args)
+        metadata = self.project.stat()
+        self.assertEqual(run_args[run_args.index("--user") + 1], f"{metadata.st_uid}:{metadata.st_gid}")
         self.assertEqual(run_args[run_args.index("--entrypoint") + 2], "sha256:controller")
         self.assertEqual(run_args[run_args.index("-p") + 1], "127.0.0.1::4000")
         mounts = [next(csv.reader([run_args[index + 1]])) for index, value in enumerate(run_args[:-1]) if value == "--mount"]
@@ -917,12 +1107,21 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertIn("context", manifest["workspace_rule"]["init_creates"])
         self.assertIn("context", manifest["workspace_rule"]["source_paths"])
         self.assertEqual(manifest["workspace_rule"]["binding"], "consumer")
+        self.assertIn("AGENTS.md", manifest["workspace_rule"]["source_paths"])
+        self.assertIn("README.md", manifest["workspace_rule"]["source_paths"])
+        self.assertIn(".unaltraweb/docker-mount.sh", manifest["workspace_rule"]["source_paths"])
+        self.assertIn(".unaltraweb/computations.yml", manifest["workspace_rule"]["init_creates"])
+        self.assertIn(".unaltraweb/computations.yml", manifest["workspace_rule"]["source_paths"])
+        self.assertIn(".vegavisuals.yml", manifest["workspace_rule"]["source_paths"])
+        self.assertIn(".unaltraweb/receipts/diavisuals.json", manifest["workspace_rule"]["generated_paths"])
+        self.assertIn(".unaltraweb/receipts/vegavisuals.json", manifest["workspace_rule"]["generated_paths"])
         self.assertEqual(manifest["schema_version"], 1)
         self.assertEqual(
             manifest["transport"]["command"],
             ["make", "--no-print-directory", "-C", "${factoryRoot}", "mcp-stdio"],
         )
         self.assertEqual(manifest["transport"]["env"], {"MCP_CONSUMER_WORKSPACE": "${workspaceFolder}"})
+        self.assertNotIn("cwd", manifest["transport"])
         self.assertNotIn("init", manifest["commands"])
         self.assertEqual(
             manifest["commands"]["down"],
@@ -930,6 +1129,13 @@ class McpRuntimeTests(unittest.TestCase):
         )
         self.assertNotIn("down_all", manifest["commands"])
         self.assertTrue(all(not dependency["init"] for dependency in manifest["mcp_dependencies"]))
+        dependencies = {dependency["name"]: dependency for dependency in manifest["mcp_dependencies"]}
+        for name, dependency in dependencies.items():
+            requirements = companion_dependency_requirements(name)
+            self.assertEqual({key: dependency[key] for key in requirements["lifecycle"]}, requirements["lifecycle"])
+            self.assertEqual(dependency["uv_spec"], requirements["uv_spec"])
+            self.assertTrue(set(requirements["tools"]).issubset(dependency["required_tools"]))
+            self.assertTrue(set(requirements["resources"]).issubset(dependency["required_resources"]))
         self.assertNotIn("mcp-init:", (root / "Makefile").read_text(encoding="utf-8"))
 
     def test_writing_profile_is_excluded_from_published_site(self) -> None:

@@ -189,11 +189,11 @@ unaltraweb:
     collections: [chapters]
 
 scholar:
-  # Optional, useful when porting a GitBook/TIG-style course bibliography.
-  style: _bibliography/my-apa-cv-no-access.csl
-  bibliography_template: manual-bib
-  group_by: none
+  # Optional formatting override; profile ordering remains alphabetical.
+  style: apa
 ```
+
+`unaltremanual` uses `_bibliography/manual.bib` by default. Web reference cards suppress the trailing DOI/URL text while preserving DOI/LINK buttons and citation/BibTeX panels; the PDF retains printable access links. Personal and project profiles instead keep curriculum-style reverse chronological ordering.
 
 Create one localized home page per language with `layout: manual-home` and `ref: home`, then add chapters to `_chapters/<lang>/`:
 
@@ -244,7 +244,19 @@ Manual chapters can also number teaching tables with the same localized counter 
 
 This renders a numbered table with localized labels such as `Table 1.`, `Taula 1.` or `Tabla 1.`. Tables and figures keep separate counters.
 
-Use fenced code blocks for programming examples. The theme uses Rouge, so common TIG languages such as Bash/Linux shell, Windows PowerShell, SQL/PostGIS, Python, R and Haskell get syntax highlighting when the fence includes the language name:
+Use a listing block to give one fenced code block a numbered caption on the web and in the PDF:
+
+````markdown
+::: listing "Inspect the roads layer"
+```bash
+ogrinfo data/raw/roads.gpkg -so roads
+```
+:::
+````
+
+The wrapper requires one non-empty double-quoted caption and exactly one fence. Captioned code examples use a counter separate from figures and tables and appear in the PDF list of code examples. Unwrapped fences remain valid and unindexed.
+
+Use fenced code blocks for programming examples and semantic technical notation. Recognized languages show a language header, line numbers, syntax highlighting, and alternating line backgrounds. The web uses Rouge for common TIG languages; the PDF guarantees the complete treatment for Bash/Linux shell, SQL/PostGIS, Python, R, URLs (`url`), spreadsheet formulas (`spreadsheet`), and file listings (`filetree`). The three semantic fences use localized headers. Use `text` or omit the language for unnumbered verbatim without a header. A language unsupported by one renderer also falls back to that plain presentation:
 
 ````markdown
 Inline code like `ST_Transform` stays inside the paragraph.
@@ -275,7 +287,7 @@ manhattan :: Int -> Int -> Int
 ```
 ````
 
-The manual profile also writes `assets/js/manual-search-index.json` during the build so the sidebar search can find terms anywhere in the localized manual.
+Every site profile writes `assets/js/content-search-index.json` during the build. Content search returns repeated whole-word occurrences separately, ignores diacritics when matching, and adds previous/next occurrence navigation to the destination page. Set `search_exclude: true` in a page or document's front matter when published content should remain outside that public index. The `search_enabled` setting only controls the separate Ninja Keys navigation and metadata palette.
 
 Mermaid and PlantUML source references are rewritten to SVG outputs. When a
 matching `*.edited.svg` exists it wins; otherwise the build targets the generated

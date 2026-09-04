@@ -1902,7 +1902,11 @@ html[data-theme="cafe"] .site-profile-unaltredocs .documentation-sidebar-logo-ca
     }
 
     .documentation-navbar-search .documentation-search-input:focus {
-      width: min(13rem, 46vw);
+      position: fixed;
+      top: 0.55rem;
+      right: 0.75rem;
+      z-index: 1090;
+      width: calc(100vw - 1.5rem);
       border-color: var(--global-divider-color);
       background: var(--global-card-bg-color);
       color: var(--global-text-color);
@@ -1915,12 +1919,12 @@ html[data-theme="cafe"] .site-profile-unaltredocs .documentation-sidebar-logo-ca
     }
 
     .documentation-navbar-search .documentation-search-results {
-      position: absolute;
-      top: calc(100% + 0.42rem);
-      right: 0;
-      left: auto;
-      width: min(16rem, 80vw);
-      margin-top: 0.42rem;
+      position: fixed;
+      top: 3.35rem;
+      right: 0.75rem;
+      left: 0.75rem;
+      width: auto;
+      margin-top: 0;
     }
   }
 

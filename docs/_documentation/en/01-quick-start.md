@@ -16,7 +16,7 @@ weight: 10
 permalink: "/quick-start/"
 nav_title: Start Here
 ---
-<p class="lede">Create a clean profile-specific site with the package-owned <code>new_web</code> operation. Prefer the local Docker workflow for previews and checks. Use GitHub-only editing after the generated site has been pushed when contributors cannot work locally.</p>
+<p class="lede">Create a clean profile-specific site with the package-owned <code>new_web</code> operation. Its generated README starts with the GitHub Web workflow for content editors; maintainers use local Docker for previews, checks, and renders.</p>
 
 ## Choose A Path
 
@@ -26,15 +26,19 @@ nav_title: Start Here
 ## GitHub-only Editing
 
 1. Push a site created by `new_web` to a new repository.
-2. Edit `_config.yml` in GitHub.
-3. Set `url`, `baseurl`, title, languages and `unaltraweb.site_profile`.
-4. Edit content files in `_pages/`, `_posts/`, `_projects/`, `_chapters/`, `_bibliography/`, `_data/` and `assets/`.
-5. Commit to `main`.
-6. Run the manual deploy workflow when the site should be published.
+2. Read its generated `README.md` to confirm the selected profile, editable paths, image rules, and paths that must not be changed in GitHub Web.
+3. Open an issue and get assigned, or make an explicit file reservation and wait for maintainer acceptance. Only one active editor works on a file.
+4. Create one branch for the task and never edit `main` directly.
+5. Make a small content change in the profile-appropriate paths and open a Draft pull request linked to the issue.
+6. If a conflict appears, stop and ask the maintainer rather than overwriting work.
+7. The maintainer checks the branch locally, runs required renders, reviews the result, and merges it.
+8. The maintainer runs the manual deploy workflow only when the reviewed `main` branch should be published.
 
-This path is enough for small content updates such as adding a bibliography entry, editing a page, updating project data or correcting text.
+This path is enough for small content updates such as adding a bibliography entry, editing a page, updating project data or correcting text. The detailed protocol is in [Edit Safely In GitHub Web](../github-web-editing/).
 
 ## Local Docker Editing
+
+For an agent-first IDE session, create or select an empty Git repository, open that directory as the workspace, register the `unaltraweb` factory, and restart the IDE so `${workspaceFolder}` is used as the confined consumer root. Then call `new_web`; the generated `AGENTS.md` is the durable local contract for subsequent agents.
 
 Create the site through the MCP, the installed package CLI, or this factory checkout:
 
@@ -43,7 +47,7 @@ unaltraweb-mcp --project ./my-site new-web --site-profile unaltreselfie --title 
 # or: MCP_CONSUMER_WORKSPACE=./my-site make mcp-new-web NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
 ```
 
-The scaffold is bundled with the Python package and MCP image. Creation aborts before writing when a managed path is a symlink or a differing file already exists. After pushing the generated site, install Git, Docker and GNU Make, then clone it normally:
+The scaffold is bundled with the Python package and MCP image. Creation aborts before writing when a managed path is a symlink or a differing file already exists. A manual also receives a default-language chapter directory, computation source/output roots, `README.md`, `AGENTS.md`, and a package baseline for conservative runtime updates. After pushing the generated site, install Git, Docker and GNU Make, then clone it normally:
 
 ```bash
 git clone https://github.com/YOUR-ORG/YOUR-SITE.git
@@ -51,7 +55,7 @@ cd YOUR-SITE
 make serve
 ```
 
-The reusable layouts, styles, plugins and scripts come from the `unaltraweb` gem declared in the site's `Gemfile`. The global MCP image provides the normal containerized build runtime.
+The reusable layouts, styles, plugins and scripts come from the `unaltraweb` gem declared in the site's `Gemfile`. The selected MCP image provides the normal containerized build runtime. When working against an unpublished core candidate, build that image explicitly in the factory checkout first; a generated site reports this remediation instead of silently falling back to another version.
 
 Use these commands during normal local work:
 
@@ -62,7 +66,7 @@ make test
 make down
 ```
 
-The generated manual GitHub Actions workflow publishes to Pages. Local commands build and review the site but do not commit or publish it.
+The generated GitHub Actions workflow publishes to Pages only when a maintainer starts it manually. A push, local build, or local render does not deploy the site.
 
 When developing `unaltraweb` and the template together, use this local port convention:
 

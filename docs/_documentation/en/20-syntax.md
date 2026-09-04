@@ -202,15 +202,11 @@ annotations:
 
 ## Code Fences
 
-Use language names for syntax highlighting. Rouge renders code on the web and Pandoc Skylighting renders the same fenced blocks in manual PDFs. Inline code uses single backticks and is styled separately from prose. Common teaching languages include `bash`, `powershell`, `sql`, `python`, `r`, `haskell`, `javascript`, `yaml`, and `json`:
+Use language names for syntax highlighting. Rouge renders recognized languages on the web and the manual PDF renderer guarantees `listings` highlighting for `bash`, `shell`, `sh`, `sql`, `python`, and `r`. Use `url` for URLs or decomposed requests, `spreadsheet` for spreadsheet formulas, and `filetree` for file and directory listings; these semantic fences receive localized headers and dedicated highlighting on both outputs. Recognized blocks receive a compact language header and line numbers; web line numbers are hidden from assistive technology and excluded when copying code. A fence declared as `text`, `plaintext`, `plain`, or `txt`, a fence with no language, or a language unsupported by the renderer becomes an unnumbered verbatim panel without a header. Alternating line backgrounds aid tracking, and PDF lines wrap inside the printable page. Inline code uses single backticks and is styled separately from prose:
 
 ````markdown
 ```bash
 ogrinfo data/raw/roads.gpkg -so roads
-```
-
-```powershell
-ogrinfo data\raw\roads.gpkg -so roads
 ```
 
 ```sql
@@ -225,7 +221,23 @@ import geopandas as gpd
 ```r
 library(sf)
 ```
+
+```
+Generic output or a value copied from an application.
+```
 ````
+
+Wrap one fence in a `listing` block when it needs a descriptive caption and an index entry:
+
+````markdown
+::: listing "Inspect the roads layer"
+```bash
+ogrinfo data/raw/roads.gpkg -so roads
+```
+:::
+````
+
+The opening line requires a non-empty double-quoted caption and the wrapper must contain exactly one fenced block. Captioned code examples have localized, chapter-scoped numbers on the web and in the PDF. The printable manual emits lists of figures, tables, and code examples after the table of contents when those elements are present. Ordinary fences remain valid and do not enter the list of code examples.
 
 ## Links, Citations, And Equations
 

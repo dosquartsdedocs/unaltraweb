@@ -13,7 +13,7 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 - Core repo: `/home/benizar/git/unaltraweb`.
 - Template repo: `/home/benizar/git/unaltraweb-template`.
 - Legacy personal-site reference: `/home/benizar/git/benizar.github.io`.
-- Legacy GitBook/course reference: `/home/benizar/git/tig`.
+- Acceptance manual `tig`: intentionally absent; recreate it from the package-owned scaffold when testing on another machine.
 - Remote for this repo: `git@github.com:dosquartsdedocs/unaltraweb.git`.
 - Baseline before the current documentation cleanup: `842e9ee Improve multilingual blog and footer defaults`.
 - Baseline companion template commit: `1877e52 Localize personal blog demo content`.
@@ -92,6 +92,24 @@ Important current template behaviour:
 
 ## Next Work
 
+### 0.3.0 Handoff
+
+The platform checks pass, but six `0.3.0` components remain `pending`: `gem`, `wheel`, `runtime`, `mcp`, `manual_pdf` and `web_capture`. The selected Python/R computation images and both visual companions are already released. Do not create a release tag or `release-candidates.json` before the pending candidates exist.
+
+On the next machine:
+
+1. Clone this repository, check out the pushed feature branch, and rerun `make workflow-check`, `make distribution-check`, `make gem-check`, `make wheel-check`, `make mcp-check`, `make mcp-smoke` and `make docs-build`.
+2. Review and merge the branch into the default branch. Candidate workflows deliberately reject other branches.
+3. Recreate the acceptance manual with `unaltraweb-mcp --project /path/to/tig new-web --site-profile unaltremanual --title TIG --baseurl /tig --default-lang ca --languages ca`, then run `make test` inside it. Start a preview and verify both `/tig/` and `/tig/ca/`; the generated files must belong to the host user and the root redirect must not appear in content search.
+4. In the final reviewed source commit, change only the six pending component statuses to `ready`. MCP remains `ready` permanently because embedding its own release digest would be self-referential. Commit and push that source state before producing candidates.
+5. Manually run `Prepare package candidates`, `Docker images` and `Web capture image` from that exact default-branch commit. In `Docker images`, confirm that the three SHA tags were unused, all exact-digest tests passed before `main`/`latest` promotion, and the run summary binds the runtime, MCP, and manual PDF digests to that source commit. Preserve the package workflow's gem/wheel files and `SHA256SUMS`; use the summary's manual PDF digest for the downstream `tigit` review, and record the four immutable GHCR digests for runtime, MCP, manual PDF and web capture.
+6. Add `release-candidates.json` in one immediate child commit and change no other path. Set `source_commit` to the candidate source SHA. Include the exact gem/wheel basenames and checksums plus the four official `ghcr.io/dosquartsdedocs/...@sha256:...` references. Run `make distribution-release-check`; it validates the receipt, default-branch ancestry, package identities and image repositories.
+7. Tag the receipt commit as `v0.3.0`. Run the image workflows from that exact tag; they verify that each full-SHA candidate tag still resolves to the recorded digest, the core runnable images identify the receipt `source_commit`, and only then promote the recorded manifests without rebuilding.
+8. Publish the recorded gem and wheel through the separately approved RubyGems/PyPI operations, make every new GHCR package public, and verify unauthenticated pulls/installations. No workflow in this repository performs those language-package uploads automatically.
+9. Prove the user path from a clean checkout with no sibling core: create a new manual, run `make test`, start/stop its MCP preview, and confirm `unaltraweb (= 0.3.0)` and `unaltraweb-mcp==0.3.0` resolve remotely.
+
+Residual external checks: run `actionlint` if available and inspect the first live GitHub Actions/GHCR promotion carefully. The local suite cannot exercise credentialed registry mutation. `tigit` was clean and synchronized at `ecb5dc8` at the end of the previous session; do not mix its editorial history into the core release.
+
 ### MCP Contract
 
 - Initial stdio MCP scaffold exists under `src/unaltraweb_mcp/`, with `mcp-factory.yml`, Make targets, reusable prompts, and a plugin skeleton under `plugins/unaltraweb-site/`.
@@ -150,7 +168,7 @@ mcp_dependencies:
 - Continue turning `docs/feature-reference.md`, `docs/syntax.md` and `docs/customization.md` into a complete rendered reference for every reusable feature and syntax rule.
 - Rework general site search as a generated core feature before enabling it by default again.
 - Continue refining config-driven behaviour for the four named site profiles.
-- Later, integrate GitBook/docs mode using `/home/benizar/git/tig` as reference: sidebar collections, previous/next navigation, search and course/slides affordances.
+- Continue validating GitBook/docs behaviour with a freshly generated `tig` acceptance manual: sidebar collections, previous/next navigation, search and course/slides affordances.
 - Address broader Sass deprecation warnings eventually; they are non-blocking.
 
 ## Verification Commands

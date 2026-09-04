@@ -23,7 +23,12 @@ from unaltraweb_mcp.distribution import (
     is_mutable_reference,
     validate_component_contract,
 )
-from scripts.validate_distribution import publish_ref_errors
+from scripts.validate_distribution import (
+    load_release_candidate_receipt_errors,
+    publish_ref_errors,
+    release_candidate_receipt_errors,
+    release_tag_status_errors,
+)
 
 
 class DistributionTests(unittest.TestCase):
@@ -51,6 +56,11 @@ class DistributionTests(unittest.TestCase):
             {contract["components"][name]["release_status"] for name in ["diavisuals", "vegavisuals"]},
             {"released"},
         )
+        self.assertTrue(all(
+            component.get("image_repository", "").startswith("ghcr.io/dosquartsdedocs/")
+            for component in contract["components"].values()
+            if component["kind"] == "container"
+        ))
 
     def test_doctor_reports_healthy_limited_wheel_mode(self) -> None:
         result = distribution_doctor()
@@ -58,12 +68,14 @@ class DistributionTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertTrue(result["offline"])
         self.assertTrue(result["limited"])
-        self.assertTrue(result["release_ready"])
-        self.assertEqual(result["pending_releases"], [])
+        self.assertFalse(result["release_ready"])
+        self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
         self.assertEqual(result["unavailable_releases"], [])
         self.assertEqual(result["receipt_contract"]["input_inventory"], "exact")
         self.assertEqual(result["mode"], "wheel")
         self.assertIn("UW-DIST-WHEEL-MODE", {item["code"] for item in result["findings"]})
+        self.assertIn("UW-DIST-RELEASE-PENDING", {item["code"] for item in result["findings"]})
+        self.assertNotIn("UW-DIST-COMPANION-RELEASE-PENDING", {item["code"] for item in result["findings"]})
         for finding in result["findings"]:
             self.assertEqual(
                 {"code", "severity", "expected", "actual", "remediation"},
@@ -79,9 +91,23 @@ class DistributionTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertFalse(result["release_ready"])
-        self.assertEqual(result["pending_releases"], [])
+        self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
         self.assertEqual(result["unavailable_releases"], ["vegavisuals"])
         self.assertIn("UW-DIST-COMPANION-RELEASE-UNAVAILABLE", {item["code"] for item in result["findings"]})
+
+    def test_doctor_treats_reviewed_candidates_as_release_ready(self) -> None:
+        contract = distribution_contract()
+        for component in contract["components"].values():
+            if component["release_status"] == "pending":
+                component["release_status"] = "ready"
+
+        with patch("unaltraweb_mcp.distribution.distribution_contract", return_value=contract):
+            result = distribution_doctor()
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["release_ready"])
+        self.assertEqual(result["pending_releases"], [])
+        self.assertNotIn("UW-DIST-RELEASE-PENDING", {item["code"] for item in result["findings"]})
 
     def test_doctor_inspects_only_features_selected_by_project_config(self) -> None:
         with tempfile.TemporaryDirectory() as raw_project:
@@ -112,6 +138,33 @@ class DistributionTests(unittest.TestCase):
         self.assertTrue(result["project"]["features"]["vegavisuals"])
         self.assertIn("manual_pdf", result["selected_components"])
         self.assertIn("UW-DIST-PROJECT-MUTABLE-PIN", {item["code"] for item in result["findings"]})
+
+    def test_new_manual_selects_factory_owned_python_and_r_workers(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_project:
+            project = Path(raw_project) / "manual"
+            site_tools.new_web(project, site_profile_value="unaltremanual")
+
+            result = distribution_doctor(project=project)
+
+        self.assertTrue(result["ok"], result["findings"])
+        self.assertTrue(result["project"]["features"]["manual_computations"])
+        self.assertIn("compute_python", result["selected_components"])
+        self.assertIn("compute_r", result["selected_components"])
+        self.assertEqual(result["docker"]["images"]["compute_python"], component_reference("compute_python"))
+        self.assertEqual(result["docker"]["images"]["compute_r"], component_reference("compute_r"))
+
+    def test_factory_doctor_enforces_companion_lifecycle_and_capabilities(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+
+        result = distribution_doctor(factory=root)
+        companion_findings = [item for item in result["findings"] if item.get("component") in {"diavisuals", "vegavisuals"}]
+
+        self.assertTrue(result["ok"], companion_findings)
+        codes = {item["code"] for item in companion_findings}
+        self.assertIn("UW-DIST-COMPANION-LIFECYCLE", codes)
+        self.assertIn("UW-DIST-COMPANION-INSTALL-SPEC", codes)
+        self.assertIn("UW-DIST-COMPANION-CAPABILITIES", codes)
+        self.assertTrue(all(item["severity"] == "info" for item in companion_findings))
 
     def test_docker_doctor_only_inspects_local_images(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -197,15 +250,65 @@ class DistributionTests(unittest.TestCase):
         contract = distribution_contract()
         validate_component_contract(contract, schema)
         self.assertEqual(component_contract_semantic_errors(contract), [])
+        self.assertIn("release-candidates.json", (root / ".dockerignore").read_text(encoding="utf-8").splitlines())
 
         extra = copy.deepcopy(contract)
         extra["components"]["wheel"]["unexpected"] = True
         with self.assertRaisesRegex(RuntimeError, "not allowed"):
             validate_component_contract(extra, schema)
 
+        ready = copy.deepcopy(contract)
+        ready["components"]["runtime"]["release_status"] = "ready"
+        validate_component_contract(ready, schema)
+
         inconsistent = copy.deepcopy(contract)
         inconsistent["components"]["wheel"]["reference"] = "unaltraweb-mcp==9.9.9"
         self.assertIn("wheel wheel reference does not match its version", component_contract_semantic_errors(inconsistent))
+
+        released_container = copy.deepcopy(contract)
+        released_container["components"]["runtime"]["release_status"] = "released"
+        self.assertIn(
+            "runtime released container reference must use an immutable digest",
+            component_contract_semantic_errors(released_container),
+        )
+        released_container["components"]["runtime"]["reference"] = "ghcr.io/dosquartsdedocs/unaltraweb@sha256:" + "a" * 64
+        self.assertNotIn(
+            "runtime released container reference must use an immutable digest",
+            component_contract_semantic_errors(released_container),
+        )
+        released_container["components"]["runtime"]["reference"] = "ghcr.io/dosquartsdedocs/unaltraweb@sha256:invalid"
+        self.assertIn(
+            "runtime container reference does not match its version",
+            component_contract_semantic_errors(released_container),
+        )
+        released_container["components"]["runtime"]["reference"] = (
+            "ghcr.io/dosquartsdedocs/unaltraweb@sha256:\nsource=ghcr.io/attacker/runtime@sha256:" + "a" * 64
+        )
+        self.assertIn(
+            "runtime container reference does not match its version",
+            component_contract_semantic_errors(released_container),
+        )
+
+        released_mcp = copy.deepcopy(contract)
+        released_mcp["components"]["mcp"]["release_status"] = "released"
+        self.assertIn(
+            "mcp release status must remain ready because its publication digest is recorded externally",
+            component_contract_semantic_errors(released_mcp),
+        )
+
+        ready_companion = copy.deepcopy(contract)
+        ready_companion["components"]["diavisuals"]["release_status"] = "ready"
+        self.assertIn(
+            "diavisuals companion must be released before coordinated publication",
+            component_contract_semantic_errors(ready_companion),
+        )
+
+        malformed_repository = copy.deepcopy(contract)
+        malformed_repository["components"]["runtime"]["image_repository"] += "\n"
+        self.assertIn(
+            "runtime container must declare a valid image repository",
+            component_contract_semantic_errors(malformed_repository),
+        )
 
     def test_release_pin_classifier_rejects_mutable_channels(self) -> None:
         self.assertTrue(is_mutable_reference("ghcr.io/example/worker:main"))
@@ -233,8 +336,8 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
         result = json.loads(completed.stdout)
         self.assertTrue(result["ok"])
-        self.assertTrue(result["release_ready"])
-        self.assertEqual(result["pending_releases"], [])
+        self.assertFalse(result["release_ready"])
+        self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
 
         release = subprocess.run(
             [sys.executable, str(root / "scripts/validate_distribution.py"), "--require-release-ready"],
@@ -244,19 +347,25 @@ class DistributionTests(unittest.TestCase):
             stderr=subprocess.PIPE,
             check=False,
         )
-        self.assertEqual(release.returncode, 0, release.stderr or release.stdout)
-        self.assertTrue(json.loads(release.stdout)["release_ready"])
+        self.assertEqual(release.returncode, 2, release.stderr or release.stdout)
+        self.assertFalse(json.loads(release.stdout)["release_ready"])
 
     def test_publish_ref_must_match_the_distribution_release(self) -> None:
         contract = distribution_contract()
 
-        self.assertEqual(publish_ref_errors(
+        pending_tag_errors = publish_ref_errors(
             contract,
             ref_type="tag",
             ref_name="v0.3.0",
             default_branch="main",
             component_ids=["runtime", "mcp"],
-        ), [])
+        )
+        self.assertTrue(any("gem must be release-ready" in error for error in pending_tag_errors))
+        self.assertTrue(any("runtime must be release-ready" in error for error in pending_tag_errors))
+        self.assertEqual(
+            pending_tag_errors[-6:],
+            release_tag_status_errors(contract, ref_type="tag", ref_name="v0.3.0"),
+        )
         self.assertEqual(publish_ref_errors(
             contract,
             ref_type="branch",
@@ -272,10 +381,170 @@ class DistributionTests(unittest.TestCase):
             component_ids=["runtime"],
         )[-1])
 
+        released = copy.deepcopy(contract)
+        for component_id, component in released["components"].items():
+            component["release_status"] = "released"
+            if component["kind"] == "container":
+                component["reference"] = f"ghcr.io/dosquartsdedocs/{component_id}@sha256:" + "a" * 64
+        self.assertEqual(publish_ref_errors(
+            released,
+            ref_type="tag",
+            ref_name="v0.3.0",
+            default_branch="main",
+            component_ids=["runtime", "mcp"],
+        ), [])
+
+        released["components"]["runtime"]["release_status"] = "unavailable"
+        self.assertIn("runtime must be release-ready", publish_ref_errors(
+            released,
+            ref_type="tag",
+            ref_name="v0.3.0",
+            default_branch="main",
+            component_ids=["runtime"],
+        )[-1])
+
+        ready = copy.deepcopy(contract)
+        for component in ready["components"].values():
+            component["release_status"] = "ready"
+        self.assertEqual(publish_ref_errors(
+            ready,
+            ref_type="tag",
+            ref_name="v0.3.0",
+            default_branch="main",
+            component_ids=["runtime", "mcp"],
+        ), [])
+
+    def test_pending_release_tag_validation_uses_readiness_exit_status(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        environment = os.environ.copy()
+        environment.update({
+            "GITHUB_REF_TYPE": "tag",
+            "GITHUB_REF_NAME": "v0.3.0",
+            "GITHUB_DEFAULT_BRANCH": "main",
+        })
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(root / "scripts/validate_distribution.py"),
+                "--require-release-ready",
+                "--validate-publish-ref",
+                "--components",
+                "runtime,mcp",
+            ],
+            cwd=root,
+            env=environment,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 2, completed.stderr or completed.stdout)
+        result = json.loads(completed.stdout)
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("runtime must be release-ready" in error for error in result["errors"]))
+
+    def test_release_candidate_receipt_binds_ready_components_to_parent_commit(self) -> None:
+        contract = distribution_contract()
+        for component in contract["components"].values():
+            if component["release_status"] == "pending":
+                component["release_status"] = "ready"
+        source_commit = "a" * 40
+        digest = "b" * 64
+        receipt = {
+            "schema_version": 1,
+            "release": "v0.3.0",
+            "source_commit": source_commit,
+            "components": {
+                "gem": {"artifact": "unaltraweb-0.3.0.gem", "sha256": digest},
+                "wheel": {"artifact": "unaltraweb_mcp-0.3.0-py3-none-any.whl", "sha256": digest},
+                "runtime": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb@sha256:{digest}"},
+                "mcp": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:{digest}"},
+                "web_capture": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb-web-capture@sha256:{digest}"},
+                "manual_pdf": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:{digest}"},
+            },
+        }
+
+        self.assertEqual(release_candidate_receipt_errors(
+            contract,
+            receipt,
+            parent_commit=source_commit,
+            changed_paths=["release-candidates.json"],
+        ), [])
+
+        mutable = copy.deepcopy(receipt)
+        mutable["components"]["mcp"]["reference"] = "ghcr.io/dosquartsdedocs/unaltraweb-mcp:sha-candidate"
+        self.assertIn(
+            "mcp candidate reference must use an immutable digest from ghcr.io/dosquartsdedocs/unaltraweb-mcp",
+            release_candidate_receipt_errors(contract, mutable),
+        )
+        wrong_repository = copy.deepcopy(receipt)
+        wrong_repository["components"]["runtime"]["reference"] = f"ghcr.io/attacker/runtime@sha256:{digest}"
+        self.assertIn(
+            "runtime candidate reference must use an immutable digest from ghcr.io/dosquartsdedocs/unaltraweb",
+            release_candidate_receipt_errors(contract, wrong_repository),
+        )
+        injected = copy.deepcopy(receipt)
+        injected["components"]["runtime"]["reference"] = (
+            f"ghcr.io/dosquartsdedocs/unaltraweb\nversion=9.9.9@sha256:{digest}"
+        )
+        self.assertIn(
+            "runtime candidate reference must use an immutable digest from ghcr.io/dosquartsdedocs/unaltraweb",
+            release_candidate_receipt_errors(contract, injected),
+        )
+        swapped_package = copy.deepcopy(receipt)
+        swapped_package["components"]["gem"]["artifact"] = "unaltraweb_mcp-0.3.0-py3-none-any.whl"
+        self.assertIn(
+            "gem candidate artifact must be unaltraweb-0.3.0.gem",
+            release_candidate_receipt_errors(contract, swapped_package),
+        )
+        self.assertIn(
+            "release candidate receipt source_commit must be the parent of the release metadata commit",
+            release_candidate_receipt_errors(contract, receipt, parent_commit="c" * 40),
+        )
+        self.assertIn(
+            "release metadata commit may change only release-candidates.json",
+            release_candidate_receipt_errors(contract, receipt, changed_paths=["README.md", "release-candidates.json"]),
+        )
+        self.assertIn(
+            "release candidate source commit must belong to the default branch",
+            release_candidate_receipt_errors(contract, receipt, default_branch_ancestor=False),
+        )
+
+    def test_release_candidate_receipt_fails_closed_without_default_branch(self) -> None:
+        contract = distribution_contract()
+        contract["components"]["runtime"]["release_status"] = "ready"
+        digest = "b" * 64
+        receipt = {
+            "schema_version": 1,
+            "release": "v0.3.0",
+            "source_commit": "a" * 40,
+            "components": {
+                "runtime": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb@sha256:{digest}"},
+            },
+        }
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            (root / "release-candidates.json").write_text(json.dumps(receipt), encoding="utf-8")
+            commands = [
+                subprocess.CompletedProcess([], 0, stdout="a" * 40 + "\n", stderr=""),
+                subprocess.CompletedProcess([], 0, stdout="release-candidates.json\n", stderr=""),
+                subprocess.CompletedProcess([], 1, stdout="", stderr="missing origin HEAD"),
+            ]
+            with patch.dict(os.environ, {"GITHUB_DEFAULT_BRANCH": ""}), patch(
+                "scripts.validate_distribution.subprocess.run",
+                side_effect=commands,
+            ):
+                errors = load_release_candidate_receipt_errors(root, contract)
+
+        self.assertEqual(errors, ["could not determine the default branch for release candidate ancestry validation"])
+
     def test_gemspec_packages_contract_schema_and_requires_bundler_four_ruby(self) -> None:
         root = Path(__file__).resolve().parents[1]
         gemspec = (root / "unaltraweb.gemspec").read_text(encoding="utf-8")
         self.assertIn('spec.required_ruby_version = ">= 3.2"', gemspec)
+        self.assertIn('File.exist?(File.join(repo_root, ".git"))', gemspec)
         self.assertGreaterEqual(gemspec.count('"src/unaltraweb_mcp/component-contract.schema.json"'), 2)
 
 

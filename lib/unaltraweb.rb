@@ -3,8 +3,10 @@
 require_relative "unaltraweb/version"
 
 %w[
+  bibliography_profiles
   localized_visual_sources
   callouts
+  code_blocks
   computation_figure_images
   vega_visual_images
   computation_sources
@@ -16,7 +18,9 @@ require_relative "unaltraweb/version"
   hide-custom-bibtex
   inspirehep-citations
   mermaid_mmd_images
-  manual_search_index
+  content_search_index
+  manual_release_metadata
+  reproducible_build_time
   profile-pages
   remove-accents
   search-data

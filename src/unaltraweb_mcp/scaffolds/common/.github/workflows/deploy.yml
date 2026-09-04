@@ -2,6 +2,11 @@ name: Deploy site
 
 on:
   workflow_dispatch:
+    inputs:
+      reviewed_sha:
+        description: Full main commit SHA validated locally and approved for publication.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -9,5 +14,33 @@ permissions:
   id-token: write
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      CURRENT_REF: ${{ github.ref }}
+      CURRENT_SHA: ${{ github.sha }}
+      REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+    steps:
+      - name: Require reviewed main commit
+        shell: bash
+        run: |
+          if [[ "$CURRENT_REF" != "refs/heads/main" ]]; then
+            echo "Select the main branch when dispatching a deployment." >&2
+            exit 1
+          fi
+          if [[ ! "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || [[ "$REVIEWED_SHA" != "$CURRENT_SHA" ]]; then
+            echo "reviewed_sha must exactly match the selected main commit: $CURRENT_SHA" >&2
+            exit 1
+          fi
+
   deploy:
-    uses: dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@7855522e00562a43443b2a2e3294bb3c0ce7dc34
+    needs: validate
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@6427c5963d6d32845cd774dd8537fe935b42d381
+    with:
+      check-manual-pdf: false
+      sync-manual-pdf: true

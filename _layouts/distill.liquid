@@ -1,5 +1,6 @@
+{% assign unaltraweb_site_profile = site.unaltraweb.site_profile | default: 'unaltreprojecte' | slugify %}
 <!doctype html>
-<html>
+<html lang="{{ page.lang | default: site.default_lang | default: site.lang }}" data-site-profile="{{ unaltraweb_site_profile }}">
   <head>
     {% include head.liquid %}
 
@@ -52,12 +53,12 @@
     </script>
   </d-front-matter>
 
-  <body class="{% if site.navbar_fixed %}fixed-top-nav{% endif %} {% unless site.footer_fixed %}sticky-bottom-footer{% endunless %}">
+  <body class="site-profile-{{ unaltraweb_site_profile }} {% if site.navbar_fixed %}fixed-top-nav{% endif %} {% unless site.footer_fixed %}sticky-bottom-footer{% endunless %}">
     <!-- Header -->
     {% include header.liquid %}
 
     <!-- Content -->
-    <div class="post distill">
+    <div class="post distill" data-content-search-root>
       <d-title>
         <h1>{{ page.title }}</h1>
         <p>{{ page.description }}</p>

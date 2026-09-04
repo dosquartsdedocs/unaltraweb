@@ -18,10 +18,10 @@
   "wheel_contract": {
     "package": "unaltraweb-mcp",
     "role": "Modular control, scaffolding, and offline inspection plane for unaltraweb sites.",
-    "package_only_commands": ["doctor", "new-web", "version"],
+    "package_only_commands": ["doctor", "import-calibre", "new-web", "version"],
     "factory_required_commands": ["factory-dir"],
     "package_only_mcp": ["bibliography-add-entry", "bibliography-inventory", "build-health", "content-approval-inventory", "content-freshness-check", "content-inventory", "detect-site", "html-audit", "http-check", "initialize-site", "language-policy", "list-tools", "manual-authoring-capabilities", "manual-editorial-quality-check", "manual-source-quality-check", "new-web", "preview-start", "preview-status", "preview-stop", "profile-check", "profile-prune", "profile-prune-plan", "scaffold-sync", "site-context", "site-doctor", "site-source-delete", "site-source-read", "site-source-write", "starter-templates", "translation-plan"],
-    "factory_required_mcp": ["bibliometrics-check", "bibliometrics-fetch-scimago", "bibliometrics-update", "build-site", "manual-computation-check", "manual-computation-render", "manual-computation-render-figures", "manual-computation-status", "manual-pdf-build", "manual-pdf-publish", "manual-pdf-status", "prompts", "serve", "site-check", "web-capture-check", "web-capture-render", "web-capture-status"],
+    "factory_required_mcp": ["bibliometrics-check", "bibliometrics-fetch-scimago", "bibliometrics-update", "build-site", "manual-computation-check", "manual-computation-render", "manual-computation-render-figures", "manual-computation-status", "manual-pdf-build", "manual-pdf-publish", "manual-pdf-status", "manual-release-check", "manual-release-prepare", "manual-release-status", "prompts", "serve", "site-check", "web-capture-check", "web-capture-render", "web-capture-status"],
     "not_bundled": ["gem", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf", "diavisuals", "vegavisuals"]
   },
   "components": {
@@ -30,7 +30,7 @@
       "name": "unaltraweb",
       "version": "0.3.0",
       "release": "v0.3.0",
-      "release_status": "released",
+      "release_status": "pending",
       "reference": "unaltraweb (= 0.3.0)",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
@@ -41,19 +41,20 @@
       "name": "unaltraweb-mcp",
       "version": "0.3.0",
       "release": "v0.3.0",
-      "release_status": "released",
+      "release_status": "pending",
       "reference": "unaltraweb-mcp==0.3.0",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": true,
-      "features": ["doctor", "new-web", "offline-inspection", "mcp-control-plane"]
+      "features": ["calibre-import", "doctor", "new-web", "offline-inspection", "mcp-control-plane"]
     },
     "runtime": {
       "kind": "container",
       "name": "unaltraweb runtime",
       "version": "0.3.0",
       "release": "v0.3.0",
-      "release_status": "released",
+      "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb:0.3.0",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["jekyll-runtime"]
@@ -63,8 +64,9 @@
       "name": "unaltraweb MCP runtime",
       "version": "0.3.0",
       "release": "v0.3.0",
-      "release_status": "released",
+      "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-mcp",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["mcp", "consumer-build", "preview"]
@@ -75,7 +77,8 @@
       "version": "0.3.0",
       "release": "v0.3.0",
       "release_status": "released",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python@sha256:18cb269811bd4005800382da25a480ec2bca7eac8d0501ad1ef36bad1c0f8cd9",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-compute-python",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["manual-computations", "python"]
@@ -86,7 +89,8 @@
       "version": "0.3.0",
       "release": "v0.3.0",
       "release_status": "released",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r@sha256:928ffb93f221e09e8b929157dee473b838e061915a2eb67224e4124b85f81837",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-compute-r",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["manual-computations", "r"]
@@ -96,8 +100,9 @@
       "name": "unaltraweb web capture worker",
       "version": "0.3.0",
       "release": "v0.3.0",
-      "release_status": "released",
+      "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-web-capture",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["web-captures"]
@@ -107,8 +112,9 @@
       "name": "unaltraweb manual PDF worker",
       "version": "0.3.0",
       "release": "v0.3.0",
-      "release_status": "released",
+      "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0",
+      "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["manual-pdf"]

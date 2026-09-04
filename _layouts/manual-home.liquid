@@ -38,13 +38,16 @@ layout: default
 {% assign manual_cover_alt = page.cover_alt | default: page.cover.alt | default: page.title %}
 {% assign manual_subtitle = page.subtitle | default: page.description | default: site.description %}
 {% assign manual_kicker = page.kicker | default: manual_config.kicker | default: manual_config.nav_title | default: manual_config.short_title | default: site.short_title | default: site.acronym | default: site.title %}
+{% assign manual_release = manual_config.release %}
 {% capture manual_contents_text %}{% include t.liquid key='manual.contents' default='Contents' %}{% endcapture %}
 {% capture manual_toggle_text %}{% include t.liquid key='manual.toggle_sidebar' default='Toggle contents' %}{% endcapture %}
 {% capture manual_no_chapters_text %}{% include t.liquid key='manual.no_chapters' default='No chapters available yet.' %}{% endcapture %}
 {% capture manual_download_text %}{% include t.liquid key='manual.download_pdf' default='Download PDF' %}{% endcapture %}
+{% capture manual_release_channel_text %}{% include t.liquid key='manual.release_channel' default='Publication channel' %}{% endcapture %}
+{% capture manual_release_version_text %}{% include t.liquid key='manual.release_version' default='Published version' %}{% endcapture %}
 <script>
-  window.unaltrawebContentSearchUrl = {{ '/assets/js/manual-search-index.json' | relative_url | jsonify }};
-  window.unaltrawebContentSearchTarget = ".manual-content";
+  window.unaltrawebContentSearchUrl = {{ '/assets/js/content-search-index.json' | relative_url | jsonify }};
+  window.unaltrawebContentSearchTarget = ".manual-main";
 </script>
 
 <div class="manual-layout manual-home-layout">
@@ -58,6 +61,12 @@ layout: default
          {% if manual_kicker %}<p class="manual-kicker">{{ manual_kicker }}</p>{% endif %}
          <h1>{{ page.title }}</h1>
          {% if manual_subtitle %}<p class="manual-subtitle">{{ manual_subtitle }}</p>{% endif %}
+         {% if manual_release.selector %}
+           <p class="manual-release-metadata" data-release-channel="{{ manual_release.channel | escape }}" data-release-selector="{{ manual_release.selector | escape }}">
+             <span><strong>{{ manual_release_channel_text | strip }}:</strong> {{ manual_release.channel }}</span>
+             <span><strong>{{ manual_release_version_text | strip }}:</strong> {{ manual_release.selector }}</span>
+           </p>
+         {% endif %}
        </div>
       {% if manual_cover_image or manual_pdf_asset %}
         <div class="manual-cover-art">

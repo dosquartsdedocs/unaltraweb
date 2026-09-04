@@ -200,7 +200,7 @@ Bibliographic citations, external URLs, and internal links are separate semantic
 See [the normalization criteria](#normalization) and the [OGC standards](https://www.ogc.org/).
 ```
 
-Use ordinary fenced code with an explicit language. Rouge highlights web code and Pandoc Skylighting highlights PDF code; inline code remains monospaced and visually distinct in both. Common identifiers include `bash`, `powershell`, `sql`, `python`, `r`, `haskell`, `javascript`, `yaml`, and `json`.
+Use ordinary fenced code with an explicit language. Rouge highlights recognized web code and the PDF renderer uses `listings`; inline code remains monospaced and visually distinct in both. The PDF guarantees language-specific highlighting, headers, and line numbers for `bash`, `shell`, `sh`, `sql`, `python`, and `r`. Use `url` for URLs or decomposed web requests, `spreadsheet` for spreadsheet formulas, and `filetree` for short file or directory listings; these semantic fences receive localized headers and dedicated highlighting on web and PDF. Wrap exactly one fence in `::: listing "Descriptive caption"` and `:::` when it needs a localized number, visible caption, and PDF index entry. Plain, unlabelled, and unsupported fences render as unnumbered verbatim without a header. Long PDF lines wrap within the printable page.
 
 For mathematics in Markdown sources, use single dollar delimiters for inline expressions and double dollar delimiters on separate lines for displayed equations. Displayed equations are numbered by default on the web and in the PDF:
 
@@ -224,6 +224,12 @@ Add a stable `eq:` label inside a display block when the text needs to refer to 
 ```
 
 Do not place a label inside `equation*`, because an unnumbered expression has no stable equation number to retrieve. Do not mark mathematical variables as inline code: `` `P_i` `` renders literally instead of typesetting the subscript. Do not use `\(...\)` directly in Markdown sources because Kramdown consumes those backslashes before MathJax runs.
+
+## Bibliographies
+
+Store manual entries in `_bibliography/manual.bib` and cite them with `{% cite key %}`. The manual profile sorts the general bibliography and chapter reference lists alphabetically by contributor name, then year and title. Set `manual_references: true` on a chapter when it needs a references section.
+
+The web keeps access links compact: DOI and URL text are removed only from the visible reference line and remain available through DOI/LINK buttons and the expandable citation panel. The PDF has no interactive controls, so it prints DOI and URL text in both the general bibliography and each requested chapter bibliography. Do not remove access fields from BibTeX or use a no-access CSL to change the web presentation.
 
 ## Web-only components
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" version="1.0" class="in-text">
+  <info>
+    <title>unaltraweb numeric bibliography test</title>
+    <id>https://example.test/styles/unaltraweb-numeric-test</id>
+    <updated>2026-08-28T00:00:00+00:00</updated>
+  </info>
+  <macro name="reference-number">
+    <text variable="citation-number"/>
+  </macro>
+  <citation collapse="citation-number">
+    <layout prefix="[" suffix="]" delimiter=", ">
+      <text variable="citation-number"/>
+    </layout>
+  </citation>
+  <bibliography>
+    <sort>
+      <key variable="citation-number"/>
+    </sort>
+    <layout suffix=".">
+      <text macro="reference-number" suffix=". "/>
+      <text variable="title"/>
+    </layout>
+  </bibliography>
+</style>

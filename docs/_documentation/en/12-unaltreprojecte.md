@@ -35,3 +35,4 @@ Typical content:
 - Repository and resource pages.
 
 Project cards can use `hero` images and `resources` badges for DOI, GitHub, documentation and datasets.
+Project bibliographies place the newest outputs first by year and month, then use author and title to keep equal-date records deterministic.

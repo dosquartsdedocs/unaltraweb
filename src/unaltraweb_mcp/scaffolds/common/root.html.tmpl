@@ -1,0 +1,23 @@
+---
+layout: null
+title: Continue to the site
+lang: __DEFAULT_LANG_TEXT__
+ref: root
+permalink: /
+sitemap: false
+search_exclude: true
+---
+{% assign home_path = '/__DEFAULT_LANG_TEXT__/' %}
+<!doctype html>
+<html lang="__DEFAULT_LANG_TEXT__">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="0; url={{ home_path | relative_url }}">
+    <link rel="canonical" href="{{ home_path | absolute_url }}">
+    <title>Continue to the site</title>
+  </head>
+  <body>
+    <p><a href="{{ home_path | relative_url }}">Continue to the site</a></p>
+  </body>
+</html>

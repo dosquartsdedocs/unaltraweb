@@ -46,8 +46,8 @@ layout: default
 {% capture manual_next_text %}{% include t.liquid key='manual.next' default='Next' %}{% endcapture %}
 {% capture manual_references_text %}{% include t.liquid key='manual.references' default='References' %}{% endcapture %}
 <script>
-  window.unaltrawebContentSearchUrl = {{ '/assets/js/manual-search-index.json' | relative_url | jsonify }};
-  window.unaltrawebContentSearchTarget = ".manual-content";
+  window.unaltrawebContentSearchUrl = {{ '/assets/js/content-search-index.json' | relative_url | jsonify }};
+  window.unaltrawebContentSearchTarget = ".manual-main";
 </script>
 
 <div class="manual-layout manual-chapter-layout{% unless show_manual_page_toc %} manual-layout--without-page-toc{% endunless %}">
@@ -72,7 +72,7 @@ layout: default
       <section class="manual-references" aria-labelledby="manual-references-title">
         <h2 id="manual-references-title">{{ manual_references_text | strip }}</h2>
         <div class="manual-bibliography publications">
-          {% bibliography -f manual --cited_in_order --template manual-bib --group_by none %}
+          {% bibliography --cited --template manual-bib --group_by none %}
         </div>
       </section>
     {% endif %}

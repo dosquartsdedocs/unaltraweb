@@ -46,6 +46,7 @@ def run_server(project: Path, factory: Path) -> None:
             "For static Vega figures, reference a .vl.json or .vg.json source declared once in .vegavisuals.yml and use the companion vegavisuals tools to render and check its declared output."
             " After inserting a text-bearing figure or diagram, run manual_source_quality_check and use its separate web/PDF dimension suggestions; do not distort the intrinsic aspect ratio."
             " For multilingual visuals, keep the default-language source unsuffixed and add .<lang> before the complete suffix only for translated variants; missing variants fall back to the default source."
+            " Manual release tools only inspect or prepare local candidates under tmp/manual-release; publication remains a human-controlled GitHub Actions operation."
         ),
     )
 
@@ -333,19 +334,52 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.web_capture_render(project, factory, source=source, confirm_overwrite=confirm_overwrite)
 
     @mcp.tool()
-    def manual_pdf_status(language: str = "") -> dict[str, Any]:
+    def manual_pdf_status(language: str = "", release_selector: str = "latest") -> dict[str, Any]:
         """Inspect manual PDF configuration, source availability, and artefact freshness without changing files."""
-        return tools.manual_pdf_status(project, factory, language=language)
+        return tools.manual_pdf_status(project, factory, language=language, release_selector=release_selector)
 
     @mcp.tool()
-    def manual_pdf_build(language: str = "") -> dict[str, Any]:
+    def manual_pdf_build(language: str = "", release_selector: str = "latest") -> dict[str, Any]:
         """Build configured unaltremanual PDFs and first-page cover previews under the site's temporary directory."""
-        return tools.manual_pdf_build(project, factory, language=language)
+        return tools.manual_pdf_build(project, factory, language=language, release_selector=release_selector)
 
     @mcp.tool()
-    def manual_pdf_publish(language: str = "", dry_run: bool = True, confirm_publish: bool = False) -> dict[str, Any]:
+    def manual_pdf_publish(
+        language: str = "",
+        release_selector: str = "latest",
+        dry_run: bool = True,
+        confirm_publish: bool = False,
+    ) -> dict[str, Any]:
         """Copy built PDFs and covers to public site assets. Defaults to dry-run; real publication requires confirmation."""
-        return tools.manual_pdf_publish(project, factory, language=language, dry_run=dry_run, confirm_publish=confirm_publish)
+        return tools.manual_pdf_publish(
+            project,
+            factory,
+            language=language,
+            release_selector=release_selector,
+            dry_run=dry_run,
+            confirm_publish=confirm_publish,
+        )
+
+    @mcp.tool()
+    def manual_release_status(selector: str = "latest") -> dict[str, Any]:
+        """Inspect local manual release readiness and candidate state without publishing or changing project files."""
+        return tools.manual_release_status(project, factory, selector=selector)
+
+    @mcp.tool()
+    def manual_release_check(selector: str = "latest") -> dict[str, Any]:
+        """Fail unless a local manual release candidate exactly matches the current verified source, site, and PDFs."""
+        return tools.manual_release_check(project, factory, selector=selector)
+
+    @mcp.tool()
+    def manual_release_prepare(selector: str = "latest", dry_run: bool = True, confirm_prepare: bool = False) -> dict[str, Any]:
+        """Prepare a local non-publishing manual release candidate. Real preparation requires confirm_prepare=True."""
+        return tools.manual_release_prepare(
+            project,
+            factory,
+            selector=selector,
+            dry_run=dry_run,
+            confirm_prepare=confirm_prepare,
+        )
 
     @mcp.tool()
     def profile_prune_plan(site_profile: str = "") -> dict[str, Any]:
@@ -388,7 +422,7 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.bibliography_inventory(project)
 
     @mcp.tool()
-    def bibliography_add_entry(bibtex: str, path: str = "_bibliography/papers.bib", replace: bool = False) -> dict[str, Any]:
+    def bibliography_add_entry(bibtex: str, path: str = "", replace: bool = False) -> dict[str, Any]:
         """Append a verified BibTeX entry under _bibliography/. Replacements require replace=True."""
         return tools.bibliography_add_entry(project, bibtex, path=path, replace=replace)
 
@@ -408,9 +442,9 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.bibliometrics_update(project, factory, fetch_scimago=fetch_scimago, offline=offline, dry_run=dry_run, strict_external=strict_external, require_scimago=require_scimago)
 
     @mcp.tool()
-    def build_site(site_profile: str = "") -> dict[str, Any]:
+    def build_site(site_profile: str = "", release_selector: str = "latest") -> dict[str, Any]:
         """Build the website directly inside the MCP Jekyll runtime without launching a nested site container."""
-        return tools.build_site(project, factory, site_profile=site_profile)
+        return tools.build_site(project, factory, site_profile=site_profile, release_selector=release_selector)
 
     @mcp.tool()
     def build_health() -> dict[str, Any]:

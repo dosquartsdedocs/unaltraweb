@@ -1,19 +1,3 @@
-window.MathJax = {
-  tex: {
-    tags: "all",
-    inlineMath: [
-      ["$", "$"],
-      ["\\(", "\\)"],
-    ],
-    displayMath: [
-      ["$$", "$$"],
-      ["\\[", "\\]"],
-    ],
-    processEscapes: true,
-    processEnvironments: true,
-  },
-};
-
 document.addEventListener("readystatechange", () => {
   if (document.readyState === "complete") {
     document.querySelectorAll("pre>code.language-pseudocode").forEach((elem) => {

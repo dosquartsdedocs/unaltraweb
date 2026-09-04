@@ -37,6 +37,8 @@
 {% endif %}
 {% assign featured_url_label_key = 'manual_url_label_' | append: current_lang %}
 {% assign featured_url_label = entry[featured_url_label_key] | default: entry.manual_url_label %}
+{% assign reference_without_ids = reference | stripBibliographyIds %}
+{% assign reference_without_access = reference_without_ids | stripBibliographyAccess: entry.doi, entry.url, entry.website, entry.manual_url %}
 {% capture featured_authors %}
   {%- for author in entry.author_array -%}
     {{- author.first }} {{ author.last -}}{% unless forloop.last %}, {% endunless %}
@@ -83,7 +85,7 @@
       include reading-biblio-controls.liquid
       item=entry
       id=entry.key
-      citation=reference
+      citation=reference_without_access
       bibtex=entry.bibtex
       abstract=entry.abstract
       doi=entry.doi
@@ -92,6 +94,7 @@
       wrap_class='manual-reference-citation-wrap'
       actions_class='manual-reference-links'
       panel_class='manual-reference-panel'
+      hide_citation_access=true
     %}
   </div>
 </article>
