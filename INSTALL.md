@@ -101,14 +101,14 @@ Sites created by `new_web` include a manual workflow wrapper around the reusable
 ```yaml
 jobs:
   deploy:
-    uses: dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@6427c5963d6d32845cd774dd8537fe935b42d381
+    uses: dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@c54400927e7223e14e34390ab039ed94b2e974ad
     with:
+      reviewed_sha: ${{ inputs.reviewed_sha }}
+      manual-pdf-image: "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660"
       check-manual-pdf: false
       sync-manual-pdf: true
 ```
 
-The generated wrapper first requires `reviewed_sha` to equal the selected `main` commit. Keep the reusable workflow pinned to a reviewed full commit SHA because it receives Pages and OIDC permissions. Provider commit M does not yet have its final SHA or a matching manual PDF image digest, so this bootstrap caller is pinned to immutable, workspace-compatible ancestor `6427c5963d6d32845cd774dd8537fe935b42d381` and passes only the compatible `check-manual-pdf: false` and `sync-manual-pdf: true` inputs. It deliberately does not pass `reviewed_sha` or `manual-pdf-image` to that old reusable workflow; add `vegavisuals-sha` only when both the pinned workflow and caller support the reviewed value. Caller-side validation remains authoritative during bootstrap.
+The generated wrapper first requires `reviewed_sha` to equal the selected `main` commit, then passes the same value to the reusable workflow for an independent source check. The packaged caller pins the reviewed provider commit `c54400927e7223e14e34390ab039ed94b2e974ad` and its attested manual PDF worker by immutable digest. Future provider updates must repeat the M -> D -> B order: merge the provider, build D from that permanent commit, then update both pins in a separate caller change. Do not use a mutable workflow ref or a version-tagged image as a substitute for either pin. Add `vegavisuals-sha` only when both the pinned workflow and caller support the reviewed value.
 
-Immediately after M exists and its digest-pinned manual PDF image D has been published, mandatory follow-up B must be a pin-only integration change: update the reviewed caller pin to M and wire the already-required caller `reviewed_sha` plus image D into the reusable call, without changing publication behavior. The M -> D -> B order remains required because D must identify the permanent M build and B must pin both immutable values. Do not defer B, use a mutable workflow ref, or invent a `v0.3.0` image as a substitute for D.
-
-See `docs/distribution.md` for the update model and `../unaltraweb-template/.github/workflows/deploy.yml` for the current wrapper.
+See `docs/distribution.md` for the update model and `src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml` for the packaged wrapper.

@@ -152,9 +152,20 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertEqual(deploy_job["needs"], "validate")
                 self.assertEqual(
                     deploy_job["uses"],
-                    "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@6427c5963d6d32845cd774dd8537fe935b42d381",
+                    "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@c54400927e7223e14e34390ab039ed94b2e974ad",
                 )
-                self.assertEqual(deploy_job["with"], {"check-manual-pdf": False, "sync-manual-pdf": True})
+                self.assertEqual(
+                    deploy_job["with"],
+                    {
+                        "reviewed_sha": "${{ inputs.reviewed_sha }}",
+                        "manual-pdf-image": (
+                            "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@"
+                            "sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660"
+                        ),
+                        "check-manual-pdf": False,
+                        "sync-manual-pdf": True,
+                    },
+                )
                 self.assertTrue((project / ".unaltraweb/docker-mount.sh").is_file())
                 makefile = (project / "Makefile").read_text(encoding="utf-8")
                 self.assertIn("docker run", makefile)
