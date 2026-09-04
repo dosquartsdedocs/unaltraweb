@@ -12,7 +12,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scripts.validate_workflows import load_workflow, validate_workflows
+from scripts.validate_workflows import JOB_ENV_RUNNER_CONTEXT, load_workflow, validate_workflows
 
 
 class WorkflowTests(unittest.TestCase):
@@ -27,6 +27,12 @@ class WorkflowTests(unittest.TestCase):
             path.write_text("name: first\nname: second\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "duplicate YAML key"):
                 load_workflow(path)
+
+    def test_job_environment_runner_context_pattern_uses_only_the_context_root(self) -> None:
+        self.assertIsNotNone(JOB_ENV_RUNNER_CONTEXT.search("${{ runner.temp }}/docker"))
+        self.assertIsNotNone(JOB_ENV_RUNNER_CONTEXT.search("${{ format('{0}', runner['temp']) }}"))
+        self.assertIsNone(JOB_ENV_RUNNER_CONTEXT.search("${{ vars.runner }}"))
+        self.assertIsNone(JOB_ENV_RUNNER_CONTEXT.search("${{ inputs.runner }}"))
 
     def copied_repository(self, root: Path) -> Path:
         workflows = root / ".github/workflows"

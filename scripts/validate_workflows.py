@@ -15,7 +15,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_ROOT = ROOT / ".github/workflows"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
-JOB_ENV_RUNNER_CONTEXT = re.compile(r"\${{[^}]*\brunner\b")
+JOB_ENV_RUNNER_CONTEXT = re.compile(
+    r"\${{.*?(?<![A-Za-z0-9_.])runner\s*(?:\.|\[).*?}}",
+    re.DOTALL,
+)
 DOCKER_BUILD_COMMAND = re.compile(r"\bdocker\s+(?:build|buildx\s+build|compose\s+build)(?:\s|$)")
 CANDIDATE_EXECUTION_COMMAND = re.compile(
     r"\bdocker\s+(?:(?:container)\s+)?(?:run|create|start|exec)(?:\s|$)"
