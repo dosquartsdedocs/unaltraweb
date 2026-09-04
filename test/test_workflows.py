@@ -78,31 +78,42 @@ class WorkflowTests(unittest.TestCase):
             workflows = self.copied_repository(root)
             caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml"
             text = caller.read_text(encoding="utf-8")
-            text = text.replace("@6427c5963d6d32845cd774dd8537fe935b42d381", "@main")
+            text = text.replace("@c54400927e7223e14e34390ab039ed94b2e974ad", "@main")
             text = text.replace("      sync-manual-pdf: true\n", "")
             caller.write_text(text, encoding="utf-8")
             with patch("scripts.validate_workflows.ROOT", root):
                 errors = validate_workflows(workflows)
 
         self.assertTrue(any("immutable unaltraweb SHA" in error for error in errors))
-        self.assertTrue(any("old-compatible PDF rebuild/sync input shape" in error for error in errors))
+        self.assertTrue(any("exact reviewed source and PDF input shape" in error for error in errors))
 
-    def test_scaffold_bootstrap_rejects_inputs_unsupported_by_the_ancestor_workflow(self) -> None:
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw)
-            workflows = self.copied_repository(root)
-            caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml"
-            caller.write_text(
-                caller.read_text(encoding="utf-8").replace(
-                    "      sync-manual-pdf: true\n",
-                    "      sync-manual-pdf: true\n      reviewed_sha: ${{ inputs.reviewed_sha }}\n",
-                ),
-                encoding="utf-8",
-            )
-            with patch("scripts.validate_workflows.ROOT", root):
-                errors = validate_workflows(workflows)
+    def test_scaffold_publication_policy_rejects_missing_or_altered_review_inputs(self) -> None:
+        image = (
+            "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@"
+            "sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660"
+        )
+        mutations = [
+            ("      reviewed_sha: ${{ inputs.reviewed_sha }}\n", ""),
+            (
+                "      reviewed_sha: ${{ inputs.reviewed_sha }}\n",
+                "      reviewed_sha: ${{ github.sha }}\n",
+            ),
+            (f'      manual-pdf-image: "{image}"\n', ""),
+            (image, "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:" + "0" * 64),
+        ]
+        for old, new in mutations:
+            with self.subTest(old=old, new=new):
+                with tempfile.TemporaryDirectory() as raw:
+                    root = Path(raw)
+                    workflows = self.copied_repository(root)
+                    caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml"
+                    text = caller.read_text(encoding="utf-8")
+                    self.assertIn(old, text)
+                    caller.write_text(text.replace(old, new, 1), encoding="utf-8")
+                    with patch("scripts.validate_workflows.ROOT", root):
+                        errors = validate_workflows(workflows)
 
-        self.assertTrue(any("old-compatible PDF rebuild/sync input shape" in error for error in errors))
+                self.assertTrue(any("exact reviewed source and PDF input shape" in error for error in errors))
 
     def test_publication_policy_rejects_non_main_latest_and_misplaced_write_permission(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

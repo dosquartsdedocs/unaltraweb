@@ -29,7 +29,11 @@ CANDIDATE_EXECUTION_TARGETS = {
     "mcp-smoke-prebuilt",
     "reproducible-site-check",
 }
-REVIEWED_SITE_DEPLOY_SHAS = {"6427c5963d6d32845cd774dd8537fe935b42d381"}
+REVIEWED_SITE_DEPLOY_SHAS = {"c54400927e7223e14e34390ab039ed94b2e974ad"}
+REVIEWED_MANUAL_PDF_IMAGE = (
+    "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@"
+    "sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660"
+)
 REVIEWED_ACTIONS = {
     "actions/attest-build-provenance": "4d101475d8b20a2381f78447822ac1eab6504dd8",
     "actions/checkout": "11d5960a326750d5838078e36cf38b85af677262",
@@ -1198,8 +1202,14 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             if reusable_job.get("needs") != "validate":
                 errors.append("scaffold deploy.yml: reusable deployment must depend on caller-side reviewed-main validation")
             settings = reusable_job.get("with", {})
-            if settings != {"check-manual-pdf": False, "sync-manual-pdf": True}:
-                errors.append("scaffold deploy.yml: bootstrap caller must use only the old-compatible PDF rebuild/sync input shape")
+            expected_settings = {
+                "reviewed_sha": "${{ inputs.reviewed_sha }}",
+                "manual-pdf-image": REVIEWED_MANUAL_PDF_IMAGE,
+                "check-manual-pdf": False,
+                "sync-manual-pdf": True,
+            }
+            if settings != expected_settings:
+                errors.append("scaffold deploy.yml: caller must use the exact reviewed source and PDF input shape")
     return errors
 
 
