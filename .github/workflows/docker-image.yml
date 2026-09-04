@@ -225,8 +225,6 @@ jobs:
       contents: read
       packages: read
       attestations: read
-    env:
-      DOCKER_CONFIG: ${{ runner.temp }}/unaltraweb-test-docker
     outputs:
       runtime_digest: ${{ steps.tested.outputs.runtime_digest }}
       mcp_digest: ${{ steps.tested.outputs.mcp_digest }}
@@ -236,6 +234,9 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+
+      - name: Isolate Docker credentials
+        run: printf 'DOCKER_CONFIG=%s\n' "$RUNNER_TEMP/unaltraweb-test-docker" >> "$GITHUB_ENV"
 
       - name: Log in to GHCR for read-only verification
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
