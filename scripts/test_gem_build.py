@@ -68,6 +68,8 @@ def inspect_gem(path: Path) -> None:
         with tarfile.open(fileobj=io.BytesIO(data_member.read()), mode="r:gz") as payload:
             names = set(payload.getnames())
     required = {
+        "LICENSE",
+        "README.md",
         "_data/i18n/ca.yml",
         "_data/i18n/en.yml",
         "_data/i18n/es.yml",

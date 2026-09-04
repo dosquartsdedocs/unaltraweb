@@ -17,7 +17,6 @@ module Unaltraweb
       end
 
       time = Time.at(Integer(raw, 10)).utc
-      time.iso8601
       time
     rescue ArgumentError, RangeError => error
       raise Jekyll::Errors::FatalException,

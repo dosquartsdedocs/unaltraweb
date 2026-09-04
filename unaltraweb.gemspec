@@ -22,14 +22,14 @@ Gem::Specification.new do |spec|
                   end
   discovered_files = Dir.chdir(repo_root) do
     (Dir.glob("{_data/i18n,_includes,_layouts,_sass,_plugins,_scripts,assets,lib,scripts,docs}/**/*", File::FNM_DOTMATCH) +
-      ["_config.yml", "Makefile", "requirements.txt", "src/unaltraweb_mcp/component-contract.json",
-       "src/unaltraweb_mcp/component-contract.schema.json", "src/unaltraweb_mcp/docker_mount.py"]).reject do |file|
+      ["_config.yml", "LICENSE", "Makefile", "README.md", "requirements.txt", "src/unaltraweb_mcp/component-contract.json",
+        "src/unaltraweb_mcp/component-contract.schema.json", "src/unaltraweb_mcp/docker_mount.py"]).reject do |file|
       File.directory?(file)
     end
   end
   spec.files = (tracked_files + discovered_files).uniq.select do |file|
     !file.match?(%r{(^|/)__pycache__/|\.pyc\z}) &&
-      (["_config.yml", "Makefile", "requirements.txt", "src/unaltraweb_mcp/component-contract.json", "src/unaltraweb_mcp/component-contract.schema.json", "src/unaltraweb_mcp/docker_mount.py"].include?(file) ||
+      (["_config.yml", "LICENSE", "Makefile", "README.md", "requirements.txt", "src/unaltraweb_mcp/component-contract.json", "src/unaltraweb_mcp/component-contract.schema.json", "src/unaltraweb_mcp/docker_mount.py"].include?(file) ||
        file.match?(%r{\A(_data/i18n|_includes|_layouts|_sass|_plugins|_scripts|assets|lib|scripts)/}) ||
        file.match?(%r{\A(README|LICENSE|docs)/}))
   end
