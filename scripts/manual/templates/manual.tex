@@ -5,8 +5,8 @@
 \usepackage{cancel}
 \usepackage{emptypage}
 \usepackage{enumitem}
+\usepackage{etoolbox}
 \usepackage{fontspec}
-\usepackage{fancyvrb}
 \usepackage{float}
 \usepackage{framed}
 \usepackage{graphicx}
@@ -16,9 +16,14 @@
 \usepackage{calc}
 \usepackage{geometry}
 \usepackage{microtype}
+\usepackage{needspace}
+\usepackage{ragged2e}
 \usepackage{setspace}
 \usepackage{subcaption}
 \usepackage{tikz}
+\usepackage{titlesec}
+\usepackage{listings}
+\usepackage{lstlinebgrd}
 \usepackage[most]{tcolorbox}
 \usepackage{xcolor}
 \usepackage{xurl}
@@ -32,11 +37,21 @@
 \setmonofont{DejaVu Sans Mono}[Scale=MatchLowercase]
 \setstretch{1.08}
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{0.5em plus 0.1em minus 0.1em}
+\setlength{\parskip}{0.5em}
+\raggedbottom
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{2}
+\pretocmd{\section}{\Needspace{6\baselineskip}}{}{}
+\pretocmd{\subsection}{\Needspace{5\baselineskip}}{}{}
+\pretocmd{\subsubsection}{\Needspace{5\baselineskip}}{}{}
+\pretocmd{\paragraph}{\Needspace{4\baselineskip}}{}{}
 \setlist[description]{style=nextline,leftmargin=1.5em,labelindent=0pt,itemsep=0.65em,topsep=0.65em,font=\normalfont\bfseries}
 \renewcommand*{\descriptionlabel}[1]{\hspace\labelsep\normalfont\bfseries #1:}
+\setlength{\LTpre}{0.6em}
+\setlength{\LTpost}{0.8em}
 
 \definecolor{ManualPrimary}{HTML}{$primary-color$}
 \definecolor{ManualBand}{HTML}{$band-color$}
@@ -46,27 +61,188 @@
 \definecolor{ManualExternalLink}{HTML}{$external-link-color$}
 \definecolor{ManualCitationLink}{HTML}{$citation-link-color$}
 \definecolor{ManualInlineCode}{HTML}{$inline-code-color$}
-\captionsetup{font=small,labelfont=bf}
-\captionsetup[subfigure]{font=small,labelfont=bf}
+\colorlet{ManualCodeBackground}{ManualMuted!5!white}
+\colorlet{ManualCodeStripe}{ManualSecondary!4!white}
+\colorlet{ManualCodeBorder}{ManualSecondary!38!white}
+\colorlet{ManualCodeText}{ManualSecondary!82!black}
+\definecolor{ManualCodeKeyword}{HTML}{003F73}
+\definecolor{ManualCodeComment}{HTML}{39705A}
+\definecolor{ManualCodeString}{HTML}{9A3D45}
+\definecolor{ManualCodeNumber}{HTML}{687789}
+\DeclareCaptionFont{manualcaption}{\sffamily\fontsize{9.4}{11.2}\selectfont}
+\DeclareCaptionFont{manualsubcaption}{\sffamily\fontsize{8.8}{10.5}\selectfont}
+\DeclareCaptionLabelFormat{manual}{\textcolor{ManualSecondary}{#1\nobreakspace #2}}
+\captionsetup{
+  font={manualcaption,color=ManualMuted},
+  labelfont={bf,sf},
+  labelformat=manual,
+  format=hang,
+  justification=RaggedRight,
+  singlelinecheck=false
+}
+\captionsetup[figure]{position=top,margin=1em,aboveskip=0pt,belowskip=7pt}
+\captionsetup[table]{position=top,margin=1em,aboveskip=0pt,belowskip=7pt}
+\captionsetup[lstlisting]{position=top,margin=0pt,aboveskip=0pt,belowskip=7pt}
+\captionsetup[subfigure]{
+  font={manualsubcaption,color=ManualMuted},
+  labelfont={bf,sf,color=ManualSecondary},
+  margin=0pt,
+  skip=5pt
+}
+\titleformat{\chapter}[hang]
+  {\normalfont\sffamily\LARGE\bfseries\color{ManualSecondary}}
+  {\thechapter.}{0.55em}{}
+\titlespacing*{\chapter}{0pt}{36pt}{30pt}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{ManualSecondary}}
+  {\thesection}{0.75em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{ManualSecondary}}
+  {\thesubsection}{0.75em}{}
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{ManualSecondary}}
+  {\thesubsubsection}{0.75em}{}
+\titleformat{\paragraph}[runin]
+  {\normalfont\normalsize\bfseries\color{ManualSecondary}}
+  {\theparagraph}{0.75em}{}
+\titleformat{\subparagraph}[runin]
+  {\normalfont\normalsize\bfseries\color{ManualSecondary}}
+  {\thesubparagraph}{0.75em}{}
 \definecolor{ManualCalloutInfo}{HTML}{2A5FB8}
 \definecolor{ManualCalloutExample}{HTML}{13795B}
 \definecolor{ManualCalloutWarning}{HTML}{A65D03}
 \definecolor{ManualCalloutObjectives}{HTML}{2F6FD6}
 \definecolor{ManualCalloutDanger}{HTML}{A12929}
 
-$if(highlighting-macros)$
-$highlighting-macros$
-$endif$
+\newcommand{\ManualCodeLineBackground}{%
+  \ifodd\value{lstnumber}\color{ManualCodeBackground}\else\color{ManualCodeStripe}\fi
+}
+\lstdefinelanguage{ManualURL}{
+  sensitive=true,
+  morecomment=[l]{\#},
+  morekeywords={http,https,SERVICE,REQUEST,VERSION,LAYERS,FORMAT,CRS,SRS,BBOX,WIDTH,HEIGHT},
+  morestring=[b]"
+}
+\lstdefinelanguage{ManualSpreadsheet}{
+  sensitive=false,
+  morekeywords={AND,AVERAGE,COUNTIF,DATEDIF,DATE,DAY,HEX2DEC,HLOOKUP,IF,ISBLANK,ISNUMBER,ISTEXT,LEFT,MID,MONTH,NA,NETWORKDAYS,ROUND,SI,SUM,SUMA,SUMIFS,TODAY,TRIM,VLOOKUP,WEEKDAY,XLOOKUP,YEAR},
+  morestring=[b]"
+}
+\lstdefinelanguage{ManualFileTree}{
+  sensitive=true,
+  morecomment=[l]{\#},
+  alsoletter={_-},
+  morekeywords={data,figures,maps,outputs,processed,qgis,raw,scripts,src},
+  emph={csv,geojson,gpkg,jpeg,jpg,pdf,png,qgz,svg,tif,tiff,xlsx},
+  emphstyle=\color{ManualCodeString}
+}
+\lstdefinestyle{manualbase}{
+  basicstyle=\ttfamily\small\color{ManualCodeText},
+  keywordstyle=\bfseries\color{ManualCodeKeyword},
+  commentstyle=\itshape\color{ManualCodeComment},
+  stringstyle=\color{ManualCodeString},
+  numberstyle=\scriptsize\ttfamily\color{ManualCodeNumber},
+  numbers=none,
+  frame=none,
+  xleftmargin=0pt,
+  framexleftmargin=0pt,
+  columns=fullflexible,
+  keepspaces=true,
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  tabsize=4,
+  upquote=true,
+  breaklines=true,
+  breakatwhitespace=false,
+  breakautoindent=true,
+  breakindent=0.75em,
+  prebreak={},
+  postbreak={},
+  linebackgroundcolor=\ManualCodeLineBackground,
+  linebackgroundsep=0pt,
+  linebackgroundwidth=\linewidth,
+  aboveskip=0pt,
+  belowskip=0pt,
+  literate=
+    {à}{{\`a}}1 {á}{{\'a}}1 {è}{{\`e}}1 {é}{{\'e}}1
+    {í}{{\'i}}1 {ï}{{\"i}}1 {ò}{{\`o}}1 {ó}{{\'o}}1
+    {ú}{{\'u}}1 {ü}{{\"u}}1 {ç}{{\c{c}}}1
+    {À}{{\`A}}1 {Á}{{\'A}}1 {È}{{\`E}}1 {É}{{\'E}}1
+    {Í}{{\'I}}1 {Ï}{{\"I}}1 {Ò}{{\`O}}1 {Ó}{{\'O}}1
+    {Ú}{{\'U}}1 {Ü}{{\"U}}1 {Ç}{{\c{C}}}1
+    {·}{{\textperiodcentered}}1 {«}{{\guillemotleft}}1 {»}{{\guillemotright}}1
+}
+\lstdefinestyle{manualcode}{
+  style=manualbase,
+  numbers=left,
+  numbersep=7pt,
+  xleftmargin=2.35em
+}
+\lstdefinestyle{manualverbatim}{
+  style=manualbase,
+  numbers=none,
+  xleftmargin=0pt
+}
+\newtcblisting{manualcode}[2][]{
+  enhanced,
+  breakable,
+  listing only,
+  listing engine=listings,
+  listing options={style=manualcode,#1},
+  colback=ManualCodeBackground,
+  colframe=ManualCodeBorder,
+  colbacktitle=ManualSecondary!8!white,
+  coltitle=ManualSecondary,
+  fonttitle=\sffamily\bfseries\footnotesize,
+  title={\strut #2},
+  boxrule=0.55pt,
+  titlerule=0pt,
+  arc=0.8mm,
+  outer arc=0.8mm,
+  left=2pt,
+  right=4pt,
+  top=6pt,
+  bottom=6pt,
+  lefttitle=9pt,
+  righttitle=9pt,
+  toptitle=5pt,
+  bottomtitle=5pt,
+  before skip=1em,
+  after skip=1.1em
+}
+\newenvironment{manualcodelisting}[1]{%
+  \Needspace{6\baselineskip}%
+  \captionof{lstlisting}{#1}%
+  \vspace{-0.45em}%
+}{}
+\newtcblisting{manualverbatim}{
+  enhanced,
+  breakable,
+  listing only,
+  listing engine=listings,
+  listing options={style=manualverbatim},
+  colback=ManualCodeBackground,
+  colframe=ManualCodeBorder,
+  boxrule=0.55pt,
+  arc=0.8mm,
+  outer arc=0.8mm,
+  left=5pt,
+  right=5pt,
+  top=6pt,
+  bottom=6pt,
+  before skip=1em,
+  after skip=1.1em
+}
 
 \let\ManualOriginalTexttt\texttt
 \renewcommand{\texttt}[1]{{\color{ManualInlineCode}\ManualOriginalTexttt{#1}}}
 
-\newenvironment{manualcallout}[2]{%
+\newenvironment{manualcallout}[3][enhanced]{%
   \begin{tcolorbox}[
-    enhanced,
-    breakable,
-    colback=#1!6!white,
-    colframe=#1,
+    #1,
+    colback=#2!6!white,
+    colframe=#2,
     boxrule=0.55pt,
     leftrule=2.6pt,
     arc=1.2pt,
@@ -77,7 +253,7 @@ $endif$
     before skip=0.8em,
     after skip=0.8em
   ]%
-  {\bfseries\sffamily\color{#1}#2}\par\smallskip
+  {\bfseries\sffamily\color{#2}#3}\par\smallskip
 }{%
   \end{tcolorbox}
 }
@@ -136,6 +312,10 @@ $endif$
 \makeatother
 \setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
 \floatplacement{figure}{H}
+\renewcommand{\lstlistingname}{$listing-label$}
+\renewcommand{\lstlistlistingname}{$list-of-listings-title$}
+\renewcommand{\listfigurename}{$list-of-figures-title$}
+\renewcommand{\listtablename}{$list-of-tables-title$}
 
 \usepackage{fancyhdr}
 \pagestyle{fancy}
@@ -213,6 +393,12 @@ $endif$
 $if(publication-date)$
   \item[$metadata-publication-date-label$] $publication-date$
 $endif$
+$if(release-channel)$
+  \item[$metadata-release-channel-label$] $release-channel$
+$endif$
+$if(release-selector)$
+  \item[$metadata-release-version-label$] $release-selector$
+$endif$
 $if(publisher)$
   \item[$metadata-publisher-label$] $publisher$
 $endif$
@@ -274,6 +460,21 @@ $endif$
 $if(toc)$
 \tableofcontents
 \label{manual:toc-end}
+\clearpage
+$endif$
+
+$if(has-figures)$
+\listoffigures
+\clearpage
+$endif$
+
+$if(has-tables)$
+\listoftables
+\clearpage
+$endif$
+
+$if(has-listings)$
+\lstlistoflistings
 \clearpage
 $endif$
 

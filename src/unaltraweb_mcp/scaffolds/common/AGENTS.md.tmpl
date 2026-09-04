@@ -1,0 +1,24 @@
+# unaltraweb Consumer Contract
+
+## Repository Role
+
+This repository is a thin `__PROFILE__` consumer of `unaltraweb`.
+
+- Default language: `__DEFAULT_LANG_TEXT__`.
+- Maintained languages: __LANGUAGES_TEXT__.
+- Site-specific configuration belongs in `_config.yml`.
+- Reader-facing content and project assets belong in this repository.
+- Reusable layouts, includes, plugins, Sass, JavaScript, build orchestration, and MCP behavior belong in the `unaltraweb` core.
+
+Do not copy core runtime files into this site to customize behavior. Propose reusable changes in the core and keep this consumer limited to explicit configuration and content.
+
+## Working Workflow
+
+1. Inspect `site_context`, `site_doctor`, the language policy, and the active profile before editing.
+2. For `unaltremanual`, inspect `manual_authoring_capabilities` and `context/writing-profile.md` before drafting chapters.
+3. Edit executable computation, capture, diagram, or visualization sources rather than generated outputs.
+4. Run `site_check` before `build_site`, then review the labelled local preview.
+5. Keep default-language content in `draft` or `review` until the author approves it; translate only approved sources.
+6. Do not commit visible content or publish artefacts until the human author has reviewed the rendered result and explicitly approved it.
+
+Normal local commands are `make build`, `make serve`, `make test`, and `make down`. They must not publish or change Git history.

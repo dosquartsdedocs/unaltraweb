@@ -56,7 +56,7 @@ engines:
   python:
     dockerfile: Dockerfile.compute-python
     context: .
-    base_image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0
+    base_image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python@sha256:18cb269811bd4005800382da25a480ec2bca7eac8d0501ad1ef36bad1c0f8cd9
     local_image: tigit-compute-python:local
     lockfiles:
       - requirements-compute.txt
@@ -73,8 +73,8 @@ RUN python3 -m pip install --no-cache-dir -r /tmp/requirements-compute.txt
 Then the authoring workflow should be:
 
 ```bash
-make -C ../unaltraweb manual-compute-image-python PROJECT=$PWD
-make -C ../unaltraweb manual-compute-render PROJECT=$PWD COMPUTE_SOURCE=assets/quarto/color-cartography/palette-reference-swatches.qmd
+MCP_CONSUMER_WORKSPACE="$PWD" make -C ../unaltraweb manual-compute-image-python
+MCP_CONSUMER_WORKSPACE="$PWD" make -C ../unaltraweb manual-compute-render COMPUTE_SOURCE=assets/quarto/color-cartography/palette-reference-swatches.qmd
 make build
 ```
 

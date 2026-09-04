@@ -1,0 +1,365 @@
+name: Reusable stable manual release
+
+on:
+  workflow_call:
+    inputs:
+      selector:
+        description: Stable release selector, vYYYY.MM or vYYYY.MM.N.
+        required: true
+        type: string
+      reviewed_sha:
+        description: Full main commit SHA validated locally and approved for release.
+        required: true
+        type: string
+      candidate_manifest_sha256:
+        description: SHA-256 of the locally validated release-manifest.json candidate.
+        required: true
+        type: string
+      core_sha:
+        description: Full reviewed unaltraweb commit SHA used for all release tooling.
+        required: true
+        type: string
+      manual_pdf_image:
+        description: Digest-pinned unaltraweb manual PDF worker image.
+        required: true
+        type: string
+      site_build_image:
+        description: Digest-pinned unaltraweb MCP image used for the reproducible Jekyll build.
+        required: true
+        type: string
+      vegavisuals_sha:
+        description: Full reviewed vegavisuals commit SHA when .vegavisuals.yml exists.
+        required: false
+        type: string
+        default: ""
+      ruby_version:
+        required: false
+        type: string
+        default: "3.3.11"
+      python_version:
+        required: false
+        type: string
+        default: "3.13.3"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stable-manual-${{ github.repository }}-${{ inputs.selector }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CORE_SHA: ${{ inputs.core_sha }}
+      CANDIDATE_MANIFEST_SHA256: ${{ inputs.candidate_manifest_sha256 }}
+      JEKYLL_ENV: production
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      MANUAL_PDF_IMAGE: ${{ inputs.manual_pdf_image }}
+      PYTHON_VERSION: ${{ inputs.python_version }}
+      REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+      RUBY_VERSION: ${{ inputs.ruby_version }}
+      SELECTOR: ${{ inputs.selector }}
+      SITE_BUILD_IMAGE: ${{ inputs.site_build_image }}
+      TZ: UTC
+      UNALTRAWEB_MCP_IMAGE_REFERENCE: ${{ inputs.site_build_image }}
+      VEGAVISUALS_SHA: ${{ inputs.vegavisuals_sha }}
+      UNALTRAWEB_MANUAL_RELEASE_SELECTOR: ${{ inputs.selector }}
+    steps:
+      - name: Validate stable release request
+        env:
+          CURRENT_REF: ${{ github.ref }}
+          CURRENT_SHA: ${{ github.sha }}
+          WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}
+          WORKFLOW_REF: ${{ job.workflow_ref }}
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          if [[ "$CURRENT_REF" != "refs/heads/main" ]]; then
+            echo "Stable releases are restricted to refs/heads/main." >&2
+            exit 1
+          fi
+          if [[ ! "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || [[ "$REVIEWED_SHA" != "$CURRENT_SHA" ]]; then
+            echo "reviewed_sha must exactly match the selected main commit." >&2
+            exit 1
+          fi
+          if [[ ! "$CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "core_sha must be a full lowercase commit SHA." >&2
+            exit 1
+          fi
+          if [[ "$WORKFLOW_REPOSITORY" != "dosquartsdedocs/unaltraweb" ]] || [[ "$WORKFLOW_FILE_PATH" != ".github/workflows/site-release.yml" ]]; then
+            echo "Stable release jobs must run from the canonical unaltraweb reusable workflow." >&2
+            exit 1
+          fi
+          if [[ ! "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || [[ "$CORE_SHA" != "$WORKFLOW_SHA" ]]; then
+            echo "core_sha must equal the immutable revision that defines this reusable workflow." >&2
+            exit 1
+          fi
+          if [[ "$WORKFLOW_REF" != "$WORKFLOW_REPOSITORY/$WORKFLOW_FILE_PATH@$CORE_SHA" ]]; then
+            echo "The reusable stable workflow must be called by its full immutable commit SHA." >&2
+            exit 1
+          fi
+          if [[ ! "$CANDIDATE_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "candidate_manifest_sha256 must be a lowercase SHA-256 digest." >&2
+            exit 1
+          fi
+          if [[ ! "$SELECTOR" =~ ^v[0-9]{4}\.(0[1-9]|1[0-2])(\.[1-9][0-9]*)?$ ]]; then
+            echo "selector must be vYYYY.MM or vYYYY.MM.N." >&2
+            exit 1
+          fi
+          if [[ ! "$MANUAL_PDF_IMAGE" =~ ^ghcr\.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:[0-9a-f]{64}$ ]]; then
+            echo "manual_pdf_image must be the reviewed GHCR image pinned by digest." >&2
+            exit 1
+          fi
+          if [[ ! "$SITE_BUILD_IMAGE" =~ ^ghcr\.io/dosquartsdedocs/unaltraweb-mcp@sha256:[0-9a-f]{64}$ ]]; then
+            echo "site_build_image must be the reviewed unaltraweb MCP image pinned by digest." >&2
+            exit 1
+          fi
+          if [[ ! "$RUBY_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || [[ ! "$PYTHON_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Stable release runtimes must use exact three-part versions." >&2
+            exit 1
+          fi
+          if [[ -n "$VEGAVISUALS_SHA" ]] && [[ ! "$VEGAVISUALS_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "vegavisuals_sha must be empty or a full lowercase commit SHA." >&2
+            exit 1
+          fi
+
+      - name: Checkout reviewed manual source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.reviewed_sha }}
+          persist-credentials: false
+
+      - name: Checkout reviewed unaltraweb core
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: dosquartsdedocs/unaltraweb
+          ref: ${{ inputs.core_sha }}
+          path: .unaltraweb-core
+          persist-credentials: false
+
+      - name: Verify core checkout identity
+        run: |
+          test "$(git -C .unaltraweb-core rev-parse HEAD)" = "$CORE_SHA"
+          mv .unaltraweb-core "$RUNNER_TEMP/unaltraweb-core"
+          printf 'UNALTRAWEB_CORE_DIR=%s\n' "$RUNNER_TEMP/unaltraweb-core" >> "$GITHUB_ENV"
+
+      - name: Configure reproducible release build
+        run: |
+          source_date_epoch="$(git show --no-patch --format=%ct "$REVIEWED_SHA")"
+          [[ "$source_date_epoch" =~ ^[0-9]+$ ]]
+          printf 'SOURCE_DATE_EPOCH=%s\n' "$source_date_epoch" >> "$GITHUB_ENV"
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install reviewed release tooling
+        run: python -m pip install "$UNALTRAWEB_CORE_DIR"
+
+      - name: Verify stable site-build image runtime
+        run: |
+          docker image inspect "$SITE_BUILD_IMAGE" >/dev/null 2>&1 || docker pull "$SITE_BUILD_IMAGE" >/dev/null
+          actual_ruby="$(docker run --rm --network none --entrypoint ruby "$SITE_BUILD_IMAGE" -e 'print RUBY_VERSION')"
+          test "$actual_ruby" = "$RUBY_VERSION"
+          actual_python="$(docker run --rm --network none --entrypoint python3 "$SITE_BUILD_IMAGE" -c 'import platform; print(platform.python_version())')"
+          [[ "$actual_python" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          printf 'SITE_BUILD_PYTHON_VERSION=%s\n' "$actual_python" >> "$GITHUB_ENV"
+
+      - name: Reject versioned manual publication outputs
+        run: |
+          python "$UNALTRAWEB_CORE_DIR/scripts/manual/build_pdf.py" public-paths --project "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/manual-public-paths.json"
+          python - "$RUNNER_TEMP/manual-public-paths.json" <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          paths = json.load(open(sys.argv[1], encoding="utf-8"))["paths"]
+          tracked = [
+              path for path in paths
+              if subprocess.run(
+                  ["git", "ls-files", "--error-unmatch", "--", path],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              ).returncode == 0
+          ]
+          if tracked:
+              raise SystemExit("Generated manual publication outputs are tracked by Git: " + ", ".join(tracked))
+          PY
+
+      - name: Validate Vega visualization revision
+        run: |
+          if test -f .vegavisuals.yml && [[ ! "$VEGAVISUALS_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "vegavisuals_sha must be a full lowercase commit SHA." >&2
+            exit 1
+          fi
+          if test ! -f .vegavisuals.yml && [[ -n "$VEGAVISUALS_SHA" ]]; then
+            echo "vegavisuals_sha must be empty when no .vegavisuals.yml is present." >&2
+            exit 1
+          fi
+
+      - name: Checkout reviewed Vega visualization tooling
+        if: ${{ hashFiles('.vegavisuals.yml') != '' }}
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: dosquartsdedocs/vegavisuals
+          ref: ${{ inputs.vegavisuals_sha }}
+          path: .vegavisuals-core
+          persist-credentials: false
+
+      - name: Verify Vega visualization checkout
+        if: ${{ hashFiles('.vegavisuals.yml') != '' }}
+        run: |
+          test "$(git -C .vegavisuals-core rev-parse HEAD)" = "$VEGAVISUALS_SHA"
+          mv .vegavisuals-core "$RUNNER_TEMP/vegavisuals"
+          printf 'VEGAVISUALS_DIR=%s\n' "$RUNNER_TEMP/vegavisuals" >> "$GITHUB_ENV"
+
+      - name: Verify Vega visualization outputs
+        if: ${{ hashFiles('.vegavisuals.yml') != '' }}
+        run: MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make --silent --no-print-directory -C "$UNALTRAWEB_CORE_DIR" visualization-check VEGAVISUALS_PATH="$VEGAVISUALS_DIR"
+
+      - name: Build and synchronize release PDFs
+        run: MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make --silent --no-print-directory -C "$UNALTRAWEB_CORE_DIR" manual-pdf-sync MANUAL_RELEASE_SELECTOR="$SELECTOR" MANUAL_PDF_IMAGE="$MANUAL_PDF_IMAGE" VEGAVISUALS_PATH="${VEGAVISUALS_DIR:-}" MANUAL_PDF_LANG=
+
+      - name: Build and audit release site
+        run: |
+          docker_args=(
+            --rm
+            --network none
+            --user "$(id -u):$(id -g)"
+            -e HOME=/tmp
+            -e JEKYLL_ENV=production
+            -e LANG=C.UTF-8
+            -e LC_ALL=C.UTF-8
+            -e LOCAL_CORE=/reviewed-core
+            -e MCP_CONSUMER_WORKSPACE=/workspace
+            -e PYTHONPATH=/reviewed-core/src
+            -e SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH"
+            -e TZ=UTC
+            -e UNALTRAWEB_FACTORY_DIR=/reviewed-core
+            -e UNALTRAWEB_MCP_IMAGE_REFERENCE="$SITE_BUILD_IMAGE"
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/workspace"
+            --mount "type=bind,src=$UNALTRAWEB_CORE_DIR,dst=/reviewed-core,readonly"
+            --workdir /workspace
+            --entrypoint python3
+          )
+          if [[ -n "${VEGAVISUALS_DIR:-}" ]]; then
+            docker_args+=(
+              -e VEGAVISUALS_PATH=/vegavisuals
+              --mount "type=bind,src=$VEGAVISUALS_DIR,dst=/vegavisuals,readonly"
+            )
+          fi
+          docker run "${docker_args[@]}" "$SITE_BUILD_IMAGE" -m unaltraweb_mcp.cli --project /workspace mcp build-site --site-profile unaltremanual --release-selector "$SELECTOR"
+
+      - name: Prepare verified local candidate
+        run: |
+          UNALTRAWEB_FACTORY_DIR="$UNALTRAWEB_CORE_DIR" unaltraweb-mcp --project "$GITHUB_WORKSPACE" mcp manual-release-prepare --selector "$SELECTOR" --apply --confirm-prepare
+          actual_manifest_sha256="$(sha256sum "tmp/manual-release/$SELECTOR/release-manifest.json" | cut -d' ' -f1)"
+          if [[ "$actual_manifest_sha256" != "$CANDIDATE_MANIFEST_SHA256" ]]; then
+            echo "Remote candidate does not reproduce the locally reviewed release manifest." >&2
+            exit 1
+          fi
+
+      - name: Reverify reviewed tooling after untrusted builds
+        run: |
+          test "$(git -C "$UNALTRAWEB_CORE_DIR" rev-parse HEAD)" = "$CORE_SHA"
+          test -z "$(git -C "$UNALTRAWEB_CORE_DIR" status --porcelain=v1 --untracked-files=all)"
+          if [[ -n "${VEGAVISUALS_DIR:-}" ]]; then
+            test "$(git -C "$VEGAVISUALS_DIR" rev-parse HEAD)" = "$VEGAVISUALS_SHA"
+            test -z "$(git -C "$VEGAVISUALS_DIR" status --porcelain=v1 --untracked-files=all)"
+          fi
+
+      - name: Assemble release assets
+        run: |
+          candidate="$GITHUB_WORKSPACE/tmp/manual-release/$SELECTOR"
+          assets="$RUNNER_TEMP/release-assets"
+          mkdir -p "$assets"
+          tar --sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner --format=posix --pax-option=delete=atime,delete=ctime -C "$candidate/site" -cf - . | gzip -n -9 > "$assets/manual-site-$SELECTOR.tar.gz"
+          cp "$candidate/release-manifest.json" "$assets/release-manifest.json"
+          cp "$candidate"/pdf/*.pdf "$assets/"
+          python - "$assets/publication.json" <<'PY'
+          import json
+          import os
+          import sys
+
+          payload = {
+              "candidate_manifest_sha256": os.environ["CANDIDATE_MANIFEST_SHA256"],
+              "channel": "stable",
+              "core_sha": os.environ["CORE_SHA"],
+              "manual_pdf_image": os.environ["MANUAL_PDF_IMAGE"],
+              "python_version": os.environ["PYTHON_VERSION"],
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "ruby_version": os.environ["RUBY_VERSION"],
+              "schema_version": 2,
+              "selector": os.environ["SELECTOR"],
+              "site_build_image": os.environ["SITE_BUILD_IMAGE"],
+              "site_build_python_version": os.environ["SITE_BUILD_PYTHON_VERSION"],
+              "source_date_epoch": os.environ["SOURCE_DATE_EPOCH"],
+              "source_sha": os.environ["REVIEWED_SHA"],
+              "vegavisuals_sha": os.environ["VEGAVISUALS_SHA"],
+          }
+          with open(sys.argv[1], "w", encoding="utf-8", newline="\n") as handle:
+              json.dump(payload, handle, ensure_ascii=False, indent=2, sort_keys=True)
+              handle.write("\n")
+          PY
+          (cd "$assets" && sha256sum manual-site-*.tar.gz publication.json release-manifest.json ./*.pdf | sort -k2 > SHA256SUMS)
+
+      - name: Upload immutable release candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: stable-manual-${{ inputs.selector }}-${{ inputs.reviewed_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-assets
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: false
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: stable-release
+    permissions:
+      contents: write
+    env:
+      CORE_SHA: ${{ inputs.core_sha }}
+      CANDIDATE_MANIFEST_SHA256: ${{ inputs.candidate_manifest_sha256 }}
+      MANUAL_PDF_IMAGE: ${{ inputs.manual_pdf_image }}
+      PYTHON_VERSION: ${{ inputs.python_version }}
+      REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+      RUBY_VERSION: ${{ inputs.ruby_version }}
+      SELECTOR: ${{ inputs.selector }}
+      SITE_BUILD_IMAGE: ${{ inputs.site_build_image }}
+      VEGAVISUALS_SHA: ${{ inputs.vegavisuals_sha }}
+    steps:
+      - name: Download prepared candidate
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: stable-manual-${{ inputs.selector }}-${{ inputs.reviewed_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-assets
+
+      - name: Checkout reviewed release verifier
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .unaltraweb-release-core
+          persist-credentials: false
+
+      - name: Setup privileged verifier Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Publish verified stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}
+          WORKFLOW_REF: ${{ job.workflow_ref }}
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: exec bash .unaltraweb-release-core/scripts/manual/publish_release.sh

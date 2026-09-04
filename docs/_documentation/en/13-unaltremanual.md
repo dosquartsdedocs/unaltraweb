@@ -34,11 +34,13 @@ Typical content:
 
 - Localized manual home pages with `layout: manual-home`.
 - Chapters under `_chapters/<lang>/`.
-- Callouts, figures, subfigures, numbered tables and Mermaid diagrams.
+- Callouts, figures, subfigures, captioned code listings, numbered tables and Mermaid diagrams.
 - Optional manual bibliography.
 - A local `context/writing-profile.md` for audience, voice, terminology, evidence, language, and review rules.
 
-The package scaffold provides a usable default writing profile; revise it before substantial drafting when the manual has project-specific editorial requirements. The site profile also includes a sticky chapter sidebar, right-hand table of contents, reader font controls and search index.
+The package scaffold provides a usable default writing profile and a computation configuration that selects the distribution's R and Python workers. It accepts executable chapters under `_chapters` and figure-only sources under `assets/quarto` without copying worker implementation into the site. Revise the writing profile before substantial drafting when the manual has project-specific editorial requirements. The site profile also includes a sticky chapter sidebar, right-hand table of contents, reader font controls and the shared occurrence-level content search.
+
+The scaffold stores manual references in `_bibliography/manual.bib`. Manual bibliographies are alphabetical by contributor name, then year and title. This applies to the general bibliography and to the cited references emitted by a chapter with `manual_references: true`. On the web, the visible reference omits its trailing DOI or URL because the adjacent DOI/LINK buttons and expandable citation panel already expose that access information. The printable PDF keeps DOI and URL text, sorts the general bibliography alphabetically, and inserts an alphabetical references section in each chapter that requests one.
 
 Figures can use independent display constraints for each support. `data-figure-width-web` and `data-figure-height-web` control the browser presentation; `data-figure-width-pdf` and `data-figure-height-pdf` become print constraints while preserving the intrinsic aspect ratio. The older `data-figure-width` remains a shared fallback. Run `manual_source_quality_check` after adding a text-bearing SVG so the MCP can compare its effective text with body text and suggest separate web/PDF widths.
 
@@ -47,6 +49,19 @@ In multilingual manuals, keep the default-language visual unsuffixed and insert 
 The manual home lists chapter cards by default. Set `unaltraweb.manual.show_chapter_index: false` globally, or `show_chapter_index: false` in a manual home page's front matter, when the sidebar is sufficient and the home should contain only introductory material.
 
 Unlike `unaltredocs`, `unaltremanual` keeps linear reading affordances such as previous/next chapter navigation. Use it when the primary path through the content is sequential.
+
+## Publishing Current And Stable Editions
+
+The current publishing contract separates an up-to-date reading site from durable editions:
+
+- `latest` is a manual-only deployment built from the reviewed `main` branch.
+- Pushing or merging to `main` does not deploy it. After local checks, required renders, and human review, a maintainer starts deployment manually.
+- When PDF output is enabled, the default `assets/pdf/manual-<lang>.pdf` and `assets/img/manual-cover-<lang>.png` outputs are generated during deployment and are not versioned.
+- The generated home, `manual-release.json`, and PDF editorial metadata identify the selected channel and version.
+- Stable editions use `vYYYY.MM(.N)`: `vYYYY.MM` for the first edition in a month and `vYYYY.MM.N` for an additional edition. They are deferred until a maintainer creates an explicit release, and an ordinary `latest` deployment never creates one.
+- Release checks reject generated `legacy/` or `sandbox/` trees. Keep them outside the current manual content roots.
+
+The generated site README and pull request template require one assigned issue or explicit file reservation, one task branch, one active editor per file, and a small Draft pull request. If edits overlap or conflict, stop and ask the maintainer rather than choosing a side or recreating files.
 
 ## Executable Chapters
 
@@ -84,7 +99,7 @@ Optional `unaltraweb_compute` fields are `inputs`, `output`, `figures`, and `ena
 
 ### Project Configuration
 
-Use `.unaltraweb/computations.yml` to define discovery roots, generated assets, images, and environment dependencies:
+The scaffold creates a consumer-owned `.unaltraweb/computations.yml` with both release-selected engines. Extend it to define additional discovery roots and project-specific environment dependencies:
 
 ```yaml
 version: 1
@@ -94,13 +109,13 @@ source_roots:
 generated_assets_root: assets/img/generated
 engines:
   python:
-    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python:0.3.0
+    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-python@sha256:18cb269811bd4005800382da25a480ec2bca7eac8d0501ad1ef36bad1c0f8cd9
     lockfiles:
       - requirements-compute.txt
     fingerprint_paths:
       - analysis/helpers
   r:
-    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-r:0.3.0
+    image: ghcr.io/dosquartsdedocs/unaltraweb-compute-r@sha256:928ffb93f221e09e8b929157dee473b838e061915a2eb67224e4124b85f81837
     lockfiles:
       - renv.lock
 ```
@@ -131,7 +146,9 @@ manual_computation_render_figures
 manual_computation_render(source="_chapters/en/chapter.qmd")
 ```
 
-`status` prints JSON and remains informational even when `ok` is false. `check` exits nonzero for missing, stale, modified, or orphaned results. `render` executes explicitly, stages output, serializes publication per project, and replaces managed Markdown and figures with rollback on ordinary errors. `manual_computation_render_figures` renders only stale `mode: figure` sources and never executes chapter-mode sources. Rendering runs without network access and with Quarto caches disabled.
+`status` prints JSON and remains informational even when `ok` is false. `check` exits nonzero for missing, stale, modified, or orphaned results. `render` executes explicitly, reuses an available selected worker or pulls it on first use, stages output, serializes publication per project, and replaces managed Markdown and figures with rollback on ordinary errors. `manual_computation_render_figures` renders only stale `mode: figure` sources and never executes chapter-mode sources. Source execution runs without network access and with Quarto caches disabled; image preparation occurs before the network-disabled worker starts.
+
+The shared PDF template keeps normal paragraph spacing instead of stretching sparse pages to the bottom margin, avoids widow and orphan lines, and reserves body text after section headings. Callouts and figures that fit on one page move as a unit to the next page when necessary. Captioned tables reserve their estimated height; genuinely long tables start on a fresh page and may continue only between rows when they exceed one page. Figure and table captions appear above their content and use a smaller sans-serif hierarchy, muted body text, restrained blue numbering, hanging alignment with language-aware hyphenation, and deliberate vertical spacing. Subfigure captions are quieter, a thin rule separates a multi-panel caption from its panels, and the same blue identifies only the numeric prefixes of headings while title text remains neutral.
 
 The first render refuses to overwrite an existing same-stem Markdown file or figure directory that is not recorded in the computation lock. Review the collision before an intentional takeover:
 
@@ -141,7 +158,7 @@ manual_computation_render(confirm_overwrite=true)
 
 Do not use that confirmation as a permanent default. Do not edit `.unaltraweb/computations.lock.json` manually; review it as generated provenance.
 
-Deleting or disabling a source leaves its lock record and generated artifacts as an orphan, so publication remains blocked. Review and remove the old generated Markdown and figure directory, then run a full `manual-compute-render`; the renderer removes an orphan lock record only after both managed paths are absent.
+Deleting or disabling a source leaves its lock record and generated artifacts as an orphan, so publication remains blocked. Review and remove the old generated Markdown and figure directory, then run a full `manual_computation_render`; the renderer removes an orphan lock record only after both managed paths are absent.
 
 `make serve`, `make build`, `make test`, profile previews, Playwright checks, PDF operations, and the reusable Pages workflow reject stale results. The internal capture-only preview is the deliberate exception because it must render the artefact that is currently stale. CI checks committed artifacts without recalculating them. Equivalent MCP tools are `manual_computation_status`, `manual_computation_check`, `manual_computation_render`, and `manual_computation_render_figures`.
 
@@ -149,11 +166,11 @@ Deleting or disabling a source leaves its lock record and generated artifacts as
 
 Static Vega-Lite and Vega figures use `*.vl.json` and `*.vg.json` sources declared in `.vegavisuals.yml`. A chapter references the specification as a captioned Markdown image; Jekyll and the PDF builder resolve it to the same single manifest output without changing the caption or figure attributes. Prefer SVG when the figure must work identically on the web and in print.
 
-Use the companion `visualization_status`, `render_visualizations`, and `visualization_check` tools for the source-to-output lifecycle. Run `visualization_check` before PDF status, build, or publication when a manifest exists; the unaltraweb PDF tool does not proxy the separate MCP. Commit the manifest, lock, source data, and generated outputs together.
+Use the required companion `vegavisuals` MCP and its `initialize_project`, `visualization_status`, `render_visualizations`, and `visualization_check` tools for the source-to-output lifecycle. ContExt registers the companion separately rather than copying it into the site. Run `visualization_check` before PDF status, build, or publication when a manifest exists; the unaltraweb PDF tool does not proxy the separate MCP. Commit the manifest, lock, provider receipt, source data, and generated outputs together.
 
 ## PDF Edition
 
-The optional PDF builder runs in a dedicated Docker image containing Pandoc, XeLaTeX, multilingual TeX packages, SVG conversion and Poppler. It reads the same localized manual home and chapter sources as Jekyll, orders chapters by `weight`, resolves rendered Mermaid, PlantUML and manifest-backed Vega outputs, converts Jekyll Scholar citations, and extracts the first PDF page as the web cover.
+The optional PDF builder runs in a dedicated Docker image containing Pandoc, XeLaTeX, multilingual TeX packages, SVG conversion and Poppler. It reads the same localized manual home and chapter sources as Jekyll, orders chapters by `weight`, resolves rendered Mermaid, PlantUML and manifest-backed Vega outputs, converts Jekyll Scholar citations, alphabetizes Citeproc output from structured contributor metadata, restores printable access links omitted by a CSL, and extracts the first PDF page as the web cover.
 
 ```yaml
 unaltraweb:
@@ -195,19 +212,26 @@ unaltraweb:
         band_color: "990000"
 ```
 
-The cover deliberately contains only structural publication elements: series, title, instructors, main image, institutional logo, and bands. Bibliographic fields, course context, authorship, rights, and any declared source or license are rendered on a compact localized editorial-credits page inside the PDF. `publisher`, `edition`, `publication_date`, `identifier`, `license`, and `source` are optional and accept either a scalar or a language map. The builder does not infer them from the institution, revision date, site URL, or other fields; omit values that are not authoritative.
+The cover deliberately contains only structural publication elements: series, title, instructors, main image, institutional logo, and bands. Bibliographic fields, course context, authorship, rights, any declared source or license, and the build's publication channel/selector are rendered on a compact localized editorial-credits page inside the PDF. The same selector appears on the manual home and in generated `manual-release.json`. `publisher`, `edition`, `publication_date`, `identifier`, `license`, and `source` are optional and accept either a scalar or a language map. The builder does not infer them from the institution, revision date, site URL, or other fields; omit values that are not authoritative.
 
-The default template is a two-sided, open-right book: inner and outer margins mirror, folios sit at the outer edge, numbered and unnumbered chapters begin on recto pages, and inserted blank versos carry no headers or folios. Main matter starts at chapter 0.
+The default template is a two-sided, open-right book: inner and outer margins mirror, folios sit at the outer edge, numbered and unnumbered chapters begin on recto pages, and inserted blank versos carry no headers or folios. Main matter starts at chapter 0, and each chapter opens as a single `number. title` heading. The secondary cover color is shared by complete headings and figure or table labels. PDF syntax highlighting, language headers, and line numbers are guaranteed for Bash, SQL, Python, R, and the semantic `url`, `spreadsheet`, and `filetree` fences. The semantic headers are localized from the document language. Plain, unlabelled, and unsupported fences use an unnumbered verbatim panel without a header. Both panel variants alternate line backgrounds, and long lines wrap inside the printable page.
 
 The PDF workflow checks executable chapters before reading their generated Markdown. Normal site work uses the MCP tools; the additional check/sync targets remain factory-maintainer operations:
 
 ```text
 manual_pdf_status
-manual_pdf_build
+manual_pdf_build(release_selector="latest")
 manual_pdf_publish                      # dry-run by default
 manual_pdf_publish(dry_run=false, confirm_publish=true)
-factory: make manual-pdf-sync PROJECT=/path/to/site
-factory: make manual-pdf-check PROJECT=/path/to/site
+build_site(site_profile="unaltremanual", release_selector="latest")
+manual_release_status(selector="latest")
+manual_release_prepare(selector="latest") # dry-run
+manual_release_prepare(selector="latest", dry_run=false, confirm_prepare=true)
+manual_release_check(selector="latest")
+factory: MCP_CONSUMER_WORKSPACE=/path/to/site make manual-pdf-sync
+factory: MCP_CONSUMER_WORKSPACE=/path/to/site make manual-pdf-check
 ```
 
-Builds remain under `tmp/manual-pdf/<lang>/`. Each language build creates both the PDF and a PNG extracted from its first page. The default template derives XeTeX's trailer ID from the build fingerprint, and the builder canonicalizes the lossless PDF streams with qpdf, so identical inputs produce byte-identical PDFs. A custom template must put `\special{pdf:trailerid [<$trailer-id$><$trailer-id$>]}` on its first output page to preserve that property. Publication copies those reviewed artefacts together into the configured project-relative public paths; it does not commit, push, deploy, or write outside the site. `manual-pdf-status` accepts a fresh reviewed build that is still waiting to be copied, while `manual-pdf-check` rejects missing or obsolete public copies. The download button appears automatically when the configured PDF exists among the site's static files, so it cannot point to a missing build. Chapters can opt out with `pdf: false`.
+Builds remain under `tmp/manual-pdf/<lang>/`. Each language build creates both the PDF and a PNG extracted from its first page. The release selector is part of the PDF fingerprint, so every PDF build, site build, and candidate operation in one sequence must use the same selector. The default template derives XeTeX's trailer ID from that fingerprint, and the builder canonicalizes the lossless PDF streams with qpdf, so identical inputs and selector produce byte-identical PDFs. A custom template must put `\special{pdf:trailerid [<$trailer-id$><$trailer-id$>]}` on its first output page to preserve that property. Local publication can copy those artefacts to the configured project-relative public paths for review, but it does not commit, push, deploy, or write outside the site. The default public PDF and cover paths are ignored and remain unversioned; the manual deployment rebuilds them from reviewed source. The download button appears when the generated PDF exists among the built site's static files. Chapters can opt out with `pdf: false`.
+
+`manual_release_status` and `manual_release_check` are offline and read-only. `manual_release_prepare` writes only a local evidence bundle below `tmp/manual-release/<selector>/`; it never tags, pushes, deploys, or creates a GitHub release. Stable local candidates are no-clobber while their selector directory exists, but the durable object is the published GitHub tag/release after immutable releases are enabled for the repository, not the disposable `tmp/` directory. A stable sequence must start at the consumer repository root on the exact clean Git commit that will be reviewed on `main`; nested repositories, submodules, Git clean/smudge filters, and versioned PDF outputs are rejected. Start the MCP with the reviewed `ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:<digest>` image rather than a mutable tag. The commit timestamp fixes Jekyll's build time, source and site fingerprints use canonical modes, and the version-2 release manifest records the commit, epoch, and site-build image. Use the same `vYYYY.MM(.N)` selector for PDF build, site build, and candidate preparation, and additionally require approved default-language content, no draft PDF, and a clean editorial quality check. Record the reviewed candidate with `sha256sum tmp/manual-release/<selector>/release-manifest.json`; the stable workflow must reproduce that digest before publication can proceed.

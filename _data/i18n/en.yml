@@ -34,6 +34,12 @@ profiles:
 
 search:
   placeholder: Type to start searching
+  content_placeholder: Search content
+  content_results: Search results
+  content_no_results: No results
+  content_match: Match {current} of {total}
+  content_previous: Previous match
+  content_next: Next match
 
 callouts:
   info: NOTE
@@ -233,6 +239,8 @@ documentation:
 manual:
   contents: Contents
   download_pdf: Download PDF
+  release_channel: Publication channel
+  release_version: Published version
   on_this_page: On this page
   on_this_chapter: On this chapter
   previous: Previous
@@ -259,6 +267,12 @@ manual:
   chapter: Chapter
 figures:
   label: Figure
+  list_title: List of figures
 
 tables:
   label: Table
+  list_title: List of tables
+
+listings:
+  label: Code example
+  list_title: List of code examples

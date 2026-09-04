@@ -70,6 +70,37 @@ Una font oficial ha d'identificar l'organisme responsable, la data de referènci
         self.assertEqual(result["issues"], [])
         self.assertEqual(result["findings"], [])
 
+    def test_custom_manual_collection_markdown_is_covered_even_when_pdf_excluded(self) -> None:
+        (self.project / "_config.yml").write_text(
+            "default_lang: en\n"
+            "languages: [en]\n"
+            "unaltraweb:\n"
+            "  site_profile: unaltremanual\n"
+            "  manual:\n"
+            "    collection: lessons\n",
+            encoding="utf-8",
+        )
+        source = self.project / "_lessons/en/site-only.markdown"
+        source.parent.mkdir(parents=True)
+        source.write_text(
+            "---\n"
+            "title: Site only\n"
+            "lang: en\n"
+            "content_status: draft\n"
+            "pdf: false\n"
+            "---\n\n"
+            "As requested, this editorial placeholder remains.\n",
+            encoding="utf-8",
+        )
+
+        editorial = site_tools.manual_editorial_quality_check(self.project)
+        approval = site_tools.content_approval_inventory(self.project)
+
+        self.assertFalse(editorial["ok"])
+        self.assertEqual(editorial["files_checked"], 1)
+        self.assertEqual(approval["default_language_count"], 1)
+        self.assertEqual(approval["pending_default_count"], 1)
+
     def test_manual_writing_guidance_exposes_structure_and_callout_conventions(self) -> None:
         factory = Path(__file__).resolve().parents[1]
 
@@ -117,10 +148,12 @@ Una font oficial ha d'identificar l'organisme responsable, la data de referènci
         self.assertIn("source -> output", components["vega_visualizations"]["syntax"][2])
         self.assertIn("#stable-heading", components["links_and_cross_references"]["syntax"][2])
         self.assertIn("distinct", components["links_and_cross_references"]["pdf"])
+        self.assertIn('::: listing "Descriptive caption"', components["captioned_listings"]["syntax"])
+        self.assertIn("list of code examples", components["captioned_listings"]["pdf"])
         self.assertIn("$x_i$", components["code_and_math"]["syntax"])
         self.assertIn("$\\eqref{eq:model}$", components["code_and_math"]["syntax"])
         self.assertIn("Rouge", components["code_and_math"]["web"])
-        self.assertIn("Skylighting", components["code_and_math"]["pdf"])
+        self.assertIn("code fences", components["code_and_math"]["pdf"])
         self.assertIn("Do not use inline code", components["code_and_math"]["guidance"])
 
         inventory = site_tools.list_tools()

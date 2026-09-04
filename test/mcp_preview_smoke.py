@@ -11,21 +11,20 @@ def create_site(project: Path) -> None:
     (project / "tmp/Gemfile.local.lock").unlink(missing_ok=True)
     (project / "_config.yml").write_text(
         "title: Preview smoke\n"
-        "baseurl: \"\"\n"
+        "baseurl: /preview-smoke\n"
         "theme: unaltraweb\n"
-        "plugins: [unaltraweb]\n"
         "unaltraweb:\n"
         "  site_profile: unaltreselfie\n",
         encoding="utf-8",
     )
-    (project / "Gemfile").write_text('gem "unaltraweb"\n', encoding="utf-8")
+    (project / "Gemfile").write_text('group :jekyll_plugins do\n  gem "unaltraweb"\nend\n', encoding="utf-8")
     (project / "Makefile").write_text(
         "LOCAL_CORE ?= /opt/unaltraweb\n"
         "LOCAL_GEMFILE := tmp/Gemfile.local\n\n"
         ".PHONY: local-gemfile build-native serve-native\n\n"
         "local-gemfile:\n"
         "\t@mkdir -p tmp\n"
-        "\t@printf '%s\\n' 'source \"https://rubygems.org\"' 'gem \"unaltraweb\", path: \"$(LOCAL_CORE)\"' > $(LOCAL_GEMFILE)\n\n"
+        "\t@printf '%s\\n' 'source \"https://rubygems.org\"' '' 'group :jekyll_plugins do' '  gem \"unaltraweb\", path: \"$(LOCAL_CORE)\"' 'end' > $(LOCAL_GEMFILE)\n\n"
         "build-native: local-gemfile\n"
         "\t@BUNDLE_GEMFILE=$(LOCAL_GEMFILE) bundle lock --local\n"
         "\t@BUNDLE_GEMFILE=$(LOCAL_GEMFILE) bundle check\n"
@@ -37,7 +36,7 @@ def create_site(project: Path) -> None:
         encoding="utf-8",
     )
     (project / "_pages/index.md").write_text(
-        "---\nlayout: default\ntitle: Home\npermalink: /\n---\nPreview smoke.\n",
+        "---\nlayout: default\ntitle: Home\npermalink: /home/\n---\nPreview smoke.\n",
         encoding="utf-8",
     )
 
@@ -47,19 +46,24 @@ def main() -> None:
     if not os.environ.get("UNALTRAWEB_DOCKER_ROOT"):
         raise SystemExit("UNALTRAWEB_DOCKER_ROOT must identify the mounted host fixture")
     create_site(project)
-    port = int(os.environ["UNALTRAWEB_PREVIEW_PORT"])
     try:
-        started = site_tools.preview_start(project, port=port, timeout_seconds=120)
+        started = site_tools.preview_start(project, timeout_seconds=120)
         assert started["ok"] is True, started
         assert started["ready"] is True
-        assert started["url"] == f"http://127.0.0.1:{port}/"
+        port = int(started["port"])
+        assert 1024 <= port <= 65535, started
+        assert started["requested_port"] == 0, started
+        assert started["container_port"] == 4000, started
+        route = "/preview-smoke/home/"
+        assert started["ready_path"] == route, started
+        assert started["url"] == f"http://127.0.0.1:{port}{route}"
 
         status = site_tools.preview_status(project)
         assert status["ok"] is True
         assert status["running"] is True
         assert status["container"].startswith("unaltraweb-preview-")
 
-        checked = site_tools.http_check(project, paths=["/"], timeout_seconds=2)
+        checked = site_tools.http_check(project, paths=[route], timeout_seconds=2)
         assert checked["ok"] is True, checked
         assert checked["owned"] is True
         assert checked["redirects_followed"] == 0

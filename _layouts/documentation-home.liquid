@@ -14,8 +14,8 @@ layout: default
 {% capture documentation_contents_text %}{% include t.liquid key='documentation.contents' default='Documentation' %}{% endcapture %}
 {% capture documentation_read_more_text %}{% include t.liquid key='documentation.read_more' default='Read more' %}{% endcapture %}
 <script>
-  window.unaltrawebContentSearchUrl = {{ '/assets/js/documentation-search-index.json' | relative_url | jsonify }};
-  window.unaltrawebContentSearchTarget = ".documentation-content";
+  window.unaltrawebContentSearchUrl = {{ '/assets/js/content-search-index.json' | relative_url | jsonify }};
+  window.unaltrawebContentSearchTarget = ".documentation-main";
 </script>
 
 <div class="documentation-layout documentation-home-layout">

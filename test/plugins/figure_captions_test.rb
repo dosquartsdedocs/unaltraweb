@@ -59,4 +59,63 @@ class FigureCaptionsTest < Minitest::Test
     assert_includes first_panel["style"], "--md-subfigure-image-max-height: 18rem;"
     refute_includes first_panel["style"], "95%"
   end
+
+  def test_captioned_listing_wraps_exactly_one_fence_with_localized_numbering
+    markdown = <<~MARKDOWN
+      ::: listing "Read a layer"
+      ```python
+      print("roads")
+      ```
+      :::
+    MARKDOWN
+
+    result = Unaltraweb::FigureCaptions.transform_markdown_sugar(
+      markdown,
+      "en",
+      "Figure",
+      "Table",
+      "Code example"
+    )
+    fragment = Nokogiri::HTML::DocumentFragment.parse(result)
+    listing = fragment.at_css("figure.md-code-listing")
+
+    assert_equal "lst-en-1", listing["id"]
+    assert_equal "Code example 1. Read a layer", listing.at_css(".md-code-caption").text.strip
+    assert_includes result, "```python\nprint(\"roads\")\n```"
+  end
+
+  def test_listing_requires_exactly_one_fenced_block
+    markdown = <<~MARKDOWN
+      ::: listing "Two blocks"
+      ```python
+      print(1)
+      ```
+
+      ```python
+      print(2)
+      ```
+      :::
+    MARKDOWN
+
+    result = Unaltraweb::FigureCaptions.transform_markdown_sugar(markdown, "en", "Figure", "Table", "Listing")
+
+    assert_includes result, '::: listing "Two blocks"'
+    refute_includes result, "md-code-listing"
+  end
+
+  def test_listing_syntax_inside_a_code_example_is_not_transformed
+    markdown = <<~MARKDOWN
+      ````markdown
+      ::: listing "Example"
+      ```python
+      print(1)
+      ```
+      :::
+      ````
+    MARKDOWN
+
+    result = Unaltraweb::FigureCaptions.transform_markdown_sugar(markdown, "en", "Figure", "Table", "Listing")
+
+    assert_equal markdown, result
+  end
 end

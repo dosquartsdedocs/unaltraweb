@@ -2,9 +2,33 @@
 
 `unaltraweb` is a reusable Jekyll core for academic, research project, software and documentation websites maintained by `dosquartsdedocs`.
 
-It packages shared layouts, includes, Sass, assets, Jekyll plugins, bibliometric tooling, multilingual behaviour, theme modes and reusable GitHub Actions workflows. Child sites should stay thin and consume this core through the `unaltraweb` gem.
+## Content Editors: Start Here
 
-`unaltremanual` sites can also build language-specific PDF editions and matching web-cover images in an isolated Pandoc/XeLaTeX container. PDF status, build, and local publication are available through Make and the MCP control plane.
+If you have been invited to edit a generated site, start with that repository's `README.md`. It identifies the selected profile, lists the content paths you may edit, and puts the browser-only workflow before local technical setup.
+
+For every GitHub Web edit:
+
+1. Work from an assigned issue or an explicit file reservation accepted by the maintainer. Only one active editor may work on a file.
+2. Create one branch per task and never edit `main` directly.
+3. Open a small Draft pull request early. If a conflict appears, stop and ask the maintainer instead of overwriting work.
+4. The maintainer runs local checks and required renders, reviews the result, merges the pull request, and only then starts deployment manually.
+
+See [Edit Safely In GitHub Web](docs/_documentation/en/06-github-web-editing.md) for the full coordination, image-upload, file-safety, and publication protocol.
+
+## Four Site Profiles
+
+| Profile | Use it for | Main editor-owned paths |
+|---|---|---|
+| `unaltreselfie` | A personal academic or professional site | `_pages/`, `_posts/`, `_news/`, `_projects/`, `_books/`, `_bibliography/`, approved profile assets |
+| `unaltreprojecte` | A research project, group, infrastructure, or output site | `_pages/`, `_news/`, `_projects/`, `_outputs/`, `_books/`, `_data/team.yml`, `_data/repositories.yml`, approved project assets |
+| `unaltremanual` | A manual, course, handbook, or book-like publication | `_pages/`, `_chapters/`, `_bibliography/`, `context/writing-profile.md`, approved source images |
+| `unaltredocs` | Technical or operational documentation | `_pages/`, `_documentation/`, public `_data/` files, approved screenshots |
+
+## Technical Overview
+
+The core packages shared layouts, includes, Sass, assets, Jekyll plugins, bibliometric tooling, multilingual behaviour, theme modes and reusable GitHub Actions workflows. Child sites should stay thin and consume this core through the `unaltraweb` gem.
+
+`unaltremanual` sites can also build language-specific PDF editions and matching web-cover images in an isolated Pandoc/XeLaTeX container. PDF status is offline; build and local review are available through Make and the MCP control plane. When PDF output is enabled, default generated PDF and cover outputs are not versioned. The selected `latest` or stable selector is rendered into both the website and PDF metadata.
 
 ## Current Status
 
@@ -22,14 +46,9 @@ It packages shared layouts, includes, Sass, assets, Jekyll plugins, bibliometric
 
 The template is the better place to validate gem consumption, centralized styles and shared logic because it exercises `unaltraweb` as an external dependency instead of relying on the core checkout itself.
 
-## Site Profiles
+## Profile Configuration
 
-Prepared site families are called site profiles:
-
-- `unaltreselfie`
-- `unaltreprojecte`
-- `unaltremanual`
-- `unaltredocs`
+Prepared site families are called site profiles. The four profiles and their editor-owned paths are summarized near the top of this README.
 
 Select a profile in a child site's `_config.yml`:
 
@@ -55,10 +74,10 @@ unaltraweb-mcp --project ./my-site new-web --site-profile unaltreselfie --title 
 From this factory checkout, the equivalent command is:
 
 ```bash
-make mcp-new-web PROJECT=./my-site NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
+MCP_CONSUMER_WORKSPACE=./my-site make mcp-new-web NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
 ```
 
-The operation uses only assets shipped in `unaltraweb_mcp`, preflights all managed paths, writes `.unaltraweb/scaffold.json`, and never overwrites differing files. Later `scaffold_sync` calls can update only unchanged baseline runtime files and never touch config or content. `dosquartsdedocs/unaltraweb-template` remains available when a full multi-profile demo with Playwright tests is more useful than a clean profile-specific site.
+The operation uses only assets shipped in `unaltraweb_mcp`, preflights all managed paths, writes `.unaltraweb/scaffold.json`, and never overwrites differing files. Later `scaffold_sync` calls can update only unchanged baseline runtime files, including the pull-request template, and never touch config, README prose, or content. `dosquartsdedocs/unaltraweb-template` remains available when a full multi-profile demo with Playwright tests is more useful than a clean profile-specific site.
 
 After creation, there are two supported editing paths:
 
@@ -93,7 +112,7 @@ make docs-serve DOCKER_IMAGE=unaltraweb:dev
 make docs-build DOCKER_IMAGE=unaltraweb:dev
 ```
 
-The selected consumer runtime is `ghcr.io/dosquartsdedocs/unaltraweb:0.3.0`. The mutable `:main` channel is reserved for explicit maintainer testing; locally built core images use the `:dev` name. The gem remains the source of theme code.
+The pending distribution contract selects `ghcr.io/dosquartsdedocs/unaltraweb:0.3.0` as the eventual consumer runtime; it does not assert that this remote tag exists yet. The mutable `:main` channel is reserved for explicit maintainer testing; locally built core images use the `:dev` name. The gem remains the source of theme code.
 
 The independent manual PDF runtime is built from `scripts/manual/Dockerfile`; it is deliberately separate from the Jekyll image so normal site builds do not carry Pandoc and TeX Live.
 
@@ -116,7 +135,7 @@ The template tests are intentionally heavier because they run browser smoke test
 
 ## Modular Wheel And Doctor
 
-The `unaltraweb-mcp` wheel is intentionally a small control and inspection package. A wheel-only install supports `version`, `new-web`, top-level `doctor`, constrained SHA-256 source edits, baseline-aware `scaffold_sync`, `site-doctor`, `html-audit`, and package-only inspections such as `detect-site`, `profile-check`, `content-inventory`, and `build-health`. Commands that execute factory Make targets or serve MCP require a factory checkout and fail with an explicit `UNALTRAWEB_FACTORY_DIR` remediation when it is absent.
+The `unaltraweb-mcp` wheel is intentionally a small control and inspection package. A wheel-only install supports `version`, `new-web`, top-level `doctor`, the host-only `import-calibre` command, constrained SHA-256 source edits, baseline-aware `scaffold_sync`, `site-doctor`, `html-audit`, and package-only inspections such as `detect-site`, `profile-check`, `content-inventory`, and `build-health`. Commands that execute factory Make targets or serve MCP require a factory checkout and fail with an explicit `UNALTRAWEB_FACTORY_DIR` remediation when it is absent.
 
 ```bash
 unaltraweb-mcp version
@@ -129,32 +148,33 @@ Doctor is offline. The optional `--docker` mode only calls local Docker version/
 
 ## Global Dockerized MCP
 
-`unaltraweb` provides one global, on-demand stdio MCP whose containers are scoped to the current consumer workspace. Each client session gets an independent Docker-generated container name plus stable factory, role, and project labels, so concurrent sessions for the same project do not collide. The launcher pulls the pinned public image `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0` when it is not available locally. To build and test the same image from this checkout instead:
+`unaltraweb` provides one global, on-demand stdio MCP whose containers are scoped to the current consumer workspace. Each client session gets an independent Docker-generated container name plus stable factory, role, and project labels, so concurrent sessions for the same project do not collide. The launcher reuses or attempts to pull the selected `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0` image; while that component is `pending`, the pull may fail rather than silently building under the remote release reference. To build and test the image explicitly from this checkout instead:
 
 ```bash
 make mcp-build
 make mcp-smoke
 ```
 
-ContExt reads the canonical manifest transport `make -C ${factoryRoot} mcp-stdio PROJECT=${workspaceFolder}`. For global Codex and OpenCode registration, the manager converts the workspace placeholder into a launch-time shell wrapper so `$PWD` is captured before `make -C` changes directory. The manifest itself continues to use `make`, an allowed container host launcher, and does not require a `runtime.allowed_host_launchers` exception. An equivalent OpenCode `command` array is:
+ContExt reads the canonical manifest transport `make -C ${factoryRoot} mcp-stdio` and supplies `MCP_CONSUMER_WORKSPACE=${workspaceFolder}` through the process environment. The manifest continues to use `make`, an allowed container host launcher, but no consumer path is parsed by Make or interpolated into shell source. An equivalent direct launch is:
 
-```json
-[
-  "/bin/sh",
-  "-c",
-  "workspace=$PWD; exec make --silent --no-print-directory -C /path/to/unaltraweb mcp-stdio PROJECT=\"$workspace\""
-]
+```bash
+MCP_CONSUMER_WORKSPACE="$PWD" make --silent --no-print-directory -C /path/to/unaltraweb mcp-stdio
 ```
 
-Replace `/path/to/unaltraweb` with this checkout's absolute path and restart the client after changing its configuration. Do not use `PROJECT=.` after `make -C` in a global registration. Each session mounts its resolved project at `/workspace` and at its canonical host path, so Docker-backed authoring tools pass valid bind paths to the host daemon. `build_site` runs Jekyll directly in that MCP runtime and returns the offline HTML audit. `preview_start`, `preview_status`, and `preview_stop` manage one labelled preview container per project; `http_check` derives its origin only from that owned preview and never accepts an arbitrary URL.
+Replace `/path/to/unaltraweb` with this checkout's absolute path and restart the client after changing its configuration. Each session canonicalizes the inherited workspace after launch, then mounts it at `/workspace` and at its canonical host path, so Docker-backed authoring tools pass valid bind paths to the host daemon. `build_site` runs Jekyll directly in that MCP runtime and returns the offline HTML audit. `preview_start`, `preview_status`, and `preview_stop` manage one labelled preview container per project. By default, Docker publishes container port `4000` on a free loopback host port, so previews from distinct workspaces can run concurrently; pass a nonzero `port` only when a fixed host port is required. A running preview created by the former fixed-port default remains idempotently usable until stopped, after which the dynamic default applies. `http_check` derives its origin only from that owned preview and never accepts an arbitrary URL.
 
 Dependency preparation builds images and required companions only; it does not initialize a consumer website, and companion `init` aggregation is disabled. Create a site explicitly with the `new_web` MCP tool. To clean up one consumer project, pass the same canonical project path used at launch:
 
 ```bash
-make mcp-down PROJECT=/path/to/consumer
+MCP_CONSUMER_WORKSPACE=/path/to/consumer make mcp-down
+# If the path was moved or deleted:
+MCP_CONSUMER_WORKSPACE=/old/absent/path MCP_PROJECT_ID=0123456789abcdef make mcp-down
+# Or explicitly remove a stale inherited workspace binding:
+env -u MCP_CONSUMER_WORKSPACE MCP_PROJECT_ID=0123456789abcdef make mcp-down
 ```
 
-This selects only resources carrying both `io.context.mcp-factory=unaltraweb` and that project's stable `io.context.mcp-project` label. Maintainers can deliberately clean every labelled unaltraweb MCP resource with `make mcp-down-all`; neither target deletes images or touches unlabelled containers and networks.
+When the workspace is live, a supplied `MCP_PROJECT_ID` must match its canonical path. A retained ID is accepted only without a live workspace, making stale-resource cleanup explicit. Cleanup selects only resources carrying both `io.context.mcp-factory=unaltraweb` and that project's stable `io.context.mcp-project` label. Maintainers can deliberately clean every labelled unaltraweb MCP resource with `make mcp-down-all`; neither target deletes images or touches unlabelled containers and networks.
+Replace the example retained ID with the 16-hex value from that project's `io.context.mcp-project` Docker label.
 
 ## Bibliometrics
 
@@ -191,15 +211,15 @@ It can also publish the reference site locally to `gh-pages`:
 make docs-publish
 ```
 
-Sites created by `new_web` include a manual GitHub Pages workflow that delegates to the reusable core workflow. Local `make build` and `make test` validate the site without publishing or changing Git history.
+Sites created by `new_web` include a manual GitHub Pages workflow that requires the full locally reviewed `main` commit SHA before delegating to the reusable core workflow. The current reusable publication contract also requires the manual PDF worker by full image digest. Local `make build` and `make test` validate the site without publishing or changing Git history.
 
 ## CI Scope
 
-`.github/workflows/ci.yml` runs automatically for pushes and pull requests. It compiles and unit-tests supported Python versions, checks patch whitespace, validates workflow and distribution structure, builds/tests the wheel and gem, then uses cached Docker builds for the MCP smoke test and reference docs. This normal CI intentionally runs `distribution-check`, not the strict release gate, so truthful `pending` companion releases do not block ordinary development.
+`.github/workflows/ci.yml` runs automatically for pushes and pull requests. It compiles and unit-tests supported Python versions, checks patch whitespace, validates workflow and distribution structure, builds/tests the wheel and gem, then uses cached Docker builds for the MCP smoke test and reference docs. This normal CI intentionally runs `distribution-check`, not the strict release gate, so truthful `pending` releases do not block ordinary development.
 
 CodeQL separately analyzes JavaScript/TypeScript, Python and Ruby on pull requests, default-branch pushes and a weekly schedule. Docs deployment, link checks, publication metrics, package preparation and image publication remain manual.
 
-`distribution-release-check` is the publication boundary. Every image workflow runs it, validates the selected ref against the BOM version, runs relevant tests and builds without credentials before a dependent job can log in or push. `.github/workflows/package-prepare.yml` applies the same strict gate, builds checked gem/wheel candidates, writes SHA-256 checksums and uploads a workflow artifact named with the commit SHA. It does not upload to RubyGems or PyPI, create a GitHub release, tag the repository or publish an image. Those operations still require a separate explicit maintainer approval and action.
+Core artifact workflows run `distribution-check` while selected candidates are truthfully `pending`, validate the selected ref against the BOM version, and keep their preflight jobs credential-free. Once the final source and release intent are reviewed, mark its components `ready` and commit that state. Runtime, MCP, and manual PDF publication separates authority across a signing/package-write build job that never runs candidates, a read-only test job that verifies GitHub-signed digest/source provenance and removes GHCR credentials before execution, and a package-write promotion job that executes no candidate. Every image is built once under only its SHA tag; only the exact digests that pass all Ruby, PDF, reproducibility, MCP, and docs gates can reach verified `sha-*`, `main`, and `latest` aliases. GHCR does not make the initial absence lookup and later tag write atomic, so the signed tested digest, not a claim of compare-and-swap no-clobber, is the trust anchor. Record those digests and package checksums in a versioned `release-candidates.json` child commit; validation requires that receipt to be the only change. After `distribution-release-check`, tag the receipt commit. The tag-only job verifies SHA-tag equality, signed provenance and the revision label against the receipt's `source_commit`, then promotes only the receipt's manifests to checked semver aliases without rebuilding or executing them. `released` remains available for already-published components; released containers other than the self-describing MCP must be digest-pinned. Package preparation never uploads to RubyGems or PyPI, creates a GitHub release, tags the repository or publishes an image; those operations require separate explicit maintainer approval.
 
 ## Attribution
 

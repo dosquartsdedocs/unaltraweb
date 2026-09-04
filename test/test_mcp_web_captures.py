@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import os
 import subprocess
 import sys
@@ -31,9 +32,10 @@ class WebCapturesMcpTests(unittest.TestCase):
     @patch("unaltraweb_mcp.site_tools.run_factory_make")
     def test_render_delegates_to_factory_isolated_workflow(self, run_factory_make, _runtime_available, docker) -> None:
         run_factory_make.return_value = {"ok": True}
-        docker.return_value = subprocess.CompletedProcess([], 0, "", "")
+        docker.side_effect = lambda args: subprocess.CompletedProcess(args, 0, "200" if args[0] == "exec" else "", "")
 
-        with patch.dict(os.environ, {"UNALTRAWEB_DOCKER_ROOT": "/tmp/site", "UNALTRAWEB_MCP_IMAGE": "unaltraweb-mcp:test"}):
+        host_project = '/tmp/site,source=/tmp/cross-workspace,"quoted"'
+        with patch.dict(os.environ, {"UNALTRAWEB_DOCKER_ROOT": host_project, "UNALTRAWEB_MCP_IMAGE": "unaltraweb-mcp:test"}):
             site_tools.web_capture_render(
                 Path("/tmp/site"),
                 Path("/tmp/factory"),
@@ -50,6 +52,12 @@ class WebCapturesMcpTests(unittest.TestCase):
         self.assertIn("WEB_CAPTURE_SERVICE_HOST", kwargs["env"])
         service_run = docker.call_args_list[1].args[0]
         self.assertIn("serve-capture-native", service_run)
+        mounts = [next(csv.reader([service_run[index + 1]])) for index, value in enumerate(service_run[:-1]) if value == "--mount"]
+        self.assertIn(["type=bind", f"source={host_project}", "target=/workspace"], mounts)
+        self.assertNotIn("-v", service_run)
+        readiness = next(call.args[0] for call in docker.call_args_list if call.args[0][:2] == ["exec", service_run[service_run.index("--name") + 1]])
+        self.assertIn("--write-out", readiness)
+        self.assertEqual(readiness[-1], "http://127.0.0.1:4000/")
         self.assertEqual(docker.call_args_list[-2].args[0][:2], ["rm", "-f"])
         self.assertEqual(docker.call_args_list[-1].args[0][:2], ["network", "rm"])
 

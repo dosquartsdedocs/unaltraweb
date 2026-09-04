@@ -39,7 +39,7 @@
     <a href="{{ site.url }}{{ site.baseurl }}{{ site.impressum_path }}">{{ impressum_text | strip }}</a>.
   {% endif %}
   {% if site.last_updated %}
-    {{ last_updated_text | strip }}: {{ 'now' | date: last_updated_format | strip }}.
+    {{ last_updated_text | strip }}: {{ site.time | date: last_updated_format | strip }}.
   {% endif %}
 {% endcapture %}
 

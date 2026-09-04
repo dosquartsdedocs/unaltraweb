@@ -24,6 +24,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+FACTORY_SRC = Path(__file__).resolve().parents[2] / "src"
+sys.path.insert(0, str(FACTORY_SRC))
+
+from unaltraweb_mcp.docker_mount import docker_bind_mount
+
 try:
     import yaml
 except ImportError as exc:  # pragma: no cover - supplied by project tooling
@@ -736,7 +741,8 @@ def run_worker(project: Path, image: str, config_path: Path) -> None:
     command = [
         "docker", "run", "--rm", *worker_args, "--user", f"{os.getuid()}:{os.getgid()}", "--network", network, "--ipc=host",
         "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--cpus", "2", "--memory", "2g",
-        "--tmpfs", "/tmp:rw,noexec,nosuid,size=512m", "-e", "HOME=/tmp", "-v", f"{project}:/project:rw", "-w", "/project", image,
+        "--tmpfs", "/tmp:rw,noexec,nosuid,size=512m", "-e", "HOME=/tmp",
+        "--mount", docker_bind_mount(project, "/project"), "-w", "/project", image,
         "/project/" + relative(project, config_path),
     ]
     try:

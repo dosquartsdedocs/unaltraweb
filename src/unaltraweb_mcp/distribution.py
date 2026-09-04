@@ -93,17 +93,37 @@ def component_contract_semantic_errors(value: dict[str, Any]) -> list[str]:
         component_release = str(selected["release"])
         reference = str(selected["reference"])
         repository = str(selected["repository"])
+        image_repository = str(selected.get("image_repository") or "")
+        image_repository_valid = re.fullmatch(
+            r"ghcr\.io/dosquartsdedocs/[a-z0-9._-]+",
+            image_repository,
+        ) is not None
+        digest_pinned = bool(image_repository_valid and re.fullmatch(
+            rf"{re.escape(image_repository)}@sha256:[0-9a-f]{{64}}",
+            reference,
+        ))
         if component_release != f"v{version}":
             errors.append(f"{component_id} release must equal v plus its version")
         kind = selected["kind"]
-        if selected["release_status"] != "released" and kind != "companion":
-            errors.append(f"{component_id} may be pending or unavailable only when it is an external companion")
+        if component_id == "mcp" and selected["release_status"] == "released":
+            errors.append("mcp release status must remain ready because its publication digest is recorded externally")
+        if kind == "container" and not image_repository_valid:
+            errors.append(f"{component_id} container must declare a valid image repository")
+        elif kind != "container" and image_repository:
+            errors.append(f"{component_id} non-container must not declare an image repository")
+        if kind == "companion" and selected["release_status"] == "ready":
+            errors.append(f"{component_id} companion must be released before coordinated publication")
         if kind == "gem" and reference != f"{selected['name']} (= {version})":
             errors.append(f"{component_id} gem reference does not match its version")
         elif kind == "python-wheel" and reference != f"{selected['name']}=={version}":
             errors.append(f"{component_id} wheel reference does not match its version")
-        elif kind == "container" and "@sha256:" not in reference and not reference.endswith(f":{version}"):
+        elif kind == "container" and not (
+            reference == f"{image_repository}:{version}"
+            or digest_pinned
+        ):
             errors.append(f"{component_id} container reference does not match its version")
+        elif kind == "container" and component_id != "mcp" and selected["release_status"] == "released" and not digest_pinned:
+            errors.append(f"{component_id} released container reference must use an immutable digest")
         elif kind == "companion" and reference != f"{repository}.git@{component_release}":
             errors.append(f"{component_id} companion reference does not match its repository and release")
     included = {name for name, item in value["components"].items() if item["included_in_wheel"]}
@@ -152,6 +172,52 @@ def component(component_id: str) -> dict[str, Any]:
 
 def component_reference(component_id: str) -> str:
     return str(component(component_id)["reference"])
+
+
+def companion_dependency_requirements(component_id: str) -> dict[str, Any]:
+    capabilities = {
+        "diavisuals": {
+            "tools": [
+                "compatibility_status",
+                "release_status",
+                "factory_manifest",
+                "project_check",
+                "render_diagram",
+                "render_diagram_text",
+            ],
+            "resources": ["diavisuals://project/check", "diavisuals://factory-manifest"],
+        },
+        "vegavisuals": {
+            "tools": [
+                "initialize_project",
+                "validate_visualization",
+                "render_visualization",
+                "visualization_status",
+                "visualization_check",
+                "render_visualizations",
+                "compatibility_status",
+                "release_status",
+                "factory_manifest",
+            ],
+            "resources": ["vegavisuals://project/check", "vegavisuals://factory-manifest"],
+        },
+    }
+    if component_id not in capabilities:
+        raise KeyError(f"Unknown unaltraweb companion: {component_id}")
+    selected = component(component_id)
+    return {
+        "lifecycle": {
+            "required": True,
+            "install": True,
+            "build": True,
+            "init": False,
+            "check": True,
+            "smoke": True,
+            "update": False,
+        },
+        "uv_spec": f"{component_id}[mcp] @ git+{selected['reference']}",
+        **capabilities[component_id],
+    }
 
 
 def is_mutable_reference(reference: str) -> bool:
@@ -243,6 +309,7 @@ def _factory_findings(factory: Path) -> list[dict[str, Any]]:
     for component_id in ["diavisuals", "vegavisuals"]:
         expected = contract["components"][component_id]
         dependency = dependency_map.get(component_id, {})
+        requirements = companion_dependency_requirements(component_id)
         actual = {
             "version": str(dependency.get("version") or ""),
             "release": str(dependency.get("release") or ""),
@@ -265,7 +332,57 @@ def _factory_findings(factory: Path) -> list[dict[str, Any]]:
                 component_id=component_id,
             )
         )
+        expected_lifecycle = requirements["lifecycle"]
+        actual_lifecycle = {key: dependency.get(key) for key in expected_lifecycle}
+        findings.append(
+            _finding(
+                "UW-DIST-COMPANION-LIFECYCLE",
+                "info" if actual_lifecycle == expected_lifecycle else "error",
+                expected_lifecycle,
+                actual_lifecycle,
+                (
+                    "No action required."
+                    if actual_lifecycle == expected_lifecycle
+                    else f"Align {component_id} dependency lifecycle with the required ContExt contract."
+                ),
+                component_id=component_id,
+            )
+        )
+        actual_uv_spec = str(dependency.get("uv_spec") or "")
+        findings.append(
+            _finding(
+                "UW-DIST-COMPANION-INSTALL-SPEC",
+                "info" if actual_uv_spec == requirements["uv_spec"] else "error",
+                requirements["uv_spec"],
+                actual_uv_spec or "missing",
+                (
+                    "No action required."
+                    if actual_uv_spec == requirements["uv_spec"]
+                    else f"Use the selected immutable {component_id} release in uv_spec."
+                ),
+                component_id=component_id,
+            )
+        )
         declared_tools = dependency.get("required_tools") if isinstance(dependency.get("required_tools"), list) else []
+        declared_resources = dependency.get("required_resources") if isinstance(dependency.get("required_resources"), list) else []
+        missing_capabilities = sorted(
+            (set(requirements["tools"]) - set(declared_tools))
+            | (set(requirements["resources"]) - set(declared_resources))
+        )
+        findings.append(
+            _finding(
+                "UW-DIST-COMPANION-CAPABILITIES",
+                "info" if not missing_capabilities else "error",
+                {"tools": requirements["tools"], "resources": requirements["resources"]},
+                {"tools": declared_tools, "resources": declared_resources},
+                (
+                    "No action required."
+                    if not missing_capabilities
+                    else f"Require the missing {component_id} tools and resources: {', '.join(missing_capabilities)}."
+                ),
+                component_id=component_id,
+            )
+        )
         receipt_tool = receipt_tools[component_id]
         findings.append(
             _finding(
@@ -547,18 +664,20 @@ def distribution_doctor(
     ]
     for component_id in pending_components:
         selected = contract["components"][component_id]
+        code = "UW-DIST-COMPANION-RELEASE-PENDING" if selected["kind"] == "companion" else "UW-DIST-RELEASE-PENDING"
         findings.append(_finding(
-            "UW-DIST-COMPANION-RELEASE-PENDING",
+            code,
             "warning",
             f"published immutable release {selected['release']}",
             "pending",
-            f"Use an explicitly selected current {component_id} checkout for compatibility; do not publish the modular release until the tag exists.",
+            f"Use an explicitly selected local {component_id} candidate for development; do not publish the coordinated release until this component is available.",
             component_id=component_id,
         ))
     for component_id in unavailable_components:
         selected = contract["components"][component_id]
+        code = "UW-DIST-COMPANION-RELEASE-UNAVAILABLE" if selected["kind"] == "companion" else "UW-DIST-RELEASE-UNAVAILABLE"
         findings.append(_finding(
-            "UW-DIST-COMPANION-RELEASE-UNAVAILABLE",
+            code,
             "warning",
             f"published immutable release {selected['release']}",
             "unavailable",

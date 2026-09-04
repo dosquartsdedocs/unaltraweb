@@ -21,10 +21,11 @@ nav_title: Run And Preview
 
 1. Call `new_web` with one `unaltraweb.site_profile` and the site identity/language settings.
 2. Inspect the generated `_config.yml` and localized home page.
-3. Edit content and data files. MCP agents should read a source hash, review the default `site_source_write` dry-run, then apply the exact CAS update.
-4. Run `site_doctor`, `profile_check`, `site_check`, and `build_site`; review the returned HTML audit.
-5. Commit the reviewed site to `main`.
-6. Run the generated manual GitHub Pages workflow, or replace it with the workflow required by another host.
+3. Reserve a focused task, create one branch, and open a small Draft pull request. Never edit `main` directly, and allow only one active editor per file.
+4. Edit content and data files. MCP agents should read a source hash, review the default `site_source_write` dry-run, then apply the exact CAS update.
+5. Stop and ask the maintainer if another task overlaps or a conflict appears.
+6. The maintainer runs `site_doctor`, `profile_check`, `site_check`, `build_site`, and required renderers, then reviews the returned HTML audit and rendered outputs.
+7. After review, the maintainer merges the pull request and manually runs the generated GitHub Pages workflow when publication is intended.
 
 CLI equivalent:
 
@@ -78,14 +79,14 @@ make test
 make down
 ```
 
-The generated repository contains one profile. Create a separate temporary site with `new_web` to compare another profile. Publication runs through the generated manual GitHub Pages workflow and is never triggered by these local commands.
+The generated repository contains one profile. Create a separate temporary site with `new_web` to compare another profile. Publication runs through the generated manual GitHub Pages workflow and is never triggered by a push or these local commands.
 
 ## Update Model
 
 - Gem updates change layouts, includes, Sass, plugins and scripts.
 - Docker image updates change local runtime dependencies and are published manually.
 - Reusable workflow updates change optional GitHub build and deploy behavior.
-- Package scaffold changes affect newly generated sites. Existing generated repositories can review `scaffold_sync`, which manages only `.gitignore`, Makefile, Gemfile/lock, and the deploy workflow from `.unaltraweb/scaffold.json`; it never overwrites conflicts or changes config/content.
+- Package scaffold changes affect newly generated sites. Existing generated repositories can review `scaffold_sync`, which manages exactly `.gitignore`, `.unaltraweb/docker-mount.sh`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, and `.github/workflows/deploy.yml` from `.unaltraweb/scaffold.json`. A conflict aborts the entire apply, and retired entries are removed from the baseline without deleting project files. Synchronization never changes site-owned README/agent guidance, config, or content.
 
 ## Safe MCP Editing
 
@@ -95,7 +96,7 @@ Dependabot can stay enabled for Bundler and GitHub Actions in child sites, but d
 
 ## Content-Only Work
 
-The GitHub web UI is enough for common edits:
+The GitHub web UI is enough for common edits when editors follow the [issue, reservation, branch, and Draft pull request protocol](../github-web-editing/):
 
 - add or correct a BibTeX record;
 - edit a Markdown page;
@@ -103,4 +104,4 @@ The GitHub web UI is enough for common edits:
 - update a team member in `_data/`;
 - change profile feature flags in `_config.yml`.
 
-Use local Docker when you need to inspect the rendered result before committing. Publication remains an explicit manual workflow action.
+The maintainer uses local Docker to inspect the rendered result before merge. Publication remains an explicit manual workflow action after the reviewed change reaches `main`.

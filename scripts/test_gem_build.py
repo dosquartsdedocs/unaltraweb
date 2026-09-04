@@ -7,12 +7,18 @@ import io
 import json
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from unaltraweb_mcp.docker_mount import docker_bind_mount
+
+
 CONTRACT = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text(encoding="utf-8"))
 RUNTIME_IMAGE = str(CONTRACT["components"]["runtime"]["reference"])
 
@@ -31,9 +37,9 @@ def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[
     return completed
 
 
-def build(output: Path) -> str:
+def build(output: Path, *, source: Path = ROOT) -> str:
     if shutil.which("ruby") and shutil.which("gem"):
-        run(["gem", "build", "unaltraweb.gemspec", "--output", str(output)])
+        run(["gem", "build", "unaltraweb.gemspec", "--output", str(output)], cwd=source)
         return "local-ruby"
     if not shutil.which("docker"):
         raise RuntimeError("Gem smoke requires local RubyGems or Docker with the selected runtime image.")
@@ -47,7 +53,8 @@ def build(output: Path) -> str:
         raise RuntimeError(f"Gem smoke requires the already-local runtime image {RUNTIME_IMAGE}; it never pulls implicitly.")
     run([
         "docker", "run", "--rm", "--network", "none",
-        "-v", f"{ROOT}:/repo:ro", "-v", f"{output.parent}:/out:rw", "-w", "/repo",
+        "--mount", docker_bind_mount(source, "/repo", readonly=True),
+        "--mount", docker_bind_mount(output.parent, "/out"), "-w", "/repo",
         RUNTIME_IMAGE, "gem", "build", "unaltraweb.gemspec", "--output", f"/out/{output.name}",
     ])
     return "docker-runtime"
@@ -61,13 +68,42 @@ def inspect_gem(path: Path) -> None:
         with tarfile.open(fileobj=io.BytesIO(data_member.read()), mode="r:gz") as payload:
             names = set(payload.getnames())
     required = {
+        "LICENSE",
+        "README.md",
+        "_data/i18n/ca.yml",
+        "_data/i18n/en.yml",
+        "_data/i18n/es.yml",
+        "_plugins/bibliography_profiles.rb",
+        "_plugins/code_blocks.rb",
+        "_plugins/content_search_index.rb",
+        "_plugins/figure_captions.rb",
+        "_plugins/manual_release_metadata.rb",
+        "_plugins/reproducible_build_time.rb",
+        "assets/js/content-search-match.js",
+        "assets/js/content-search.js",
+        "_config.yml",
+        "Makefile",
+        "requirements.txt",
         "lib/unaltraweb/version.rb",
+        "scripts/manual/build_pdf.py",
+        "scripts/manual/filters/bibliography.lua",
+        "scripts/manual/filters/code-blocks.lua",
+        "scripts/manual/filters/figure-captions.lua",
+        "scripts/manual/publish_release.sh",
+        "scripts/manual/verify_release_assets.py",
+        "scripts/unaltraweb-docker-mount.sh",
+        "scripts/unaltraweb-mcp-cleanup.sh",
+        "scripts/unaltraweb-mcp-project-id.sh",
         "src/unaltraweb_mcp/component-contract.json",
         "src/unaltraweb_mcp/component-contract.schema.json",
+        "src/unaltraweb_mcp/docker_mount.py",
     }
     missing = sorted(required - names)
     if missing:
         raise RuntimeError(f"Built gem is missing required files: {missing}")
+    unexpected_data = sorted(name for name in names if name.startswith("_data/") and not name.startswith("_data/i18n/"))
+    if unexpected_data:
+        raise RuntimeError(f"Built gem contains non-runtime data files: {unexpected_data}")
 
 
 def main() -> int:
@@ -75,6 +111,15 @@ def main() -> int:
         output = Path(raw_temp) / "unaltraweb.gem"
         runner = build(output)
         inspect_gem(output)
+        archive_source = Path(raw_temp) / "source-archive"
+        shutil.copytree(
+            ROOT,
+            archive_source,
+            ignore=shutil.ignore_patterns(".git", "_site", "tmp", ".jekyll-cache", "__pycache__", "*.pyc"),
+        )
+        archive_output = Path(raw_temp) / "unaltraweb-source-archive.gem"
+        build(archive_output, source=archive_source)
+        inspect_gem(archive_output)
         print(json.dumps({"ok": True, "runner": runner, "gem": output.name}, sort_keys=True))
     return 0
 

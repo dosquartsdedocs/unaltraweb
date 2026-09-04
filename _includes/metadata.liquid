@@ -1,10 +1,10 @@
 {% if site.enable_google_verification or site.enable_bing_verification %}
   <!-- Website verification -->
   {% if site.enable_google_verification %}
-    <meta name="google-site-verification" content="{{ site.google_site_verification }}">
+    <meta name="google-site-verification" content="{{ site.google_site_verification | escape }}">
   {% endif %}
   {% if site.enable_bing_verification %}
-    <meta name="msvalidate.01" content="{{ site.bing_site_verification }}">
+    <meta name="msvalidate.01" content="{{ site.bing_site_verification | escape }}">
   {% endif %}
   <!--
     Avoid warning on Google Chrome Error with Permissions-Policy header:
@@ -27,21 +27,21 @@
     {% capture title %}{{ site.title }}{% endcapture %}
   {% endif %}
   {% if page.url == '/blog/index.html' %}
-    {{ page.title }} | {{ title }}
+    {{ page.title | escape }} | {{ title | escape }}
   {% elsif page.title != 'blank' and page.url != '/' %}
     {% if page.title == null or page.title == '' %}
-      {{ page.date | date: '%Y' }} | {{ title }}
+      {{ page.date | date: '%Y' }} | {{ title | escape }}
     {% else %}
-      {{ page.title }} | {{ title }}
+      {{ page.title | escape }} | {{ title | escape }}
     {% endif %}
   {% else %}
-    {{ title }}
+    {{ title | escape }}
   {% endif %}
 </title>
-<meta name="author" content="{{ author_name }}">
-<meta name="description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
+<meta name="author" content="{{ author_name | escape }}">
+<meta name="description" content="{% if page.description %}{{ page.description | escape }}{% else %}{{ site.description | escape }}{% endif %}">
 {% if page.keywords or site.keywords %}
-  <meta name="keywords" content="{% if page.keywords %}{{ page.keywords }}{% else %}{{ site.keywords }}{% endif %}">
+  <meta name="keywords" content="{% if page.keywords %}{{ page.keywords | escape }}{% else %}{{ site.keywords | escape }}{% endif %}">
 {% endif %}
 
 {% assign current_lang = page.lang | default: site.default_lang | default: site.lang %}
@@ -53,7 +53,7 @@
       {% assign localized_page = site.documents | where: 'ref', page.ref | where: 'lang', lang_code | first %}
     {% endif %}
     {% if localized_page %}
-      <link rel="alternate" hreflang="{{ lang_code }}" href="{{ localized_page.url | replace: 'index.html', '' | absolute_url }}">
+      <link rel="alternate" hreflang="{{ lang_code | escape }}" href="{{ localized_page.url | replace: 'index.html', '' | absolute_url | escape }}">
     {% endif %}
   {% endfor %}
   {% assign default_page = site.pages | where: 'ref', page.ref | where: 'lang', site.default_lang | first %}
@@ -61,7 +61,7 @@
     {% assign default_page = site.documents | where: 'ref', page.ref | where: 'lang', site.default_lang | first %}
   {% endif %}
   {% if default_page %}
-    <link rel="alternate" hreflang="x-default" href="{{ default_page.url | replace: 'index.html', '' | absolute_url }}">
+    <link rel="alternate" hreflang="x-default" href="{{ default_page.url | replace: 'index.html', '' | absolute_url | escape }}">
   {% endif %}
 {% endif %}
 
@@ -71,31 +71,43 @@
 {% endif %}
 
 {% if site.serve_og_meta %}
+  {% capture og_title %}{% if page.title %}{{ title }} | {{ page.title }}{% else %}{{ title }}{% endif %}{% endcapture %}
+  {% assign social_title = page.title | default: title %}
+  {% assign social_description = page.description | default: site.description %}
+  {% assign social_image = page.og_image | default: site.og_image %}
   <!-- OpenGraph -->
-  <meta property="og:site_name" content="{{ title }}">
+  <meta property="og:site_name" content="{{ title | escape }}">
   <meta property="og:type" content="{% if is_blog_post %}article{% else %}website{% endif %}">
-  <meta property="og:title" content="{% if page.title %}{{ title }} | {{ page.title }}{% else %}{{ title }}{% endif %}">
-  <meta property="og:url" content="{{ page.url | prepend: site.baseurl | prepend: site.url | remove_first: 'index.html' }}">
-  <meta property="og:description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
+  <meta property="og:title" content="{{ og_title | strip | escape }}">
+  <meta property="og:url" content="{{ page.url | prepend: site.baseurl | prepend: site.url | remove_first: 'index.html' | escape }}">
+  <meta property="og:description" content="{{ social_description | escape }}">
   {% if page.og_image or site.og_image %}
-    <meta property="og:image" content="{% if page.og_image %}{{ page.og_image }}{% else %}{{ site.og_image }}{% endif %}">
+    <meta property="og:image" content="{{ social_image | escape }}">
   {% endif %}
-  <meta property="og:locale" content="{{ current_lang }}">
+  <meta property="og:locale" content="{{ current_lang | escape }}">
 
   <!-- Twitter card -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="{% if page.title %}{{ page.title }}{% else %}{{ title }}{% endif %}">
-  <meta name="twitter:description" content="{% if page.description %}{{ page.description }}{% else %}{{ site.description }}{% endif %}">
+  <meta name="twitter:title" content="{{ social_title | escape }}">
+  <meta name="twitter:description" content="{{ social_description | escape }}">
   {% if page.og_image or site.og_image %}
-    <meta name="twitter:image" content="{% if page.og_image %}{{ page.og_image }}{% else %}{{ site.og_image }}{% endif %}">
+    <meta name="twitter:image" content="{{ social_image | escape }}">
   {% endif %}
   {% if site.x_username %}
-    <meta name="twitter:site" content="@{{ site.x_username }}">
-    <meta name="twitter:creator" content="@{{ site.x_username }}">
+    <meta name="twitter:site" content="@{{ site.x_username | escape }}">
+    <meta name="twitter:creator" content="@{{ site.x_username | escape }}">
   {% endif %}
 {% endif %}
 
 {% if site.serve_schema_org %}
+  {% assign schema_url = page.url | prepend: site.baseurl | prepend: site.url %}
+  {% assign schema_description = page.description | default: site.description %}
+  {% assign schema_headline = page.title | default: site.title %}
+  {% if is_blog_post %}
+    {% assign schema_type = 'BlogPosting' %}
+  {% else %}
+    {% assign schema_type = 'WebSite' %}
+  {% endif %}
   <!-- Schema.org -->
   {% comment %} Social links generator for "sameAs schema" {% endcomment %}
   {% assign sameaslinks = '' | split: ',' %}
@@ -250,16 +262,16 @@
         "author":
         {
             "@type": "Person",
-            "name": "{{ author_name }}"
+            "name": {{ author_name | jsonify | replace: '<', '\\u003c' | replace: '>', '\\u003e' | replace: '&', '\\u0026' }}
         },
-        "url": "{{ page.url | prepend: site.baseurl | prepend: site.url }}",
-        "@type": "{% if is_blog_post %}BlogPosting{% else %}WebSite{% endif %}",
-        "description": "{% if page.description %}{{ page.description }}{% else if site.description %}{{ site.description }}{% endif %}",
-        "headline": "{% if page.title %}{{ page.title }}{% else %}{{ site.title }}{% endif %}",
+        "url": {{ schema_url | jsonify | replace: '<', '\\u003c' | replace: '>', '\\u003e' | replace: '&', '\\u0026' }},
+        "@type": {{ schema_type | jsonify | replace: '<', '\\u003c' | replace: '>', '\\u003e' | replace: '&', '\\u0026' }},
+        "description": {{ schema_description | jsonify | replace: '<', '\\u003c' | replace: '>', '\\u003e' | replace: '&', '\\u0026' }},
+        "headline": {{ schema_headline | jsonify | replace: '<', '\\u003c' | replace: '>', '\\u003e' | replace: '&', '\\u0026' }},
         {% if sameaslinks != blank %}
-        "sameAs": {{ sameaslinks | jsonify }},
+        "sameAs": {{ sameaslinks | jsonify | replace: '<', '\\u003c' | replace: '>', '\\u003e' | replace: '&', '\\u0026' }},
         {% endif %}
-        "name": "{{ author_name }}",
+        "name": {{ author_name | jsonify | replace: '<', '\\u003c' | replace: '>', '\\u003e' | replace: '&', '\\u0026' }},
         "@context": "https://schema.org"
     }
   </script>

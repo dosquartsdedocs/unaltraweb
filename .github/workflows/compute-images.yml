@@ -18,6 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Python
@@ -30,8 +31,8 @@ jobs:
       - name: Install test package
         run: python -m pip install -e .
 
-      - name: Require release-ready distribution
-        run: make distribution-release-check
+      - name: Validate distribution contract
+        run: make distribution-check
 
       - name: Validate publish ref and versions
         env:
@@ -53,9 +54,11 @@ jobs:
       matrix:
         include:
           - engine: python
+            component: compute_python
             image: unaltraweb-compute-python
             dockerfile: scripts/computations/python/Dockerfile
           - engine: r
+            component: compute_r
             image: unaltraweb-compute-r
             dockerfile: scripts/computations/r/Dockerfile
     steps:
@@ -88,9 +91,11 @@ jobs:
       matrix:
         include:
           - engine: python
+            component: compute_python
             image: unaltraweb-compute-python
             dockerfile: scripts/computations/python/Dockerfile
           - engine: r
+            component: compute_r
             image: unaltraweb-compute-r
             dockerfile: scripts/computations/r/Dockerfile
     steps:
@@ -104,14 +109,38 @@ jobs:
 
       - name: Docker metadata
         id: meta
+        if: github.ref_type == 'branch'
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/dosquartsdedocs/${{ matrix.image }}
           tags: |
             type=raw,value=main,enable={{is_default_branch}}
-            type=sha,prefix=sha-
-            type=semver,pattern={{version}}
-            type=ref,event=tag
+            type=raw,value=sha-${{ github.sha }},enable={{is_default_branch}}
+
+      - name: Read release metadata
+        id: release
+        if: github.ref_type == 'tag'
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+
+          contract = json.load(open("src/unaltraweb_mcp/component-contract.json"))
+          component = contract["components"][os.environ["COMPONENT"]]
+          if component["release_status"] == "released":
+              source = component["reference"]
+              candidate = ""
+          else:
+              receipt = json.load(open("release-candidates.json"))
+              source = receipt["components"][os.environ["COMPONENT"]]["reference"]
+              candidate = f"{component['image_repository']}:sha-{receipt['source_commit']}"
+          print(f"version={contract['release']['version']}")
+          print(f"source={source}")
+          print(f"repository={component['image_repository']}")
+          print(f"candidate={candidate}")
+          PY
 
       - name: Log in to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -120,7 +149,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify recorded candidate digest
+        if: github.ref_type == 'tag'
+        env:
+          CANDIDATE: ${{ steps.release.outputs.candidate }}
+          SOURCE: ${{ steps.release.outputs.source }}
+        run: |
+          if [ -n "$CANDIDATE" ]; then
+            actual="$(docker buildx imagetools inspect "$CANDIDATE" --format '{{.Manifest.Digest}}')"
+            expected="${SOURCE##*@}"
+            if [ "$actual" != "$expected" ]; then
+              printf 'candidate digest mismatch: %s resolves to %s, expected %s\n' "$CANDIDATE" "$actual" "$expected" >&2
+              exit 1
+            fi
+          fi
+
       - name: Build and publish
+        if: github.ref_type == 'branch'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -132,3 +177,15 @@ jobs:
           cache-to: type=gha,mode=max,scope=compute-${{ matrix.engine }}
           sbom: true
           provenance: mode=max
+
+      - name: Promote selected immutable image
+        if: github.ref_type == 'tag'
+        env:
+          REPOSITORY: ${{ steps.release.outputs.repository }}
+          SOURCE: ${{ steps.release.outputs.source }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${REPOSITORY}:${VERSION}" \
+            --tag "${REPOSITORY}:v${VERSION}" \
+            "$SOURCE"

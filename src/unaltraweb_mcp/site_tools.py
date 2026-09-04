@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .distribution import component, component_reference
+from .docker_mount import docker_bind_mount
 from .processes import ProcessResult, run_process
 
 try:
@@ -61,6 +62,9 @@ MAKE_TIMEOUTS = {
     "manual-pdf-build": 1800.0,
     "manual-pdf-status": 60.0,
     "manual-pdf-publish": 300.0,
+    "manual-release-status": 300.0,
+    "manual-release-check": 300.0,
+    "manual-release-prepare": 900.0,
     "web-capture-render": 900.0,
     "metrics-check": 120.0,
     "metrics-scimago-fetch": 900.0,
@@ -247,36 +251,95 @@ PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     "unaltreselfie": {
         "description": "Personal academic or professional site.",
         "recommended_paths": ["_pages", "_bibliography", "_projects"],
+        "editable_paths": [
+            "`_pages/<lang>/`: localized home and profile pages",
+            "`_posts/` and `_news/`: dated posts and short announcements",
+            "`_projects/`: project and portfolio entries",
+            "`_books/`: reading notes and book reviews when readings are enabled",
+            "`_bibliography/`: verified BibTeX publication records",
+            "`assets/img/` and `assets/pdf/`: approved profile images, CV files, and downloads",
+        ],
         "config_keys": ["author"],
         "content_notes": ["profile pages", "posts/news", "projects", "publications", "CV assets"],
+        "publishing_guidance": "",
     },
     "unaltreprojecte": {
         "description": "Research project, group, infrastructure, or output site.",
-        "recommended_paths": ["_pages", "_outputs", "_projects", "_data/team.yml"],
+        "recommended_paths": ["_pages", "_bibliography", "_outputs", "_projects", "_data/team.yml"],
+        "editable_paths": [
+            "`_pages/<lang>/`: localized landing and information pages",
+            "`_news/`: dated project announcements",
+            "`_projects/` and `_outputs/`: project work and research outputs",
+            "`_books/`: project reading notes and book reviews when readings are enabled",
+            "`_data/team.yml`: public team records",
+            "`_data/repositories.yml`: public repository records",
+            "`_bibliography/`: verified project publication records when enabled",
+            "`assets/img/`: approved project, team, and output images",
+        ],
         "config_keys": [],
         "content_notes": ["project landing pages", "team data", "outputs", "repositories", "news"],
+        "publishing_guidance": "",
     },
     "unaltremanual": {
         "description": "Book-like manual, course, or teaching site.",
         "recommended_paths": ["_chapters", "_bibliography"],
+        "scaffold_paths": [".unaltraweb/computations.yml"],
+        "provisioned_features": ["manual_computations_python", "manual_computations_r"],
+        "editable_paths": [
+            "`_pages/<lang>/`: localized manual home pages",
+            "`_chapters/<lang>/`: hand-written chapters and authoritative executable chapter sources",
+            "`_bibliography/`: verified manual references",
+            "`context/writing-profile.md`: audience, voice, terminology, evidence, and review rules",
+            "`assets/img/`: approved source images that are not renderer-generated",
+        ],
         "config_keys": ["unaltraweb.manual"],
         "content_notes": ["localized chapters", "manual home", "figures/tables", "teaching blocks", "manual bibliography", "local writing policy"],
+        "publishing_guidance": """## unaltremanual Publishing Channels
+
+- `latest` is a manual-only deployment built from the reviewed `main` branch.
+- Pushing or merging to `main` does not publish the manual. A maintainer starts the deployment manually after local checks, required renders, and human review.
+- When PDF output is enabled, the default PDF and cover outputs, `assets/pdf/manual-<lang>.pdf` and `assets/img/manual-cover-<lang>.png`, are generated for deployment and are not versioned. Do not upload, edit, or commit them.
+- The generated manual home, `manual-release.json`, and PDF editorial credits identify the publication channel and selector. Use the same selector for PDF build, site build, and local candidate checks.
+- Stable editions use `vYYYY.MM(.N)`: `vYYYY.MM` for the first edition in a month and `vYYYY.MM.N` for an additional edition. They are deferred to explicit releases, and a `latest` deployment never creates one.
+- Prepare a stable candidate only from the exact clean reviewed commit and an `unaltraweb-mcp` image selected by immutable digest; the candidate records both identities.
+- Release checks reject `legacy/` or `sandbox/` content in the generated site. Keep those trees outside current manual content paths.
+""",
     },
     "unaltredocs": {
         "description": "Technical or operational documentation portal.",
         "recommended_paths": ["_documentation"],
+        "editable_paths": [
+            "`_pages/<lang>/`: localized documentation home pages",
+            "`_documentation/<lang>/`: sectioned documentation pages",
+            "`_data/`: public structured documentation data when present",
+            "`assets/img/`: approved screenshots and explanatory images that are not renderer-generated",
+        ],
         "config_keys": ["unaltraweb.documentation"],
         "content_notes": ["documentation home", "sectioned documentation", "reader profiles", "search"],
+        "publishing_guidance": "",
     },
 }
 
-SCAFFOLD_TEMPLATE_FILES = {"Gemfile.lock.tmpl", "Gemfile.tmpl", "Makefile.tmpl", "_config.yml.tmpl", "home.md.tmpl"}
+SCAFFOLD_TEMPLATE_FILES = {
+    ".gitignore.tmpl",
+    "AGENTS.md.tmpl",
+    "Gemfile.lock.tmpl",
+    "Gemfile.tmpl",
+    "Makefile.tmpl",
+    "README.md.tmpl",
+    "_config.yml.tmpl",
+    "computations.yml.tmpl",
+    "home.md.tmpl",
+    "root.html.tmpl",
+}
 SCAFFOLD_MANIFEST_PATH = Path(".unaltraweb/scaffold.json")
 SCAFFOLD_MANAGED_PATHS = (
     Path(".gitignore"),
+    Path(".unaltraweb/docker-mount.sh"),
     Path("Makefile"),
     Path("Gemfile"),
     Path("Gemfile.lock"),
+    Path(".github/pull_request_template.md"),
     Path(".github/workflows/deploy.yml"),
 )
 LANGUAGE_RE = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
@@ -546,12 +609,44 @@ def _resolve_site_profile(project: Path, site_profile_value: str = "") -> str:
     return profile
 
 
+def _is_real_directory(path: Path) -> bool:
+    try:
+        return stat.S_ISDIR(path.lstat().st_mode)
+    except OSError:
+        return False
+
+
+def _is_regular_file_no_follow(path: Path) -> bool:
+    try:
+        return stat.S_ISREG(path.lstat().st_mode)
+    except OSError:
+        return False
+
+
+def _configured_content_directories(project: Path) -> list[str]:
+    values = list(CONTENT_DIRS)
+    config = site_config(project)
+    collections = config.get("collections") if isinstance(config.get("collections"), dict) else {}
+    names = [str(name) for name in collections]
+    uw_config = unaltraweb_config(config)
+    manual = uw_config.get("manual") if isinstance(uw_config.get("manual"), dict) else {}
+    names.append(str(manual.get("collection") or "chapters"))
+    for name in names:
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", name):
+            values.append(f"_{name}")
+    return list(dict.fromkeys(values))
+
+
 def iter_content_files(project: Path) -> list[Path]:
     paths: list[Path] = []
-    for directory in CONTENT_DIRS:
+    for directory in _configured_content_directories(project):
         root = project / directory
-        if root.is_dir():
-            paths.extend(path for path in root.rglob("*") if path.suffix.lower() in {".md", ".html"})
+        if _is_real_directory(root):
+            paths.extend(
+                path
+                for path in root.rglob("*")
+                if path.suffix.lower() in SITE_SOURCE_CONTENT_SUFFIXES and _is_regular_file_no_follow(path)
+            )
     return sorted(paths)
 
 
@@ -605,21 +700,41 @@ def _scaffold_root() -> Path:
 
 def scaffold_inventory() -> dict[str, Any]:
     root = _scaffold_root()
+    common_required = [
+        root / "common" / ".gitignore.tmpl",
+        root / "common" / ".unaltraweb/docker-mount.sh",
+        root / "common" / ".github/pull_request_template.md",
+        root / "common" / ".github/workflows/deploy.yml",
+        root / "common" / "AGENTS.md.tmpl",
+        root / "common" / "Gemfile.lock.tmpl",
+        root / "common" / "Gemfile.tmpl",
+        root / "common" / "Makefile.tmpl",
+        root / "common" / "README.md.tmpl",
+        root / "common" / "root.html.tmpl",
+    ]
     profiles = []
     for profile, contract in PROFILE_CONTRACTS.items():
         profile_root = root / "profiles" / profile
+        profile_required = [profile_root / "_config.yml.tmpl", profile_root / "home.md.tmpl"]
+        if profile == "unaltremanual":
+            profile_required.append(profile_root / "computations.yml.tmpl")
+        missing = [str(path.relative_to(root)) for path in profile_required if not path.is_file()]
         profiles.append(
             {
                 "profile": profile,
                 "description": contract["description"],
-                "available": (profile_root / "_config.yml.tmpl").is_file() and (profile_root / "home.md.tmpl").is_file(),
+                "available": not missing,
+                "missing": missing,
                 "recommended_paths": contract["recommended_paths"],
+                "scaffold_paths": contract.get("scaffold_paths", []),
+                "provisioned_features": contract.get("provisioned_features", []),
             }
         )
     return {
         "source": "unaltraweb_mcp package",
         "default": "unaltreselfie",
-        "common_available": (root / "common" / "Makefile.tmpl").is_file() and (root / "common" / "Gemfile.tmpl").is_file(),
+        "common_available": all(path.is_file() for path in common_required),
+        "common_missing": [str(path.relative_to(root)) for path in common_required if not path.is_file()],
         "profiles": profiles,
     }
 
@@ -659,11 +774,43 @@ def _render_scaffold_template(path: Path, replacements: dict[str, str]) -> bytes
     return text.encode("utf-8")
 
 
+def _manual_generated_ignore_block(config: dict[str, Any]) -> str:
+    from .manual_release import _pdf_languages, _render_output_path
+
+    unaltraweb = config.get("unaltraweb") if isinstance(config.get("unaltraweb"), dict) else {}
+    manual = unaltraweb.get("manual") if isinstance(unaltraweb.get("manual"), dict) else {}
+    pdf = manual.get("pdf") if isinstance(manual.get("pdf"), dict) else {}
+    pdf_template = str(pdf.get("output") or "assets/pdf/manual-{lang}.pdf")
+    cover_template = str(pdf.get("cover_output") or "assets/img/manual-cover-{lang}.png")
+    outputs: set[str] = set()
+    for language in _pdf_languages(config):
+        outputs.add(_render_output_path(pdf_template, language, label="published PDF", suffix=".pdf").as_posix())
+        outputs.add(_render_output_path(cover_template, language, label="published cover", suffix=".png").as_posix())
+    patterns = []
+    for path in sorted(outputs):
+        escaped = "".join(f"\\{character}" if character in " #!?[]*" else character for character in path)
+        patterns.append(f"/{escaped}")
+    return "\n# Generated unaltremanual publication outputs are never versioned.\n" + "\n".join(patterns)
+
+
 def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, default_lang: str, languages: list[str]) -> dict[Path, bytes]:
     root = _scaffold_root()
     common_root = root / "common"
     profile_root = root / "profiles" / profile
-    required = [common_root / "Makefile.tmpl", common_root / "Gemfile.tmpl", common_root / "Gemfile.lock.tmpl", profile_root / "_config.yml.tmpl", profile_root / "home.md.tmpl"]
+    required = [
+        common_root / "AGENTS.md.tmpl",
+        common_root / "Makefile.tmpl",
+        common_root / "Gemfile.tmpl",
+        common_root / "Gemfile.lock.tmpl",
+        common_root / "README.md.tmpl",
+        common_root / "root.html.tmpl",
+        common_root / ".gitignore.tmpl",
+        common_root / ".github/pull_request_template.md",
+        profile_root / "_config.yml.tmpl",
+        profile_root / "home.md.tmpl",
+    ]
+    if profile == "unaltremanual":
+        required.append(profile_root / "computations.yml.tmpl")
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise RuntimeError(f"Package-owned new-web scaffold is incomplete: {', '.join(missing)}")
@@ -680,12 +827,16 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
                 raise RuntimeError(f"Duplicate package-owned scaffold path: {relative}")
             payloads[relative] = source.read_bytes()
 
+    normalized_baseurl = f"/{baseurl.strip('/')}" if baseurl.strip("/") else ""
+    site_path = f"{normalized_baseurl}/{default_lang}/"
+    site_root = f"{url.rstrip('/')}{site_path}" if url.strip() else site_path
     replacements = {
         "TITLE": _yaml_scalar(title),
         "URL": _yaml_scalar(url),
         "BASEURL": _yaml_scalar(baseurl),
         "DEFAULT_LANG": _yaml_scalar(default_lang),
         "LANGUAGES": _yaml_inline_list(languages),
+        "SITE_ROOT": _yaml_scalar(site_root),
     }
     common_replacements = {
         "GEM_VERSION": str(component("gem")["version"]),
@@ -693,12 +844,55 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
     }
     for name in ["Makefile", "Gemfile", "Gemfile.lock"]:
         payloads[Path(name)] = _render_scaffold_template(common_root / f"{name}.tmpl", common_replacements)
-    payloads[Path("_config.yml")] = _render_scaffold_template(profile_root / "_config.yml.tmpl", replacements)
+    workspace_replacements = {
+        "PROFILE": profile,
+        "DEFAULT_LANG_TEXT": default_lang,
+        "LANGUAGES_TEXT": ", ".join(f"`{language}`" for language in languages),
+    }
+    payloads[Path("AGENTS.md")] = _render_scaffold_template(common_root / "AGENTS.md.tmpl", workspace_replacements)
+    payloads[Path("_pages/index.html")] = _render_scaffold_template(
+        common_root / "root.html.tmpl",
+        {"DEFAULT_LANG_TEXT": default_lang},
+    )
+    config_payload = _render_scaffold_template(profile_root / "_config.yml.tmpl", replacements)
+    payloads[Path("_config.yml")] = config_payload
+    rendered_config = load_yaml_text(config_payload.decode("utf-8"))
+    if not isinstance(rendered_config, dict):
+        raise RuntimeError(f"Rendered {profile} scaffold configuration is not a mapping.")
+    contract = PROFILE_CONTRACTS[profile]
+    readme_replacements = {
+        "SITE_PROFILE": profile,
+        "PROFILE_DESCRIPTION": contract["description"],
+        "EDITABLE_PATHS": "\n".join(f"- {item}" for item in contract["editable_paths"]),
+        "PROFILE_PUBLISHING_GUIDANCE": contract["publishing_guidance"].strip(),
+    }
+    payloads[Path("README.md")] = _render_scaffold_template(common_root / "README.md.tmpl", readme_replacements)
+    payloads[Path(".gitignore")] = _render_scaffold_template(
+        common_root / ".gitignore.tmpl",
+        {
+            "MANUAL_GENERATED_IGNORES": (
+                _manual_generated_ignore_block(rendered_config)
+                if profile == "unaltremanual"
+                else ""
+            ),
+        },
+    )
+    if profile == "unaltremanual":
+        computation_replacements = {
+            "COMPUTE_PYTHON_IMAGE": component_reference("compute_python"),
+            "COMPUTE_R_IMAGE": component_reference("compute_r"),
+        }
+        payloads[Path(".unaltraweb/computations.yml")] = _render_scaffold_template(
+            profile_root / "computations.yml.tmpl", computation_replacements
+        )
+        payloads[Path("_chapters") / default_lang / ".gitkeep"] = b""
+        payloads[Path("assets/quarto/.gitkeep")] = b""
+        payloads[Path("assets/img/generated/.gitkeep")] = b""
     for language in languages:
         home_replacements = {
             "TITLE": _yaml_scalar(title),
             "LANG": _yaml_scalar(language),
-            "PERMALINK": _yaml_scalar("/" if language == default_lang else f"/{language}/"),
+            "PERMALINK": _yaml_scalar(f"/{language}/"),
         }
         payloads[Path("_pages") / language / "index.md"] = _render_scaffold_template(profile_root / "home.md.tmpl", home_replacements)
     payloads[SCAFFOLD_MANIFEST_PATH] = _scaffold_manifest_bytes(
@@ -707,10 +901,25 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
     return payloads
 
 
-def _managed_scaffold_payloads() -> dict[Path, bytes]:
+def _managed_scaffold_payloads(project: Path, *, config: dict[str, Any] | None = None) -> dict[Path, bytes]:
     common_root = _scaffold_root() / "common"
+    config = site_config(project) if config is None else config
+    profile = site_profile(config)
+    if profile not in PROFILE_CONTRACTS:
+        raise RuntimeError("Cannot render profile-specific managed scaffold files until _config.yml has a valid site profile.")
     payloads = {
-        Path(".gitignore"): (common_root / ".gitignore").read_bytes(),
+        Path(".gitignore"): _render_scaffold_template(
+            common_root / ".gitignore.tmpl",
+            {
+                "MANUAL_GENERATED_IGNORES": (
+                    _manual_generated_ignore_block(config)
+                    if profile == "unaltremanual"
+                    else ""
+                ),
+            },
+        ),
+        Path(".unaltraweb/docker-mount.sh"): (common_root / ".unaltraweb/docker-mount.sh").read_bytes(),
+        Path(".github/pull_request_template.md"): (common_root / ".github/pull_request_template.md").read_bytes(),
         Path(".github/workflows/deploy.yml"): (common_root / ".github/workflows/deploy.yml").read_bytes(),
     }
     replacements = {
@@ -989,6 +1198,7 @@ def new_web(
         "project": str(project),
         "source": "unaltraweb_mcp package",
         "site_profile": site_profile_value,
+        "provisioned_features": PROFILE_CONTRACTS[site_profile_value].get("provisioned_features", []),
         "default_language": selected_default,
         "languages": language_values,
         "created_count": len(create),
@@ -996,7 +1206,12 @@ def new_web(
         "unchanged_count": len(unchanged),
         "unchanged": [str(path) for path in unchanged],
         "profile_check": check,
-        "next_steps": ["Edit the generated configuration and home page", "Run site_check", "Run build_site"],
+        "next_steps": [
+            "Read AGENTS.md and edit the generated configuration and home page",
+            "For a manual, revise context/writing-profile.md and add the first default-language chapter",
+            "Run site_doctor and site_check",
+            "Run build_site, start the labelled preview, and review the rendered result",
+        ],
     }
 
 
@@ -1029,7 +1244,15 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
                 raise RuntimeError(f"Invalid scaffold baseline SHA-256 for {path}.")
             baseline[path] = digest
 
-        payloads = _managed_scaffold_payloads()
+        try:
+            config_content, config_metadata = _read_source_from_root(root_fd, Path("_config.yml"))
+            config_text = _decode_site_source(Path("_config.yml"), config_content)
+            config = load_yaml_text(config_text)
+        except (OSError, UnicodeDecodeError, ValueError, RuntimeError) as exc:
+            raise RuntimeError("Cannot render managed scaffold files from a safe, valid _config.yml snapshot.") from exc
+        if not isinstance(config, dict):
+            raise RuntimeError("Cannot render managed scaffold files from a safe, valid _config.yml snapshot.")
+        payloads = _managed_scaffold_payloads(project, config=config)
         creates: list[dict[str, str]] = []
         updates: list[dict[str, str]] = []
         unchanged: list[str] = []
@@ -1065,7 +1288,8 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
                 conflicts.append({"path": path, "reason": "new package-managed path already exists with different content"})
 
         retired = sorted(path for path in baseline if path not in {item.as_posix() for item in SCAFFOLD_MANAGED_PATHS})
-        next_baseline = dict(baseline)
+        managed_paths = {item.as_posix() for item in SCAFFOLD_MANAGED_PATHS}
+        next_baseline = {path: digest for path, digest in baseline.items() if path in managed_paths}
         next_baseline.update({path.as_posix(): _source_hash(payloads[path]) for path in SCAFFOLD_MANAGED_PATHS})
         next_manifest = _scaffold_manifest_bytes(next_baseline)
         return {
@@ -1081,6 +1305,9 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
             "_payloads": payloads,
             "_manifest": next_manifest,
             "_manifest_sha256": _source_hash(manifest_content),
+            "_config_content": config_content,
+            "_config_sha256": _source_hash(config_content),
+            "_config_identity": _path_identity(config_metadata),
         }
     finally:
         os.close(root_fd)
@@ -1222,7 +1449,21 @@ def _cleanup_staged_managed_writes(staged_files: list[dict[str, Any]]) -> None:
         raise first_error
 
 
+def _recheck_scaffold_config(root_fd: int, plan: dict[str, Any], message: str) -> None:
+    try:
+        content, metadata = _read_source_from_root(root_fd, Path("_config.yml"))
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise RuntimeError(message) from exc
+    if (
+        content != plan["_config_content"]
+        or _source_hash(content) != plan["_config_sha256"]
+        or _path_identity(metadata) != plan["_config_identity"]
+    ):
+        raise RuntimeError(message)
+
+
 def _recheck_scaffold_sync(root_fd: int, plan: dict[str, Any]) -> None:
+    _recheck_scaffold_config(root_fd, plan, "_config.yml changed after scaffold_sync preflight.")
     for item in plan["creates"]:
         relative = Path(item["path"])
         parent_fd: int | None = None
@@ -1252,6 +1493,7 @@ def _recheck_scaffold_sync(root_fd: int, plan: dict[str, Any]) -> None:
 
 
 def _recheck_scaffold_sync_before_manifest(root_fd: int, plan: dict[str, Any]) -> None:
+    _recheck_scaffold_config(root_fd, plan, "_config.yml changed before scaffold_sync manifest commit.")
     for path in [*plan["unchanged"], *plan["adopted"]]:
         current = _read_scaffold_file(root_fd, Path(path))
         if _source_hash(current) != _source_hash(plan["_payloads"][Path(path)]):
@@ -1262,6 +1504,7 @@ def _recheck_scaffold_sync_before_manifest(root_fd: int, plan: dict[str, Any]) -
 
 
 def _verify_scaffold_sync_committed(root_fd: int, plan: dict[str, Any]) -> None:
+    _recheck_scaffold_config(root_fd, plan, "_config.yml changed during scaffold_sync manifest commit.")
     for path in [*plan["unchanged"], *plan["adopted"]]:
         current = _read_scaffold_file(root_fd, Path(path))
         if _source_hash(current) != _source_hash(plan["_payloads"][Path(path)]):
@@ -1293,6 +1536,7 @@ def scaffold_sync(
     committed = False
     try:
         fcntl.flock(root_fd, fcntl.LOCK_EX)
+        _recheck_scaffold_config(root_fd, plan, "_config.yml changed after scaffold_sync preflight.")
         operations = [
             (Path(item["path"]), plan["_payloads"][Path(item["path"])], "", False)
             for item in plan["creates"]
@@ -1514,13 +1758,24 @@ def profile_prune(project: Path, site_profile_value: str = "", *, dry_run: bool 
 
 def _manual_markdown_paths(project: Path) -> list[Path]:
     paths: list[Path] = []
-    chapters_root = project / "_chapters"
-    if chapters_root.is_dir():
-        paths.extend(path for path in chapters_root.rglob("*.md") if path.is_file())
+    config = site_config(project)
+    uw_config = unaltraweb_config(config)
+    manual = uw_config.get("manual") if isinstance(uw_config.get("manual"), dict) else {}
+    collection = str(manual.get("collection") or "chapters")
+    collection = collection if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", collection) else "chapters"
+    chapters_root = project / f"_{collection}"
+    if _is_real_directory(chapters_root):
+        paths.extend(
+            path
+            for path in chapters_root.rglob("*")
+            if path.suffix.lower() in SITE_SOURCE_CONTENT_SUFFIXES and _is_regular_file_no_follow(path)
+        )
 
     pages_root = project / "_pages"
-    if pages_root.is_dir():
-        for path in pages_root.rglob("*.md"):
+    if _is_real_directory(pages_root):
+        for path in pages_root.rglob("*"):
+            if path.suffix.lower() not in SITE_SOURCE_CONTENT_SUFFIXES or not _is_regular_file_no_follow(path):
+                continue
             front = read_front_matter(path)
             profiles = _profile_values(front.get("profiles"))
             if front.get("layout") in {"manual-home", "manual-chapter"} or "unaltremanual" in profiles:
@@ -2036,8 +2291,12 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
 
     for path in paths:
         try:
-            lines = path.read_text(encoding="utf-8").splitlines()
-        except OSError:
+            lines = _read_regular_path(
+                path,
+                max_bytes=SITE_SOURCE_MAX_BYTES,
+                description=f"Manual prose {path}",
+            ).decode("utf-8").splitlines()
+        except (OSError, UnicodeDecodeError, ValueError, RuntimeError):
             continue
         front = read_front_matter(path)
         path_parts = path.relative_to(project).as_posix().split("/")
@@ -2520,7 +2779,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "syntax": ["{% cite key %}", "{% cite key1 key2 %}"],
                 "web": "supported through Jekyll Scholar",
                 "pdf": "supported through linked Pandoc citeproc citations",
-                "guidance": "Use verified bibliography keys and manual_references: true when a chapter needs its references section. Bibliographic citations use the citation color, distinct from external URLs and internal links.",
+                "guidance": "Use verified bibliography keys and manual_references: true when a chapter needs its references section. Manual references are alphabetical on web/PDF; the web exposes DOI/URL through controls while the PDF prints them. Bibliographic citations use the citation color, distinct from external URLs and internal links.",
             },
             {
                 "id": "links_and_cross_references",
@@ -2530,11 +2789,18 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                 "guidance": "Use explicit stable heading identifiers for cross-section links. Link text should name the destination; automatic figure and table number references are not currently generated.",
             },
             {
+                "id": "captioned_listings",
+                "syntax": ['::: listing "Descriptive caption"', "```python", "print(1)", "```", ":::"],
+                "web": "supported with localized, chapter-scoped numbering above the code panel",
+                "pdf": "supported with the same caption and an entry in the generated list of code examples",
+                "guidance": "Use exactly one fenced block inside the wrapper. Keep its language explicit when highlighting is expected. Ordinary fences remain valid but are not numbered or indexed.",
+            },
+            {
                 "id": "code_and_math",
                 "syntax": ["`inline_code()`", "```python ... ```", "$x_i$", "$$\nE = mc^2\n\\label{eq:model}\n$$", "$\\eqref{eq:model}$", "\\begin{equation*} ... \\end{equation*}"],
                 "web": "inline code and Rouge-highlighted language fences; MathJax math with display equations numbered by default",
-                "pdf": "styled inline code and Pandoc Skylighting language fences; LaTeX math with display equations numbered by default",
-                "guidance": "Use explicit language names on fences. Use $...$ for inline math and $$ on separate lines for display math; display equations are numbered by default. Add \\label{eq:...} inside the display block and use $\\eqref{eq:...}$ for a cross-reference. Use equation* only when a displayed expression explicitly does not need a number. Do not use inline code for mathematical variables or \\(...\\) directly in Markdown sources.",
+                "pdf": "styled inline code and language-aware code fences; LaTeX math with display equations numbered by default",
+                "guidance": "Use explicit language names on fences. Use url for URLs or decomposed requests, spreadsheet for spreadsheet formulas, and filetree for short file or directory listings. Recognized languages receive highlighting, a header, and line numbers; plain, unlabelled, or unsupported fences remain unnumbered verbatim without a header. Use $...$ for inline math and $$ on separate lines for display math; display equations are numbered by default. Add \\label{eq:...} inside the display block and use $\\eqref{eq:...}$ for a cross-reference. Use equation* only when a displayed expression explicitly does not need a number. Do not use inline code for mathematical variables or \\(...\\) directly in Markdown sources.",
             },
             {
                 "id": "executable_sources",
@@ -3062,6 +3328,7 @@ def _atomic_site_source_write(
     temp_fd: int | None = None
     backup_present = False
     installed_identity: tuple[int, int] | None = None
+    committed = False
     try:
         fcntl.flock(parent_fd, fcntl.LOCK_EX)
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
@@ -3074,6 +3341,7 @@ def _atomic_site_source_write(
                 os.link(temporary, relative.name, src_dir_fd=parent_fd, dst_dir_fd=parent_fd, follow_symlinks=False)
             except FileExistsError as exc:
                 raise RuntimeError(f"Source path appeared while the create was being applied: {relative}") from exc
+            installed_identity = _path_identity(os.stat(relative.name, dir_fd=parent_fd, follow_symlinks=False))
         else:
             current, metadata = _read_source_at(parent_fd, relative.name)
             if _source_hash(current) != expected_sha256:
@@ -3102,17 +3370,23 @@ def _atomic_site_source_write(
                 backup_present = False
                 installed_identity = None
                 raise RuntimeError(f"Source changed in the final update window: {relative}")
+        os.fsync(parent_fd)
+        os.unlink(temporary, dir_fd=parent_fd)
+        temporary = ""
+        if backup_present:
             os.unlink(backup, dir_fd=parent_fd)
             backup_present = False
-        if temporary:
-            os.unlink(temporary, dir_fd=parent_fd)
-            temporary = ""
-        os.fsync(parent_fd)
+        committed = True
     finally:
         if backup_present:
             try:
                 _restore_private_backup(parent_fd, relative.name, backup, installed_identity)
             except (OSError, RuntimeError):
+                pass
+        elif not committed and installed_identity is not None:
+            try:
+                _unlink_if_identity(parent_fd, relative.name, installed_identity)
+            except OSError:
                 pass
         if temp_fd is not None:
             os.close(temp_fd)
@@ -3278,9 +3552,21 @@ def _bib_key(bibtex: str) -> str:
     return match.group(2).strip()
 
 
-def bibliography_add_entry(project: Path, bibtex: str, path: str = "_bibliography/papers.bib", replace: bool = False) -> dict[str, Any]:
+def _default_bibliography_path(project: Path) -> str:
+    config = site_config(project)
+    if site_profile(config) != "unaltremanual":
+        return "_bibliography/papers.bib"
+    manual = unaltraweb_config(config).get("manual")
+    manual = manual if isinstance(manual, dict) else {}
+    filename = str(manual.get("bibliography_file") or "manual.bib").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.bib", filename) or Path(filename).name != filename:
+        raise ValueError("unaltraweb.manual.bibliography_file must be a .bib filename under _bibliography/")
+    return f"_bibliography/{filename}"
+
+
+def bibliography_add_entry(project: Path, bibtex: str, path: str = "", replace: bool = False) -> dict[str, Any]:
     project = project_path(project)
-    target = _safe_relative_path(project, path, default="_bibliography/papers.bib")
+    target = _safe_relative_path(project, path, default=_default_bibliography_path(project))
     if not rel(project, target).startswith("_bibliography/"):
         raise ValueError("Bibliography writes are restricted to _bibliography/")
     entry = bibtex.strip()
@@ -3477,14 +3763,29 @@ def html_audit(project: Path) -> dict[str, Any]:
     site = project / "_site"
     config = site_config(project)
     baseurl = str(config.get("baseurl") or "")
-    html_files = sorted(path for path in site.rglob("*.html") if path.is_file()) if site.is_dir() else []
     parsed_files: dict[Path, tuple[str, _AuditHTMLParser]] = {}
     findings: list[dict[str, Any]] = []
     external: dict[str, set[str]] = {}
 
-    if not site.is_dir():
+    try:
+        site_metadata = site.lstat()
+    except FileNotFoundError:
+        site_safe = False
         findings.append({"code": "UW-HTML-SITE-MISSING", "path": "_site", "message": "Generated _site directory does not exist."})
-    elif not html_files:
+    except OSError as exc:
+        site_safe = False
+        findings.append({"code": "UW-HTML-UNSAFE-PATH", "path": "_site", "message": str(exc)})
+    else:
+        site_safe = stat.S_ISDIR(site_metadata.st_mode) and not stat.S_ISLNK(site_metadata.st_mode)
+        if not site_safe:
+            findings.append({"code": "UW-HTML-UNSAFE-PATH", "path": "_site", "message": "Generated _site must be a real directory, not a symlink or special file."})
+
+    try:
+        html_files = sorted(path for path in site.rglob("*.html") if path.is_file()) if site_safe else []
+    except (OSError, RuntimeError) as exc:
+        html_files = []
+        findings.append({"code": "UW-HTML-UNSAFE-PATH", "path": "_site", "message": str(exc)})
+    if site_safe and not html_files:
         findings.append({"code": "UW-HTML-NO-DOCUMENTS", "path": "_site", "message": "Generated _site contains no HTML documents."})
 
     for path in html_files:
@@ -3498,7 +3799,7 @@ def html_audit(project: Path) -> dict[str, Any]:
                 max_bytes=HTML_AUDIT_FILE_MAX_BYTES,
                 description=f"HTML document {relative}",
             ).decode("utf-8")
-        except (OSError, UnicodeDecodeError, ValueError) as exc:
+        except (OSError, UnicodeDecodeError, ValueError, RuntimeError) as exc:
             findings.append({"code": "UW-HTML-READ", "path": relative, "message": str(exc)})
             continue
         parser = _AuditHTMLParser()
@@ -3599,6 +3900,17 @@ def run_make(
     return {"target": target, "command": command, **_process_payload(completed)}
 
 
+def _docker_host_project(project: Path, env: dict[str, str] | None = None) -> str:
+    values = env if env is not None else os.environ
+    raw = values.get("UNALTRAWEB_DOCKER_ROOT")
+    host_project = raw if raw is not None and raw != "" else str(project)
+    if any(character in host_project for character in "\r\n"):
+        raise RuntimeError("UNALTRAWEB_DOCKER_ROOT must not contain carriage returns or newlines.")
+    if not Path(host_project).is_absolute():
+        raise RuntimeError("UNALTRAWEB_DOCKER_ROOT must be an absolute host path.")
+    return host_project
+
+
 def run_factory_make(
     factory: Path,
     project: Path,
@@ -3610,17 +3922,15 @@ def run_factory_make(
 ) -> dict[str, Any]:
     factory_root = project_path(factory)
     project_root = project_path(project)
-    unsafe = set("$`\"'\\\r\n")
-    if any(character in str(path) for path in [factory_root, project_root] for character in unsafe):
-        raise ValueError("Factory and project paths contain characters that are unsafe for Make delegation.")
-    command = ["make", "--silent", "--no-print-directory", "-C", str(factory_root), target, f"PROJECT={project_root}", *(extra_args or [])]
+    command = ["make", "--silent", "--no-print-directory", "-C", str(factory_root), target, *(extra_args or [])]
     merged_env = os.environ.copy()
     if env:
         merged_env.update(env)
+    merged_env["MCP_CONSUMER_WORKSPACE"] = str(project_root)
     worker_role = WORKER_TARGET_ROLES.get(target, "")
     worker_context: dict[str, str] = {}
     if worker_role:
-        host_project = os.environ.get("UNALTRAWEB_DOCKER_ROOT", "").strip() or str(project_root)
+        host_project = _docker_host_project(project_root, merged_env)
         project_id = hashlib.sha256(host_project.encode("utf-8")).hexdigest()[:16]
         token = hashlib.sha256(f"{project_id}:{target}:{time.time_ns()}".encode("utf-8")).hexdigest()[:16]
         worker_context = {"role": worker_role, "project_id": project_id, "token": token}
@@ -4079,8 +4389,38 @@ def _site_profile_arg(site_profile_value: str) -> list[str]:
     return [f"SITE_PROFILE={value}"] if value else []
 
 
-def build_site(project: Path, factory: Path, site_profile: str = "") -> dict[str, Any]:
+def build_site(
+    project: Path,
+    factory: Path,
+    site_profile: str = "",
+    release_selector: str = "latest",
+) -> dict[str, Any]:
     project, detection = _require_site_runtime(project, "build_native")
+    from .manual_release import ManualReleaseError
+
+    selected_profile = site_profile.strip() or str(detection.get("profile") or "")
+    manual_source_before: dict[str, Any] | None = None
+    stable_identity: dict[str, str] | None = None
+    stable_site_build_image: str | None = None
+    if selected_profile == "unaltremanual":
+        from .manual_release import source_snapshot, stable_build_image_reference, stable_source_identity, validate_selector
+
+        try:
+            release_selector = validate_selector(release_selector)
+            if release_selector != "latest":
+                stable_identity = stable_source_identity(project)
+                stable_site_build_image = stable_build_image_reference()
+            manual_source_before = source_snapshot(project, tracked_only=stable_identity is not None)
+        except (ManualReleaseError, ValueError, OSError) as exc:
+            return {
+                "ok": False,
+                "returncode": 1,
+                "runtime": "mcp-container",
+                "nested_container": False,
+                "site": detection,
+                "companion_checks": {},
+                "error": f"Could not snapshot safe manual build inputs: {exc}",
+            }
     companion_checks: dict[str, Any] = {}
     visualization = visualization_status(project, factory)
     if visualization["configured"]:
@@ -4100,10 +4440,44 @@ def build_site(project: Path, factory: Path, site_profile: str = "") -> dict[str
             "error": "Build blocked until companion outputs are fresh and provider receipts verify current sources, inputs, and outputs.",
         }
     args = [f"LOCAL_CORE={project_path(factory)}", *_site_profile_arg(site_profile)]
-    result = run_make(project, "build-native", extra_args=args, env={"UNALTRAWEB_MCP_RUNTIME": "1"})
+    environment = {"UNALTRAWEB_MCP_RUNTIME": "1"}
+    if selected_profile == "unaltremanual":
+        environment["UNALTRAWEB_MANUAL_RELEASE_SELECTOR"] = release_selector
+    if stable_identity is not None:
+        environment.update({
+            "JEKYLL_ENV": "production",
+            "LANG": "C.UTF-8",
+            "LC_ALL": "C.UTF-8",
+            "SOURCE_DATE_EPOCH": stable_identity["source_date_epoch"],
+            "TZ": "UTC",
+            "UNALTRAWEB_RENDER_DIAGRAMS": "0",
+        })
+    result = run_make(project, "build-native", extra_args=args, env=environment)
     if result["ok"]:
-        audit = html_audit(project)
-        result = {**result, "ok": audit["ok"], "html_audit": audit}
+        try:
+            if selected_profile == "unaltremanual":
+                from .manual_release import site_snapshot, source_snapshot, write_site_build_receipt
+
+                manual_source_after = source_snapshot(project, tracked_only=stable_identity is not None)
+                if manual_source_after != manual_source_before:
+                    raise ManualReleaseError("Manual source inputs changed while the site was being built.")
+                site_before_audit = site_snapshot(project)
+            audit = html_audit(project)
+            result = {**result, "ok": audit["ok"], "html_audit": audit}
+            if audit["ok"] and selected_profile == "unaltremanual":
+                site_after_audit = site_snapshot(project)
+                if site_after_audit != site_before_audit:
+                    raise ManualReleaseError("Generated _site changed while it was being audited.")
+                result["site_build_receipt"] = write_site_build_receipt(
+                    project,
+                    release_selector,
+                    source=manual_source_after,
+                    site=site_after_audit,
+                    source_identity=stable_identity,
+                    site_build_image=stable_site_build_image,
+                )
+        except (ManualReleaseError, OSError) as exc:
+            result = {**result, "ok": False, "error": f"Could not prove a stable verified site build: {exc}"}
     return {**result, "runtime": "mcp-container", "nested_container": False, "site": detection, "companion_checks": companion_checks}
 
 
@@ -4111,9 +4485,120 @@ PREVIEW_FACTORY_LABEL = "io.context.mcp-factory"
 PREVIEW_ROLE_LABEL = "io.context.mcp-role"
 PREVIEW_PROJECT_LABEL = "io.context.mcp-project"
 PREVIEW_PORT_LABEL = "io.context.mcp-port"
+PREVIEW_CONTAINER_PORT_LABEL = "io.context.mcp-container-port"
 PREVIEW_PROFILE_LABEL = "io.context.mcp-profile"
 PREVIEW_BASEURL_LABEL = "io.context.mcp-baseurl"
 PREVIEW_PATH_LABEL = "io.context.mcp-path"
+
+
+def _preview_route(baseurl: str, permalink: str = "/") -> str:
+    base = baseurl.strip()
+    if base == "/":
+        base = ""
+    parsed_base = urllib.parse.urlsplit(base)
+    if parsed_base.scheme or parsed_base.netloc or parsed_base.query or parsed_base.fragment:
+        raise ValueError("Preview baseurl must be a local path.")
+    if base and not base.startswith("/"):
+        base = "/" + base
+    base = base.rstrip("/")
+    target = permalink.strip() or "/"
+    parsed = urllib.parse.urlsplit(target)
+    if parsed.scheme or parsed.netloc or parsed.query or parsed.fragment or not parsed.path.startswith("/"):
+        raise ValueError("Preview permalink must be an absolute local path.")
+    route = f"{base}/{parsed.path.lstrip('/')}" if parsed.path != "/" else f"{base}/"
+    return _validated_http_paths([route], 1.0)[0]
+
+
+def _preview_output_exists(project: Path, baseurl: str, route: str) -> bool:
+    try:
+        route_path = urllib.parse.urlsplit(_validated_http_paths([route], 1.0)[0]).path
+        base_path = urllib.parse.urlsplit(_preview_route(baseurl)).path.rstrip("/")
+    except ValueError:
+        return False
+    if base_path:
+        if route_path in {base_path, f"{base_path}/"}:
+            relative_text = ""
+        elif route_path.startswith(f"{base_path}/"):
+            relative_text = route_path[len(base_path) + 1 :]
+        else:
+            return False
+    else:
+        relative_text = route_path.lstrip("/")
+    relative = Path(urllib.parse.unquote(relative_text).lstrip("/"))
+    destination = project / "_site"
+    if not relative_text or route_path.endswith("/"):
+        candidates = [destination / relative / "index.html"]
+    else:
+        candidates = [destination / relative, destination / f"{relative}.html", destination / relative / "index.html"]
+    return any(candidate.is_file() for candidate in candidates)
+
+
+def _preview_configured_route(project: Path, config: dict[str, Any]) -> str:
+    baseurl = str(config.get("baseurl") or "")
+    language = default_language(config).strip("/")
+    candidates = [
+        project / "_pages" / language / "index.md" if language else None,
+        project / "_pages" / language / "index.html" if language else None,
+        project / "index.md",
+        project / "index.html",
+        project / "_pages" / "index.md",
+        project / "_pages" / "index.html",
+    ]
+    primary_candidates = {candidate for candidate in candidates if candidate is not None}
+    pages = project / "_pages"
+    if pages.is_dir():
+        candidates.extend(sorted(path for path in pages.rglob("*") if path.suffix.lower() in {".md", ".html"}))
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if candidate is None or candidate in seen or not candidate.is_file():
+            continue
+        seen.add(candidate)
+        front_matter = read_front_matter(candidate)
+        permalink = front_matter.get("permalink")
+        if isinstance(permalink, str) and permalink.strip():
+            if candidate not in primary_candidates and permalink.strip() != "/":
+                continue
+            try:
+                return _preview_route(baseurl, permalink)
+            except ValueError:
+                continue
+        if candidate.parent == project or candidate.parent == pages:
+            return _preview_route(baseurl)
+        if language and candidate.parent == pages / language and candidate.stem == "index":
+            return _preview_route(baseurl, f"/{language}/")
+    return _preview_route(baseurl)
+
+
+def _preview_probe_paths(project: Path, preview: dict[str, Any]) -> list[str]:
+    baseurl = str(preview.get("baseurl") or "")
+    configured = str(preview.get("configured_path") or preview.get("path") or "/")
+    candidates: list[str] = []
+    if _preview_output_exists(project, baseurl, configured):
+        candidates.append(configured)
+    destination = project / "_site"
+    if (destination / "index.html").is_file():
+        try:
+            candidates.append(_preview_route(baseurl))
+        except ValueError:
+            pass
+    language = default_language(site_config(project)).strip("/")
+    if language and (destination / language / "index.html").is_file():
+        try:
+            candidates.append(_preview_route(baseurl, f"/{language}/"))
+        except ValueError:
+            pass
+    candidates.append(configured)
+
+    paths: list[str] = []
+    for candidate in candidates:
+        try:
+            validated = _validated_http_paths([candidate], 1.0)[0]
+        except ValueError:
+            continue
+        if validated not in paths:
+            paths.append(validated)
+    return paths or ["/"]
 
 
 def _docker(args: list[str]) -> ProcessResult:
@@ -4159,7 +4644,7 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
             "--network-alias", service,
             "-e", "HOME=/tmp",
             "-e", "JEKYLL_ENV=development",
-            "-v", f"{host_project}:/workspace",
+            "--mount", docker_bind_mount(host_project, "/workspace"),
             "-w", "/workspace",
             "--entrypoint", "make", image,
             "--no-print-directory", "serve-capture-native", "LOCAL_CORE=/opt/unaltraweb",
@@ -4169,10 +4654,11 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
             raise RuntimeError(started.stderr or started.stdout or "Could not start the isolated web capture site.")
 
         ready = False
+        ready_route = _preview_configured_route(project, site_config(project))
         deadline = time.monotonic() + 60
         while time.monotonic() < deadline:
-            probe = _docker(["exec", service, "curl", "--silent", "--output", "/dev/null", "http://127.0.0.1:4000/"])
-            if probe.returncode == 0:
+            probe = _docker(["exec", service, "curl", "--silent", "--output", "/dev/null", "--write-out", "%{http_code}", f"http://127.0.0.1:4000{ready_route}"])
+            if probe.returncode == 0 and re.fullmatch(r"2\d\d", probe.stdout.strip()):
                 ready = True
                 break
             running = _docker(["inspect", service, "--format", "{{.State.Running}}"])
@@ -4196,9 +4682,8 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
 
 
 def _preview_identity(project: Path) -> tuple[str, str, str]:
-    host_project = os.environ.get("UNALTRAWEB_DOCKER_ROOT", "").strip() or str(project_path(project))
-    if not Path(host_project).is_absolute():
-        raise RuntimeError("UNALTRAWEB_DOCKER_ROOT must be an absolute host path.")
+    project = project_path(project)
+    host_project = _docker_host_project(project)
     project_id = hashlib.sha256(host_project.encode("utf-8")).hexdigest()[:16]
     return host_project, project_id, f"unaltraweb-preview-{project_id}"
 
@@ -4242,8 +4727,16 @@ def _preview_payload(project: Path, info: dict[str, Any], *, include_logs: bool 
         (str(network.get("IPAddress") or "") for network in networks.values() if network.get("IPAddress")),
         "",
     )
-    port = int(labels.get(PREVIEW_PORT_LABEL) or 0)
-    route = str(labels.get(PREVIEW_PATH_LABEL) or "/")
+    requested_port = int(labels.get(PREVIEW_PORT_LABEL) or 0)
+    container_port = int(labels.get(PREVIEW_CONTAINER_PORT_LABEL) or requested_port or 4000)
+    legacy_default_port = PREVIEW_CONTAINER_PORT_LABEL not in labels and requested_port == 4000
+    bindings = (info.get("NetworkSettings", {}).get("Ports", {}) or {}).get(f"{container_port}/tcp") or []
+    port = next(
+        (int(binding["HostPort"]) for binding in bindings if str(binding.get("HostPort") or "").isdigit()),
+        requested_port,
+    )
+    configured_route = str(labels.get(PREVIEW_PATH_LABEL) or "/")
+    baseurl = str(labels.get(PREVIEW_BASEURL_LABEL) or "")
     payload = {
         "project": str(project_path(project)),
         "host_project": host_project,
@@ -4254,10 +4747,22 @@ def _preview_payload(project: Path, info: dict[str, Any], *, include_logs: bool 
         "status": str(state.get("Status") or ""),
         "exit_code": state.get("ExitCode"),
         "port": port,
+        "requested_port": requested_port,
+        "container_port": container_port,
+        "legacy_default_port": legacy_default_port,
         "profile": str(labels.get(PREVIEW_PROFILE_LABEL) or ""),
-        "url": f"http://127.0.0.1:{port}{route}" if port else "",
-        "internal_url": f"http://{ip_address}:{port}{route}" if ip_address and port else "",
+        "baseurl": baseurl,
+        "configured_path": configured_route,
+        "path": configured_route,
+        "url": f"http://127.0.0.1:{port}{configured_route}" if port else "",
+        "internal_url": f"http://{ip_address}:{container_port}{configured_route}" if ip_address else "",
     }
+    effective_paths = _preview_probe_paths(project, payload)
+    if effective_paths:
+        route = effective_paths[0]
+        payload["path"] = route
+        payload["url"] = f"http://127.0.0.1:{port}{route}" if port else ""
+        payload["internal_url"] = f"http://{ip_address}:{container_port}{route}" if ip_address else ""
     if include_logs:
         payload["logs"] = _preview_logs(name)
     return payload
@@ -4285,6 +4790,7 @@ def _wait_for_preview(project: Path, name: str, timeout_seconds: float) -> tuple
     deadline = time.monotonic() + timeout_seconds
     latest: dict[str, Any] = {}
     ready = False
+    ready_path = ""
     while True:
         info = _preview_inspect(name)
         if info is None:
@@ -4296,8 +4802,15 @@ def _wait_for_preview(project: Path, name: str, timeout_seconds: float) -> tuple
         if internal_url:
             parsed = urllib.parse.urlsplit(internal_url)
             origin = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
-            if _http_probe(origin, [parsed.path or "/"], timeout_seconds=1.0)["ok"]:
-                ready = True
+            for path in _preview_probe_paths(project, latest):
+                if _http_probe(origin, [path], timeout_seconds=1.0)["ok"]:
+                    ready_path = path
+                    latest["internal_url"] = origin + path
+                    if latest.get("port"):
+                        latest["url"] = f"http://127.0.0.1:{latest['port']}{path}"
+                    ready = True
+                    break
+            if ready:
                 break
         if time.monotonic() >= deadline:
             break
@@ -4306,13 +4819,20 @@ def _wait_for_preview(project: Path, name: str, timeout_seconds: float) -> tuple
     info = _preview_inspect(name)
     if info is not None:
         latest = _preview_payload(project, info, include_logs=not ready)
+        if ready_path:
+            latest["ready_path"] = ready_path
+            internal = urllib.parse.urlsplit(str(latest.get("internal_url") or ""))
+            if internal.scheme and internal.netloc:
+                latest["internal_url"] = urllib.parse.urlunsplit((internal.scheme, internal.netloc, ready_path, "", ""))
+            if latest.get("port"):
+                latest["url"] = f"http://127.0.0.1:{latest['port']}{ready_path}"
     return ready, latest
 
 
-def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", timeout_seconds: float = 60.0) -> dict[str, Any]:
+def preview_start(project: Path, *, port: int = 0, site_profile: str = "", timeout_seconds: float = 60.0) -> dict[str, Any]:
     project, detection = _require_site_runtime(project, "serve_native")
-    if not 1024 <= port <= 65535:
-        raise ValueError("Preview port must be between 1024 and 65535.")
+    if port != 0 and not 1024 <= port <= 65535:
+        raise ValueError("Preview port must be 0 for automatic allocation or between 1024 and 65535.")
     if not 0 <= timeout_seconds <= 300:
         raise ValueError("Preview timeout must be between 0 and 300 seconds.")
     profile_args = _site_profile_arg(site_profile)
@@ -4324,7 +4844,8 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
         status = _preview_payload(project, existing, include_logs=True)
         if status["running"]:
             requested_profile = site_profile.strip()
-            if status["port"] != port or status["profile"] != requested_profile:
+            port_matches = status["requested_port"] == port or (port == 0 and status["legacy_default_port"])
+            if not port_matches or status["profile"] != requested_profile:
                 raise RuntimeError(
                     f"Preview {name} is already running on port {status['port']} with profile "
                     f"{status['profile'] or '(default)'}. Stop it before changing preview settings."
@@ -4337,14 +4858,15 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
 
     config = site_config(project)
     baseurl = str(config.get("baseurl") or "").strip()
-    if baseurl == "/":
-        baseurl = ""
-    prefix = "/" + baseurl.strip("/") if baseurl else ""
-    lang = default_language(config).strip("/")
-    route = f"{prefix}/{lang}/" if lang else f"{prefix}/"
+    route = _preview_configured_route(project, config)
     image = os.environ.get("UNALTRAWEB_MCP_IMAGE", component_reference("mcp"))
-    owner = os.environ.get("UNALTRAWEB_PROJECT_USER", "").strip()
-    if owner and not re.fullmatch(r"\d+:\d+", owner):
+    container_port = 4000
+    project_metadata = project.stat()
+    owner = os.environ.get(
+        "UNALTRAWEB_PROJECT_USER",
+        f"{project_metadata.st_uid}:{project_metadata.st_gid}",
+    ).strip()
+    if not re.fullmatch(r"\d+:\d+", owner):
         raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
 
     command = [
@@ -4353,21 +4875,21 @@ def preview_start(project: Path, *, port: int = 4000, site_profile: str = "", ti
         "--label", f"{PREVIEW_ROLE_LABEL}=preview",
         "--label", f"{PREVIEW_PROJECT_LABEL}={project_id}",
         "--label", f"{PREVIEW_PORT_LABEL}={port}",
+        "--label", f"{PREVIEW_CONTAINER_PORT_LABEL}={container_port}",
         "--label", f"{PREVIEW_PROFILE_LABEL}={site_profile.strip()}",
         "--label", f"{PREVIEW_BASEURL_LABEL}={baseurl}",
         "--label", f"{PREVIEW_PATH_LABEL}={route}",
         "-e", "HOME=/tmp",
         "-e", "JEKYLL_ENV=development",
-        "-p", f"127.0.0.1:{port}:{port}",
-        "-v", f"{host_project}:/workspace",
+        "-p", f"127.0.0.1:{port if port else ''}:{container_port}",
+        "--mount", docker_bind_mount(host_project, "/workspace"),
         "-w", "/workspace",
     ]
-    if owner:
-        command.extend(["--user", owner])
+    command.extend(["--user", owner])
     command.extend([
         "--entrypoint", "make", image,
         "--no-print-directory", "serve-native", "LOCAL_CORE=/opt/unaltraweb",
-        "HOST=0.0.0.0", f"PORT={port}", "LIVERELOAD=", "DEVELOPER_MODE=false",
+        "HOST=0.0.0.0", f"PORT={container_port}", "LIVERELOAD=", "DEVELOPER_MODE=false",
         "PROFILE_DEMO_TITLES=0", *profile_args,
     ])
     started = _docker(command)
@@ -4399,21 +4921,84 @@ def _manual_pdf_args(language: str) -> list[str]:
     return [f"MANUAL_PDF_LANG={value}"] if value else []
 
 
-def manual_pdf_status(project: Path, factory: Path, language: str = "") -> dict[str, Any]:
-    return run_factory_make(factory, project, "manual-pdf-status", extra_args=_manual_pdf_args(language))
+def manual_pdf_status(project: Path, factory: Path, language: str = "", release_selector: str = "latest") -> dict[str, Any]:
+    return run_factory_make(
+        factory,
+        project,
+        "manual-pdf-status",
+        extra_args=_manual_pdf_args(language),
+        env=_manual_release_env(release_selector),
+    )
 
 
-def manual_pdf_build(project: Path, factory: Path, language: str = "") -> dict[str, Any]:
-    return run_factory_make(factory, project, "manual-pdf-build", extra_args=_manual_pdf_args(language))
+def manual_pdf_build(project: Path, factory: Path, language: str = "", release_selector: str = "latest") -> dict[str, Any]:
+    return run_factory_make(
+        factory,
+        project,
+        "manual-pdf-build",
+        extra_args=_manual_pdf_args(language),
+        env=_manual_release_env(release_selector),
+    )
 
 
-def manual_pdf_publish(project: Path, factory: Path, language: str = "", *, dry_run: bool = True, confirm_publish: bool = False) -> dict[str, Any]:
+def manual_pdf_publish(
+    project: Path,
+    factory: Path,
+    language: str = "",
+    *,
+    release_selector: str = "latest",
+    dry_run: bool = True,
+    confirm_publish: bool = False,
+) -> dict[str, Any]:
     if not dry_run and not confirm_publish:
         raise RuntimeError("A real manual PDF publication requires confirm_publish=True after reviewing the dry-run.")
     args = _manual_pdf_args(language)
     args.append(f"MANUAL_PDF_PUBLISH_DRY_RUN={1 if dry_run else 0}")
-    result = run_factory_make(factory, project, "manual-pdf-publish", extra_args=args)
+    result = run_factory_make(
+        factory,
+        project,
+        "manual-pdf-publish",
+        extra_args=args,
+        env=_manual_release_env(release_selector),
+    )
     return {**result, "dry_run": dry_run, "confirmed": confirm_publish}
+
+
+def _manual_release_env(selector: str, *, dry_run: bool | None = None, confirm_prepare: bool = False) -> dict[str, str]:
+    from .manual_release import validate_selector
+
+    env = {"MANUAL_RELEASE_SELECTOR": validate_selector(selector)}
+    if dry_run is not None:
+        env["MANUAL_RELEASE_DRY_RUN"] = "1" if dry_run else "0"
+        env["MANUAL_RELEASE_CONFIRM_PREPARE"] = "1" if confirm_prepare else "0"
+    return env
+
+
+def manual_release_status(project: Path, factory: Path, selector: str = "latest") -> dict[str, Any]:
+    return run_factory_make(factory, project, "manual-release-status", env=_manual_release_env(selector))
+
+
+def manual_release_check(project: Path, factory: Path, selector: str = "latest") -> dict[str, Any]:
+    return run_factory_make(factory, project, "manual-release-check", env=_manual_release_env(selector))
+
+
+def manual_release_prepare(
+    project: Path,
+    factory: Path,
+    selector: str = "latest",
+    *,
+    dry_run: bool = True,
+    confirm_prepare: bool = False,
+) -> dict[str, Any]:
+    if not dry_run and not confirm_prepare:
+        raise RuntimeError("A real manual release preparation requires confirm_prepare=True after reviewing the dry-run.")
+    result = run_factory_make(
+        factory,
+        project,
+        "manual-release-prepare",
+        env=_manual_release_env(selector, dry_run=dry_run, confirm_prepare=confirm_prepare),
+    )
+    return {**result, "dry_run": dry_run, "confirmed": confirm_prepare, "publishes": False}
 
 
 def bibliometrics_check(project: Path, factory: Path) -> dict[str, Any]:
@@ -4841,7 +5426,7 @@ def list_tools() -> dict[str, Any]:
     return {
         "resources": ["web://distribution", "web://site-context", "web://site-doctor", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": list(PROMPT_SPECS),
-        "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
+        "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "manual_release_status", "manual_release_check", "manual_release_prepare", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
 
 

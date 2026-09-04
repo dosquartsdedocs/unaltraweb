@@ -7,7 +7,7 @@ on:
         description: Ruby version used to build the Jekyll site.
         required: false
         type: string
-        default: "3.3.5"
+        default: "3.3.11"
       python-version:
         description: Python version used by optional unaltraweb tooling.
         required: false
@@ -43,6 +43,10 @@ on:
         required: false
         type: boolean
         default: true
+      manual-pdf-image:
+        description: Digest-pinned unaltraweb manual PDF worker image.
+        required: true
+        type: string
       vegavisuals-sha:
         description: Full reviewed vegavisuals commit SHA; required when the site has .vegavisuals.yml.
         required: false
@@ -58,6 +62,10 @@ on:
         required: false
         type: string
         default: "_site"
+      reviewed_sha:
+        description: Full caller commit SHA that passed local review.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -72,11 +80,61 @@ jobs:
     permissions:
       contents: read
       pages: write
+    env:
+      JEKYLL_ENV: production
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      MANUAL_PDF_IMAGE: ${{ inputs.manual-pdf-image }}
+      TZ: UTC
+      UNALTRAWEB_MANUAL_RELEASE_SELECTOR: latest
     steps:
+      - name: Validate latest publication source
+        env:
+          CURRENT_REF: ${{ github.ref }}
+          CURRENT_SHA: ${{ github.sha }}
+          REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+        run: |
+          if [[ "$CURRENT_REF" != "refs/heads/main" ]]; then
+            echo "Latest publication is restricted to refs/heads/main." >&2
+            exit 1
+          fi
+          if [[ ! "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]] || [[ "$REVIEWED_SHA" != "$CURRENT_SHA" ]]; then
+            echo "The reviewed SHA must exactly match the checked out main commit." >&2
+            exit 1
+          fi
+          if [[ ! "$MANUAL_PDF_IMAGE" =~ ^ghcr\.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:[0-9a-f]{64}$ ]]; then
+            echo "manual-pdf-image must be the reviewed GHCR image pinned by digest." >&2
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+
+      - name: Verify manual PDF image provenance
+        env:
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          if [[ "$WORKFLOW_REPOSITORY" != "dosquartsdedocs/unaltraweb" ]] || [[ ! "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "The manual PDF worker must be bound to the immutable canonical provider workflow." >&2
+            exit 1
+          fi
+          docker pull "$MANUAL_PDF_IMAGE" >/dev/null
+          image_revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$MANUAL_PDF_IMAGE")"
+          if [[ "$image_revision" != "$WORKFLOW_SHA" ]]; then
+            echo "The manual PDF worker revision label does not match the reusable workflow SHA." >&2
+            exit 1
+          fi
+
+      - name: Configure reproducible site build
+        env:
+          REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+        run: |
+          source_date_epoch="$(git show --no-patch --format=%ct "$REVIEWED_SHA")"
+          [[ "$source_date_epoch" =~ ^[0-9]+$ ]]
+          printf 'SOURCE_DATE_EPOCH=%s\n' "$source_date_epoch" >> "$GITHUB_ENV"
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
@@ -100,6 +158,30 @@ jobs:
             python -m pip install -r requirements.txt
           fi
 
+      - name: Reject versioned manual publication outputs
+        run: |
+          python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
+          core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
+          python "$core_dir/scripts/manual/build_pdf.py" public-paths --project "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/manual-public-paths.json"
+          python - "$RUNNER_TEMP/manual-public-paths.json" <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          paths = json.load(open(sys.argv[1], encoding="utf-8"))["paths"]
+          tracked = [
+              path for path in paths
+              if subprocess.run(
+                  ["git", "ls-files", "--error-unmatch", "--", path],
+                  stdout=subprocess.DEVNULL,
+                  stderr=subprocess.DEVNULL,
+                  check=False,
+              ).returncode == 0
+          ]
+          if tracked:
+              raise SystemExit("Generated manual publication outputs are tracked by Git: " + ", ".join(tracked))
+          PY
+
       - name: Install Vega visualization tooling
         if: ${{ inputs.check-visualizations || inputs.check-manual-pdf || inputs.sync-manual-pdf }}
         env:
@@ -120,38 +202,38 @@ jobs:
         run: |
           python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
-          make -C "$core_dir" manual-compute-check PROJECT="$GITHUB_WORKSPACE"
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" manual-compute-check
 
       - name: Check web capture freshness
         if: ${{ inputs.check-web-captures }}
         run: |
           python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
-          make -C "$core_dir" web-capture-check PROJECT="$GITHUB_WORKSPACE"
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" web-capture-check
 
       - name: Check Vega visualization freshness
         if: ${{ inputs.check-visualizations }}
         run: |
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
           vegavisuals_cli="$(command -v vegavisuals || true)"
-          make -C "$core_dir" visualization-check PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli"
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" visualization-check VEGAVISUALS_CLI="$vegavisuals_cli"
 
       - name: Check published manual PDFs
         if: ${{ inputs.check-manual-pdf }}
         run: |
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
           vegavisuals_cli="$(command -v vegavisuals || true)"
-          make -C "$core_dir" manual-pdf-build PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
-          make -C "$core_dir" manual-pdf-check PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" manual-pdf-sync MANUAL_PDF_IMAGE="$MANUAL_PDF_IMAGE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
+          MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" manual-pdf-check MANUAL_PDF_IMAGE="$MANUAL_PDF_IMAGE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
 
       - name: Sync manual PDFs
-        if: ${{ inputs.sync-manual-pdf }}
+        if: ${{ inputs.sync-manual-pdf && !inputs.check-manual-pdf }}
         run: |
           python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
           if python -c 'import sys,yaml; data=yaml.safe_load(open("_config.yml", encoding="utf-8")) or {}; sys.exit(0 if data.get("unaltraweb", {}).get("manual", {}).get("pdf", {}).get("enabled") is True else 1)'; then
             core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
             vegavisuals_cli="$(command -v vegavisuals || true)"
-            make -C "$core_dir" manual-pdf-sync PROJECT="$GITHUB_WORKSPACE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
+            MCP_CONSUMER_WORKSPACE="$GITHUB_WORKSPACE" make -C "$core_dir" manual-pdf-sync MANUAL_PDF_IMAGE="$MANUAL_PDF_IMAGE" VEGAVISUALS_CLI="$vegavisuals_cli" MANUAL_PDF_LANG=
           else
             echo "Manual PDF generation is disabled; skipping synchronization."
           fi

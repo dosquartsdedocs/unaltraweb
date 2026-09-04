@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,11 @@ except ImportError as exc:  # pragma: no cover - supplied by the builder image
 SCRIPT_ROOT = Path(__file__).resolve().parent
 DEFAULT_DOCKERFILE = SCRIPT_ROOT / "Dockerfile"
 DEFAULT_TEMPLATE = SCRIPT_ROOT / "templates" / "manual.tex"
+DEFAULT_BIBLIOGRAPHY_FILTER = SCRIPT_ROOT / "filters" / "bibliography.lua"
+DEFAULT_CODE_BLOCK_FILTER = SCRIPT_ROOT / "filters" / "code-blocks.lua"
+DEFAULT_FIGURE_FILTER = SCRIPT_ROOT / "filters" / "figure-captions.lua"
+BIB_ENTRY_HEADER_RE = re.compile(r"(?im)^\s*@(?:[A-Za-z]+)\s*[({]\s*([^,\s]+)\s*,")
+BIB_CUSTOM_URL_RE = re.compile(r'(?im)^\s*(?:manual_url|website)\s*=\s*(?:\{([^}\r\n]+)\}|"([^"\r\n]+)")\s*,?')
 FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)^---[ \t]*(?:\r?\n|\Z)", re.MULTILINE | re.DOTALL)
 CITE_RE = re.compile(r"{%\s*cite\s+([^%]+?)\s*%}")
 INCLUDE_RE = re.compile(r"{%\s*include\s+([^%]+?)\s*%}")
@@ -44,6 +50,16 @@ IMAGE_RE = re.compile(
     r"(?P<attrs>\{:[^}\n]*\})?"
 )
 TABLE_DIV_RE = re.compile(r'^::: table\s+["\'](.+?)["\']\s*\n(.*?)^:::\s*$', re.MULTILINE | re.DOTALL)
+LISTING_DIV_RE = re.compile(
+    r'^:::\s*listing\s+"(?P<caption>[^"]+)"\s*\n(?P<body>.*?)^:::\s*$',
+    re.MULTILINE | re.DOTALL,
+)
+PIPE_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?(?:\s*\|\s*:?-{3,}:?)+\s*\|?\s*$")
+TABLE_GUARD_AFTER_HEADING_RE = re.compile(
+    r"^(?P<heading>#{2,6}\s+[^\n]+)\n\n```\{=latex\}\n"
+    r"(?P<guard>\\(?:clearpage|Needspace\{(?P<baselines>\d+)\\baselineskip\}))\n```",
+    re.MULTILINE,
+)
 SUBFIGURES_DIV_RE = re.compile(
     r'^:::\s*subfigures(?:\s+(?P<layout>[^\s"]+))?(?:\s+"(?P<caption>[^"]*)")?\s*\n'
     r'(?P<body>.*?)^:::\s*$',
@@ -56,6 +72,7 @@ FIGURE_DIMENSION_ATTR_RE = re.compile(
 )
 LANGUAGE_NAMES = {"ca": "catalan", "es": "spanish", "en": "english"}
 LANGUAGE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
+RELEASE_SELECTOR_RE = re.compile(r"(?:latest|v[0-9]{4}\.(?:0[1-9]|1[0-2])(?:\.[1-9][0-9]*)?)\Z")
 COMPUTATION_SUFFIXES = {".qmd", ".rmd", ".r", ".py", ".ipynb"}
 DIAGRAM_SUFFIXES = {".mmd", ".mermaid", ".puml", ".plantuml", ".uml"}
 GENERATED_MEDIA_SUFFIXES = {".gif", ".jpeg", ".jpg", ".pdf", ".png", ".svg", ".webp"}
@@ -132,6 +149,8 @@ METADATA_LABELS = {
         "publisher": "Editorial",
         "edition": "Edició",
         "publication_date": "Data de publicació",
+        "release_channel": "Canal de publicació",
+        "release_version": "Versió publicada",
         "subject": "Assignatura",
         "teaching_guides": "Guies docents",
         "academic_year": "Curs acadèmic",
@@ -145,6 +164,11 @@ METADATA_LABELS = {
         "license": "Llicència",
         "source": "Edició web",
         "rights": "Drets",
+        "references": "Referències",
+        "listing": "Codi",
+        "list_of_figures": "Índex de figures",
+        "list_of_tables": "Índex de taules",
+        "list_of_listings": "Índex de codis",
     },
     "es": {
         "title": "Créditos editoriales",
@@ -152,6 +176,8 @@ METADATA_LABELS = {
         "publisher": "Editorial",
         "edition": "Edición",
         "publication_date": "Fecha de publicación",
+        "release_channel": "Canal de publicación",
+        "release_version": "Versión publicada",
         "subject": "Asignatura",
         "teaching_guides": "Guías docentes",
         "academic_year": "Curso académico",
@@ -165,6 +191,11 @@ METADATA_LABELS = {
         "license": "Licencia",
         "source": "Edición web",
         "rights": "Derechos",
+        "references": "Referencias",
+        "listing": "Código",
+        "list_of_figures": "Índice de figuras",
+        "list_of_tables": "Índice de tablas",
+        "list_of_listings": "Índice de códigos",
     },
     "en": {
         "title": "Editorial credits",
@@ -172,6 +203,8 @@ METADATA_LABELS = {
         "publisher": "Publisher",
         "edition": "Edition",
         "publication_date": "Publication date",
+        "release_channel": "Publication channel",
+        "release_version": "Published version",
         "subject": "Course",
         "teaching_guides": "Teaching guides",
         "academic_year": "Academic year",
@@ -185,12 +218,29 @@ METADATA_LABELS = {
         "license": "License",
         "source": "Web edition",
         "rights": "Rights",
+        "references": "References",
+        "listing": "Code example",
+        "list_of_figures": "List of figures",
+        "list_of_tables": "List of tables",
+        "list_of_listings": "List of code examples",
     },
 }
 
 
 class ManualPdfError(RuntimeError):
     pass
+
+
+def release_metadata() -> dict[str, str]:
+    selector = os.environ.get("UNALTRAWEB_MANUAL_RELEASE_SELECTOR", "latest").strip()
+    if not RELEASE_SELECTOR_RE.fullmatch(selector):
+        raise ManualPdfError(
+            "UNALTRAWEB_MANUAL_RELEASE_SELECTOR must be exactly latest, vYYYY.MM, or vYYYY.MM.N."
+        )
+    return {
+        "release-selector": selector,
+        "release-channel": "latest" if selector == "latest" else "stable",
+    }
 
 
 class UniqueKeySafeLoader(yaml.SafeLoader):
@@ -273,27 +323,27 @@ def normalize_callout_language(value: Any) -> str:
     return normalized or "en"
 
 
+def language_data(project: Path, config: dict[str, Any], lang: str) -> tuple[dict[str, Any], Path | None]:
+    data_root = safe_relative(project, str(config.get("data_dir") or "_data"), label="Jekyll data directory")
+    if not LANGUAGE_RE.fullmatch(lang):
+        return {}, None
+    for suffix in (".yml", ".yaml"):
+        path = data_root / "i18n" / f"{lang}{suffix}"
+        if not path.is_file():
+            continue
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+        return (parsed if isinstance(parsed, dict) else {}), path
+    return {}, None
+
+
 def resolve_callout_labels(project: Path, config: dict[str, Any], language: str) -> tuple[dict[str, str], list[Path]]:
     normalized_language = normalize_callout_language(language)
     default_language = normalize_callout_language(config.get("default_lang") or config.get("lang") or "en")
-    data_root = safe_relative(project, str(config.get("data_dir") or "_data"), label="Jekyll data directory")
-
-    def language_data(lang: str) -> tuple[dict[str, Any], Path | None]:
-        if not LANGUAGE_RE.fullmatch(lang):
-            return {}, None
-        for suffix in (".yml", ".yaml"):
-            path = data_root / "i18n" / f"{lang}{suffix}"
-            if not path.is_file():
-                continue
-            parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
-            return (parsed if isinstance(parsed, dict) else {}), path
-        return {}, None
-
-    localized_data, localized_path = language_data(normalized_language)
+    localized_data, localized_path = language_data(project, config, normalized_language)
     if default_language == normalized_language:
         default_data, default_path = localized_data, localized_path
     else:
-        default_data, default_path = language_data(default_language)
+        default_data, default_path = language_data(project, config, default_language)
 
     localized_callouts = localized_data.get("callouts")
     default_callouts = default_data.get("callouts")
@@ -363,6 +413,30 @@ def artifact_paths(project: Path, config: dict[str, Any], lang: str) -> dict[str
         "public_pdf": public_pdf,
         "public_cover": public_cover,
     }
+
+
+def artifact_plan(project: Path, config: dict[str, Any], languages: list[str]) -> list[tuple[str, dict[str, Path]]]:
+    plan = [(language, artifact_paths(project, config, language)) for language in languages]
+    destinations: dict[Path, tuple[str, str]] = {}
+    labels = {
+        "pdf": "generated PDF",
+        "cover": "generated cover",
+        "public_pdf": "published PDF",
+        "public_cover": "published cover",
+    }
+    for language, paths in plan:
+        for key, label in labels.items():
+            destination = paths[key]
+            previous = destinations.get(destination)
+            if previous is not None:
+                previous_language, previous_label = previous
+                relative = destination.relative_to(project).as_posix()
+                raise ManualPdfError(
+                    f"Manual PDF destination collision: {previous_label} for '{previous_language}' and "
+                    f"{label} for '{language}' both resolve to {relative}."
+                )
+            destinations[destination] = (language, label)
+    return plan
 
 
 def manual_sources(project: Path, config: dict[str, Any], lang: str) -> tuple[Path | None, list[tuple[Path, dict[str, Any], str]], str]:
@@ -770,6 +844,7 @@ def transform_markdown(
     source: Path,
     language: str = "en",
     config: dict[str, Any] | None = None,
+    citation_keys: list[str] | None = None,
 ) -> str:
     callout_labels, _ = resolve_callout_labels(project, config or {}, language)
     visual_default_language = str((config or {}).get("default_lang") or (config or {}).get("lang") or language)
@@ -807,10 +882,52 @@ def transform_markdown(
 
     def citations(match: re.Match[str]) -> str:
         keys = [key.lstrip("@").strip() for key in match.group(1).split() if key.strip()]
+        if citation_keys is not None:
+            citation_keys.extend(key for key in keys if key not in citation_keys)
         return "[" + "; ".join(f"@{key}" for key in keys) + "]"
 
     def table(match: re.Match[str]) -> str:
-        return f"Table: {match.group(1).strip()}\n\n{match.group(2).strip()}"
+        body = match.group(2).strip()
+        rows = [
+            re.sub(r"\s+", " ", line.strip().strip("|"))
+            for line in body.splitlines()
+            if "|" in line and not PIPE_TABLE_SEPARATOR_RE.fullmatch(line)
+        ]
+        estimated_lines = 2 + sum(max(1, (len(row) + 71) // 72) for row in rows)
+        required_baselines = max(10, round(estimated_lines * 1.25) + 2)
+        page_guard = r"\clearpage" if required_baselines >= 40 else f"\\Needspace{{{required_baselines}\\baselineskip}}"
+        return (
+            f"```{{=latex}}\n{page_guard}\n```\n\n"
+            f"Table: {match.group(1).strip()}\n\n{body}"
+        )
+
+    def listing(match: re.Match[str]) -> str:
+        token_match = protected_token_re.fullmatch(match.group("body").strip())
+        if not token_match:
+            raise ManualPdfError(
+                f"Listing block must contain exactly one fenced code block in {source.relative_to(project)}"
+            )
+
+        body = protected[int(token_match.group(1))]
+        opening_end = body.find("\n")
+        opening = body[:opening_end]
+        opening_match = re.fullmatch(r"(?P<indent>[ \t]*)(?P<fence>`{3,}|~{3,})(?P<info>[^\n]*)", opening)
+        if not opening_match:  # pragma: no cover - guarded by FENCED_CODE_BLOCK_RE
+            raise ManualPdfError(f"Malformed listing fence in {source.relative_to(project)}")
+
+        caption = match.group("caption").replace("\\", "\\\\").replace('"', '\\"')
+        info = opening_match.group("info").strip()
+        if info.startswith("{") and info.endswith("}"):
+            attributes = info[:-1].rstrip()
+            attributes += f' data-listing-caption="{caption}"}}'
+        else:
+            language_class = f".{info} " if info else ""
+            attributes = f'{{{language_class}data-listing-caption="{caption}"}}'
+        rewritten = (
+            f"{opening_match.group('indent')}{opening_match.group('fence')}{attributes}"
+            f"{body[opening_end:]}"
+        )
+        return protect(rewritten)
 
     def inline_code(match: re.Match[str]) -> str:
         value = html.unescape(match.group(1))
@@ -818,6 +935,12 @@ def transform_markdown(
         fence = "`" * longest_fence
         padding = " " if value.startswith("`") or value.endswith("`") else ""
         return f"{fence}{padding}{value}{padding}{fence}"
+
+    def table_guard_before_heading(match: re.Match[str]) -> str:
+        guard = match.group("guard")
+        if match.group("baselines"):
+            guard = f"\\Needspace{{{int(match.group('baselines')) + 6}\\baselineskip}}"
+        return f"```{{=latex}}\n{guard}\n```\n\n{match.group('heading')}"
 
     def display_math(match: re.Match[str]) -> str:
         body = match.group("body").rstrip("\r\n")
@@ -845,10 +968,16 @@ def transform_markdown(
         body = "\n".join(line[len(marks):].lstrip(" \t") for line in match.group("block").splitlines()).strip()
         if not body:
             raise ManualPdfError(f"Empty callout in {source.relative_to(project)}")
+        estimated_lines = 2 + sum(
+            max(1, (len(line.strip()) + 71) // 72)
+            for line in body.splitlines()
+            if line.strip()
+        )
+        options = "[enhanced,breakable]" if estimated_lines >= 40 else ""
         label = latex_escape(callout_labels[callout_type])
         return (
             "```{=latex}\n"
-            f"\\begin{{manualcallout}}{{{color}}}{{{label}}}\n"
+            f"\\begin{{manualcallout}}{options}{{{color}}}{{{label}}}\n"
             "```\n\n"
             f"{body}\n\n"
             "```{=latex}\n"
@@ -878,7 +1007,14 @@ def transform_markdown(
                 f"in {source.relative_to(project)}"
             )
 
-        rendered = ["```{=latex}\n\\begin{figure}[H]\n\\centering\n```"]
+        overall_caption = latex_caption(match.group("caption") or "")
+        figure_start = "```{=latex}\n\\begin{figure}[H]\n\\centering\n"
+        if overall_caption:
+            figure_start += (
+                f"\\caption{{{overall_caption}}}\n"
+                "{\\color{ManualMuted!45}\\rule{\\linewidth}{0.35pt}}\\par\\medskip\n"
+            )
+        rendered = [figure_start + "```"]
         image_index = 0
         max_image_height = f"{0.52 / len(row_sizes):.3f}".rstrip("0").rstrip(".")
         for row_index, row_size in enumerate(row_sizes):
@@ -913,12 +1049,11 @@ def transform_markdown(
             if row_index < len(row_sizes) - 1:
                 rendered.append("```{=latex}\n\\par\\medskip\n```")
 
-        overall_caption = latex_caption(match.group("caption") or "")
-        caption_command = f"\\caption{{{overall_caption}}}\n" if overall_caption else ""
-        rendered.append(f"```{{=latex}}\n{caption_command}\\end{{figure}}\n```")
+        rendered.append("```{=latex}\n\\end{figure}\n```")
         return "\n\n".join(rendered)
 
     transformed = FENCED_CODE_BLOCK_RE.sub(lambda match: protect(match.group(0)), text)
+    transformed = LISTING_DIV_RE.sub(listing, transformed)
     transformed = MARKDOWN_INLINE_CODE_RE.sub(lambda match: protect(match.group(0)), transformed)
     transformed = INLINE_CODE_RE.sub(lambda match: protect(inline_code(match)), transformed)
     transformed = DISPLAY_MATH_BLOCK_RE.sub(display_math, transformed)
@@ -929,10 +1064,13 @@ def transform_markdown(
     transformed = CITE_RE.sub(citations, transformed)
     transformed = CALLOUT_BLOCK_RE.sub(callout, transformed)
     transformed = TABLE_DIV_RE.sub(table, transformed)
+    transformed = TABLE_GUARD_AFTER_HEADING_RE.sub(table_guard_before_heading, transformed)
     transformed = SUBFIGURES_DIV_RE.sub(subfigures, transformed)
     transformed = IMAGE_RE.sub(image, transformed)
     if re.search(r"^:::\s*subfigures\b", transformed, re.MULTILINE):
         raise ManualPdfError(f"Malformed subfigures block in {source.relative_to(project)}")
+    if re.search(r"^:::\s*listing\b", transformed, re.MULTILINE):
+        raise ManualPdfError(f"Malformed listing block in {source.relative_to(project)}")
     unknown_includes = [item for item in INCLUDE_RE.findall(transformed) if item.strip()]
     unknown_liquid = [item for item in LIQUID_RE.findall(transformed) if item.strip()]
     if unknown_includes or unknown_liquid:
@@ -990,6 +1128,7 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
 
     title = localized(metadata.get("title"), source_lang) or localized(home_front.get("title"), source_lang) or str(config.get("title") or "Manual")
     copyright_holder = str(config.get("copyright_holder") or "").strip()
+    release = release_metadata()
     return {
         "title": title,
         "short-title": localized(metadata.get("short_title"), source_lang) or str(config.get("short_title") or title),
@@ -1001,6 +1140,7 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         "publisher": localized(metadata.get("publisher"), source_lang),
         "edition": localized(metadata.get("edition"), source_lang),
         "publication-date": localized(metadata.get("publication_date"), source_lang),
+        **release,
         "identifier": localized(metadata.get("identifier"), source_lang),
         "license": localized(metadata.get("license"), source_lang),
         "source": localized(metadata.get("source"), source_lang),
@@ -1020,6 +1160,8 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         "metadata-publisher-label": metadata_labels["publisher"],
         "metadata-edition-label": metadata_labels["edition"],
         "metadata-publication-date-label": metadata_labels["publication_date"],
+        "metadata-release-channel-label": metadata_labels["release_channel"],
+        "metadata-release-version-label": metadata_labels["release_version"],
         "metadata-subject-label": metadata_labels["subject"],
         "metadata-teaching-guides-label": metadata_labels["teaching_guides"],
         "metadata-academic-year-label": metadata_labels["academic_year"],
@@ -1033,6 +1175,11 @@ def build_metadata(project: Path, config: dict[str, Any], lang: str, source_lang
         "metadata-license-label": metadata_labels["license"],
         "metadata-source-label": metadata_labels["source"],
         "metadata-rights-label": metadata_labels["rights"],
+        "chapter-references-title": metadata_labels["references"],
+        "listing-label": metadata_labels["listing"],
+        "list-of-figures-title": metadata_labels["list_of_figures"],
+        "list-of-tables-title": metadata_labels["list_of_tables"],
+        "list-of-listings-title": metadata_labels["list_of_listings"],
         "lang": lang,
         "babel-lang": LANGUAGE_NAMES.get(source_lang, "english"),
         "toc": bool(pdf.get("toc", True)),
@@ -1084,20 +1231,33 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
         heading = f"# {title}"
         if front.get("manual_numbered") is False:
             heading += " {-}"
-        chunks.append(f"{heading}\n\n{transform_markdown(project, body, path, source_lang, config)}")
+        citation_keys: list[str] = []
+        transformed_body = transform_markdown(project, body, path, source_lang, config, citation_keys)
+        references_requested = bool(front.get("related_publications") or front.get("manual_references") or front.get("references"))
+        if citation_keys and references_requested and manual.get("bibliography", True) is not False:
+            marker = html.escape(",".join(citation_keys), quote=True)
+            transformed_body += f'\n\n::: {{.manual-chapter-citations data-citations="{marker}"}}\n:::'
+        chunks.append(f"{heading}\n\n{transformed_body}")
         included_chapters.append((path, front, body))
         source_paths.append(path)
 
+    assembled_markdown = "\n\n\\newpage\n\n".join(chunks) + "\n"
     metadata = build_metadata(project, config, lang, source_lang, home_front, included_chapters)
     metadata["include-home"] = includes_home
-    return metadata, source_paths, "\n\n\\newpage\n\n".join(chunks) + "\n"
+    metadata["has-listings"] = "data-listing-caption=" in assembled_markdown
+    prose_markdown = FENCED_CODE_BLOCK_RE.sub("", assembled_markdown)
+    metadata["has-figures"] = bool(IMAGE_RE.search(prose_markdown) or r"\begin{figure}" in prose_markdown)
+    metadata["has-tables"] = bool(re.search(r"^Table:\s+\S", prose_markdown, re.MULTILINE))
+    return metadata, source_paths, assembled_markdown
 
 
 def bibliography_source(project: Path, config: dict[str, Any]) -> Path | None:
     manual = nested(config, "unaltraweb", "manual")
     if manual.get("bibliography", True) is False:
         return None
-    filename = str(manual.get("bibliography_file") or "manual.bib")
+    filename = str(manual.get("bibliography_file") or "manual.bib").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.bib", filename) or Path(filename).name != filename:
+        raise ManualPdfError("unaltraweb.manual.bibliography_file must be a .bib filename under _bibliography/.")
     return safe_relative(project, f"_bibliography/{filename}", label="bibliography", must_exist=True)
 
 
@@ -1107,6 +1267,113 @@ def clean_bibliography(source: Path | None, destination: Path) -> None:
     text = source.read_text(encoding="utf-8")
     text = FRONT_MATTER_RE.sub("", text, count=1)
     destination.write_text(text, encoding="utf-8")
+
+
+def bibliography_custom_urls(text: str) -> dict[str, list[str]]:
+    matches = list(BIB_ENTRY_HEADER_RE.finditer(text))
+    urls: dict[str, list[str]] = {}
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        values = [(custom.group(1) or custom.group(2)).strip() for custom in BIB_CUSTOM_URL_RE.finditer(text, match.end(), end)]
+        if values:
+            urls[match.group(1)] = list(dict.fromkeys(values))
+    return urls
+
+
+def fold_bibliography_value(value: Any) -> str:
+    decomposed = unicodedata.normalize("NFKD", str(value or "").casefold())
+    return " ".join("".join(character for character in decomposed if not unicodedata.combining(character)).split())
+
+
+def contributor_sort_value(record: dict[str, Any]) -> str:
+    contributors: Any = []
+    for field in ("author", "editor", "collection-editor", "translator"):
+        if isinstance(record.get(field), list) and record[field]:
+            contributors = record[field]
+            break
+    values: list[str] = []
+    for contributor in contributors:
+        if not isinstance(contributor, dict):
+            continue
+        literal = str(contributor.get("literal") or "").strip()
+        if literal:
+            values.append(literal)
+            continue
+        family = str(contributor.get("family") or "").strip()
+        given = str(contributor.get("given") or "").strip()
+        values.append(", ".join(part for part in (family, given) if part))
+    if values:
+        return "; ".join(values)
+    return str(record.get("publisher") or record.get("container-title") or record.get("title") or "")
+
+
+def normalize_doi(value: Any) -> str:
+    return re.sub(r"(?i)^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", "", str(value or "").strip()).rstrip("/")
+
+
+def bibliography_filter_metadata(records: Any, custom_urls: dict[str, list[str]]) -> dict[str, dict[str, Any]]:
+    if not isinstance(records, list):
+        raise ManualPdfError("Pandoc returned invalid CSL bibliography data.")
+    sort_keys: dict[str, str] = {}
+    access: dict[str, dict[str, str]] = {}
+    for record in records:
+        if not isinstance(record, dict) or not str(record.get("id") or "").strip():
+            continue
+        key = str(record["id"]).strip()
+        issued = record.get("issued") if isinstance(record.get("issued"), dict) else {}
+        date_parts = issued.get("date-parts") if isinstance(issued, dict) else []
+        year = ""
+        if isinstance(date_parts, list) and date_parts and isinstance(date_parts[0], list) and date_parts[0]:
+            year = str(date_parts[0][0])
+        sort_keys[key] = " | ".join(
+            fold_bibliography_value(value)
+            for value in (contributor_sort_value(record), year, record.get("title"), key)
+        )
+        doi = normalize_doi(record.get("DOI") or record.get("doi"))
+        standard_url = str(record.get("URL") or record.get("url") or "").strip()
+        urls = list(dict.fromkeys(url for url in [standard_url, *custom_urls.get(key, [])] if url))
+        normalized_doi = doi.casefold()
+        if normalized_doi:
+            urls = [
+                url
+                for url in urls
+                if re.sub(r"(?i)^https?://(?:dx\.)?doi\.org/", "", url).rstrip("/").casefold() != normalized_doi
+            ]
+        if doi or urls:
+            access[key] = {"doi": doi, "urls": urls}
+    return {"bibliography-sort-keys": sort_keys, "bibliography-access": access}
+
+
+def extract_bibliography_metadata(source: Path, destination: Path, project: Path) -> dict[str, dict[str, Any]]:
+    csl_json = destination.with_suffix(".json")
+    run_command(
+        [
+            "pandoc",
+            str(destination),
+            "--from=biblatex",
+            "--to=csljson",
+            f"--output={csl_json}",
+        ],
+        project,
+    )
+    try:
+        records = json.loads(csl_json.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ManualPdfError(f"Could not read Pandoc CSL bibliography data: {exc}") from exc
+    metadata = bibliography_filter_metadata(records, bibliography_custom_urls(source.read_text(encoding="utf-8")))
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        doi = normalize_doi(record.get("DOI") or record.get("doi"))
+        if doi:
+            record["DOI"] = doi
+            record.pop("doi", None)
+            url = str(record.get("URL") or record.get("url") or "").strip()
+            if normalize_doi(url).casefold() == doi.casefold() and re.match(r"(?i)^https?://(?:dx\.)?doi\.org/", url):
+                record.pop("URL", None)
+                record.pop("url", None)
+    csl_json.write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return metadata
 
 
 def configured_template(project: Path, config: dict[str, Any]) -> Path:
@@ -1129,6 +1396,9 @@ def build_dependencies(project: Path, metadata: dict[str, Any], source_paths: li
         ("builder:build_pdf.py", Path(__file__).resolve()),
         ("toolchain:Dockerfile", DEFAULT_DOCKERFILE),
         (f"template:{template.name}", template),
+        ("filter:bibliography.lua", DEFAULT_BIBLIOGRAPHY_FILTER),
+        ("filter:code-blocks.lua", DEFAULT_CODE_BLOCK_FILTER),
+        ("filter:figure-captions.lua", DEFAULT_FIGURE_FILTER),
     ]
     for path in source_paths:
         dependencies.append((f"source:{path.relative_to(project)}", path))
@@ -1153,13 +1423,16 @@ def build_dependencies(project: Path, metadata: dict[str, Any], source_paths: li
     return sorted(unique.items())
 
 
-def dependency_fingerprint(dependencies: list[tuple[str, Path]]) -> str:
+def dependency_fingerprint(dependencies: list[tuple[str, Path]], release: dict[str, str]) -> str:
     digest = hashlib.sha256()
     for label, path in dependencies:
         digest.update(label.encode("utf-8"))
         digest.update(b"\0")
         digest.update(path.read_bytes())
         digest.update(b"\0")
+    digest.update(b"release-metadata\0")
+    digest.update(json.dumps(release, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    digest.update(b"\0")
     return digest.hexdigest()
 
 
@@ -1175,7 +1448,10 @@ def prepare_build(project: Path, config: dict[str, Any], lang: str) -> tuple[dic
     template = configured_template(project, config)
     csl = configured_csl(project, config, bibliography)
     dependencies = build_dependencies(project, metadata, source_paths, markdown, template, csl)
-    fingerprint = dependency_fingerprint(dependencies)
+    fingerprint = dependency_fingerprint(dependencies, {
+        "release_channel": str(metadata["release-channel"]),
+        "release_selector": str(metadata["release-selector"]),
+    })
     metadata["trailer-id"] = fingerprint[:32]
     return metadata, source_paths, markdown, template, bibliography, csl, dependencies, fingerprint
 
@@ -1214,8 +1490,10 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
     with tempfile.TemporaryDirectory(prefix=f".{lang}-", dir=paths["build_dir"].parent) as temporary:
         staged = paths_in_build_dir(paths, Path(temporary))
         staged["source"].write_text(markdown, encoding="utf-8")
-        staged["metadata"].write_text(yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False), encoding="utf-8")
         clean_bibliography(bibliography, staged["bibliography"])
+        if bibliography:
+            metadata.update(extract_bibliography_metadata(bibliography, staged["bibliography"], project))
+        staged["metadata"].write_text(yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False), encoding="utf-8")
         command = [
             "pandoc",
             str(staged["source"]),
@@ -1223,7 +1501,6 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
             "--standalone",
             "--top-level-division=chapter",
             "--number-sections",
-            "--highlight-style=pygments",
             f"--metadata-file={staged['metadata']}",
             f"--template={template}",
             "--pdf-engine=xelatex",
@@ -1231,9 +1508,12 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
             f"--output={staged['pdf']}",
         ]
         if bibliography:
-            command.extend(["--citeproc", f"--bibliography={staged['bibliography']}"])
+            command.extend(["--citeproc", f"--bibliography={staged['bibliography'].with_suffix('.json')}"])
             if csl:
                 command.append(f"--csl={csl}")
+            command.append(f"--lua-filter={DEFAULT_BIBLIOGRAPHY_FILTER}")
+        command.append(f"--lua-filter={DEFAULT_CODE_BLOCK_FILTER}")
+        command.append(f"--lua-filter={DEFAULT_FIGURE_FILTER}")
         run_command(command, project)
         normalized_pdf = staged["pdf"].with_suffix(".normalized.pdf")
         run_command(
@@ -1255,6 +1535,8 @@ def build_language(project: Path, config: dict[str, Any], lang: str) -> dict[str
             "language": lang,
             "built_at": dt.datetime.now(dt.timezone.utc).isoformat(),
             "draft": metadata["draft"],
+            "release_selector": metadata["release-selector"],
+            "release_channel": metadata["release-channel"],
             "fingerprint": fingerprint,
             "dependencies": [label for label, _ in dependencies],
             "source_files": [str(path.relative_to(project)) for path in source_paths],
@@ -1309,6 +1591,8 @@ def status_language(project: Path, config: dict[str, Any], lang: str) -> dict[st
         "cover": str(paths["cover"].relative_to(project)),
         "public_pdf": str(paths["public_pdf"].relative_to(project)),
         "public_cover": str(paths["public_cover"].relative_to(project)),
+        "release_selector": release_metadata()["release-selector"],
+        "release_channel": release_metadata()["release-channel"],
     }
     manifest_valid = bool(manifest) and all(manifest.get(key) == value for key, value in expected.items())
     generated_pdf_exists = paths["pdf"].is_file()
@@ -1345,6 +1629,8 @@ def status_language(project: Path, config: dict[str, Any], lang: str) -> dict[st
         "fresh": ready,
         "ready_to_publish": ready,
         "published_current": published_current,
+        "release_selector": expected["release_selector"],
+        "release_channel": expected["release_channel"],
         "error": error,
     }
 
@@ -1429,7 +1715,7 @@ def sync_language(project: Path, config: dict[str, Any], lang: str) -> dict[str,
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="unaltraweb-manual-pdf")
-    parser.add_argument("command", choices=["status", "check", "build", "publish", "sync"])
+    parser.add_argument("command", choices=["status", "check", "build", "publish", "sync", "public-paths"])
     parser.add_argument("--project", default=".")
     parser.add_argument("--language", default="")
     parser.add_argument("--dry-run", action="store_true")
@@ -1439,16 +1725,35 @@ def main(argv: list[str] | None = None) -> int:
     try:
         config = read_yaml(project / "_config.yml")
         pdf = nested(config, "unaltraweb", "manual", "pdf")
+        enabled = bool(pdf.get("enabled", False))
+        configured_languages = language_list(config, pdf)
+        configured_plan = artifact_plan(project, config, configured_languages) if enabled else []
+        if args.command == "public-paths":
+            languages = language_list(config, pdf, args.language) if enabled else []
+            selected = set(languages)
+            paths = [paths for language, paths in configured_plan if language in selected]
+            payload = {
+                "project": str(project),
+                "ok": True,
+                "enabled": enabled,
+                "paths": sorted({
+                    str(paths_for_language[key].relative_to(project))
+                    for paths_for_language in paths
+                    for key in ["public_pdf", "public_cover"]
+                }),
+            }
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 0
         languages = language_list(config, pdf, args.language)
-        if args.command == "sync" and not bool(pdf.get("enabled", False)):
+        if args.command == "sync" and not enabled:
             print(json.dumps({"project": str(project), "ok": True, "enabled": False, "skipped": True}, ensure_ascii=False, indent=2))
             return 0
-        if args.command not in {"status", "check"} and not bool(pdf.get("enabled", False)):
+        if args.command not in {"status", "check"} and not enabled:
             raise ManualPdfError("Manual PDF generation is disabled in unaltraweb.manual.pdf.enabled.")
         if args.command in {"status", "check"}:
             payload: dict[str, Any] = {
                 "project": str(project),
-                "enabled": bool(pdf.get("enabled", False)),
+                "enabled": enabled,
                 "languages": [status_language(project, config, lang) for lang in languages],
             }
             payload["configuration_ok"] = payload["enabled"] and all(not item["error"] for item in payload["languages"])

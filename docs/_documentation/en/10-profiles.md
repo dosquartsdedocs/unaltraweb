@@ -31,8 +31,8 @@ unaltraweb:
 
 ## Current Profiles
 
-- **unaltreselfie**: academic or professional personal sites with profile home, optional blog, CV, projects, publications, readings and social links.
-- **unaltreprojecte**: research project sites with home pages, team, outputs, publications, resources, repositories and news.
+- **unaltreselfie**: academic or professional personal sites with profile home, optional blog, CV, projects, publications, readings, social links and content search.
+- **unaltreprojecte**: research project sites with home pages, team, outputs, publications, resources, repositories, news and content search.
 - **unaltremanual**: book-like manuals with localized chapters, sidebar navigation, right-hand table of contents, manual search and teaching blocks.
 - **unaltredocs**: technical documentation sites with left-hand index, search, reusable examples and operational pages.
 
@@ -75,6 +75,8 @@ These screenshots come from the companion template render smoke tests and are ge
 | `unaltreprojecte` | A research project, funded initiative or group output site | project pages, team data, outputs, repositories, readings, publications and news |
 | `unaltremanual` | A manual, course, handbook or book-like learning resource | `_chapters/`, manual bibliography, callouts, figures, tables, Mermaid diagrams and search index |
 | `unaltredocs` | Technical or operational documentation | `_documentation/` pages with `section`, `subsection` and `weight` front matter |
+
+All four profiles emit `assets/js/content-search-index.json`. The header search returns each whole-word occurrence separately, folds diacritics for matching, and adds previous/next occurrence navigation after a result is opened. Set `search_exclude: true` in front matter for a public page or document that should not enter this index. `search_enabled` controls the separate Ninja Keys title/navigation palette and does not disable content search.
 
 ## Local Profile Review
 

@@ -34,6 +34,12 @@ profiles:
 
 search:
   placeholder: Escriu per cercar
+  content_placeholder: Cerca contingut
+  content_results: Resultats de cerca
+  content_no_results: Sense resultats
+  content_match: Coincidència {current} de {total}
+  content_previous: Coincidència anterior
+  content_next: Coincidència següent
 
 callouts:
   info: NOTA
@@ -233,6 +239,8 @@ documentation:
 manual:
   contents: Continguts
   download_pdf: Descarrega el PDF
+  release_channel: Canal de publicació
+  release_version: Versió publicada
   on_this_page: En aquesta pàgina
   on_this_chapter: En aquest capítol
   previous: Anterior
@@ -259,6 +267,12 @@ manual:
   chapter: Capítol
 figures:
   label: Figura
+  list_title: Índex de figures
 
 tables:
   label: Taula
+  list_title: Índex de taules
+
+listings:
+  label: Codi
+  list_title: Índex de codis

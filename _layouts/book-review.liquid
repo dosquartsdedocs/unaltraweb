@@ -40,6 +40,11 @@ layout: default
 {% assign localized_year = page.year | default: page.released %}
 {% assign localized_isbn = page.isbn %}
 {% assign localized_doi = page.doi %}
+{% assign localized_title_html = localized_title | escape %}
+{% assign localized_author_html = localized_author | escape %}
+{% assign localized_publisher_html = localized_publisher | escape %}
+{% assign localized_isbn_html = localized_isbn | escape %}
+{% assign localized_doi_html = localized_doi | escape %}
 {% assign localized_pages = page.pages | default: page.page_count %}
 {% assign localized_review_date = page.review_date | default: page.date %}
 {% assign localized_tags = page.tags %}
@@ -51,6 +56,11 @@ layout: default
 
 {% assign resource_url = page.resource_url | default: page.website | default: page.url_external %}
 {% assign doi_url = page.doi_url %}
+{% assign doi_http_prefix = doi_url | slice: 0, 7 | downcase %}
+{% assign doi_https_prefix = doi_url | slice: 0, 8 | downcase %}
+{% unless doi_http_prefix == 'http://' or doi_https_prefix == 'https://' %}
+  {% assign doi_url = nil %}
+{% endunless %}
 {% if doi_url == nil and localized_doi %}
   {% assign doi_url = "https://doi.org/" | append: localized_doi %}
 {% endif %}
@@ -122,8 +132,8 @@ layout: default
 {% assign citation_key = page.citation_key | default: citation_key_author | append: citation_key_year | append: localized_title | slugify %}
 {% assign bibtex_author = localized_author | replace: ' & ', ' and ' %}
 {% capture reading_citation_text %}
-  {% if localized_author %}{{ localized_author }}{% endif %}{% if localized_year %} ({{ localized_year }}){% endif %}.
-  <em>{{ localized_title }}</em>{% if localized_publisher %}. {{ localized_publisher }}{% endif %}{% if localized_doi %}. <a href="{{ doi_url }}" target="_blank" rel="noopener noreferrer">https://doi.org/{{ localized_doi }}</a>{% elsif localized_isbn %}. ISBN {{ localized_isbn }}{% endif %}.
+  {% if localized_author %}{{ localized_author_html }}{% endif %}{% if localized_year %} ({{ localized_year | escape }}){% endif %}.
+  <em>{{ localized_title_html }}</em>{% if localized_publisher %}. {{ localized_publisher_html }}{% endif %}{% if localized_doi %}. <a href="{{ doi_url | escape }}" target="_blank" rel="noopener noreferrer">https://doi.org/{{ localized_doi_html }}</a>{% elsif localized_isbn %}. ISBN {{ localized_isbn_html }}{% endif %}.
 {% endcapture %}
 {% capture reading_bibtex_source %}@book{ {{- citation_key -}},
   title     = { {{- localized_title -}} }{% if bibtex_author %},
@@ -169,26 +179,26 @@ layout: default
     <div class="reading-top-grid{% unless cover_src %} reading-top-grid--single{% endunless %}">
       {% if cover_src %}
         <figure class="reading-figure reading-figure-left">
-          <img alt="{{ localized_title | escape }}" src="{{ cover_src }}">
-          <figcaption>{{ cover_caption_text | strip }}: <em>{{ localized_title }}</em></figcaption>
+          <img alt="{{ localized_title_html }}" src="{{ cover_src | escape }}">
+          <figcaption>{{ cover_caption_text | strip }}: <em>{{ localized_title_html }}</em></figcaption>
           {{ reading_biblio_controls }}
         </figure>
       {% endif %}
 
       <div class="reading-main">
         <header class="post-header reading-main-header">
-          <h1 class="post-title">{{ localized_title }}</h1>
+          <h1 class="post-title">{{ localized_title_html }}</h1>
 
           {% if localized_author or localized_year or localized_rating_html != '' %}
             <p class="post-meta">
               {% if localized_author %}
-                {{ localized_author }}
+                {{ localized_author_html }}
               {% endif %}
               {% if localized_author and localized_year %}
                 &nbsp;&middot;&nbsp;
               {% endif %}
               {% if localized_year %}
-                {{ localized_year }}
+                {{ localized_year | escape }}
               {% endif %}
               {% if localized_rating_html != '' %}
                 {% if localized_author or localized_year %}&nbsp;&middot;&nbsp;{% endif %}{{ localized_rating_html }}

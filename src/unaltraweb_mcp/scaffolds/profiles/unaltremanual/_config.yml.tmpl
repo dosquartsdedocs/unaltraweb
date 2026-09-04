@@ -1,16 +1,45 @@
 title: __TITLE__
+description: ""
+copyright_holder: __TITLE__
+keywords: ""
 url: __URL__
 baseurl: __BASEURL__
 lang: __DEFAULT_LANG__
 default_lang: __DEFAULT_LANG__
 languages: __LANGUAGES__
 theme: unaltraweb
-plugins: [unaltraweb]
 unaltraweb:
   site_profile: unaltremanual
+  content_status_field: content_status
+  approved_status: approved
+  footer:
+    show_logo: false
+    brand_name: __TITLE__
+    brand_url: __SITE_ROOT__
+  features:
+    news: false
+    blog: false
+    cv: false
+    projects: false
+    publications: false
+    metrics: false
+    docs: false
+    manual: true
+    readings: true
   manual:
     collection: chapters
     show_chapter_index: true
+    bibliography: true
+    bibliography_file: manual.bib
+    metadata:
+      series:
+    release:
+      selector: latest
+    pdf:
+      enabled: false
+      languages: __LANGUAGES__
+      output: assets/pdf/manual-{lang}.pdf
+      cover_output: assets/img/manual-cover-{lang}.png
   figure_captions:
     enabled: true
     collections: [chapters]
