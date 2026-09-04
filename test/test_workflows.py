@@ -214,6 +214,28 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertTrue(any("GHCR credentials must be destroyed before candidate execution" in error for error in errors))
 
+    def test_core_docker_policy_rejects_runner_context_in_job_environment(self) -> None:
+        errors = self.docker_mutation_errors(
+            [
+                (
+                    "  test-candidates:\n"
+                    "    if: github.ref_type == 'branch'\n"
+                    "    needs: build-candidates\n"
+                    "    runs-on: ubuntu-latest\n"
+                    "    timeout-minutes: 120\n",
+                    "  test-candidates:\n"
+                    "    if: github.ref_type == 'branch'\n"
+                    "    needs: build-candidates\n"
+                    "    runs-on: ubuntu-latest\n"
+                    "    timeout-minutes: 120\n"
+                    "    env:\n"
+                    "      DOCKER_CONFIG: ${{ runner.temp }}/unaltraweb-test-docker\n",
+                )
+            ]
+        )
+
+        self.assertTrue(any("job-level env cannot use the runner context" in error for error in errors))
+
     def test_core_docker_policy_rejects_github_token_in_candidate_execution(self) -> None:
         errors = self.docker_mutation_errors(
             [

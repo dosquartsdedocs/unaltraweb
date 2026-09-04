@@ -15,6 +15,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_ROOT = ROOT / ".github/workflows"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+JOB_ENV_RUNNER_CONTEXT = re.compile(r"\${{[^}]*\brunner\b")
 DOCKER_BUILD_COMMAND = re.compile(r"\bdocker\s+(?:build|buildx\s+build|compose\s+build)(?:\s|$)")
 CANDIDATE_EXECUTION_COMMAND = re.compile(
     r"\bdocker\s+(?:(?:container)\s+)?(?:run|create|start|exec)(?:\s|$)"
@@ -141,6 +142,13 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             errors.append(f"{path.name}: invalid YAML: {exc}")
 
     for name, workflow in workflows.items():
+        for job_name, job in workflow.get("jobs", {}).items():
+            if not isinstance(job, dict) or not isinstance(job.get("env", {}), dict):
+                continue
+            for value in job.get("env", {}).values():
+                if isinstance(value, str) and JOB_ENV_RUNNER_CONTEXT.search(value):
+                    errors.append(f"{name}:{job_name}: job-level env cannot use the runner context")
+
         for job_name, step in _steps(workflow):
             uses = step.get("uses")
             if not isinstance(uses, str) or uses.startswith("./"):
@@ -549,6 +557,7 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
     test_step_names = [str(step.get("name")) for step in test_steps if step.get("name")]
     expected_test_step_names = [
         "Checkout",
+        "Isolate Docker credentials",
         "Log in to GHCR for read-only verification",
         "Verify signed provenance and exact candidate revisions",
         "Remove GHCR credentials before candidate execution",
@@ -643,15 +652,20 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
     ):
         errors.append("docker-image.yml:test-candidates: GHCR login must use only the read-scoped repository token")
 
+    isolation = _named_step(docker_test, "Isolate Docker credentials")
+    isolation_position = test_step_positions.get("Isolate Docker credentials", -1)
+    isolation_text = str(isolation.get("run", ""))
     login_position = test_step_positions.get("Log in to GHCR for read-only verification", -1)
     verification_position = test_step_positions.get("Verify signed provenance and exact candidate revisions", -1)
     logout = _named_step(docker_test, "Remove GHCR credentials before candidate execution")
     logout_position = test_step_positions.get("Remove GHCR credentials before candidate execution", -1)
     logout_text = str(logout.get("run", ""))
     if (
-        docker_test.get("env") != {"DOCKER_CONFIG": "${{ runner.temp }}/unaltraweb-test-docker"}
+        docker_test.get("env") not in (None, {})
         or first_exact_test is None
-        or not (0 <= login_position < verification_position < logout_position < first_exact_test)
+        or not (0 <= isolation_position < login_position < verification_position < logout_position < first_exact_test)
+        or isolation_text.strip()
+        != 'printf \'DOCKER_CONFIG=%s\\n\' "$RUNNER_TEMP/unaltraweb-test-docker" >> "$GITHUB_ENV"'
         or not all(
             marker in logout_text
             for marker in [
