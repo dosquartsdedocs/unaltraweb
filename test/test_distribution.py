@@ -71,19 +71,28 @@ class DistributionTests(unittest.TestCase):
         ))
 
     def test_doctor_reports_healthy_limited_wheel_mode(self) -> None:
+        contract = distribution_contract()
+        expected_pending = sorted(
+            component_id
+            for component_id, component in contract["components"].items()
+            if component["release_status"] == "pending"
+        )
         result = distribution_doctor()
 
         self.assertTrue(result["ok"])
         self.assertTrue(result["offline"])
         self.assertTrue(result["limited"])
-        self.assertFalse(result["release_ready"])
-        self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
+        self.assertEqual(result["release_ready"], not expected_pending)
+        self.assertEqual(result["pending_releases"], expected_pending)
         self.assertEqual(result["unavailable_releases"], [])
         self.assertEqual(result["receipt_contract"]["input_inventory"], "exact")
         self.assertEqual(result["consumer_integration"], consumer_integration())
         self.assertEqual(result["mode"], "wheel")
         self.assertIn("UW-DIST-WHEEL-MODE", {item["code"] for item in result["findings"]})
-        self.assertIn("UW-DIST-RELEASE-PENDING", {item["code"] for item in result["findings"]})
+        if expected_pending:
+            self.assertIn("UW-DIST-RELEASE-PENDING", {item["code"] for item in result["findings"]})
+        else:
+            self.assertNotIn("UW-DIST-RELEASE-PENDING", {item["code"] for item in result["findings"]})
         self.assertNotIn("UW-DIST-COMPANION-RELEASE-PENDING", {item["code"] for item in result["findings"]})
         for finding in result["findings"]:
             self.assertEqual(
@@ -94,13 +103,18 @@ class DistributionTests(unittest.TestCase):
     def test_doctor_treats_unavailable_external_releases_as_not_release_ready(self) -> None:
         contract = distribution_contract()
         contract["components"]["vegavisuals"]["release_status"] = "unavailable"
+        expected_pending = sorted(
+            component_id
+            for component_id, component in contract["components"].items()
+            if component["release_status"] == "pending"
+        )
 
         with patch("unaltraweb_mcp.distribution.distribution_contract", return_value=contract):
             result = distribution_doctor()
 
         self.assertTrue(result["ok"])
         self.assertFalse(result["release_ready"])
-        self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
+        self.assertEqual(result["pending_releases"], expected_pending)
         self.assertEqual(result["unavailable_releases"], ["vegavisuals"])
         self.assertIn("UW-DIST-COMPANION-RELEASE-UNAVAILABLE", {item["code"] for item in result["findings"]})
 
@@ -465,6 +479,17 @@ class DistributionTests(unittest.TestCase):
 
     def test_distribution_validator_passes_repository_contract(self) -> None:
         root = Path(__file__).resolve().parents[1]
+        contract = distribution_contract()
+        expected_pending = sorted(
+            component_id
+            for component_id, component in contract["components"].items()
+            if component["release_status"] == "pending"
+        )
+        expected_unavailable = sorted(
+            component_id
+            for component_id, component in contract["components"].items()
+            if component["release_status"] == "unavailable"
+        )
         completed = subprocess.run(
             [sys.executable, str(root / "scripts/validate_distribution.py")],
             cwd=root,
@@ -477,8 +502,9 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
         result = json.loads(completed.stdout)
         self.assertTrue(result["ok"])
-        self.assertFalse(result["release_ready"])
-        self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
+        self.assertEqual(result["release_ready"], not expected_pending and not expected_unavailable)
+        self.assertEqual(result["pending_releases"], expected_pending)
+        self.assertEqual(result["unavailable_releases"], expected_unavailable)
 
         release = subprocess.run(
             [sys.executable, str(root / "scripts/validate_distribution.py"), "--require-release-ready"],
@@ -488,14 +514,26 @@ class DistributionTests(unittest.TestCase):
             stderr=subprocess.PIPE,
             check=False,
         )
-        self.assertEqual(release.returncode, 2, release.stderr or release.stdout)
-        self.assertFalse(json.loads(release.stdout)["release_ready"])
+        release_result = json.loads(release.stdout)
+        if expected_pending or expected_unavailable:
+            self.assertEqual(release.returncode, 2, release.stderr or release.stdout)
+            self.assertFalse(release_result["release_ready"])
+        elif (root / "release-candidates.json").exists():
+            self.assertEqual(release.returncode, 0, release.stderr or release.stdout)
+            self.assertTrue(release_result["release_ready"])
+        else:
+            self.assertEqual(release.returncode, 2, release.stderr or release.stdout)
+            self.assertFalse(release_result["release_ready"])
+            self.assertIn("missing release candidate receipt: release-candidates.json", release_result["errors"])
 
     def test_publish_ref_must_match_the_distribution_release(self) -> None:
         contract = distribution_contract()
+        pending = copy.deepcopy(contract)
+        for component_id in ["gem", "wheel", "runtime", "mcp", "web_capture", "manual_pdf"]:
+            pending["components"][component_id]["release_status"] = "pending"
 
         pending_tag_errors = publish_ref_errors(
-            contract,
+            pending,
             ref_type="tag",
             ref_name="v0.3.0",
             default_branch="main",
@@ -505,7 +543,7 @@ class DistributionTests(unittest.TestCase):
         self.assertTrue(any("runtime must be release-ready" in error for error in pending_tag_errors))
         self.assertEqual(
             pending_tag_errors[-6:],
-            release_tag_status_errors(contract, ref_type="tag", ref_name="v0.3.0"),
+            release_tag_status_errors(pending, ref_type="tag", ref_name="v0.3.0"),
         )
         self.assertEqual(publish_ref_errors(
             contract,
@@ -555,8 +593,14 @@ class DistributionTests(unittest.TestCase):
             component_ids=["runtime", "mcp"],
         ), [])
 
-    def test_pending_release_tag_validation_uses_readiness_exit_status(self) -> None:
+    def test_release_tag_validation_uses_readiness_exit_status(self) -> None:
         root = Path(__file__).resolve().parents[1]
+        contract = distribution_contract()
+        expected_status_errors = release_tag_status_errors(
+            contract,
+            ref_type="tag",
+            ref_name="v0.3.0",
+        )
         environment = os.environ.copy()
         environment.update({
             "GITHUB_REF_TYPE": "tag",
@@ -581,10 +625,19 @@ class DistributionTests(unittest.TestCase):
             check=False,
         )
 
-        self.assertEqual(completed.returncode, 2, completed.stderr or completed.stdout)
         result = json.loads(completed.stdout)
-        self.assertFalse(result["ok"])
-        self.assertTrue(any("runtime must be release-ready" in error for error in result["errors"]))
+        if expected_status_errors:
+            self.assertEqual(completed.returncode, 2, completed.stderr or completed.stdout)
+            self.assertFalse(result["ok"])
+            for error in expected_status_errors:
+                self.assertIn(error, result["errors"])
+        elif (root / "release-candidates.json").exists():
+            self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
+            self.assertTrue(result["ok"])
+        else:
+            self.assertEqual(completed.returncode, 2, completed.stderr or completed.stdout)
+            self.assertFalse(result["ok"])
+            self.assertIn("missing release candidate receipt: release-candidates.json", result["errors"])
 
     def test_release_candidate_receipt_binds_ready_components_to_parent_commit(self) -> None:
         contract = distribution_contract()
