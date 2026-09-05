@@ -506,9 +506,12 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(result["pending_releases"], expected_pending)
         self.assertEqual(result["unavailable_releases"], expected_unavailable)
 
+        release_environment = os.environ.copy()
+        release_environment["GITHUB_DEFAULT_BRANCH"] = "main"
         release = subprocess.run(
             [sys.executable, str(root / "scripts/validate_distribution.py"), "--require-release-ready"],
             cwd=root,
+            env=release_environment,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
