@@ -92,23 +92,20 @@ Important current template behaviour:
 
 ## Next Work
 
-### 0.3.0 Handoff
+### 0.3.0 Publication Completion
 
-The platform checks pass, but six `0.3.0` components remain `pending`: `gem`, `wheel`, `runtime`, `mcp`, `manual_pdf` and `web_capture`. The selected Python/R computation images and both visual companions are already released. Do not create a release tag or `release-candidates.json` before the pending candidates exist.
+The immutable `v0.3.0` receipt tag and all four GHCR semver aliases are public. The exact gem and wheel from successful package run `33972877312` remain unpublished; preserve that workflow artifact and the local copies until both registries and the final GitHub Release have been verified.
 
-On the next machine:
+Remaining handoff:
 
-1. Clone this repository, check out the pushed feature branch, and rerun `make workflow-check`, `make distribution-check`, `make gem-check`, `make wheel-check`, `make mcp-check`, `make mcp-smoke` and `make docs-build`.
-2. Review and merge the branch into the default branch. Candidate workflows deliberately reject other branches.
-3. Recreate the acceptance manual with `unaltraweb-mcp --project /path/to/tig new-web --site-profile unaltremanual --title TIG --baseurl /tig --default-lang ca --languages ca`, then run `make test` inside it. Start a preview and verify both `/tig/` and `/tig/ca/`; the generated files must belong to the host user and the root redirect must not appear in content search.
-4. In the final reviewed source commit, change only the six pending component statuses to `ready`. MCP remains `ready` permanently because embedding its own release digest would be self-referential. Commit and push that source state before producing candidates.
-5. Manually run `Prepare package candidates`, `Docker images` and `Web capture image` from that exact default-branch commit. In `Docker images`, confirm that the three SHA tags were unused, all exact-digest tests passed before `main`/`latest` promotion, and the run summary binds the runtime, MCP, and manual PDF digests to that source commit. Preserve the package workflow's gem/wheel files and `SHA256SUMS`; use the summary's manual PDF digest for the downstream `tigit` review, and record the four immutable GHCR digests for runtime, MCP, manual PDF and web capture.
-6. Add `release-candidates.json` in one immediate child commit and change no other path. Set `source_commit` to the candidate source SHA. Include the exact gem/wheel basenames and checksums plus the four official `ghcr.io/dosquartsdedocs/...@sha256:...` references. Run `make distribution-release-check`; it validates the receipt, default-branch ancestry, package identities and image repositories.
-7. Tag the receipt commit as `v0.3.0`. Run the image workflows from that exact tag; they verify that each full-SHA candidate tag still resolves to the recorded digest, the core runnable images identify the receipt `source_commit`, and only then promote the recorded manifests without rebuilding.
-8. Publish the recorded gem and wheel through the separately approved RubyGems/PyPI operations, make every new GHCR package public, and verify unauthenticated pulls/installations. No workflow in this repository performs those language-package uploads automatically.
-9. Prove the user path from a clean checkout with no sibling core: create a new manual, run `make test`, start/stop its MCP preview, and confirm `unaltraweb (= 0.3.0)` and `unaltraweb-mcp==0.3.0` resolve remotely.
+1. Merge the reviewed Trusted Publishing workflow without moving `v0.3.0` or rebuilding its candidates.
+2. Create GitHub environments `pypi` and `rubygems`, restrict them to the default branch, and add required reviewers when the maintainer topology permits independent approval.
+3. Register pending Trusted Publishers for PyPI project `unaltraweb-mcp` and RubyGem `unaltraweb`, both bound to `dosquartsdedocs/unaltraweb`, workflow `package-publish.yml`, and their matching environment.
+4. Dispatch `Publish language packages` from `main` with the reviewed publisher commit SHA, release tag `v0.3.0`, tag object `59beb4ba16dfbd3a73bfa33e7d2fadbc529ca0b1`, receipt SHA-256 `042b3b8644c7c8b6b6a99e5682b11002704f2ad0aa4005563ecc19f5dbfb4ab4`, package run ID `33972877312`, and target `all`. The workflow must stage the recorded `704683c332938cc2261b6f5d48507c016d7e38e35045584e1c0970dd7878cc11` gem and `70051ff312d649c0b17bcb93a5a2df9331caa2959b7dcb814cedc98c94b77dd3` wheel without rebuilding either file. Reuse the same tag object, receipt hash, and package run ID for a one-registry retry.
+5. Verify anonymous `gem install unaltraweb -v 0.3.0` and `pip install unaltraweb-mcp==0.3.0`, then create the GitHub Release last with the preserved gem, wheel, and `SHA256SUMS`.
+6. Repeat the clean no-sibling-core consumer test against registry-resolved packages, then remove superseded worktrees, branches, and temporary artefacts.
 
-Residual external checks: run `actionlint` if available and inspect the first live GitHub Actions/GHCR promotion carefully. The local suite cannot exercise credentialed registry mutation. `tigit` was clean and synchronized at `ecb5dc8` at the end of the previous session; do not mix its editorial history into the core release.
+The local suite cannot exercise the final OIDC registry mutation. Do not mix `tigit` editorial history or its separate cover defect into the core release.
 
 ### MCP Contract
 
