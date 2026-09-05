@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import sys
@@ -39,6 +40,9 @@ class WorkflowTests(unittest.TestCase):
         scaffold = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows"
         shutil.copytree(ROOT / ".github/workflows", workflows)
         shutil.copytree(ROOT / "src/unaltraweb_mcp/scaffolds/common/.github/workflows", scaffold)
+        contract_target = root / "src/unaltraweb_mcp/component-contract.json"
+        contract_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / "src/unaltraweb_mcp/component-contract.json", contract_target)
         return workflows
 
     def validate_copy(self, root: Path) -> list[str]:
@@ -76,9 +80,9 @@ class WorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             workflows = self.copied_repository(root)
-            caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml"
+            caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml.tmpl"
             text = caller.read_text(encoding="utf-8")
-            text = text.replace("@c54400927e7223e14e34390ab039ed94b2e974ad", "@main")
+            text = text.replace("@__CORE_SHA__", "@main")
             text = text.replace("      sync-manual-pdf: true\n", "")
             caller.write_text(text, encoding="utf-8")
             with patch("scripts.validate_workflows.ROOT", root):
@@ -87,26 +91,37 @@ class WorkflowTests(unittest.TestCase):
         self.assertTrue(any("immutable unaltraweb SHA" in error for error in errors))
         self.assertTrue(any("exact reviewed source and PDF input shape" in error for error in errors))
 
+    def test_scaffold_publication_policy_uses_the_validated_repository_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workflows = self.copied_repository(root)
+            contract_path = root / "src/unaltraweb_mcp/component-contract.json"
+            contract = json.loads(contract_path.read_text(encoding="utf-8"))
+            contract["consumer_integration"]["core_sha"] = "main"
+            contract_path.write_text(json.dumps(contract), encoding="utf-8")
+            with patch("scripts.validate_workflows.ROOT", root):
+                errors = validate_workflows(workflows)
+
+        self.assertTrue(any("immutable unaltraweb SHA" in error for error in errors), errors)
+
     def test_scaffold_publication_policy_rejects_missing_or_altered_review_inputs(self) -> None:
-        image = (
-            "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@"
-            "sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660"
-        )
         mutations = [
             ("      reviewed_sha: ${{ inputs.reviewed_sha }}\n", ""),
             (
                 "      reviewed_sha: ${{ inputs.reviewed_sha }}\n",
                 "      reviewed_sha: ${{ github.sha }}\n",
             ),
-            (f'      manual-pdf-image: "{image}"\n', ""),
-            (image, "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:" + "0" * 64),
+            ('      manual-pdf-image: "__MANUAL_PDF_IMAGE__"\n', ""),
+            ("__MANUAL_PDF_IMAGE__", "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:" + "0" * 64),
+            ('      vegavisuals-sha: "__VEGAVISUALS_SHA__"\n', ""),
+            ("__VEGAVISUALS_SHA__", "0" * 40),
         ]
         for old, new in mutations:
             with self.subTest(old=old, new=new):
                 with tempfile.TemporaryDirectory() as raw:
                     root = Path(raw)
                     workflows = self.copied_repository(root)
-                    caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml"
+                    caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml.tmpl"
                     text = caller.read_text(encoding="utf-8")
                     self.assertIn(old, text)
                     caller.write_text(text.replace(old, new, 1), encoding="utf-8")
@@ -119,7 +134,7 @@ class WorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             workflows = self.copied_repository(root)
-            caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml"
+            caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml.tmpl"
             caller.write_text(
                 caller.read_text(encoding="utf-8").replace("refs/heads/main", "refs/heads/trunk"),
                 encoding="utf-8",
@@ -149,6 +164,19 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertTrue(any("every Ruby test from a read-only source mount" in error for error in errors))
         self.assertTrue(any("every test_*_integration.py suite" in error for error in errors))
+
+    def test_ci_policy_fetches_history_for_reviewed_core_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workflows = self.copied_repository(root)
+            ci = workflows / "ci.yml"
+            text = ci.read_text(encoding="utf-8")
+            self.assertGreaterEqual(text.count("          fetch-depth: 0\n"), 2)
+            ci.write_text(text.replace("          fetch-depth: 0\n", "", 1), encoding="utf-8")
+            with patch("scripts.validate_workflows.ROOT", root):
+                errors = validate_workflows(workflows)
+
+        self.assertTrue(any("checkout must fetch history for reviewed core SHA validation" in error for error in errors), errors)
 
     def test_core_docker_policy_rejects_rebuild_after_exact_image_tests(self) -> None:
         errors = self.docker_mutation_errors(
@@ -369,6 +397,26 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertTrue(any("manual-pdf-image must be required" in error for error in errors))
         self.assertTrue(any("missing latest publication gate unaltraweb-manual-pdf@sha256:" in error for error in errors))
+
+    def test_latest_policy_requires_the_vega_input_interface_used_by_the_caller(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workflows = self.copied_repository(root)
+            deploy = workflows / "site-deploy.yml"
+            text = deploy.read_text(encoding="utf-8")
+            declaration = (
+                "      vegavisuals-sha:\n"
+                "        description: Full reviewed vegavisuals commit SHA; required when the site has .vegavisuals.yml.\n"
+                "        required: false\n"
+                "        type: string\n"
+                "        default: \"\"\n"
+            )
+            self.assertIn(declaration, text)
+            deploy.write_text(text.replace(declaration, "", 1), encoding="utf-8")
+            with patch("scripts.validate_workflows.ROOT", root):
+                errors = validate_workflows(workflows)
+
+        self.assertTrue(any("vegavisuals-sha input differs from the reviewed caller interface" in error for error in errors), errors)
 
     def test_latest_policy_binds_pdf_worker_revision_to_defining_workflow(self) -> None:
         with tempfile.TemporaryDirectory() as raw:

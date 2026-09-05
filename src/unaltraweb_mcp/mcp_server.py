@@ -275,7 +275,7 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def scaffold_sync(dry_run: bool = True, confirm_sync: bool = False) -> dict[str, Any]:
-        """Synchronize package-managed runtime files only when they still match their recorded scaffold baseline."""
+        """Synchronize package-managed scaffold controls only when they match their baseline or new package bytes."""
         return tools.scaffold_sync(project, dry_run=dry_run, confirm_sync=confirm_sync)
 
     @mcp.tool()

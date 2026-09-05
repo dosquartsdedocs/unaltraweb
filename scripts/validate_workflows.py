@@ -29,11 +29,6 @@ CANDIDATE_EXECUTION_TARGETS = {
     "mcp-smoke-prebuilt",
     "reproducible-site-check",
 }
-REVIEWED_SITE_DEPLOY_SHAS = {"c54400927e7223e14e34390ab039ed94b2e974ad"}
-REVIEWED_MANUAL_PDF_IMAGE = (
-    "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@"
-    "sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660"
-)
 REVIEWED_ACTIONS = {
     "actions/attest-build-provenance": "4d101475d8b20a2381f78447822ac1eab6504dd8",
     "actions/checkout": "11d5960a326750d5838078e36cf38b85af677262",
@@ -88,11 +83,67 @@ def _construct_mapping(loader: WorkflowLoader, node: yaml.MappingNode, deep: boo
 WorkflowLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_mapping)
 
 
-def load_workflow(path: Path) -> dict[str, Any]:
-    value = yaml.load(path.read_text(encoding="utf-8"), Loader=WorkflowLoader)
+def load_workflow_text(text: str) -> dict[str, Any]:
+    value = yaml.load(text, Loader=WorkflowLoader)
     if not isinstance(value, dict):
         raise ValueError("workflow root must be a mapping")
     return value
+
+
+def load_workflow(path: Path) -> dict[str, Any]:
+    return load_workflow_text(path.read_text(encoding="utf-8"))
+
+
+def load_consumer_integration(root: Path) -> dict[str, Any]:
+    contract = json.loads((root / "src/unaltraweb_mcp/component-contract.json").read_text(encoding="utf-8"))
+    integration = contract.get("consumer_integration")
+    required = {
+        "schema_version",
+        "core_repository",
+        "core_sha",
+        "site_deploy_workflow",
+        "manual_pdf_image",
+        "vegavisuals_sha",
+    }
+    if not isinstance(integration, dict) or set(integration) != required:
+        raise ValueError("component contract has no exact consumer_integration object")
+    return integration
+
+
+def load_scaffold_deploy(path: Path, integration: dict[str, Any]) -> dict[str, Any]:
+    replacements = {
+        "CORE_SHA": str(integration["core_sha"]),
+        "SITE_DEPLOY_WORKFLOW": str(integration["site_deploy_workflow"]),
+        "MANUAL_PDF_IMAGE": str(integration["manual_pdf_image"]),
+        "VEGAVISUALS_SHA": str(integration["vegavisuals_sha"]),
+    }
+    text = path.read_text(encoding="utf-8")
+    for token, value in replacements.items():
+        text = text.replace(f"__{token}__", value)
+    unresolved = sorted(set(re.findall(r"__[A-Z_]+__", text)))
+    if unresolved:
+        raise ValueError(f"unresolved scaffold tokens: {', '.join(unresolved)}")
+    return load_workflow_text(text)
+
+
+def reusable_deploy_input_errors(workflow: dict[str, Any]) -> list[str]:
+    inputs = workflow.get("on", {}).get("workflow_call", {}).get("inputs", {})
+    expected = {
+        "reviewed_sha": {"required": True, "type": "string"},
+        "manual-pdf-image": {"required": True, "type": "string"},
+        "vegavisuals-sha": {"required": False, "type": "string", "default": ""},
+        "check-manual-pdf": {"required": False, "type": "boolean", "default": False},
+        "sync-manual-pdf": {"required": False, "type": "boolean", "default": True},
+    }
+    errors: list[str] = []
+    for name, required_shape in expected.items():
+        actual = inputs.get(name, {}) if isinstance(inputs, dict) else {}
+        if required_shape["required"] is True and actual.get("required") is not True:
+            errors.append(f"{name} must be required")
+            continue
+        if any(actual.get(key) != value for key, value in required_shape.items()):
+            errors.append(f"{name} input differs from the reviewed caller interface")
+    return errors
 
 
 def _steps(workflow: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
@@ -141,6 +192,16 @@ def _executes_candidate(step: dict[str, Any]) -> bool:
 
 def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
     errors: list[str] = []
+    try:
+        integration = load_consumer_integration(ROOT)
+    except Exception as exc:
+        errors.append(f"component contract: invalid consumer integration: {exc}")
+        integration = {
+            "core_sha": "invalid",
+            "site_deploy_workflow": "invalid",
+            "manual_pdf_image": "invalid",
+            "vegavisuals_sha": "invalid",
+        }
     workflows: dict[str, dict[str, Any]] = {}
     for path in sorted(root.glob("*.yml")):
         try:
@@ -946,6 +1007,10 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         if event not in ci_on:
             errors.append(f"ci.yml: missing automatic {event} trigger")
     ci_text = json.dumps(ci)
+    for job_name in ["python", "distribution"]:
+        checkout = _named_step(ci.get("jobs", {}).get(job_name, {}), "Checkout")
+        if checkout.get("with", {}).get("fetch-depth") != 0:
+            errors.append(f"ci.yml:{job_name}: checkout must fetch history for reviewed core SHA validation")
     for marker in [
         "compileall", "unittest discover", "git diff --check", "distribution-check",
         "wheel-check", "gem-check", "reproducible-site-check", "mcp-smoke-prebuilt", "docs-build",
@@ -981,11 +1046,7 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         errors.append("missing reusable latest site workflow: site-deploy.yml")
     else:
         deploy_text = json.dumps(deploy)
-        deploy_inputs = deploy.get("on", {}).get("workflow_call", {}).get("inputs", {})
-        if deploy_inputs.get("reviewed_sha", {}).get("required") is not True:
-            errors.append("site-deploy.yml: reviewed_sha must be required")
-        if deploy_inputs.get("manual-pdf-image", {}).get("required") is not True:
-            errors.append("site-deploy.yml: manual-pdf-image must be required")
+        errors.extend(f"site-deploy.yml: {error}" for error in reusable_deploy_input_errors(deploy))
         for marker in [
             "refs/heads/main",
             "github.sha",
@@ -1170,9 +1231,9 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         if publish != expected_publish:
             errors.append("site-release.yml: privileged publication job differs from the exact reviewed structure")
 
-    scaffold_path = ROOT / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml"
+    scaffold_path = ROOT / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml.tmpl"
     try:
-        scaffold = load_workflow(scaffold_path)
+        scaffold = load_scaffold_deploy(scaffold_path, integration)
     except Exception as exc:
         errors.append(f"scaffold deploy.yml: invalid YAML: {exc}")
     else:
@@ -1194,9 +1255,9 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         else:
             job_name, uses = reusable_jobs[0]
             action, separator, revision = uses.rpartition("@")
-            if not separator or action != "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml" or not FULL_SHA.fullmatch(revision):
+            if not separator or action != integration["site_deploy_workflow"] or not FULL_SHA.fullmatch(revision):
                 errors.append(f"scaffold deploy.yml:{job_name}: reusable workflow must use an immutable unaltraweb SHA")
-            elif revision not in REVIEWED_SITE_DEPLOY_SHAS:
+            elif revision != integration["core_sha"]:
                 errors.append(f"scaffold deploy.yml:{job_name}: reusable workflow SHA has not been reviewed")
             reusable_job = scaffold.get("jobs", {}).get(job_name, {})
             if reusable_job.get("needs") != "validate":
@@ -1204,9 +1265,10 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             settings = reusable_job.get("with", {})
             expected_settings = {
                 "reviewed_sha": "${{ inputs.reviewed_sha }}",
-                "manual-pdf-image": REVIEWED_MANUAL_PDF_IMAGE,
+                "manual-pdf-image": integration["manual_pdf_image"],
                 "check-manual-pdf": False,
                 "sync-manual-pdf": True,
+                "vegavisuals-sha": integration["vegavisuals_sha"],
             }
             if settings != expected_settings:
                 errors.append("scaffold deploy.yml: caller must use the exact reviewed source and PDF input shape")

@@ -5,7 +5,7 @@ Customize generated websites from the site repository, not by editing this core 
 For current customization guidance, use:
 
 - `docs/customization.md` for profiles, feature toggles, local styles, manual mode, project resources and theme modes.
-- `docs/distribution.md` for the split between this core and `unaltraweb-template`.
+- `docs/_documentation/en/40-distribution.md` for the split between this core and its consumers.
 - `docs/agents/mcp-contract.md` for package-owned site creation and the MCP workflow.
 - `../unaltraweb-template/README.md` for the optional full-profile demo workflow.
 

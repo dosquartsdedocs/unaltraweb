@@ -21,6 +21,7 @@ except ModuleNotFoundError:  # Python 3.10 package dependency.
 
 ROOT = Path(__file__).resolve().parents[1]
 RELEASE_CANDIDATES_PATH = Path("release-candidates.json")
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
 from unaltraweb_mcp import __version__  # noqa: E402
@@ -38,6 +39,7 @@ from unaltraweb_mcp.distribution import (  # noqa: E402
     is_mutable_reference,
     validate_component_contract,
 )
+from scripts.validate_workflows import load_workflow_text, reusable_deploy_input_errors  # noqa: E402
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -107,6 +109,46 @@ def validate(root: Path = ROOT) -> list[str]:
     except RuntimeError as exc:
         errors.append(f"component contract schema validation failed: {exc}")
     errors.extend(f"component contract semantic validation failed: {error}" for error in component_contract_semantic_errors(contract))
+    core_sha = str(contract["consumer_integration"]["core_sha"])
+    core_object = subprocess.run(
+        ["git", "cat-file", "-e", f"{core_sha}^{{commit}}"],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if core_object.returncode != 0:
+        errors.append("consumer integration core SHA is not a commit in this repository")
+    else:
+        core_ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", core_sha, "HEAD"],
+            cwd=root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if core_ancestor.returncode != 0:
+            errors.append("consumer integration core SHA must be an ancestor of the current source")
+        pinned_workflow = subprocess.run(
+            ["git", "show", f"{core_sha}:.github/workflows/site-deploy.yml"],
+            cwd=root,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if pinned_workflow.returncode != 0:
+            errors.append("consumer integration core SHA does not contain the reusable deploy workflow")
+        else:
+            try:
+                pinned_deploy = load_workflow_text(pinned_workflow.stdout)
+            except Exception as exc:
+                errors.append(f"consumer integration workflow is invalid YAML: {exc}")
+            else:
+                errors.extend(
+                    f"consumer integration workflow: {error}"
+                    for error in reusable_deploy_input_errors(pinned_deploy)
+                )
     if schema.get("properties", {}).get("schema_version", {}).get("const") != 1:
         errors.append("component contract schema does not select version 1")
 
@@ -197,14 +239,22 @@ def validate(root: Path = ROOT) -> list[str]:
             errors.append(f"{relative} contains a mutable production default")
 
     scaffold_templates = {
-        "Gemfile.tmpl": "__GEM_VERSION__",
-        "Gemfile.lock.tmpl": "__GEM_VERSION__",
-        "Makefile.tmpl": "__MCP_IMAGE__",
+        "Gemfile.tmpl": ["__GEM_VERSION__", "__CORE_REPOSITORY__", "__CORE_SHA__"],
+        "Gemfile.lock.tmpl": ["__GEM_VERSION__", "__CORE_REPOSITORY__", "__CORE_SHA__"],
+        "Makefile.tmpl": ["__MCP_IMAGE__"],
+        ".github/workflows/deploy.yml.tmpl": [
+            "__SITE_DEPLOY_WORKFLOW__",
+            "__CORE_SHA__",
+            "__MANUAL_PDF_IMAGE__",
+            "__VEGAVISUALS_SHA__",
+        ],
+        ".github/dependabot.yml.tmpl": ["__SITE_DEPLOY_WORKFLOW__"],
     }
-    for name, token in scaffold_templates.items():
+    for name, tokens in scaffold_templates.items():
         text = (root / "src/unaltraweb_mcp/scaffolds/common" / name).read_text(encoding="utf-8")
-        if token not in text:
-            errors.append(f"scaffold {name} must derive its release pin from the component contract")
+        for token in tokens:
+            if token not in text:
+                errors.append(f"scaffold {name} must derive {token} from the component contract")
     computation_template = (root / "src/unaltraweb_mcp/scaffolds/profiles/unaltremanual/computations.yml.tmpl").read_text(encoding="utf-8")
     for token in ["__COMPUTE_PYTHON_IMAGE__", "__COMPUTE_R_IMAGE__"]:
         if token not in computation_template:

@@ -12,7 +12,7 @@ Create a clean profile-specific repository locally or through the MCP:
 unaltraweb-mcp --project ./my-site new-web --site-profile unaltredocs --title "Project documentation" --default-lang en
 ```
 
-The command is idempotent for identical inputs and refuses differing files, symlinks, and unsafe language paths. It records exactly seven package-managed runtime files in `.unaltraweb/scaffold.json`: `.gitignore`, `.unaltraweb/docker-mount.sh`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, and `.github/workflows/deploy.yml`. An explicit `scaffold_sync` dry-run can later update only files that remain unchanged from that baseline. Synchronization is all-or-nothing when a managed file conflicts, and retired paths are removed only from the baseline without deleting project files. `README.md`, `AGENTS.md`, `_config.yml`, and content remain site-owned. The command does not require or inspect `unaltraweb-template`.
+The command is idempotent for identical inputs and refuses differing files, symlinks, and unsafe language paths. It records exactly nine package-managed scaffold controls in `.unaltraweb/scaffold.json`: `.gitignore`, `.unaltraweb/docker-mount.sh`, `.github/CONTRIBUTING.md`, `.github/dependabot.yml`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, and `.github/workflows/deploy.yml`. An explicit `scaffold_sync` dry-run can later update files that remain unchanged from their baseline and adopt exact current package bytes without rewriting them. Synchronization is all-or-nothing when a managed file conflicts, and retired paths are removed only from the baseline without deleting project files. `README.md`, `AGENTS.md`, `_config.yml`, and content remain site-owned. The command does not require or inspect `unaltraweb-template`.
 
 The wheel can verify its own modular distribution and a generated site without a factory checkout:
 
@@ -101,14 +101,15 @@ Sites created by `new_web` include a manual workflow wrapper around the reusable
 ```yaml
 jobs:
   deploy:
-    uses: dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@c54400927e7223e14e34390ab039ed94b2e974ad
+    uses: <consumer_integration.site_deploy_workflow>@<consumer_integration.core_sha>
     with:
       reviewed_sha: ${{ inputs.reviewed_sha }}
-      manual-pdf-image: "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660"
+      manual-pdf-image: "<consumer_integration.manual_pdf_image>"
       check-manual-pdf: false
       sync-manual-pdf: true
+      vegavisuals-sha: "<consumer_integration.vegavisuals_sha>"
 ```
 
-The generated wrapper first requires `reviewed_sha` to equal the selected `main` commit, then passes the same value to the reusable workflow for an independent source check. The packaged caller pins the reviewed provider commit `c54400927e7223e14e34390ab039ed94b2e974ad` and its attested manual PDF worker by immutable digest. Future provider updates must repeat the M -> D -> B order: merge the provider, build D from that permanent commit, then update both pins in a separate caller change. Do not use a mutable workflow ref or a version-tagged image as a substitute for either pin. Add `vegavisuals-sha` only when both the pinned workflow and caller support the reviewed value.
+The generated wrapper first requires `reviewed_sha` to equal the selected `main` commit, then passes the same value to the reusable workflow for an independent source check. The `consumer_integration` object in `src/unaltraweb_mcp/component-contract.json` is the sole source for the reviewed core, workflow, PDF worker, and Vega revisions rendered into `Gemfile`, `Gemfile.lock`, and the caller. Future provider updates must repeat the M -> D -> B order: merge the provider, build D from that permanent commit, then update the tuple atomically in a separate change. Do not use a mutable workflow ref or a version-tagged image as a substitute for either pin.
 
-See `docs/distribution.md` for the update model and `src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml` for the packaged wrapper.
+See `docs/_documentation/en/40-distribution.md` for the update model and `src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml.tmpl` for the packaged wrapper template.

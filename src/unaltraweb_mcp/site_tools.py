@@ -16,7 +16,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
-from .distribution import component, component_reference
+from .distribution import component, component_reference, consumer_integration
 from .docker_mount import docker_bind_mount
 from .processes import ProcessResult, run_process
 
@@ -331,11 +331,15 @@ SCAFFOLD_TEMPLATE_FILES = {
     "computations.yml.tmpl",
     "home.md.tmpl",
     "root.html.tmpl",
+    "deploy.yml.tmpl",
+    "dependabot.yml.tmpl",
 }
 SCAFFOLD_MANIFEST_PATH = Path(".unaltraweb/scaffold.json")
 SCAFFOLD_MANAGED_PATHS = (
     Path(".gitignore"),
     Path(".unaltraweb/docker-mount.sh"),
+    Path(".github/CONTRIBUTING.md"),
+    Path(".github/dependabot.yml"),
     Path("Makefile"),
     Path("Gemfile"),
     Path("Gemfile.lock"),
@@ -703,8 +707,10 @@ def scaffold_inventory() -> dict[str, Any]:
     common_required = [
         root / "common" / ".gitignore.tmpl",
         root / "common" / ".unaltraweb/docker-mount.sh",
+        root / "common" / ".github/CONTRIBUTING.md",
+        root / "common" / ".github/dependabot.yml.tmpl",
         root / "common" / ".github/pull_request_template.md",
-        root / "common" / ".github/workflows/deploy.yml",
+        root / "common" / ".github/workflows/deploy.yml.tmpl",
         root / "common" / "AGENTS.md.tmpl",
         root / "common" / "Gemfile.lock.tmpl",
         root / "common" / "Gemfile.tmpl",
@@ -774,6 +780,19 @@ def _render_scaffold_template(path: Path, replacements: dict[str, str]) -> bytes
     return text.encode("utf-8")
 
 
+def _common_scaffold_replacements() -> dict[str, str]:
+    integration = consumer_integration()
+    return {
+        "GEM_VERSION": str(component("gem")["version"]),
+        "MCP_IMAGE": component_reference("mcp"),
+        "CORE_REPOSITORY": str(integration["core_repository"]),
+        "CORE_SHA": str(integration["core_sha"]),
+        "SITE_DEPLOY_WORKFLOW": str(integration["site_deploy_workflow"]),
+        "MANUAL_PDF_IMAGE": str(integration["manual_pdf_image"]),
+        "VEGAVISUALS_SHA": str(integration["vegavisuals_sha"]),
+    }
+
+
 def _manual_generated_ignore_block(config: dict[str, Any]) -> str:
     from .manual_release import _pdf_languages, _render_output_path
 
@@ -805,7 +824,10 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
         common_root / "README.md.tmpl",
         common_root / "root.html.tmpl",
         common_root / ".gitignore.tmpl",
+        common_root / ".github/CONTRIBUTING.md",
+        common_root / ".github/dependabot.yml.tmpl",
         common_root / ".github/pull_request_template.md",
+        common_root / ".github/workflows/deploy.yml.tmpl",
         profile_root / "_config.yml.tmpl",
         profile_root / "home.md.tmpl",
     ]
@@ -838,12 +860,15 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
         "LANGUAGES": _yaml_inline_list(languages),
         "SITE_ROOT": _yaml_scalar(site_root),
     }
-    common_replacements = {
-        "GEM_VERSION": str(component("gem")["version"]),
-        "MCP_IMAGE": component_reference("mcp"),
-    }
+    common_replacements = _common_scaffold_replacements()
     for name in ["Makefile", "Gemfile", "Gemfile.lock"]:
         payloads[Path(name)] = _render_scaffold_template(common_root / f"{name}.tmpl", common_replacements)
+    payloads[Path(".github/workflows/deploy.yml")] = _render_scaffold_template(
+        common_root / ".github/workflows/deploy.yml.tmpl", common_replacements
+    )
+    payloads[Path(".github/dependabot.yml")] = _render_scaffold_template(
+        common_root / ".github/dependabot.yml.tmpl", common_replacements
+    )
     workspace_replacements = {
         "PROFILE": profile,
         "DEFAULT_LANG_TEXT": default_lang,
@@ -919,15 +944,18 @@ def _managed_scaffold_payloads(project: Path, *, config: dict[str, Any] | None =
             },
         ),
         Path(".unaltraweb/docker-mount.sh"): (common_root / ".unaltraweb/docker-mount.sh").read_bytes(),
+        Path(".github/CONTRIBUTING.md"): (common_root / ".github/CONTRIBUTING.md").read_bytes(),
         Path(".github/pull_request_template.md"): (common_root / ".github/pull_request_template.md").read_bytes(),
-        Path(".github/workflows/deploy.yml"): (common_root / ".github/workflows/deploy.yml").read_bytes(),
     }
-    replacements = {
-        "GEM_VERSION": str(component("gem")["version"]),
-        "MCP_IMAGE": component_reference("mcp"),
-    }
+    replacements = _common_scaffold_replacements()
     for name in ["Makefile", "Gemfile", "Gemfile.lock"]:
         payloads[Path(name)] = _render_scaffold_template(common_root / f"{name}.tmpl", replacements)
+    payloads[Path(".github/workflows/deploy.yml")] = _render_scaffold_template(
+        common_root / ".github/workflows/deploy.yml.tmpl", replacements
+    )
+    payloads[Path(".github/dependabot.yml")] = _render_scaffold_template(
+        common_root / ".github/dependabot.yml.tmpl", replacements
+    )
     return payloads
 
 
@@ -1274,15 +1302,15 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
             if baseline_hash:
                 if current is None:
                     conflicts.append({"path": path, "reason": "managed file recorded by the baseline is missing"})
-                elif current_hash != baseline_hash:
-                    conflicts.append({"path": path, "reason": "local file differs from its recorded baseline"})
-                elif current_hash == package_hash:
-                    unchanged.append(path)
-                else:
+                elif current == payloads[relative]:
+                    (unchanged if current_hash == baseline_hash else adopted).append(path)
+                elif current_hash == baseline_hash:
                     updates.append({"path": path, "expected_sha256": current_hash, "sha256": package_hash})
+                else:
+                    conflicts.append({"path": path, "reason": "local file differs from its recorded baseline"})
             elif current is None:
                 creates.append({"path": path, "sha256": package_hash})
-            elif current_hash == package_hash:
+            elif current == payloads[relative]:
                 adopted.append(path)
             else:
                 conflicts.append({"path": path, "reason": "new package-managed path already exists with different content"})

@@ -25,7 +25,7 @@ The template is the better place to validate gem consumption, centralized styles
 
 ## Component Contract
 
-`src/unaltraweb_mcp/component-contract.json` is the canonical versioned bill of materials. `component-contract.schema.json` defines schema version 1. Runtime loading and `scripts/validate_distribution.py` validate the complete document against that schema, then enforce semantic parity between versions, release tags, repositories, references, wheel contents, and CLI availability.
+`src/unaltraweb_mcp/component-contract.json` is the canonical versioned bill of materials. Its `consumer_integration` object is the sole source for the reviewed core Git revision, reusable deploy workflow, manual PDF image digest, and Vega renderer revision. Scaffold templates render that tuple atomically into consumer `Gemfile`, `Gemfile.lock`, and deploy workflow files. `component-contract.schema.json` defines schema version 1. Runtime loading and `scripts/validate_distribution.py` validate the complete document against that schema, then enforce semantic parity between versions, release tags, repositories, references, wheel contents, CLI availability, and consumer integration pins.
 
 The BOM is an interoperability contract, not a bundle. The wheel contains only its Python control/inspection modules, schema/BOM, and clean package-owned scaffolds. In particular it does not contain Ruby theme assets, Docker image layers, factory Make/scripts/docs, TeX, Chromium, computation environments, `diavisuals`, or `vegavisuals`.
 

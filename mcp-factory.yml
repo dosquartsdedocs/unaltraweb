@@ -13,6 +13,8 @@ workspace_rule:
     - .unaltraweb/docker-mount.sh
     - AGENTS.md
     - README.md
+    - .github/CONTRIBUTING.md
+    - .github/dependabot.yml
     - .github/pull_request_template.md
     - .github/workflows/deploy.yml
     - _config.yml

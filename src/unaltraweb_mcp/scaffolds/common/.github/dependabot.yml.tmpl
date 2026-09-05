@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: bundler
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      # scaffold_sync updates the reviewed core tuple atomically.
+      - dependency-name: unaltraweb
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      # This workflow pin must stay aligned with the reviewed worker digest.
+      - dependency-name: __SITE_DEPLOY_WORKFLOW__

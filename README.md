@@ -77,7 +77,7 @@ From this factory checkout, the equivalent command is:
 MCP_CONSUMER_WORKSPACE=./my-site make mcp-new-web NEW_WEB_PROFILE=unaltreselfie SITE_TITLE="My site" DEFAULT_LANG=en
 ```
 
-The operation uses only assets shipped in `unaltraweb_mcp`, preflights all managed paths, writes `.unaltraweb/scaffold.json`, and never overwrites differing files. Later `scaffold_sync` calls can update only unchanged baseline runtime files, including the pull-request template, and never touch config, README prose, or content. `dosquartsdedocs/unaltraweb-template` remains available when a full multi-profile demo with Playwright tests is more useful than a clean profile-specific site.
+The operation uses only assets shipped in `unaltraweb_mcp`, preflights all managed paths, writes `.unaltraweb/scaffold.json`, and never overwrites differing files. Later `scaffold_sync` calls can update unchanged baseline controls or adopt exact current package bytes, including the collaboration contract, Dependabot policy, pull-request template, dependency pins, and deploy caller. They never touch config, README prose, agent guidance, or content. `dosquartsdedocs/unaltraweb-template` remains available when a full multi-profile demo with Playwright tests is more useful than a clean profile-specific site.
 
 After creation, there are two supported editing paths:
 
@@ -144,7 +144,7 @@ unaltraweb-mcp doctor --project /path/to/site
 unaltraweb-mcp doctor --project /path/to/site --docker
 ```
 
-Doctor is offline. The optional `--docker` mode only calls local Docker version/image inspection and never pulls. Its findings have stable `code`, `severity`, `expected`, `actual`, and `remediation` fields. `src/unaltraweb_mcp/component-contract.json` is the canonical release BOM; the adjacent versioned JSON Schema defines its machine-readable contract.
+Doctor is offline. The optional `--docker` mode only calls local Docker version/image inspection and never pulls. Its findings have stable `code`, `severity`, `expected`, `actual`, and `remediation` fields. `src/unaltraweb_mcp/component-contract.json` is the canonical release BOM; its `consumer_integration` object is the single source for the core Git revision, deploy workflow, PDF image digest, and Vega renderer revision emitted into consumer scaffolds. The adjacent versioned JSON Schema defines the machine-readable contract.
 
 ## Global Dockerized MCP
 
