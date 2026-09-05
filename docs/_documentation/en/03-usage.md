@@ -86,7 +86,7 @@ The generated repository contains one profile. Create a separate temporary site 
 - Gem updates change layouts, includes, Sass, plugins and scripts.
 - Docker image updates change local runtime dependencies and are published manually.
 - Reusable workflow updates change optional GitHub build and deploy behavior.
-- Package scaffold changes affect newly generated sites. Existing generated repositories can review `scaffold_sync`, which manages exactly `.gitignore`, `.unaltraweb/docker-mount.sh`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, and `.github/workflows/deploy.yml` from `.unaltraweb/scaffold.json`. A conflict aborts the entire apply, and retired entries are removed from the baseline without deleting project files. Synchronization never changes site-owned README/agent guidance, config, or content.
+- Package scaffold changes affect newly generated sites. Existing generated repositories can review `scaffold_sync`, which manages exactly `.gitignore`, `.unaltraweb/docker-mount.sh`, `.github/CONTRIBUTING.md`, `.github/dependabot.yml`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, and `.github/workflows/deploy.yml` from `.unaltraweb/scaffold.json`. It can adopt bytes that already equal the current package payload without rewriting the file. A conflict aborts the entire apply, and retired entries are removed from the baseline without deleting project files. Synchronization never changes site-owned README/agent guidance, config, or content.
 
 ## Safe MCP Editing
 

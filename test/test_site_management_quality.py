@@ -404,24 +404,88 @@ class SiteManagementQualityTests(unittest.TestCase):
     def test_scaffold_sync_creates_only_new_missing_managed_paths(self) -> None:
         manifest_path = self.project / ".unaltraweb/scaffold.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        manifest["files"].pop(".gitignore")
-        manifest["files"].pop(".github/pull_request_template.md")
+        missing_paths = [
+            ".gitignore",
+            ".github/CONTRIBUTING.md",
+            ".github/dependabot.yml",
+            ".github/pull_request_template.md",
+        ]
+        for path in missing_paths:
+            manifest["files"].pop(path)
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        (self.project / ".gitignore").unlink()
-        (self.project / ".github/pull_request_template.md").unlink()
+        for path in missing_paths:
+            (self.project / path).unlink()
 
         result = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True)
 
         self.assertTrue(result["applied"])
         self.assertEqual(
             [item["path"] for item in result["creates"]],
-            [".gitignore", ".github/pull_request_template.md"],
+            missing_paths,
         )
-        self.assertEqual((self.project / ".gitignore").read_bytes(), site_tools._managed_scaffold_payloads(self.project)[Path(".gitignore")])
-        self.assertEqual(
-            (self.project / ".github/pull_request_template.md").read_bytes(),
-            site_tools._managed_scaffold_payloads(self.project)[Path(".github/pull_request_template.md")],
-        )
+        payloads = site_tools._managed_scaffold_payloads(self.project)
+        for path in missing_paths:
+            self.assertEqual((self.project / path).read_bytes(), payloads[Path(path)])
+
+    def test_scaffold_sync_adopts_exact_new_package_bytes_over_an_old_baseline(self) -> None:
+        target = Path("Gemfile")
+        target_path = self.project / target
+        before = target_path.read_bytes()
+        before_inode = target_path.stat().st_ino
+        manifest_path = self.project / site_tools.SCAFFOLD_MANIFEST_PATH
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"][target.as_posix()] = hashlib.sha256(b"old package bytes\n").hexdigest()
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        dry_run = site_tools.scaffold_sync(self.project)
+
+        self.assertTrue(dry_run["ok"], dry_run["conflicts"])
+        self.assertIn(target.as_posix(), dry_run["adopted"])
+        self.assertEqual(dry_run["updates"], [])
+        applied = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True)
+        self.assertTrue(applied["applied"])
+        self.assertEqual(target_path.read_bytes(), before)
+        self.assertEqual(target_path.stat().st_ino, before_inode)
+        updated_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self.assertEqual(updated_manifest["files"][target.as_posix()], hashlib.sha256(before).hexdigest())
+
+    def test_scaffold_sync_migrates_the_previous_managed_set_atomically(self) -> None:
+        manifest_path = self.project / site_tools.SCAFFOLD_MANIFEST_PATH
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        new_paths = [".github/CONTRIBUTING.md", ".github/dependabot.yml"]
+        for path in new_paths:
+            manifest["files"].pop(path)
+            (self.project / path).unlink()
+        changed_paths = ["Gemfile", "Gemfile.lock", ".github/pull_request_template.md", ".github/workflows/deploy.yml"]
+        for path in changed_paths:
+            previous = f"previous package payload for {path}\n".encode()
+            (self.project / path).write_bytes(previous)
+            manifest["files"][path] = hashlib.sha256(previous).hexdigest()
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        dry_run = site_tools.scaffold_sync(self.project)
+
+        self.assertTrue(dry_run["ok"], dry_run["conflicts"])
+        self.assertEqual([item["path"] for item in dry_run["creates"]], new_paths)
+        self.assertEqual([item["path"] for item in dry_run["updates"]], changed_paths)
+        applied = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True)
+        self.assertTrue(applied["applied"])
+        payloads = site_tools._managed_scaffold_payloads(self.project)
+        for path, payload in payloads.items():
+            self.assertEqual((self.project / path).read_bytes(), payload)
+
+    def test_scaffold_sync_rejects_a_project_owned_new_managed_path(self) -> None:
+        path = ".github/CONTRIBUTING.md"
+        manifest_path = self.project / site_tools.SCAFFOLD_MANIFEST_PATH
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["files"].pop(path)
+        manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        (self.project / path).write_text("project-owned collaboration policy\n", encoding="utf-8")
+
+        result = site_tools.scaffold_sync(self.project)
+
+        self.assertFalse(result["ok"])
+        self.assertEqual([item["path"] for item in result["conflicts"]], [path])
 
     def test_scaffold_sync_retires_paths_that_are_no_longer_package_managed(self) -> None:
         manifest_path = self.project / ".unaltraweb/scaffold.json"

@@ -5,6 +5,14 @@
     "version": "0.3.0",
     "tag": "v0.3.0"
   },
+  "consumer_integration": {
+    "schema_version": 1,
+    "core_repository": "https://github.com/dosquartsdedocs/unaltraweb.git",
+    "core_sha": "c54400927e7223e14e34390ab039ed94b2e974ad",
+    "site_deploy_workflow": "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml",
+    "manual_pdf_image": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660",
+    "vegavisuals_sha": "44a2753ffbb7c0694a459db9744342f69c6e78b9"
+  },
   "receipt_contract": {
     "schema_version": 1,
     "path_template": ".unaltraweb/receipts/{provider}.json",

@@ -84,8 +84,10 @@ def main() -> int:
             "unaltraweb_mcp/scaffolds/profiles/unaltremanual/_bibliography/manual.bib",
             "unaltraweb_mcp/scaffolds/profiles/unaltreprojecte/_bibliography/papers.bib",
             "unaltraweb_mcp/scaffolds/profiles/unaltreselfie/_bibliography/papers.bib",
+            "unaltraweb_mcp/scaffolds/common/.github/CONTRIBUTING.md",
+            "unaltraweb_mcp/scaffolds/common/.github/dependabot.yml.tmpl",
             "unaltraweb_mcp/scaffolds/common/.github/pull_request_template.md",
-            "unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml",
+            "unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml.tmpl",
         ]
         missing = [name for name in required if name not in names]
         if missing:
@@ -103,6 +105,8 @@ def main() -> int:
         if not doctor["ok"] or doctor["mode"] != "wheel" or not doctor["limited"]:
             raise RuntimeError(f"Unexpected clean wheel doctor result: {doctor}")
 
+        contract = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text(encoding="utf-8"))
+        integration = contract["consumer_integration"]
         profiles = {
             "unaltreselfie": ("Personal academic or professional site.", "`_posts/` and `_news/`"),
             "unaltreprojecte": ("Research project, group, infrastructure, or output site.", "`_data/team.yml`"),
@@ -119,6 +123,8 @@ def main() -> int:
             if not created["ok"]:
                 raise RuntimeError(f"new-web failed for {profile} from clean wheel: {created}")
             readme = (profile_site / "README.md").read_text(encoding="utf-8")
+            collaboration = (profile_site / ".github/CONTRIBUTING.md").read_text(encoding="utf-8")
+            dependabot = (profile_site / ".github/dependabot.yml").read_text(encoding="utf-8")
             pr_template = (profile_site / ".github/pull_request_template.md").read_text(encoding="utf-8")
             if not readme.startswith("# GitHub Web Editing Workflow\n"):
                 raise RuntimeError(f"generated {profile} README is not editor-first")
@@ -138,9 +144,34 @@ def main() -> int:
                 raise RuntimeError(f"generated {profile} README interpolated the user-controlled title")
             if any(f"`{known_profile}`" not in readme for known_profile in profiles):
                 raise RuntimeError(f"generated {profile} README does not explain all profiles")
-            if "one task on one branch" not in pr_template or "Required local checks and renders pass" not in pr_template:
+            if "correctly named short-lived branch" not in pr_template or "Required local checks and renders pass" not in pr_template:
                 raise RuntimeError(f"generated {profile} pull request template lacks coordination checks")
-            combined_guidance = readme + pr_template
+            collaboration_markers = [
+                "content/<issue>-<slug>",
+                "reference/<issue>-<slug>",
+                "figure/<provider>/<issue>-<slug>",
+                "fix/<issue>-<slug>",
+                "feat/<issue>-<slug>",
+                "docs/<issue>-<slug>",
+                "chore/<issue>-<slug>",
+                "format/<issue>-<slug>",
+                "integration/<provider>/<issue>-<slug>",
+                "A maintainer must accept an exact reservation",
+                "not broad directories or globs",
+                "dedicated Git worktree",
+                "Never share a mutable checkout",
+                "one atomic bundle",
+                "source, every local data/input file, output, caption-bearing content reference",
+                "immutable release, full commit SHA, or image digest",
+                "Draft pull request after the first coherent change",
+                "delete the local and remote task branch",
+                "remove the worktree",
+            ]
+            if any(value not in collaboration for value in collaboration_markers):
+                raise RuntimeError(f"generated {profile} collaboration contract is incomplete")
+            if "dependency-name: unaltraweb" not in dependabot or f"dependency-name: {integration['site_deploy_workflow']}" not in dependabot:
+                raise RuntimeError(f"generated {profile} Dependabot policy permits partial integration updates")
+            combined_guidance = readme + collaboration + pr_template
             forbidden = ["${{", "secrets.", "GITHUB_TOKEN", "id-token:", "contents: write", "on:\n  push:"]
             if any(value in combined_guidance for value in forbidden):
                 raise RuntimeError(f"generated {profile} editor guidance exposes workflow or secret internals")
@@ -165,6 +196,33 @@ def main() -> int:
                 raise RuntimeError(f"generated {profile} .gitignore has incorrect manual output scope")
             if "*.pdf" in ignore_lines or "*.png" in ignore_lines:
                 raise RuntimeError(f"generated {profile} .gitignore ignores arbitrary publication assets")
+            gemfile = (profile_site / "Gemfile").read_text(encoding="utf-8")
+            lockfile = (profile_site / "Gemfile.lock").read_text(encoding="utf-8")
+            deploy = (profile_site / ".github/workflows/deploy.yml").read_text(encoding="utf-8")
+            if f'git: "{integration["core_repository"]}"' not in gemfile or f'ref: "{integration["core_sha"]}"' not in gemfile:
+                raise RuntimeError(f"generated {profile} Gemfile does not use the reviewed core revision")
+            if f'revision: {integration["core_sha"]}' not in lockfile:
+                raise RuntimeError(f"generated {profile} lockfile does not use the reviewed core revision")
+            if f'uses: {integration["site_deploy_workflow"]}@{integration["core_sha"]}' not in deploy:
+                raise RuntimeError(f"generated {profile} deploy caller does not use the reviewed core revision")
+            if f'manual-pdf-image: "{integration["manual_pdf_image"]}"' not in deploy:
+                raise RuntimeError(f"generated {profile} deploy caller does not use the reviewed PDF image")
+            if f'vegavisuals-sha: "{integration["vegavisuals_sha"]}"' not in deploy:
+                raise RuntimeError(f"generated {profile} deploy caller does not use the reviewed Vega renderer")
+            manifest = json.loads((profile_site / ".unaltraweb/scaffold.json").read_text(encoding="utf-8"))
+            expected_managed = {
+                ".gitignore",
+                ".unaltraweb/docker-mount.sh",
+                ".github/CONTRIBUTING.md",
+                ".github/dependabot.yml",
+                "Makefile",
+                "Gemfile",
+                "Gemfile.lock",
+                ".github/pull_request_template.md",
+                ".github/workflows/deploy.yml",
+            }
+            if set(manifest["files"]) != expected_managed:
+                raise RuntimeError(f"generated {profile} scaffold baseline is incomplete: {manifest['files']}")
             sites[profile] = profile_site
 
         site = sites["unaltredocs"]
@@ -186,7 +244,6 @@ def main() -> int:
             if not (manual_site / required_path).is_file():
                 raise RuntimeError(f"manual new-web did not create {required_path}")
         computation_config = (manual_site / ".unaltraweb/computations.yml").read_text(encoding="utf-8")
-        contract = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text(encoding="utf-8"))
         for component_id in ["compute_python", "compute_r"]:
             if contract["components"][component_id]["reference"] not in computation_config:
                 raise RuntimeError(f"new-web did not select the {component_id} worker from the component contract")

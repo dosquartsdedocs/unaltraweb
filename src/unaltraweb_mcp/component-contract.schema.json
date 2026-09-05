@@ -4,7 +4,7 @@
   "title": "unaltraweb component contract",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "release", "receipt_contract", "wheel_contract", "components"],
+  "required": ["schema_version", "release", "consumer_integration", "receipt_contract", "wheel_contract", "components"],
   "properties": {
     "$schema": {"type": "string"},
     "schema_version": {"const": 1},
@@ -15,6 +15,19 @@
       "properties": {
         "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
         "tag": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "consumer_integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "core_repository", "core_sha", "site_deploy_workflow", "manual_pdf_image", "vegavisuals_sha"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "core_repository": {"const": "https://github.com/dosquartsdedocs/unaltraweb.git"},
+        "core_sha": {"type": "string", "minLength": 40, "maxLength": 40, "pattern": "^[0-9a-f]{40}$"},
+        "site_deploy_workflow": {"const": "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml"},
+        "manual_pdf_image": {"type": "string", "minLength": 117, "maxLength": 117, "pattern": "^ghcr\\.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:[0-9a-f]{64}$"},
+        "vegavisuals_sha": {"type": "string", "minLength": 40, "maxLength": 40, "pattern": "^[0-9a-f]{40}$"}
       }
     },
     "receipt_contract": {

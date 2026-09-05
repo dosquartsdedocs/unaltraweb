@@ -45,7 +45,7 @@ For `unaltremanual`, the `latest` channel is a manual-only deployment from the r
 
 Clean package scaffolds include a manual GitHub Pages wrapper pinned to a reviewed workflow revision. It has no push deployment trigger: a maintainer runs it only after local checks/renders and human review. The optional integration template retains additional local publishing experiments, but generated sites do not publish from local validation targets.
 
-The packaged caller pins provider commit `c54400927e7223e14e34390ab039ed94b2e974ad` and the matching attested manual PDF image `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660`. It passes the existing `reviewed_sha` input through to the provider, so the reviewed `main` source is checked independently at both caller and provider boundaries. `vegavisuals-sha` may be added only when the pinned workflow and generated caller both support the reviewed value.
+The `consumer_integration` object in `src/unaltraweb_mcp/component-contract.json` is the single source for the reviewed core revision, workflow path, attested manual PDF image digest, and Vega renderer revision. The scaffold renders that tuple atomically into `Gemfile`, `Gemfile.lock`, and the packaged caller. The caller passes the existing `reviewed_sha` input through to the provider, so the reviewed `main` source is checked independently at both caller and provider boundaries.
 
 This pin-only integration follows the required M -> D -> B order: D was built from M's permanent identity before the caller recorded either value. Repeat that order for future provider updates; never use `@main` or substitute a mutable/version-tagged image for D.
 

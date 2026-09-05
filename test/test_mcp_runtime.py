@@ -17,7 +17,7 @@ import yaml
 from unaltraweb_mcp import cli
 from unaltraweb_mcp import site_tools
 from unaltraweb_mcp.docker_mount import docker_bind_mount
-from unaltraweb_mcp.distribution import companion_dependency_requirements, component_reference
+from unaltraweb_mcp.distribution import companion_dependency_requirements, component_reference, consumer_integration
 
 
 class McpRuntimeTests(unittest.TestCase):
@@ -143,27 +143,29 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertTrue((project / "README.md").is_file())
                 self.assertTrue((project / "AGENTS.md").is_file())
                 self.assertIn("Default language: `en`", (project / "AGENTS.md").read_text(encoding="utf-8"))
+                self.assertIn(".github/CONTRIBUTING.md", (project / "AGENTS.md").read_text(encoding="utf-8"))
+                self.assertTrue((project / ".github/CONTRIBUTING.md").is_file())
+                self.assertTrue((project / ".github/dependabot.yml").is_file())
                 self.assertTrue((project / ".github/workflows/deploy.yml").is_file())
                 deploy = yaml.safe_load((project / ".github/workflows/deploy.yml").read_text(encoding="utf-8"))
                 dispatch = deploy[True]["workflow_dispatch"]
                 self.assertTrue(dispatch["inputs"]["reviewed_sha"]["required"])
                 self.assertIn("refs/heads/main", json.dumps(deploy))
                 deploy_job = deploy["jobs"]["deploy"]
+                integration = consumer_integration()
                 self.assertEqual(deploy_job["needs"], "validate")
                 self.assertEqual(
                     deploy_job["uses"],
-                    "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml@c54400927e7223e14e34390ab039ed94b2e974ad",
+                    f"{integration['site_deploy_workflow']}@{integration['core_sha']}",
                 )
                 self.assertEqual(
                     deploy_job["with"],
                     {
                         "reviewed_sha": "${{ inputs.reviewed_sha }}",
-                        "manual-pdf-image": (
-                            "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@"
-                            "sha256:48a7e17a85d205e4a890b7b7de18c9015eb657c9c12ba10f7cff123ac2b80660"
-                        ),
+                        "manual-pdf-image": integration["manual_pdf_image"],
                         "check-manual-pdf": False,
                         "sync-manual-pdf": True,
+                        "vegavisuals-sha": integration["vegavisuals_sha"],
                     },
                 )
                 self.assertTrue((project / ".unaltraweb/docker-mount.sh").is_file())
@@ -173,9 +175,14 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertIn("serve-native: site-check-native serve-capture-native", makefile)
                 self.assertIn("runtime-image", makefile)
                 self.assertIn("group :jekyll_plugins do", makefile)
-                self.assertIn("group :jekyll_plugins do", (project / "Gemfile").read_text(encoding="utf-8"))
-                self.assertIn("unaltraweb (= 0.3.0)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
-                self.assertIn("jekyll-scholar (>= 7.3, < 8)", (project / "Gemfile.lock").read_text(encoding="utf-8"))
+                gemfile = (project / "Gemfile").read_text(encoding="utf-8")
+                lockfile = (project / "Gemfile.lock").read_text(encoding="utf-8")
+                self.assertIn("group :jekyll_plugins do", gemfile)
+                self.assertIn(f'git: "{integration["core_repository"]}"', gemfile)
+                self.assertIn(f'ref: "{integration["core_sha"]}"', gemfile)
+                self.assertIn(f"revision: {integration['core_sha']}", lockfile)
+                self.assertIn("unaltraweb (= 0.3.0)!", lockfile)
+                self.assertIn("jekyll-scholar (>= 7.3, < 8)", lockfile)
                 self.assertEqual((project / "context/writing-profile.md").is_file(), profile == "unaltremanual")
                 computations_path = project / ".unaltraweb/computations.yml"
                 self.assertEqual(computations_path.is_file(), profile == "unaltremanual")
@@ -194,6 +201,8 @@ class McpRuntimeTests(unittest.TestCase):
                 if profile == "unaltreprojecte":
                     self.assertTrue((project / "_bibliography/papers.bib").is_file())
                 readme = (project / "README.md").read_text(encoding="utf-8")
+                collaboration = (project / ".github/CONTRIBUTING.md").read_text(encoding="utf-8")
+                dependabot = yaml.safe_load((project / ".github/dependabot.yml").read_text(encoding="utf-8"))
                 pull_request_template = (project / ".github/pull_request_template.md").read_text(encoding="utf-8")
                 self.assertTrue(readme.startswith("# GitHub Web Editing Workflow\n"))
                 self.assertIn(f"**`{profile}`** profile: {expected_descriptions[profile]}", readme)
@@ -208,10 +217,42 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertIn("ask the maintainer to coordinate it", readme)
                 self.assertIn("Runs the site's local checks and every required", readme)
                 self.assertIn("Starts the deploy workflow manually", readme)
-                self.assertIn("one task on one branch", pull_request_template)
+                self.assertIn("correctly named short-lived branch", pull_request_template)
                 self.assertIn("no other active editor", pull_request_template)
                 self.assertIn("Required local checks and renders pass", pull_request_template)
-                combined_guidance = readme + pull_request_template
+                for marker in [
+                    "content/<issue>-<slug>",
+                    "reference/<issue>-<slug>",
+                    "figure/<provider>/<issue>-<slug>",
+                    "fix/<issue>-<slug>",
+                    "feat/<issue>-<slug>",
+                    "docs/<issue>-<slug>",
+                    "chore/<issue>-<slug>",
+                    "format/<issue>-<slug>",
+                    "integration/<provider>/<issue>-<slug>",
+                    "A maintainer must accept an exact reservation",
+                    "not broad directories or globs",
+                    "dedicated Git worktree",
+                    "Never share a mutable checkout",
+                    "one atomic bundle",
+                    "source, every local data/input file, output, caption-bearing content reference",
+                    "immutable release, full commit SHA, or image digest",
+                    "Draft pull request after the first coherent change",
+                    "delete the local and remote task branch",
+                    "remove the worktree",
+                ]:
+                    self.assertIn(marker, collaboration)
+                ignores = {
+                    (update["package-ecosystem"], dependency["dependency-name"])
+                    for update in dependabot["updates"]
+                    for dependency in update.get("ignore", [])
+                }
+                self.assertIn(("bundler", "unaltraweb"), ignores)
+                self.assertIn(
+                    ("github-actions", integration["site_deploy_workflow"]),
+                    ignores,
+                )
+                combined_guidance = readme + collaboration + pull_request_template
                 for forbidden in ["${{", "secrets.", "GITHUB_TOKEN", "id-token:", "contents: write", "on:\n  push:"]:
                     self.assertNotIn(forbidden, combined_guidance)
                 for forbidden in ["publishes automatically", "deploys automatically", "automatic deployment"]:
@@ -246,6 +287,8 @@ class McpRuntimeTests(unittest.TestCase):
                     "Makefile",
                     "Gemfile",
                     "Gemfile.lock",
+                    ".github/CONTRIBUTING.md",
+                    ".github/dependabot.yml",
                     ".github/pull_request_template.md",
                     ".github/workflows/deploy.yml",
                 })
@@ -1122,6 +1165,8 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertIn("README.md", manifest["workspace_rule"]["source_paths"])
         self.assertIn(".unaltraweb/docker-mount.sh", manifest["workspace_rule"]["source_paths"])
         self.assertIn(".unaltraweb/computations.yml", manifest["workspace_rule"]["init_creates"])
+        self.assertIn(".github/CONTRIBUTING.md", manifest["workspace_rule"]["init_creates"])
+        self.assertIn(".github/dependabot.yml", manifest["workspace_rule"]["init_creates"])
         self.assertIn(".unaltraweb/computations.yml", manifest["workspace_rule"]["source_paths"])
         self.assertIn(".vegavisuals.yml", manifest["workspace_rule"]["source_paths"])
         self.assertIn(".unaltraweb/receipts/diavisuals.json", manifest["workspace_rule"]["generated_paths"])

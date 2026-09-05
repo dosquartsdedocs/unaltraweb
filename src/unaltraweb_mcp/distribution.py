@@ -54,6 +54,10 @@ def _validate_schema_value(value: Any, rule: dict[str, Any], root: dict[str, Any
         raise RuntimeError(f"Component contract {path} is not one of {rule['enum']!r}.")
     if "pattern" in rule and isinstance(value, str) and re.search(str(rule["pattern"]), value) is None:
         raise RuntimeError(f"Component contract {path} does not match {rule['pattern']!r}.")
+    if "minLength" in rule and isinstance(value, str) and len(value) < int(rule["minLength"]):
+        raise RuntimeError(f"Component contract {path} must contain at least {rule['minLength']} characters.")
+    if "maxLength" in rule and isinstance(value, str) and len(value) > int(rule["maxLength"]):
+        raise RuntimeError(f"Component contract {path} must contain at most {rule['maxLength']} characters.")
     if isinstance(value, dict):
         properties = rule.get("properties") if isinstance(rule.get("properties"), dict) else {}
         required = rule.get("required") if isinstance(rule.get("required"), list) else []
@@ -132,6 +136,23 @@ def component_contract_semantic_errors(value: dict[str, Any]) -> list[str]:
     expected_not_bundled = set(value["components"]) - {"wheel"}
     if set(value["wheel_contract"]["not_bundled"]) != expected_not_bundled:
         errors.append("wheel_contract.not_bundled must list every external component exactly")
+    integration = value["consumer_integration"]
+    expected_core_repository = f"{value['components']['gem']['repository']}.git"
+    if integration["core_repository"] != expected_core_repository:
+        errors.append("consumer integration core repository must match the gem provider")
+    core_sha = str(integration["core_sha"])
+    if re.fullmatch(r"[0-9a-f]{40}", core_sha) is None or core_sha == "0" * 40:
+        errors.append("consumer integration core SHA must be a nonzero full lowercase commit SHA")
+    expected_workflow = f"{expected_core_repository.removeprefix('https://github.com/').removesuffix('.git')}/.github/workflows/site-deploy.yml"
+    if integration["site_deploy_workflow"] != expected_workflow:
+        errors.append("consumer integration deploy workflow must belong to the core provider")
+    expected_pdf_prefix = f"{value['components']['manual_pdf']['image_repository']}@sha256:"
+    manual_pdf_image = str(integration["manual_pdf_image"])
+    if re.fullmatch(rf"{re.escape(expected_pdf_prefix)}[0-9a-f]{{64}}", manual_pdf_image) is None or manual_pdf_image.endswith("0" * 64):
+        errors.append("consumer integration manual PDF image must match the manual PDF provider")
+    vegavisuals_sha = str(integration["vegavisuals_sha"])
+    if re.fullmatch(r"[0-9a-f]{40}", vegavisuals_sha) is None or vegavisuals_sha == "0" * 40:
+        errors.append("consumer integration Vega revision must be a nonzero full lowercase commit SHA")
     return errors
 
 
@@ -160,6 +181,11 @@ def distribution_contract() -> dict[str, Any]:
 
 def distribution_version() -> str:
     return str(_contract()["release"]["version"])
+
+
+def consumer_integration() -> dict[str, Any]:
+    """Return an isolated copy of the reviewed consumer runtime tuple."""
+    return dict(_contract()["consumer_integration"])
 
 
 def component(component_id: str) -> dict[str, Any]:
@@ -271,6 +297,76 @@ def _make_value(path: Path, variable: str) -> str:
     text = path.read_text(encoding="utf-8", errors="ignore")
     match = re.search(rf"(?m)^{re.escape(variable)}\s*\?[:+]?=\s*([^\s#]+)", text)
     return match.group(1).strip('"\'') if match else ""
+
+
+def _gemfile_declaration(text: str, name: str) -> str:
+    lines = text.splitlines()
+    declaration = re.compile(rf"^(?P<indent>[ \t]*)gem\s+['\"]{re.escape(name)}['\"](?:\s*,|\s*$)")
+    for index, line in enumerate(lines):
+        match = declaration.match(line)
+        if match is None:
+            continue
+        base_indent = len(match.group("indent").expandtabs())
+        stanza = [line]
+        for continuation in lines[index + 1 :]:
+            if not continuation.strip():
+                break
+            continuation_prefix = continuation[: len(continuation) - len(continuation.lstrip(" \t"))]
+            continuation_indent = len(continuation_prefix.expandtabs())
+            if continuation_indent <= base_indent:
+                break
+            stanza.append(continuation)
+        return "\n".join(stanza)
+    return ""
+
+
+def _ruby_without_comments(text: str) -> str:
+    stripped: list[str] = []
+    for line in text.splitlines():
+        output: list[str] = []
+        quote = ""
+        escaped = False
+        for character in line:
+            if escaped:
+                output.append(character)
+                escaped = False
+                continue
+            if quote and character == "\\":
+                output.append(character)
+                escaped = True
+                continue
+            if quote:
+                output.append(character)
+                if character == quote:
+                    quote = ""
+                continue
+            if character in {'"', "'"}:
+                quote = character
+                output.append(character)
+            elif character == "#":
+                break
+            else:
+                output.append(character)
+        stripped.append("".join(output))
+    return "\n".join(stripped)
+
+
+def _bundler_git_pin(text: str, name: str) -> tuple[str, str, str, str]:
+    for match in re.finditer(r"(?ms)^GIT[ \t]*\n(?P<body>.*?)(?=^[A-Z][A-Z ]*[ \t]*$|\Z)", text):
+        body = match.group("body")
+        version_match = re.search(rf"(?m)^\s{{4}}{re.escape(name)} \(([^)]+)\)\s*$", body)
+        if version_match is None:
+            continue
+        remote_match = re.search(r"(?m)^\s{2}remote:\s*(\S+)\s*$", body)
+        revision_match = re.search(r"(?m)^\s{2}revision:\s*([0-9a-f]+)\s*$", body)
+        ref_match = re.search(r"(?m)^\s{2}ref:\s*(\S+)\s*$", body)
+        return (
+            remote_match.group(1) if remote_match else "",
+            revision_match.group(1) if revision_match else "",
+            ref_match.group(1) if ref_match else "",
+            version_match.group(1),
+        )
+    return "", "", "", ""
 
 
 def _factory_findings(factory: Path) -> list[dict[str, Any]]:
@@ -489,19 +585,48 @@ def _project_findings(project: Path) -> tuple[list[dict[str, Any]], dict[str, An
 
     selected_components.extend(["gem", "mcp"])
     gem_version = component("gem")["version"]
+    integration = consumer_integration()
     gemfile = (project / "Gemfile").read_text(encoding="utf-8", errors="ignore") if (project / "Gemfile").is_file() else ""
-    exact_gem = bool(re.search(rf"(?m)^\s*gem\s+['\"]unaltraweb['\"]\s*,\s*['\"](?:=\s*)?{re.escape(gem_version)}['\"]", gemfile))
+    gem_declaration = _ruby_without_comments(_gemfile_declaration(gemfile, "unaltraweb"))
+    exact_version = bool(re.search(rf"(?m)^\s*gem\s+['\"]unaltraweb['\"]\s*,\s*['\"](?:=\s*)?{re.escape(gem_version)}['\"]", gem_declaration))
+    gem_repository_matches = re.findall(r"\bgit:\s*['\"]([^'\"]+)['\"]", gem_declaration)
+    gem_ref_matches = re.findall(r"\bref:\s*['\"]([^'\"]+)['\"]", gem_declaration)
+    gem_repository = gem_repository_matches[0] if len(gem_repository_matches) == 1 else ""
+    gem_ref = gem_ref_matches[0] if len(gem_ref_matches) == 1 else ""
     lock_text = (project / "Gemfile.lock").read_text(encoding="utf-8", errors="ignore") if (project / "Gemfile.lock").is_file() else ""
-    lock_match = re.search(r"(?m)^\s{2}unaltraweb \(= ([^)]+)\)\s*$", lock_text)
+    lock_match = re.search(r"(?m)^\s{2}unaltraweb \(= ([^)]+)\)!?\s*$", lock_text)
     locked_gem = lock_match.group(1) if lock_match else ""
-    gem_ok = exact_gem and locked_gem == gem_version
+    lock_repository, lock_revision, lock_ref, lock_spec_version = _bundler_git_pin(lock_text, "unaltraweb")
+    gem_ok = (
+        exact_version
+        and gem_repository == integration["core_repository"]
+        and gem_ref == integration["core_sha"]
+        and locked_gem == gem_version
+        and lock_repository == integration["core_repository"]
+        and lock_revision == integration["core_sha"]
+        and lock_ref == integration["core_sha"]
+        and lock_spec_version == gem_version
+    )
     findings.append(
         _finding(
             "UW-DIST-PROJECT-GEM-PIN",
             "info" if gem_ok else "warning",
-            f"Gemfile and Gemfile.lock pin {gem_version}",
-            {"gemfile_exact": exact_gem, "lock_version": locked_gem or "missing"},
-            "No action required." if gem_ok else "Pin the gem to the selected release and refresh Gemfile.lock.",
+            {
+                "version": gem_version,
+                "repository": integration["core_repository"],
+                "revision": integration["core_sha"],
+            },
+            {
+                "version_exact": exact_version,
+                "repository": "ambiguous" if len(gem_repository_matches) > 1 else (gem_repository or "missing"),
+                "gemfile_revision": "ambiguous" if len(gem_ref_matches) > 1 else (gem_ref or "missing"),
+                "lock_version": locked_gem or "missing",
+                "lock_repository": lock_repository or "missing",
+                "lock_revision": lock_revision or "missing",
+                "lock_ref": lock_ref or "missing",
+                "lock_spec_version": lock_spec_version or "missing",
+            },
+            "No action required." if gem_ok else "Use scaffold_sync to restore the reviewed consumer integration tuple.",
             component_id="gem",
         )
     )
@@ -736,6 +861,7 @@ def distribution_doctor(
         "mode": factory_state["mode"],
         "limited": factory_state["mode"] == "wheel",
         "release": contract["release"],
+        "consumer_integration": contract["consumer_integration"],
         "receipt_contract": contract["receipt_contract"],
         "wheel_contract": contract["wheel_contract"],
         "components": contract["components"],

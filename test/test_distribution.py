@@ -18,6 +18,7 @@ from unaltraweb_mcp import __version__, cli, site_tools
 from unaltraweb_mcp.distribution import (
     component_contract_semantic_errors,
     component_reference,
+    consumer_integration,
     distribution_contract,
     distribution_doctor,
     is_mutable_reference,
@@ -37,6 +38,13 @@ class DistributionTests(unittest.TestCase):
 
         self.assertEqual(contract["schema_version"], 1)
         self.assertEqual(contract["release"]["version"], __version__)
+        self.assertEqual(contract["consumer_integration"], consumer_integration())
+        self.assertRegex(contract["consumer_integration"]["core_sha"], r"^[0-9a-f]{40}$")
+        self.assertRegex(contract["consumer_integration"]["vegavisuals_sha"], r"^[0-9a-f]{40}$")
+        self.assertRegex(
+            contract["consumer_integration"]["manual_pdf_image"],
+            r"^ghcr\.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:[0-9a-f]{64}$",
+        )
         self.assertEqual(
             set(contract["components"]),
             {"gem", "wheel", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf", "diavisuals", "vegavisuals"},
@@ -72,6 +80,7 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(result["pending_releases"], ["gem", "manual_pdf", "mcp", "runtime", "web_capture", "wheel"])
         self.assertEqual(result["unavailable_releases"], [])
         self.assertEqual(result["receipt_contract"]["input_inventory"], "exact")
+        self.assertEqual(result["consumer_integration"], consumer_integration())
         self.assertEqual(result["mode"], "wheel")
         self.assertIn("UW-DIST-WHEEL-MODE", {item["code"] for item in result["findings"]})
         self.assertIn("UW-DIST-RELEASE-PENDING", {item["code"] for item in result["findings"]})
@@ -152,6 +161,99 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("compute_r", result["selected_components"])
         self.assertEqual(result["docker"]["images"]["compute_python"], component_reference("compute_python"))
         self.assertEqual(result["docker"]["images"]["compute_r"], component_reference("compute_r"))
+
+    def test_project_doctor_associates_git_pins_with_unaltraweb(self) -> None:
+        integration = consumer_integration()
+        wrong_sha = "0" * 40
+        with tempfile.TemporaryDirectory() as raw_project:
+            project = Path(raw_project)
+            (project / "_config.yml").write_text(
+                "theme: unaltraweb\nunaltraweb:\n  site_profile: unaltredocs\n",
+                encoding="utf-8",
+            )
+            (project / "Gemfile").write_text(
+                "source \"https://rubygems.org\"\n\n"
+                "group :jekyll_plugins do\n"
+                f"  gem \"decoy\", \"= 1.0.0\",\n      git: \"{integration['core_repository']}\",\n      ref: \"{integration['core_sha']}\"\n"
+                f"  gem \"unaltraweb\", \"= 0.3.0\",\n      git: \"https://github.com/example/wrong.git\",\n      ref: \"{wrong_sha}\"\n"
+                "end\n",
+                encoding="utf-8",
+            )
+            (project / "Gemfile.lock").write_text(
+                "GIT\n"
+                f"  remote: {integration['core_repository']}\n  revision: {integration['core_sha']}\n  ref: {integration['core_sha']}\n"
+                "  specs:\n    decoy (1.0.0)\n\n"
+                "GIT\n"
+                f"  remote: https://github.com/example/wrong.git\n  revision: {wrong_sha}\n  ref: {wrong_sha}\n"
+                "  specs:\n    unaltraweb (0.3.0)\n\n"
+                "DEPENDENCIES\n  unaltraweb (= 0.3.0)!\n",
+                encoding="utf-8",
+            )
+            (project / "Makefile").write_text(f"MCP_IMAGE ?= {component_reference('mcp')}\n", encoding="utf-8")
+
+            result = distribution_doctor(project=project)
+
+        finding = next(item for item in result["findings"] if item["code"] == "UW-DIST-PROJECT-GEM-PIN")
+        self.assertEqual(finding["severity"], "warning")
+        self.assertEqual(finding["actual"]["repository"], "https://github.com/example/wrong.git")
+        self.assertEqual(finding["actual"]["lock_repository"], "https://github.com/example/wrong.git")
+
+    def test_project_doctor_accepts_an_exact_one_line_gem_declaration(self) -> None:
+        integration = consumer_integration()
+        with tempfile.TemporaryDirectory() as raw_project:
+            project = Path(raw_project)
+            site_tools.new_web(project, site_profile_value="unaltredocs")
+            (project / "Gemfile").write_text(
+                f'gem "unaltraweb", "= 0.3.0", git: "{integration["core_repository"]}", ref: "{integration["core_sha"]}"\n',
+                encoding="utf-8",
+            )
+
+            result = distribution_doctor(project=project)
+
+        finding = next(item for item in result["findings"] if item["code"] == "UW-DIST-PROJECT-GEM-PIN")
+        self.assertEqual(finding["severity"], "info", finding)
+
+    def test_project_doctor_rejects_a_mismatched_bundler_git_ref(self) -> None:
+        integration = consumer_integration()
+        with tempfile.TemporaryDirectory() as raw_project:
+            project = Path(raw_project)
+            site_tools.new_web(project, site_profile_value="unaltredocs")
+            lock_path = project / "Gemfile.lock"
+            lock_text = lock_path.read_text(encoding="utf-8")
+            lock_path.write_text(
+                lock_text.replace(f"  ref: {integration['core_sha']}", "  ref: main", 1),
+                encoding="utf-8",
+            )
+
+            result = distribution_doctor(project=project)
+
+        finding = next(item for item in result["findings"] if item["code"] == "UW-DIST-PROJECT-GEM-PIN")
+        self.assertEqual(finding["severity"], "warning")
+        self.assertEqual(finding["actual"]["lock_ref"], "main")
+
+    def test_project_doctor_ignores_spoofed_gemfile_pins_in_comments(self) -> None:
+        integration = consumer_integration()
+        wrong_sha = "0" * 40
+        with tempfile.TemporaryDirectory() as raw_project:
+            project = Path(raw_project)
+            site_tools.new_web(project, site_profile_value="unaltredocs")
+            (project / "Gemfile").write_text(
+                "source \"https://rubygems.org\"\n\n"
+                "group :jekyll_plugins do\n"
+                "  gem \"unaltraweb\", \"= 0.3.0\",\n"
+                f"      # git: \"{integration['core_repository']}\", ref: \"{integration['core_sha']}\"\n"
+                "      git: \"https://github.com/example/wrong.git\",\n"
+                f"      ref: \"{wrong_sha}\"\n"
+                "end\n",
+                encoding="utf-8",
+            )
+
+            result = distribution_doctor(project=project)
+
+        finding = next(item for item in result["findings"] if item["code"] == "UW-DIST-PROJECT-GEM-PIN")
+        self.assertEqual(finding["severity"], "warning")
+        self.assertEqual(finding["actual"]["repository"], "https://github.com/example/wrong.git")
+        self.assertEqual(finding["actual"]["gemfile_revision"], wrong_sha)
 
     def test_factory_doctor_enforces_companion_lifecycle_and_capabilities(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -257,6 +359,11 @@ class DistributionTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "not allowed"):
             validate_component_contract(extra, schema)
 
+        newline_pin = copy.deepcopy(contract)
+        newline_pin["consumer_integration"]["core_sha"] += "\n"
+        with self.assertRaisesRegex(RuntimeError, "at most 40 characters"):
+            validate_component_contract(newline_pin, schema)
+
         ready = copy.deepcopy(contract)
         ready["components"]["runtime"]["release_status"] = "ready"
         validate_component_contract(ready, schema)
@@ -309,6 +416,40 @@ class DistributionTests(unittest.TestCase):
             "runtime container must declare a valid image repository",
             component_contract_semantic_errors(malformed_repository),
         )
+
+        inconsistent_consumer = copy.deepcopy(contract)
+        inconsistent_consumer["consumer_integration"]["core_repository"] = "https://github.com/example/core.git"
+        self.assertIn(
+            "consumer integration core repository must match the gem provider",
+            component_contract_semantic_errors(inconsistent_consumer),
+        )
+
+        inconsistent_pdf = copy.deepcopy(contract)
+        inconsistent_pdf["components"]["manual_pdf"]["image_repository"] = "ghcr.io/dosquartsdedocs/other-pdf"
+        self.assertIn(
+            "consumer integration manual PDF image must match the manual PDF provider",
+            component_contract_semantic_errors(inconsistent_pdf),
+        )
+
+        invalid_workflow = copy.deepcopy(contract)
+        invalid_workflow["consumer_integration"]["site_deploy_workflow"] = "example/core/.github/workflows/site-deploy.yml"
+        self.assertIn(
+            "consumer integration deploy workflow must belong to the core provider",
+            component_contract_semantic_errors(invalid_workflow),
+        )
+
+        malformed_values = [
+            ("core_sha", "0" * 40, "consumer integration core SHA must be a nonzero full lowercase commit SHA"),
+            ("core_sha", contract["consumer_integration"]["core_sha"] + "\n", "consumer integration core SHA must be a nonzero full lowercase commit SHA"),
+            ("manual_pdf_image", contract["consumer_integration"]["manual_pdf_image"] + "\n", "consumer integration manual PDF image must match the manual PDF provider"),
+            ("vegavisuals_sha", "0" * 40, "consumer integration Vega revision must be a nonzero full lowercase commit SHA"),
+            ("vegavisuals_sha", contract["consumer_integration"]["vegavisuals_sha"] + "\n", "consumer integration Vega revision must be a nonzero full lowercase commit SHA"),
+        ]
+        for field, value, message in malformed_values:
+            with self.subTest(field=field, value=value):
+                malformed = copy.deepcopy(contract)
+                malformed["consumer_integration"][field] = value
+                self.assertIn(message, component_contract_semantic_errors(malformed))
 
     def test_release_pin_classifier_rejects_mutable_channels(self) -> None:
         self.assertTrue(is_mutable_reference("ghcr.io/example/worker:main"))

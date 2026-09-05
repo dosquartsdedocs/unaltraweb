@@ -5,14 +5,15 @@ This repository is the reusable `unaltraweb` core. Keep changes focused on funct
 ## Before Changing Code
 
 - Check `TODO.md` for current decisions and pending work.
-- Check `docs/distribution.md` to decide whether the change belongs in the core or in `../unaltraweb-template`.
+- Check `docs/_documentation/en/40-distribution.md` to decide whether the change belongs in the core or a consumer.
 - Build context before editing. This codebase still contains inherited `al-folio` pieces.
 
-## Core vs Template
+## Core vs Consumers
 
-- Put reusable layouts, includes, Sass, assets, plugins, scripts and docs in `unaltraweb`.
-- Put starter content, demo pages, local workflow glue and visual smoke tests in `unaltraweb-template`.
-- Validate profile behaviour through the template whenever the change affects gem consumers.
+- Put reusable layouts, includes, Sass, assets, plugins, scripts, docs, and package-managed scaffold controls in `unaltraweb`.
+- Keep site-specific content, configuration, bibliography, and generated figure bundles in the consumer repository.
+- Use `unaltraweb-template` only for the full multi-profile demo and its visual smoke tests.
+- Validate `new_web` and `scaffold_sync` whenever a change affects generated consumers; use the demo when profile rendering also changes.
 
 ## Verification
 
@@ -38,10 +39,14 @@ The template tests are resource-heavy. On constrained machines, run only the rel
 
 ## Pull Requests
 
+- Reserve one focused issue and the exact paths before editing. Use one dedicated worktree and one short-lived branch per agent; never share a mutable checkout.
+- Use `format/<issue>-<slug>` for reusable web/PDF presentation, `feat/<issue>-<slug>` for reusable behavior, and `fix/`, `docs/`, or `chore/` for their corresponding provider work.
+- Keep content, bibliography, figure specifications, and generated consumer artefacts in the consumer repository. Change reusable renderers in their provider repository, release them, and integrate the immutable revision separately.
 - Keep changes small and explain why they belong in the core.
 - Do not add runtime API calls to normal Jekyll builds.
 - Do not commit generated local caches such as `_site/`, `tmp/`, `.cache/`, `node_modules/` or responsive image outputs.
 - Do not add compatibility branches unless there is a concrete external consumer or persisted-data need.
+- Open a Draft pull request early and remove its worktree and task branch after merge or closure. `main` is the only long-lived human-maintained branch.
 
 ## Commits
 

@@ -1,5 +1,7 @@
 source "https://rubygems.org"
 
 group :jekyll_plugins do
-  gem "unaltraweb", "= __GEM_VERSION__"
+  gem "unaltraweb", "= __GEM_VERSION__",
+      git: "__CORE_REPOSITORY__",
+      ref: "__CORE_SHA__"
 end
