@@ -3,6 +3,7 @@ override PROJECT := $${MCP_CONSUMER_WORKSPACE:?MCP_CONSUMER_WORKSPACE is require
 override PROJECT_ROOT := $(PROJECT)
 MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0
+MCP_RELEASE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:f3ab5542e6ece56487d4b8238a5e7abd89f36a0b8d87bf7bab19645e3ced1e58
 MCP_DOCKER_BUILD_NETWORK ?= default
 INIT_SITE_PROFILE ?= unaltreselfie
 NEW_WEB_PROFILE ?= unaltreselfie
@@ -107,18 +108,22 @@ gem-check: ## Build the gem and verify its package-owned contract files
 reproducible-site-check: ## Build the same fixed-epoch Jekyll fixture twice and compare every output
 	@DOCKER_IMAGE="$(DOCKER_IMAGE)" $(PYTHON) scripts/test_reproducible_jekyll_build.py
 
-mcp-runtime-image: ## Build the reusable Jekyll runtime used by the MCP
+mcp-runtime-image mcp-image mcp-check mcp-smoke: MCP_RUNTIME_IMAGE = unaltraweb:dev
+mcp-runtime-image mcp-image mcp-check mcp-smoke: MCP_IMAGE = unaltraweb-mcp:dev
+
+mcp-runtime-image: ## Build the local development Jekyll runtime used by the MCP
 	docker build --network "$(MCP_DOCKER_BUILD_NETWORK)" -t "$(MCP_RUNTIME_IMAGE)" .
 
-mcp-image: mcp-runtime-image ## Build the Dockerized FastMCP control plane
+mcp-image: mcp-runtime-image ## Build the local development FastMCP control plane
 	docker build --network "$(MCP_DOCKER_BUILD_NETWORK)" --build-arg "UNALTRAWEB_RUNTIME_IMAGE=$(MCP_RUNTIME_IMAGE)" -t "$(MCP_IMAGE)" -f Dockerfile.mcp .
 
-mcp-build: mcp-image ## Prepare the Docker images used by MCP sessions, builds, and previews
+mcp-build: ## Prepare the reviewed release image used by MCP sessions, builds, and previews
+	@docker image inspect "$(MCP_RELEASE_IMAGE)" >/dev/null 2>&1 || docker pull "$(MCP_RELEASE_IMAGE)" >/dev/null
 
 mcp-check: mcp-image ## Verify the Dockerized MCP CLI contract
 	docker run --rm --entrypoint unaltraweb-mcp "$(MCP_IMAGE)" version
 
-mcp-smoke: mcp-build ## Build and prove a real MCP stdio connection
+mcp-smoke: mcp-image ## Build and prove a real MCP stdio connection
 	@$(MAKE) --silent --no-print-directory mcp-smoke-prebuilt MCP_IMAGE="$(MCP_IMAGE)"
 
 mcp-smoke-prebuilt: ## Prove a real MCP stdio connection using the selected prebuilt MCP image
@@ -137,7 +142,7 @@ mcp-smoke-prebuilt: ## Prove a real MCP stdio connection using the selected preb
 
 mcp-stdio: ## Serve MCP_CONSUMER_WORKSPACE through the Dockerized stdio MCP
 	@test -n "$${MCP_CONSUMER_WORKSPACE:-}" || { printf '%s\n' 'MCP_CONSUMER_WORKSPACE is required' >&2; exit 2; }
-	@exec "$(CURDIR)/scripts/unaltraweb-mcp-bootstrap.sh" --image "$(MCP_IMAGE)"
+	@exec "$(CURDIR)/scripts/unaltraweb-mcp-bootstrap.sh" --image "$(MCP_RELEASE_IMAGE)"
 
 mcp-down: ## Remove MCP resources owned by MCP_CONSUMER_WORKSPACE or MCP_PROJECT_ID
 	@exec "$(CURDIR)/scripts/unaltraweb-mcp-cleanup.sh"
