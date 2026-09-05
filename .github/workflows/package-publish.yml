@@ -1,0 +1,238 @@
+name: Publish language packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      publisher_sha:
+        description: Full reviewed main commit SHA that defines this publication workflow.
+        required: true
+        type: string
+      release_tag:
+        description: Exact coordinated release tag whose receipt authorizes the packages.
+        required: true
+        type: string
+      release_tag_object:
+        description: Full reviewed annotated-tag object SHA, preserved across partial retries.
+        required: true
+        type: string
+      receipt_sha256:
+        description: SHA-256 of release-candidates.json, preserved across partial retries.
+        required: true
+        type: string
+      package_run_id:
+        description: Successful Prepare package candidates workflow run ID.
+        required: true
+        type: string
+      publish_target:
+        description: Publish both packages, or retry only one package after a partial failure.
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - pypi
+          - rubygems
+
+permissions: {}
+
+concurrency:
+  group: package-publish-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Validate publication request
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PACKAGE_RUN_ID: ${{ inputs.package_run_id }}
+          PUBLISHER_SHA: ${{ inputs.publisher_sha }}
+          RECEIPT_SHA256: ${{ inputs.receipt_sha256 }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG_OBJECT: ${{ inputs.release_tag_object }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/${DEFAULT_BRANCH}" ]]; then
+            printf 'Publication workflow must run from refs/heads/%s, got %s\n' "$DEFAULT_BRANCH" "$GITHUB_REF" >&2
+            exit 1
+          fi
+          if [[ ! "$PUBLISHER_SHA" =~ ^[0-9a-f]{40}$ ]] || [[ "$PUBLISHER_SHA" != "$GITHUB_SHA" ]]; then
+            printf 'publisher_sha must equal the reviewed workflow commit %s\n' "$GITHUB_SHA" >&2
+            exit 1
+          fi
+          if [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            printf 'release_tag must be an exact vX.Y.Z tag\n' >&2
+            exit 1
+          fi
+          if [[ ! "$RELEASE_TAG_OBJECT" =~ ^[0-9a-f]{40}$ ]]; then
+            printf 'release_tag_object must be a full lowercase SHA\n' >&2
+            exit 1
+          fi
+          if [[ ! "$RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            printf 'receipt_sha256 must be a lowercase SHA-256\n' >&2
+            exit 1
+          fi
+          if [[ ! "$PACKAGE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            printf 'package_run_id must be a positive integer\n' >&2
+            exit 1
+          fi
+
+      - name: Checkout reviewed publisher
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: .package-publisher
+          persist-credentials: false
+
+      - name: Checkout exact release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ inputs.release_tag }}
+          path: release-source
+          persist-credentials: false
+
+      - name: Validate exact release checkout
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          RECEIPT_SHA256: ${{ inputs.receipt_sha256 }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG_OBJECT: ${{ inputs.release_tag_object }}
+        run: |
+          python3 .package-publisher/scripts/verify_package_publish.py release \
+            --repository-dir release-source \
+            --receipt release-source/release-candidates.json \
+            --release-tag "$RELEASE_TAG" \
+            --tag-object "$RELEASE_TAG_OBJECT" \
+            --receipt-sha256 "$RECEIPT_SHA256" \
+            --default-branch "$DEFAULT_BRANCH"
+
+      - name: Authorize package candidate run
+        id: authorize
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_RUN_ID: ${{ inputs.package_run_id }}
+          RECEIPT_SHA256: ${{ inputs.receipt_sha256 }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/runs/${PACKAGE_RUN_ID}" > "$RUNNER_TEMP/package-run.json"
+          gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/runs/${PACKAGE_RUN_ID}/artifacts?per_page=100" > "$RUNNER_TEMP/package-artifacts.json"
+          python3 .package-publisher/scripts/verify_package_publish.py authorize \
+            --receipt release-source/release-candidates.json \
+            --release-tag "$RELEASE_TAG" \
+            --receipt-sha256 "$RECEIPT_SHA256" \
+            --run-id "$PACKAGE_RUN_ID" \
+            --run-json "$RUNNER_TEMP/package-run.json" \
+            --artifacts-json "$RUNNER_TEMP/package-artifacts.json" \
+            --repository "$GITHUB_REPOSITORY" \
+            --default-branch "$DEFAULT_BRANCH" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Download recorded package artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ steps.authorize.outputs.artifact-id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.package_run_id }}
+          path: incoming
+          merge-multiple: true
+
+      - name: Verify and stage recorded package candidates
+        env:
+          RECEIPT_SHA256: ${{ inputs.receipt_sha256 }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          python3 .package-publisher/scripts/verify_package_publish.py stage \
+            --receipt release-source/release-candidates.json \
+            --release-tag "$RELEASE_TAG" \
+            --receipt-sha256 "$RECEIPT_SHA256" \
+            --candidate-dir incoming \
+            --output-dir verified
+
+      - name: Upload verified wheel
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verified-pypi-${{ inputs.release_tag }}-${{ github.run_id }}
+          path: verified/pypi/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 7
+
+      - name: Upload verified gem
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verified-rubygems-${{ inputs.release_tag }}-${{ github.run_id }}
+          path: verified/rubygems/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: false
+          retention-days: 7
+
+  publish-pypi:
+    if: ${{ inputs.publish_target == 'all' || inputs.publish_target == 'pypi' }}
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: pypi
+    permissions:
+      actions: read
+      id-token: write
+    steps:
+      - name: Download verified wheel
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: verified-pypi-${{ inputs.release_tag }}-${{ github.run_id }}
+          path: dist
+
+      - name: Publish exact wheel to PyPI
+        uses: docker://ghcr.io/pypa/gh-action-pypi-publish@sha256:a68d05519f6d7e47372aeaddab80b851b69afa89be179ec41775c72c4e3ab2d5 # v1.14.2
+        env:
+          INPUT_USER: __token__
+          INPUT_PASSWORD: ""
+          INPUT_REPOSITORY_URL: https://upload.pypi.org/legacy/
+          INPUT_PACKAGES_DIR: dist
+          INPUT_VERIFY_METADATA: "true"
+          INPUT_SKIP_EXISTING: "false"
+          INPUT_VERBOSE: "true"
+          INPUT_PRINT_HASH: "true"
+          INPUT_ATTESTATIONS: "true"
+
+  publish-rubygems:
+    if: ${{ inputs.publish_target == 'all' || inputs.publish_target == 'rubygems' }}
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: rubygems
+    permissions:
+      actions: read
+      id-token: write
+    steps:
+      - name: Download verified gem
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: verified-rubygems-${{ inputs.release_tag }}-${{ github.run_id }}
+          path: gem-dist
+
+      - name: Configure short-lived RubyGems credentials
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+
+      - name: Publish exact gem to RubyGems
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          candidates=(gem-dist/*.gem)
+          if [[ "${#candidates[@]}" -ne 1 ]]; then
+            printf 'Expected exactly one verified gem, found %s\n' "${#candidates[@]}" >&2
+            exit 1
+          fi
+          gem push --host https://rubygems.org "${candidates[0]}"

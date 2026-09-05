@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from scripts import validate_distribution as distribution_validator
 from unaltraweb_mcp import __version__, cli, site_tools
 from unaltraweb_mcp.distribution import (
     component_contract_semantic_errors,
@@ -506,29 +507,6 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(result["pending_releases"], expected_pending)
         self.assertEqual(result["unavailable_releases"], expected_unavailable)
 
-        release_environment = os.environ.copy()
-        release_environment["GITHUB_DEFAULT_BRANCH"] = "main"
-        release = subprocess.run(
-            [sys.executable, str(root / "scripts/validate_distribution.py"), "--require-release-ready"],
-            cwd=root,
-            env=release_environment,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
-        release_result = json.loads(release.stdout)
-        if expected_pending or expected_unavailable:
-            self.assertEqual(release.returncode, 2, release.stderr or release.stdout)
-            self.assertFalse(release_result["release_ready"])
-        elif (root / "release-candidates.json").exists():
-            self.assertEqual(release.returncode, 0, release.stderr or release.stdout)
-            self.assertTrue(release_result["release_ready"])
-        else:
-            self.assertEqual(release.returncode, 2, release.stderr or release.stdout)
-            self.assertFalse(release_result["release_ready"])
-            self.assertIn("missing release candidate receipt: release-candidates.json", release_result["errors"])
-
     def test_publish_ref_must_match_the_distribution_release(self) -> None:
         contract = distribution_contract()
         pending = copy.deepcopy(contract)
@@ -596,51 +574,96 @@ class DistributionTests(unittest.TestCase):
             component_ids=["runtime", "mcp"],
         ), [])
 
-    def test_release_tag_validation_uses_readiness_exit_status(self) -> None:
-        root = Path(__file__).resolve().parents[1]
-        contract = distribution_contract()
-        expected_status_errors = release_tag_status_errors(
-            contract,
-            ref_type="tag",
-            ref_name="v0.3.0",
-        )
-        environment = os.environ.copy()
-        environment.update({
-            "GITHUB_REF_TYPE": "tag",
-            "GITHUB_REF_NAME": "v0.3.0",
-            "GITHUB_DEFAULT_BRANCH": "main",
-        })
+    def test_release_readiness_tracks_the_immutable_metadata_commit(self) -> None:
+        contract = copy.deepcopy(distribution_contract())
+        for component_id, component in contract["components"].items():
+            component["release_status"] = "ready" if component_id in {"runtime", "mcp"} else "released"
+        digest = "a" * 64
+        receipt = {
+            "schema_version": 1,
+            "release": contract["release"]["tag"],
+            "source_commit": "",
+            "components": {
+                component_id: {
+                    "reference": f"{contract['components'][component_id]['image_repository']}@sha256:{digest}"
+                }
+                for component_id in ["runtime", "mcp"]
+            },
+        }
 
-        completed = subprocess.run(
-            [
-                sys.executable,
-                str(root / "scripts/validate_distribution.py"),
-                "--require-release-ready",
-                "--validate-publish-ref",
-                "--components",
-                "runtime,mcp",
-            ],
-            cwd=root,
-            env=environment,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=False,
-        )
+        with tempfile.TemporaryDirectory() as raw:
+            repository = Path(raw)
 
-        result = json.loads(completed.stdout)
-        if expected_status_errors:
-            self.assertEqual(completed.returncode, 2, completed.stderr or completed.stdout)
-            self.assertFalse(result["ok"])
-            for error in expected_status_errors:
-                self.assertIn(error, result["errors"])
-        elif (root / "release-candidates.json").exists():
-            self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
-            self.assertTrue(result["ok"])
-        else:
-            self.assertEqual(completed.returncode, 2, completed.stderr or completed.stdout)
-            self.assertFalse(result["ok"])
-            self.assertIn("missing release candidate receipt: release-candidates.json", result["errors"])
+            def git(*arguments: str) -> str:
+                completed = subprocess.run(
+                    ["git", *arguments],
+                    cwd=repository,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=True,
+                )
+                return completed.stdout.strip()
+
+            git("init", "--initial-branch=main")
+            git("config", "user.name", "Release Test")
+            git("config", "user.email", "release@example.invalid")
+            git("config", "commit.gpgsign", "false")
+            git("config", "core.hooksPath", "/dev/null")
+            (repository / "source.txt").write_text("release source\n", encoding="utf-8")
+            git("add", "source.txt")
+            git("commit", "-m", "Prepare release source")
+            receipt["source_commit"] = git("rev-parse", "HEAD")
+            (repository / "release-candidates.json").write_text(json.dumps(receipt), encoding="utf-8")
+            git("add", "release-candidates.json")
+            git("commit", "-m", "Record release candidates")
+            git("update-ref", "refs/remotes/origin/main", "HEAD")
+
+            environment = {
+                "GITHUB_REF_TYPE": "tag",
+                "GITHUB_REF_NAME": contract["release"]["tag"],
+                "GITHUB_DEFAULT_BRANCH": "main",
+            }
+            argument_sets = [
+                ["--require-release-ready"],
+                [
+                    "--validate-publish-ref",
+                    "--components",
+                    "runtime,mcp",
+                ],
+            ]
+
+            def run_validator(arguments: list[str]) -> tuple[int, dict]:
+                output = io.StringIO()
+                with patch.object(distribution_validator, "ROOT", repository), patch.object(
+                    distribution_validator, "validate", return_value=[]
+                ), patch.object(
+                    distribution_validator, "distribution_contract", return_value=contract
+                ), patch.dict(os.environ, environment), redirect_stdout(output):
+                    returncode = distribution_validator.main(arguments)
+                return returncode, json.loads(output.getvalue())
+
+            for arguments in argument_sets:
+                with self.subTest(state="metadata", arguments=arguments):
+                    returncode, result = run_validator(arguments)
+                    self.assertEqual(returncode, 0, result)
+                    self.assertTrue(result["ok"])
+                    self.assertTrue(result["release_ready"])
+
+            (repository / "README.md").write_text("post-release maintenance\n", encoding="utf-8")
+            git("add", "README.md")
+            git("commit", "-m", "Continue development")
+            expected_errors = [
+                "release candidate receipt source_commit must be the parent of the release metadata commit",
+                "release metadata commit may change only release-candidates.json",
+            ]
+            for arguments in argument_sets:
+                with self.subTest(state="post-release", arguments=arguments):
+                    returncode, result = run_validator(arguments)
+                    self.assertEqual(returncode, 2, result)
+                    self.assertFalse(result["ok"])
+                    self.assertFalse(result["release_ready"])
+                    self.assertEqual(result["errors"], expected_errors)
 
     def test_release_candidate_receipt_binds_ready_components_to_parent_commit(self) -> None:
         contract = distribution_contract()

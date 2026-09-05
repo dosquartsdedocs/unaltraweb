@@ -76,6 +76,19 @@ class WorkflowTests(unittest.TestCase):
             with patch("scripts.validate_workflows.ROOT", root):
                 return validate_workflows(workflows)
 
+    def package_publish_mutation_errors(self, replacements: list[tuple[str, str]]) -> list[str]:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workflows = self.copied_repository(root)
+            publisher = workflows / "package-publish.yml"
+            text = publisher.read_text(encoding="utf-8")
+            for old, new in replacements:
+                self.assertIn(old, text)
+                text = text.replace(old, new, 1)
+            publisher.write_text(text, encoding="utf-8")
+            with patch("scripts.validate_workflows.ROOT", root):
+                return validate_workflows(workflows)
+
     def test_scaffold_publication_policy_rejects_mutable_pin_and_missing_pdf_flags(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -177,6 +190,72 @@ class WorkflowTests(unittest.TestCase):
                 errors = validate_workflows(workflows)
 
         self.assertTrue(any("checkout must fetch history for reviewed core SHA validation" in error for error in errors), errors)
+
+    def test_package_publish_policy_rejects_oidc_in_the_verification_job(self) -> None:
+        errors = self.package_publish_mutation_errors(
+            [("      contents: read\n    steps:\n", "      contents: read\n      id-token: write\n    steps:\n")]
+        )
+
+        self.assertTrue(any("verification job must have only actions/content read access" in error for error in errors), errors)
+        self.assertTrue(any("verification job contains publication authority id-token" in error for error in errors), errors)
+
+    def test_package_publish_policy_rejects_extra_privileged_steps_or_permissions(self) -> None:
+        errors = self.package_publish_mutation_errors(
+            [
+                (
+                    "    permissions:\n      actions: read\n      id-token: write\n    steps:\n      - name: Download verified wheel\n",
+                    "    permissions:\n      actions: read\n      contents: write\n      id-token: write\n    steps:\n"
+                    "      - name: Checkout mutable source\n"
+                    "        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262\n"
+                    "        with:\n"
+                    "          persist-credentials: false\n"
+                    "      - name: Download verified wheel\n",
+                )
+            ]
+        )
+
+        self.assertTrue(any("publish-pypi: privileged registry job differs from exact policy" in error for error in errors), errors)
+
+    def test_package_publish_policy_requires_exact_run_and_staging_gates(self) -> None:
+        errors = self.package_publish_mutation_errors(
+            [
+                ("/actions/runs/${PACKAGE_RUN_ID}/artifacts?per_page=100", "/actions/artifacts"),
+                ("  --candidate-dir incoming \\\n", "  --candidate-dir unverified \\\n"),
+            ]
+        )
+
+        self.assertTrue(any("missing unprivileged package verification gate" in error for error in errors), errors)
+        self.assertTrue(any("candidate staging command differs from policy" in error for error in errors), errors)
+
+    def test_package_publish_policy_rejects_verification_bypasses_and_release_execution(self) -> None:
+        mutations = [
+            (
+                "      - name: Validate exact release checkout\n        env:\n",
+                "      - name: Validate exact release checkout\n        continue-on-error: true\n        env:\n",
+            ),
+            (
+                "            --github-output \"$GITHUB_OUTPUT\"\n",
+                "            --github-output \"$GITHUB_OUTPUT\"\n"
+                "          bash release-source/evil.sh\n",
+            ),
+        ]
+        for old, new in mutations:
+            with self.subTest(old=old):
+                errors = self.package_publish_mutation_errors([(old, new)])
+                self.assertTrue(any("verification job differs from the exact reviewed structure" in error for error in errors), errors)
+
+    def test_package_publish_policy_requires_reviewed_registry_image_digest(self) -> None:
+        errors = self.package_publish_mutation_errors(
+            [
+                (
+                    "docker://ghcr.io/pypa/gh-action-pypi-publish@sha256:a68d05519f6d7e47372aeaddab80b851b69afa89be179ec41775c72c4e3ab2d5",
+                    "docker://ghcr.io/pypa/gh-action-pypi-publish:v1.14.2",
+                )
+            ]
+        )
+
+        self.assertTrue(any("container action must use an immutable digest" in error for error in errors), errors)
+        self.assertTrue(any("publish-pypi: privileged registry job differs from exact policy" in error for error in errors), errors)
 
     def test_core_docker_policy_rejects_rebuild_after_exact_image_tests(self) -> None:
         errors = self.docker_mutation_errors(
@@ -591,6 +670,27 @@ class WorkflowTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(publisher.returncode, 0, publisher.stderr)
+
+    def test_package_publish_shell_steps_have_valid_bash_syntax(self) -> None:
+        workflow = load_workflow(ROOT / ".github/workflows/package-publish.yml")
+        for job_name, job in workflow["jobs"].items():
+            for step in job.get("steps", []):
+                script = step.get("run") if isinstance(step, dict) else None
+                if not isinstance(script, str):
+                    continue
+                completed = subprocess.run(
+                    ["bash", "-n"],
+                    input=script,
+                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=False,
+                )
+                self.assertEqual(
+                    completed.returncode,
+                    0,
+                    f"{job_name}/{step.get('name')}: {completed.stderr}",
+                )
 
 
 if __name__ == "__main__":

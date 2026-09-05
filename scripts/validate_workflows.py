@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -43,7 +44,14 @@ REVIEWED_ACTIONS = {
     "docker/metadata-action": "c299e40c65443455700f0fdfc63efafe5b349051",
     "docker/setup-buildx-action": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f",
     "ruby/setup-ruby": "95ef2b042f9d7a56d8268cba8559e2842e2ad01b",
+    "rubygems/configure-rubygems-credentials": "dc5a8d8553e6ee01fc26761a49e99e733d17954a",
 }
+PYPI_PUBLISH_IMAGE = (
+    "docker://ghcr.io/pypa/gh-action-pypi-publish"
+    "@sha256:a68d05519f6d7e47372aeaddab80b851b69afa89be179ec41775c72c4e3ab2d5"
+)
+# Canonical JSON digest of the complete unprivileged verification job.
+PACKAGE_PUBLISH_VERIFY_POLICY_SHA256 = "e8d99c35040770a2b00d3c62497da637739e794310b253d1893078d048d51c48"
 IMAGE_WORKFLOWS = {
     "compute-images.yml",
     "docker-image.yml",
@@ -51,7 +59,13 @@ IMAGE_WORKFLOWS = {
     "web-capture-image.yml",
 }
 PROMOTED_CORE_IMAGE_WORKFLOWS = {"compute-images.yml", "docker-image.yml", "web-capture-image.yml"}
-FULLY_PINNED_WORKFLOWS = IMAGE_WORKFLOWS | {"ci.yml", "package-prepare.yml", "site-deploy.yml", "site-release.yml"}
+FULLY_PINNED_WORKFLOWS = IMAGE_WORKFLOWS | {
+    "ci.yml",
+    "package-prepare.yml",
+    "package-publish.yml",
+    "site-deploy.yml",
+    "site-release.yml",
+}
 
 
 class WorkflowLoader(yaml.SafeLoader):
@@ -221,6 +235,12 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             uses = step.get("uses")
             if not isinstance(uses, str) or uses.startswith("./"):
                 continue
+            if uses.startswith("docker://"):
+                if name in FULLY_PINNED_WORKFLOWS and re.fullmatch(
+                    r"docker://[^@]+@sha256:[0-9a-f]{64}", uses
+                ) is None:
+                    errors.append(f"{name}:{job_name}: container action must use an immutable digest: {uses}")
+                continue
             action, separator, revision = uses.rpartition("@")
             if not separator:
                 errors.append(f"{name}:{job_name}: action has no revision: {uses}")
@@ -228,8 +248,9 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             reviewed = REVIEWED_ACTIONS.get(action)
             if reviewed and revision != reviewed:
                 errors.append(f"{name}:{job_name}: {action} must use reviewed SHA {reviewed}")
-            if name in FULLY_PINNED_WORKFLOWS and not FULL_SHA.fullmatch(revision):
-                errors.append(f"{name}:{job_name}: action must use a full commit SHA: {uses}")
+            if name in FULLY_PINNED_WORKFLOWS:
+                if not FULL_SHA.fullmatch(revision):
+                    errors.append(f"{name}:{job_name}: action must use a full commit SHA: {uses}")
             if action == "actions/checkout" and step.get("with", {}).get("persist-credentials") is not False:
                 errors.append(f"{name}:{job_name}: checkout must set persist-credentials: false")
 
@@ -1040,6 +1061,244 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         errors.append("package-prepare.yml: artifact must be SHA-named and immutable")
     if package.get("permissions", {}).get("contents") != "read" or len(package.get("permissions", {})) != 1:
         errors.append("package-prepare.yml: candidate preparation must have read-only repository permissions")
+
+    package_publish = workflows.get("package-publish.yml")
+    if package_publish is None:
+        errors.append("missing trusted language-package publication workflow: package-publish.yml")
+    else:
+        if set(package_publish) != {"name", "on", "permissions", "concurrency", "jobs"}:
+            errors.append("package-publish.yml: workflow contains authority outside the reviewed structure")
+        publish_on = package_publish.get("on", {})
+        if set(publish_on) != {"workflow_dispatch"}:
+            errors.append("package-publish.yml: package publication must be workflow_dispatch-only")
+        publish_inputs = publish_on.get("workflow_dispatch", {}).get("inputs", {})
+        expected_publish_inputs = {
+            "publisher_sha": {"required": True, "type": "string"},
+            "release_tag": {"required": True, "type": "string"},
+            "release_tag_object": {"required": True, "type": "string"},
+            "receipt_sha256": {"required": True, "type": "string"},
+            "package_run_id": {"required": True, "type": "string"},
+            "publish_target": {
+                "required": True,
+                "type": "choice",
+                "default": "all",
+                "options": ["all", "pypi", "rubygems"],
+            },
+        }
+        if not isinstance(publish_inputs, dict) or set(publish_inputs) != set(expected_publish_inputs):
+            errors.append("package-publish.yml: dispatch input inventory differs from policy")
+        else:
+            for input_name, expected in expected_publish_inputs.items():
+                actual = publish_inputs.get(input_name, {})
+                if any(actual.get(key) != value for key, value in expected.items()):
+                    errors.append(f"package-publish.yml: {input_name} input differs from policy")
+        if package_publish.get("permissions") != {}:
+            errors.append("package-publish.yml: workflow must grant no default permissions")
+        if package_publish.get("concurrency") != {
+            "group": "package-publish-${{ inputs.release_tag }}",
+            "cancel-in-progress": False,
+        }:
+            errors.append("package-publish.yml: publication must use release-scoped non-cancelling concurrency")
+
+        publish_jobs = package_publish.get("jobs", {})
+        if set(publish_jobs) != {"verify", "publish-pypi", "publish-rubygems"}:
+            errors.append("package-publish.yml: workflow must contain only verify and two registry jobs")
+        verify_job = publish_jobs.get("verify", {})
+        verify_policy_sha256 = hashlib.sha256(
+            json.dumps(verify_job, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        if verify_policy_sha256 != PACKAGE_PUBLISH_VERIFY_POLICY_SHA256:
+            errors.append("package-publish.yml: verification job differs from the exact reviewed structure")
+        if set(verify_job) != {"runs-on", "timeout-minutes", "permissions", "steps"}:
+            errors.append("package-publish.yml: verification job structure differs from policy")
+        if verify_job.get("runs-on") != "ubuntu-24.04" or verify_job.get("timeout-minutes") != 15:
+            errors.append("package-publish.yml: verification job must use the reviewed hosted runner boundary")
+        if verify_job.get("permissions") != {"actions": "read", "contents": "read"}:
+            errors.append("package-publish.yml: verification job must have only actions/content read access")
+        verify_steps = verify_job.get("steps", [])
+        verify_names = [str(step.get("name") or "") for step in verify_steps if isinstance(step, dict)]
+        expected_verify_names = [
+            "Validate publication request",
+            "Checkout reviewed publisher",
+            "Checkout exact release tag",
+            "Validate exact release checkout",
+            "Authorize package candidate run",
+            "Download recorded package artifact",
+            "Verify and stage recorded package candidates",
+            "Upload verified wheel",
+            "Upload verified gem",
+        ]
+        if verify_names != expected_verify_names:
+            errors.append("package-publish.yml: verification step inventory or order differs from policy")
+        verify_text = json.dumps(verify_job)
+        for marker in [
+            "refs/heads/${DEFAULT_BRANCH}",
+            "PUBLISHER_SHA",
+            "GITHUB_SHA",
+            "RELEASE_TAG_OBJECT",
+            "RECEIPT_SHA256",
+            "verify_package_publish.py release",
+            "--receipt-sha256",
+            "/actions/runs/${PACKAGE_RUN_ID}",
+            "/actions/runs/${PACKAGE_RUN_ID}/artifacts?per_page=100",
+            "release-candidates.json",
+            "verify_package_publish.py authorize",
+            "verify_package_publish.py stage",
+            "artifact-ids",
+            "overwrite",
+        ]:
+            if marker not in verify_text:
+                errors.append(f"package-publish.yml: missing unprivileged package verification gate {marker}")
+        for forbidden in ["id-token", "gem push", "twine upload", "gh-action-pypi-publish", "configure-rubygems-credentials"]:
+            if forbidden in verify_text:
+                errors.append(f"package-publish.yml: verification job contains publication authority {forbidden}")
+        verify_run_text = _run_text(verify_job)
+        for forbidden in ["pip install", "make -C release-source", "make --no-print-directory -C release-source", "release-source/scripts/"]:
+            if forbidden in verify_run_text:
+                errors.append(f"package-publish.yml: verification job must not execute release source: {forbidden}")
+
+        publisher_checkout = _named_step(verify_job, "Checkout reviewed publisher")
+        release_checkout = _named_step(verify_job, "Checkout exact release tag")
+        if publisher_checkout.get("with") != {
+            "ref": "${{ github.sha }}",
+            "path": ".package-publisher",
+            "persist-credentials": False,
+        }:
+            errors.append("package-publish.yml: publisher checkout must use the reviewed workflow SHA")
+        if release_checkout.get("with") != {
+            "fetch-depth": 0,
+            "ref": "refs/tags/${{ inputs.release_tag }}",
+            "path": "release-source",
+            "persist-credentials": False,
+        }:
+            errors.append("package-publish.yml: release checkout must use the exact tag with full history")
+        expected_release_validation = (
+            "python3 .package-publisher/scripts/verify_package_publish.py release \\\n"
+            "  --repository-dir release-source \\\n"
+            "  --receipt release-source/release-candidates.json \\\n"
+            "  --release-tag \"$RELEASE_TAG\" \\\n"
+            "  --tag-object \"$RELEASE_TAG_OBJECT\" \\\n"
+            "  --receipt-sha256 \"$RECEIPT_SHA256\" \\\n"
+            "  --default-branch \"$DEFAULT_BRANCH\""
+        )
+        if str(_named_step(verify_job, "Validate exact release checkout").get("run") or "").strip() != expected_release_validation:
+            errors.append("package-publish.yml: release validation must use only the reviewed publisher verifier")
+        download_candidate = _named_step(verify_job, "Download recorded package artifact")
+        if download_candidate.get("with") != {
+            "artifact-ids": "${{ steps.authorize.outputs.artifact-id }}",
+            "github-token": "${{ github.token }}",
+            "repository": "${{ github.repository }}",
+            "run-id": "${{ inputs.package_run_id }}",
+            "path": "incoming",
+            "merge-multiple": True,
+        }:
+            errors.append("package-publish.yml: candidate download must use the authorized artifact ID and run")
+        expected_stage = (
+            "python3 .package-publisher/scripts/verify_package_publish.py stage \\\n"
+            "  --receipt release-source/release-candidates.json \\\n"
+            "  --release-tag \"$RELEASE_TAG\" \\\n"
+            "  --receipt-sha256 \"$RECEIPT_SHA256\" \\\n"
+            "  --candidate-dir incoming \\\n"
+            "  --output-dir verified"
+        )
+        if str(_named_step(verify_job, "Verify and stage recorded package candidates").get("run") or "").strip() != expected_stage:
+            errors.append("package-publish.yml: candidate staging command differs from policy")
+        expected_verified_uploads = {
+            "Upload verified wheel": {
+                "name": "verified-pypi-${{ inputs.release_tag }}-${{ github.run_id }}",
+                "path": "verified/pypi/",
+                "if-no-files-found": "error",
+                "compression-level": 0,
+                "overwrite": False,
+                "retention-days": 7,
+            },
+            "Upload verified gem": {
+                "name": "verified-rubygems-${{ inputs.release_tag }}-${{ github.run_id }}",
+                "path": "verified/rubygems/",
+                "if-no-files-found": "error",
+                "compression-level": 0,
+                "overwrite": False,
+                "retention-days": 7,
+            },
+        }
+        for step_name, expected_with in expected_verified_uploads.items():
+            if _named_step(verify_job, step_name).get("with") != expected_with:
+                errors.append(f"package-publish.yml: {step_name} must preserve the verified same-run artifact")
+
+        expected_registry_jobs = {
+            "publish-pypi": {
+                "needs": "verify",
+                "if": "${{ inputs.publish_target == 'all' || inputs.publish_target == 'pypi' }}",
+                "runs-on": "ubuntu-24.04",
+                "timeout-minutes": 10,
+                "environment": "pypi",
+                "permissions": {"actions": "read", "id-token": "write"},
+                "steps": [
+                    {
+                        "name": "Download verified wheel",
+                        "uses": "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+                        "with": {
+                            "name": "verified-pypi-${{ inputs.release_tag }}-${{ github.run_id }}",
+                            "path": "dist",
+                        },
+                    },
+                    {
+                        "name": "Publish exact wheel to PyPI",
+                        "uses": PYPI_PUBLISH_IMAGE,
+                        "env": {
+                            "INPUT_USER": "__token__",
+                            "INPUT_PASSWORD": "",
+                            "INPUT_REPOSITORY_URL": "https://upload.pypi.org/legacy/",
+                            "INPUT_PACKAGES_DIR": "dist",
+                            "INPUT_VERIFY_METADATA": "true",
+                            "INPUT_SKIP_EXISTING": "false",
+                            "INPUT_VERBOSE": "true",
+                            "INPUT_PRINT_HASH": "true",
+                            "INPUT_ATTESTATIONS": "true",
+                        },
+                    },
+                ],
+            },
+            "publish-rubygems": {
+                "needs": "verify",
+                "if": "${{ inputs.publish_target == 'all' || inputs.publish_target == 'rubygems' }}",
+                "runs-on": "ubuntu-24.04",
+                "timeout-minutes": 10,
+                "environment": "rubygems",
+                "permissions": {"actions": "read", "id-token": "write"},
+                "steps": [
+                    {
+                        "name": "Download verified gem",
+                        "uses": "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+                        "with": {
+                            "name": "verified-rubygems-${{ inputs.release_tag }}-${{ github.run_id }}",
+                            "path": "gem-dist",
+                        },
+                    },
+                    {
+                        "name": "Configure short-lived RubyGems credentials",
+                        "uses": "rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a",
+                    },
+                    {
+                        "name": "Publish exact gem to RubyGems",
+                        "shell": "bash",
+                        "run": (
+                            "set -euo pipefail\n"
+                            "shopt -s nullglob\n"
+                            "candidates=(gem-dist/*.gem)\n"
+                            "if [[ \"${#candidates[@]}\" -ne 1 ]]; then\n"
+                            "  printf 'Expected exactly one verified gem, found %s\\n' \"${#candidates[@]}\" >&2\n"
+                            "  exit 1\n"
+                            "fi\n"
+                            "gem push --host https://rubygems.org \"${candidates[0]}\"\n"
+                        ),
+                    },
+                ],
+            },
+        }
+        for job_name, expected_job in expected_registry_jobs.items():
+            if publish_jobs.get(job_name) != expected_job:
+                errors.append(f"package-publish.yml:{job_name}: privileged registry job differs from exact policy")
 
     deploy = workflows.get("site-deploy.yml")
     if deploy is None:
