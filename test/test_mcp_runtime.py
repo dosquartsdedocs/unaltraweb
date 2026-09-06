@@ -1135,6 +1135,11 @@ class McpRuntimeTests(unittest.TestCase):
         release_prefix = "ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:"
         release_digest = release_image.removeprefix(release_prefix)
 
+        self.assertEqual(
+            release_image,
+            "ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:"
+            "f3ab5542e6ece56487d4b8238a5e7abd89f36a0b8d87bf7bab19645e3ced1e58",
+        )
         self.assertTrue(release_image.startswith(release_prefix))
         self.assertEqual(len(release_digest), 64)
         self.assertTrue(all(character in "0123456789abcdef" for character in release_digest))
