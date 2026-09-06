@@ -31,6 +31,10 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 - Metrics update scripts may fetch data manually, locally or through an explicit workflow, but normal builds must use local files only.
 - Keep reusable functionality in `unaltraweb`; keep `unaltraweb-template` thin.
 - Use Docker-first commands for child sites so users can run `make serve`, `make build`, `make test` and `make down` without remembering Docker details. The package-owned common scaffold now provides this contract through the MCP image.
+- Treat `ghcr.io/dosquartsdedocs/unaltraweb-mcp` as the canonical normal local delivery. It contains the reviewed core at `/opt/unaltraweb`; generated Make targets do not need to download PyPI or RubyGems packages at runtime.
+- ContExt `mcp-build` prepares the digest-pinned `MCP_RELEASE_IMAGE`; `mcp-image`, `mcp-check` and `mcp-smoke` use local `:dev` names for checkout testing. Advance the release pin only in a post-release change after the new receipt exists, never in candidate source.
+- Keep the Ruby gem and Python wheel as independently tested native interoperability channels. Their registry publication is optional for Docker users, while their package boundaries remain useful inside the image and for non-Docker integrations.
+- Keep browser capture, PDF and computation toolchains in separate worker images rather than growing one privileged all-tools image.
 - Do not add backward-compatibility branches unless there is a concrete persisted-data, shipped-behaviour or external-consumer need.
 - Preserve small, minimal changes where possible. Avoid broad abstractions before there is a clear second consumer.
 - Move away from `al-folio` identity and demo defaults over time, while keeping useful inherited code until it is replaced.
@@ -92,20 +96,16 @@ Important current template behaviour:
 
 ## Next Work
 
-### 0.3.0 Publication Completion
+### 0.3.0 Release Complete
 
-The immutable `v0.3.0` receipt tag and all four GHCR semver aliases are public. The exact gem and wheel from successful package run `33972877312` remain unpublished; preserve that workflow artifact and the local copies until both registries and the final GitHub Release have been verified.
+The coordinated `v0.3.0` release is complete and immutable. Its GHCR images, Ruby gem, Python wheel and GitHub Release are public; anonymous downloads match the receipt, and both native installs plus a clean no-sibling consumer build were verified.
 
-Remaining handoff:
+- Release: `https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.3.0`.
+- Trusted Publishing run: `33990184726`.
+- Gem SHA-256: `704683c332938cc2261b6f5d48507c016d7e38e35045584e1c0970dd7878cc11`.
+- Wheel SHA-256: `70051ff312d649c0b17bcb93a5a2df9331caa2959b7dcb814cedc98c94b77dd3`.
 
-1. Merge the reviewed Trusted Publishing workflow without moving `v0.3.0` or rebuilding its candidates.
-2. Create GitHub environments `pypi` and `rubygems`, restrict them to the default branch, and add required reviewers when the maintainer topology permits independent approval.
-3. Register pending Trusted Publishers for PyPI project `unaltraweb-mcp` and RubyGem `unaltraweb`, both bound to `dosquartsdedocs/unaltraweb`, workflow `package-publish.yml`, and their matching environment.
-4. Dispatch `Publish language packages` from `main` with the reviewed publisher commit SHA, release tag `v0.3.0`, tag object `59beb4ba16dfbd3a73bfa33e7d2fadbc529ca0b1`, receipt SHA-256 `042b3b8644c7c8b6b6a99e5682b11002704f2ad0aa4005563ecc19f5dbfb4ab4`, package run ID `33972877312`, and target `all`. The workflow must stage the recorded `704683c332938cc2261b6f5d48507c016d7e38e35045584e1c0970dd7878cc11` gem and `70051ff312d649c0b17bcb93a5a2df9331caa2959b7dcb814cedc98c94b77dd3` wheel without rebuilding either file. Reuse the same tag object, receipt hash, and package run ID for a one-registry retry.
-5. Verify anonymous `gem install unaltraweb -v 0.3.0` and `pip install unaltraweb-mcp==0.3.0`, then create the GitHub Release last with the preserved gem, wheel, and `SHA256SUMS`.
-6. Repeat the clean no-sibling-core consumer test against registry-resolved packages, then remove superseded worktrees, branches, and temporary artefacts.
-
-The local suite cannot exercise the final OIDC registry mutation. Do not mix `tigit` editorial history or its separate cover defect into the core release.
+Do not rebuild or republish this version, move its tag, or rerun its package publication. Required environment reviewers remain a governance improvement for when the maintainer topology permits independent approval. This documentation update does not rewrite component lifecycle values; any post-publication status transition needs separate contract work because MCP deliberately remains `ready` and released non-MCP containers require digest references.
 
 ### MCP Contract
 
@@ -145,10 +145,10 @@ mcp_dependencies:
 - Treat `unaltraweb-template` as a multi-profile demo and integration fixture, not as the product or a runtime dependency. Real child sites should keep content, configuration and local assets; reusable layouts, includes, plugins, Sass, JS and build scripts should stay centralized in `unaltraweb`.
 - Define the stable child-site contract: profile config, collections, front matter keys, local data files, bibliography/books/projects/content assets, `site-custom` extension points and generated diagram sources. Also define what remains explicitly non-contractual and can change inside the core.
 - Audit which JS/CSS/assets currently live in child repos versus the gem/core. Any copied core code in child sites should either move into `unaltraweb` or be marked as a deliberate local override.
-- Continue hardening Docker as the primary user-facing runtime: users should only need Docker plus Git for normal local `make serve`, `make build` and `make test` flows.
-- Decide whether future images should preinstall the `unaltraweb` gem or keep the current split where the image owns runtime dependencies and the child `Gemfile` owns theme/plugin code.
+- Keep Docker as the primary user-facing runtime: after creation, users need only Docker, Git and Make for normal local `make serve`, `make build` and `make test` flows.
+- Keep the reviewed core and Python control plane in the MCP image. Its generated Make path uses `/opt/unaltraweb` as a path gem; RubyGems and PyPI remain optional native adapters rather than runtime downloads for Docker users.
 - The versioned component BOM now selects release images and exact companion releases; mutable `main`/`latest` channels are documented as maintainer-only. Ensure every GHCR package is public after its first approved publish.
-- Keep a developer path for local core work: `LOCAL_CORE=../unaltraweb` and possibly a Git-based gem dependency remain useful for testing, but should not be the normal user setup.
+- Keep a developer path for local core work: `LOCAL_CORE=../unaltraweb` and a Git-based gem dependency remain useful for testing, but should not be the normal local user runtime.
 - Decide how `diavisuals` is distributed for users. Preferred direction: `unaltraweb diagrams` works without cloning `diavisuals`, either by packaging the style/render tooling into the core image or by invoking a versioned render image.
 - Add update commands with clear semantics: `make update-core` or `unaltraweb update` pulls the Docker image/tag and runs `doctor`; optional git-upstream updates should be limited to starter/template migrations, not core code.
 - Distribution doctor now validates release/factory/project pins and feature selection offline. Extend it later with explicit copied-core-asset detection and generated-asset synchronization checks rather than conflating those with distribution health.

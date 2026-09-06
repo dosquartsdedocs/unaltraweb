@@ -31,7 +31,23 @@ The BOM is an interoperability contract, not a bundle. The wheel contains only i
 
 For the selected release, the core-owned container references use `0.3.0`; the BOM selects the published `diavisuals v0.3.1` and `vegavisuals v0.3.1` releases. Current checkouts can be used through `suggested_path`, while immutable release references remain the distribution contract. `distribution-check` validates structural integrity for normal CI. `distribution-release-check` blocks coordinated publication while any component is `pending` or `unavailable`; reviewed source authorized to produce the final same-commit candidates is `ready`, while an already-published component is `released`.
 
-## Wheel And Doctor
+## Docker-First Hybrid Policy
+
+GHCR is the canonical delivery channel for normal local use. The package scaffold selects `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0`; its `make build`, `make serve` and `make test` targets mount the thin child site and run inside that image. The image contains both the installed Python control plane and the reviewed factory source at `/opt/unaltraweb`, so those targets load the theme as a path gem without downloading PyPI or RubyGems packages.
+
+Factory registration uses a stricter pin. ContExt runs `mcp-build`, which inspects or pulls the full `MCP_RELEASE_IMAGE` digest, and `mcp-stdio` launches that exact image. Checkout builds use local `:dev` names by default through `mcp-image`, `mcp-check` and `mcp-smoke`, so they do not shadow public semver references unless a maintainer explicitly overrides them. The digest is advanced in a separate post-release change after each new receipt exists; candidate source continues to select the last completed release instead of attempting to embed an unknown self-digest.
+
+The distribution keeps native channels for interoperability rather than making them Docker prerequisites:
+
+- `ghcr.io/dosquartsdedocs/unaltraweb` is the lower-level Ruby/Jekyll runtime used to build the MCP image.
+- `ghcr.io/dosquartsdedocs/unaltraweb-mcp` is the self-contained normal site and MCP runtime.
+- RubyGems publishes the same Jekyll core as a native Bundler adapter for consumers that do not use the Docker path.
+- PyPI publishes the small scaffold, control and inspection plane for native Python, `pip` or `uv` use.
+- Dedicated GHCR workers keep Chromium, TeX and computation environments out of the normal site image.
+
+These remain real package boundaries: the MCP image installs the Python package and uses the core through Ruby's gem interface. The policy only makes their public registry installation optional for Docker users. It does not combine all toolchains into one image or duplicate worker layers in the wheel or gem.
+
+## Optional Wheel And Doctor
 
 A clean `unaltraweb-mcp` wheel works without a factory checkout for `version`, `new-web`, top-level `doctor`, constrained source management, scaffold synchronization, `site-doctor`, HTML audit, and pure inspection where feasible. Examples include `mcp list-tools`, `starter-templates`, `detect-site`, `site-context`, `profile-check`, content/language/bibliography inventories, and `build-health`.
 
@@ -68,6 +84,8 @@ make down
 
 Local editing requires Git, Docker and GNU Make. On Windows, use WSL2 with Docker Desktop and run the same commands inside the WSL Linux shell.
 
+The normal targets use the selected MCP image, including its reviewed core at `/opt/unaltraweb`. The committed `Gemfile` and native package entry points remain available for GitHub deployment, integration testing and environments that deliberately choose a non-Docker path; local Docker editing does not need a sibling core checkout or registry package installation.
+
 Theme development can happen side by side by pointing the template at a local core checkout:
 
 ```bash
@@ -94,38 +112,24 @@ Repositories created from a GitHub template are not linked to the template as fo
 
 For that reason:
 
-- normal improvements should ship through the `unaltraweb` gem or reusable workflows;
+- normal local-runtime improvements should ship through a versioned MCP image; native consumers receive corresponding gem or wheel releases when their package boundary changes;
 - site repositories can enable Dependabot for Bundler and GitHub Actions, but deploy workflows should remain manual;
 - breaking changes should be released with migration notes;
 - scaffold changes should be rare; generated sites can explicitly dry-run `scaffold_sync`, which updates only unchanged baseline runtime files (including the pull-request template), creates newly managed missing files, reports conflicts, never deletes paths, stages every output, rechecks adopted and unchanged files around the manifest write, rolls the whole transaction back on failure, and commits its manifest last. Generated README prose is site-owned and is not overwritten by synchronization.
 
 ## Docker Runtime
 
-The pending `0.3.0` contract names the intended semver runtime target. Before release, a maintainer may manually run the Docker workflow from the final reviewed default-branch commit. Its credential-separated build, test, and promotion jobs publish SHA-only candidates, verify and test their exact signed digests without write authority, and only then assign `main` and `latest` from a non-executing package-write job. Local maintainer images use explicit names such as `unaltraweb:dev`.
+Release `0.3.0` publishes the selected base runtime, MCP runtime and specialized workers. Local maintainers continue to use explicit development names such as `unaltraweb:dev`; generated sites select the reviewed semver MCP image rather than `main` or `latest`.
 
-The same candidate rule applies to workers. The Python and R computation workers are already released and selected by immutable digest; the gem, wheel, runtime, MCP, web-capture worker, and manual PDF worker remain truthfully `pending`. The final reviewed source commit marks only candidate components `ready` before default-branch publication. For runtime, MCP, and manual PDF, `build-candidates` builds each image once under only its SHA tag, builds MCP from the runtime digest, and creates a GitHub-signed build-provenance attestation for each exact digest while retaining BuildKit SBOM and maximum provenance. It never runs those images. `test-candidates` has only read permissions, verifies registry-stored attestations against the exact repository, workflow, and source commit, pulls and checks all revision labels, logs out of GHCR, and then runs every Ruby test, all manual PDF integrations, reproducibility, MCP smoke, and docs against digest references without exposing `GH_TOKEN`. Only its successful digest outputs reach `promote-candidates`, which has package write but executes no candidate and points `sha-*`, `main`, and `latest` to those digests without rebuilding. A failure can leave a reviewable SHA candidate but cannot move broad aliases.
+The base runtime owns Ruby, Jekyll and system dependencies. The MCP image builds on its exact candidate digest and adds the full reviewed factory plus the Python package. Specialized workers remain separate. This keeps each layer focused without adding Chromium, TeX or computation stacks to every site; the coordinated core-image workflow still rebuilds and verifies runtime, MCP and manual PDF candidates together.
 
-The pre-build absence lookup is not an atomic no-clobber guarantee: GHCR exposes separate read and tag-write operations, not compare-and-swap. A package administrator could race the lookup or later retagging. Immediate equality checks and post-promotion verification bound that risk, while the signed, source-bound digest tested by the read-only job remains the evidence to record. An immediately following `release-candidates.json` child commit records immutable image digests and package checksums while changing no other path. Validation requires the parent to belong to the default branch, requires each image digest to use the component's declared GHCR repository, and checks exact package names. Before semver promotion, the tag-only job proves that each source commit's SHA tag still resolves to the recorded digest, verifies its GitHub-signed attestation with `receipt.source_commit` as the source digest, and requires the image revision label to equal that commit. It then uses `docker buildx imagetools create` to add and verify semver aliases without rebuilding, executing, or trusting a mutable source tag. Excluding the receipt from image and package contents avoids an impossible self-digest for the MCP. Publication workflows require the reviewed manual PDF image by full digest; this candidate state does not assert that a remote `v0.3.0` image exists. Separate worker images keep Chromium, TeX, and computation environments out of ordinary site and wheel installs.
+Candidate publication remains credential-separated. `build-candidates` builds each image once under only its SHA tag and creates GitHub-signed provenance. A read-only job verifies provenance and revision labels, removes GHCR credentials, and executes the test suite against exact digests. A final package-write job executes no candidate and promotes only tested manifests. The signed source-bound digest, rather than a mutable alias, remains the evidence recorded in `release-candidates.json`.
 
-The image is not the source of layouts or styles. Child sites still get those from the `unaltraweb` gem declared in their `Gemfile`. This keeps updates centralized in two places:
+The pre-build absence lookup is not an atomic no-clobber guarantee: GHCR exposes separate read and tag-write operations, not compare-and-swap. A package administrator could race the lookup or later retagging. Immediate equality checks and post-promotion verification bound that risk, while the signed, source-bound digest tested by the read-only job remains the evidence to record. An immediately following `release-candidates.json` child commit records immutable image digests and package checksums while changing no other path. Validation requires the parent to belong to the default branch, requires each image digest to use the component's declared GHCR repository, and checks exact package names. Before semver promotion, the tag-only job proves that each source commit's SHA tag still resolves to the recorded digest, verifies its GitHub-signed attestation with `receipt.source_commit` as the source digest, and requires the image revision label to equal that commit. It then uses `docker buildx imagetools create` to add and verify semver aliases without rebuilding, executing, or trusting a mutable source tag. Excluding the receipt from image and package contents avoids an impossible self-digest for the MCP. Publication workflows require the reviewed manual PDF image by full digest. Separate worker images keep Chromium, TeX, and computation environments out of ordinary site and wheel installs.
 
-- gem updates change reusable site behaviour, layouts, Sass, plugins and scripts;
-- Docker image updates change the local build/runtime environment.
+For the Docker-first path, reusable layouts, styles, plugins and scripts travel inside the reviewed MCP image at `/opt/unaltraweb`; generated Make targets expose that directory as a path gem. The independently published gem carries the same reusable core for native Bundler consumers. The wheel provides native bootstrap and inspection but does not carry the theme or worker images.
 
-Before recommending the local Docker workflow to unauthenticated users, complete this first-publish checklist:
-
-- Mark the components `ready` in the final reviewed source commit.
-- Run the image and package-preparation workflows from that exact default-branch commit to publish `sha-<full-commit>` images and prepare the gem/wheel candidates without creating a release tag. For runtime, MCP, and manual PDF, preserve the workflow summary that pairs the source commit with all three signed and read-only-tested digests; `main` and `latest` move only from the dependent promotion job after those tests pass.
-- Add only `release-candidates.json` in the next commit, recording the parent source SHA, immutable image references, package basenames and SHA-256 checksums.
-- Run `make distribution-release-check`, create the exact release tag on the receipt commit, then run the image workflows from the tag to promote the recorded manifests to semver aliases.
-- Open the `ghcr.io/dosquartsdedocs/unaltraweb` package settings in GitHub.
-- Make the package public.
-- Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb:0.3.0` works without `docker login`.
-- Make the `ghcr.io/dosquartsdedocs/unaltraweb-mcp` package public after its first publication.
-- Confirm that `docker pull ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0` works without `docker login`.
-- Configure the `pypi` and `rubygems` GitHub environments and matching pending Trusted Publishers before dispatching language-package publication.
-- Run `Publish language packages` from the reviewed default-branch workflow commit, selecting the exact release tag and successful package-preparation run recorded during candidate review.
-- Confirm anonymous registry installation of the exact gem and wheel before creating the GitHub Release last.
+The `v0.3.0` first-publish checklist is complete: all selected GHCR packages are public, anonymous pulls work, Trusted Publishing delivered the exact gem and wheel to RubyGems and PyPI, anonymous installations matched the receipt, and the GitHub Release archives both package files plus `SHA256SUMS`. Do not rebuild, republish or retag that version.
 
 The receipt uses a full source commit and different evidence by component kind. This abbreviated example shows both forms; the real `components` object must contain exactly every component marked `ready`:
 
@@ -146,7 +150,7 @@ The receipt uses a full source commit and different evidence by component kind. 
 }
 ```
 
-This checklist describes future publication verification; changing the contract does not publish, tag, or release any artifact.
+The receipt example describes future publication verification; changing the contract does not publish, tag, or release any artifact.
 
 ## CI And Release Gates
 
@@ -156,10 +160,10 @@ Automatic `.github/workflows/ci.yml` uses `distribution-check`. It validates sch
 
 The manual `.github/workflows/package-prepare.yml` builds and checks the gem and wheel, writes `SHA256SUMS`, and uploads an immutable workflow artifact whose name includes the source commit SHA. It does not call RubyGems, PyPI or GitHub Releases. Passing CI, preparing candidates, and later passing the strict coordinated-release gate are evidence for a release, not authorization to publish: tagging, starting a credentialed image workflow, uploading language packages and creating a GitHub release remain separate explicit maintainer approvals.
 
-After the coordinated tag exists, `.github/workflows/package-publish.yml` provides the separately approved language-package operation without long-lived registry secrets. Configure these one-time identities before its first dispatch:
+After a coordinated tag exists, `.github/workflows/package-publish.yml` provides the separately approved optional language-package operation without long-lived registry secrets. The repository uses these one-time identities, first configured for `v0.3.0`:
 
-- GitHub environment `pypi`, allowed only from the default branch; PyPI pending publisher project `unaltraweb-mcp`, owner `dosquartsdedocs`, repository `unaltraweb`, workflow `package-publish.yml`, environment `pypi`.
-- GitHub environment `rubygems`, allowed only from the default branch; RubyGems pending publisher gem `unaltraweb`, owner `dosquartsdedocs`, repository `unaltraweb`, workflow `package-publish.yml`, environment `rubygems`.
+- GitHub environment `pypi`, allowed only from the default branch; PyPI Trusted Publisher project `unaltraweb-mcp`, owner `dosquartsdedocs`, repository `unaltraweb`, workflow `package-publish.yml`, environment `pypi`.
+- GitHub environment `rubygems`, allowed only from the default branch; RubyGems Trusted Publisher gem `unaltraweb`, owner `dosquartsdedocs`, repository `unaltraweb`, workflow `package-publish.yml`, environment `rubygems`.
 - Add required environment reviewers and prevent self-review when the maintainer topology allows another person to approve. A sole maintainer should still require the exact reviewed `publisher_sha` input and inspect the run before allowing each environment deployment.
 
 Dispatch the workflow only from the default branch. Supply its current reviewed full commit as `publisher_sha`, the exact `vX.Y.Z` receipt tag, the annotated tag object SHA, the SHA-256 of `release-candidates.json`, the successful `Prepare package candidates` run ID, and `all`. The unprivileged job checks that request before checkout and uses only the reviewed publisher verifier: it never installs or executes code from the release tag. That verifier requires the annotated tag object and receipt hash supplied by the maintainer, checks the receipt-only tag target against its first parent and default-branch ancestry, validates the release-ready component inventory, and binds the selected run to `.github/workflows/package-prepare.yml`, the default branch, the receipt source commit, a successful conclusion, and the one expected unexpired artifact. It then rejects extra files, verifies both package hashes and the exact `SHA256SUMS` contents, and uploads one wheel and one gem as separate same-run artefacts. Only the dependent environment jobs receive `id-token: write`; they download those verified files without checking out source and exchange GitHub's OIDC identity for short-lived registry credentials. They receive no repository write permission and never build or execute candidates. The PyPI job runs the reviewed official publisher image by immutable OCI digest rather than its mutable generated image tag; the RubyGems job uses the hosted runner's preinstalled `gem` command instead of downloading a toolchain after receiving OIDC authority.

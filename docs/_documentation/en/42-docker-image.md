@@ -1,6 +1,6 @@
 ---
-title: Use The Docker Image
-description: Runtime image used by local unaltraweb workflows.
+title: Use The Docker Images
+description: Site, MCP, and worker images used by local unaltraweb workflows.
 lang: en
 ref: docker_image
 profiles:
@@ -11,17 +11,23 @@ documentation_profiles:
 section: Work Locally
 weight: 140
 permalink: "/docker-image/"
-nav_title: Docker Image
+nav_title: Docker Images
 ---
-The pending distribution contract selects this eventual shared image, which is published manually from the core repository and may not exist remotely yet:
+Release `v0.3.0` publishes two core images. Generated sites select the self-contained MCP/site image for normal local commands:
+
+```text
+ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0
+```
+
+It contains the Python control plane and the reviewed factory at `/opt/unaltraweb`. Its lower-level base is:
 
 ```text
 ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 ```
 
-It provides the runtime environment: Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling.
+The base provides Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling. Generated Make targets run in the MCP image and load layouts, styles and plugins as a path gem from `/opt/unaltraweb`. RubyGems remains an optional native Bundler channel rather than a download required by the local Docker path.
 
-The image is not the source of layouts and styles. Those come from the `unaltraweb` gem in the child site's `Gemfile`.
+ContExt prepares and launches the MCP image through the full digest in `MCP_RELEASE_IMAGE`. That post-release pin is separate from the semver scaffold reference and cannot be shadowed by checkout builds, which use local `:dev` names. A new release advances the pin only after its receipt records the published digest.
 
 The GHCR package is kept because it makes the local Docker workflow cheap and repeatable. Publishing is manual. Its unprivileged `preflight` job performs package and source checks without a registry login or Docker build. A default-branch run then crosses three separate credential boundaries:
 
@@ -46,9 +52,11 @@ During local core development, use the locally built image:
 ```bash
 docker build -t unaltraweb:dev .
 make docs-serve DOCKER_IMAGE=unaltraweb:dev
+make mcp-image
+make mcp-smoke-prebuilt MCP_IMAGE=unaltraweb-mcp:dev
 ```
 
-After the first GHCR publish, make the package public and confirm unauthenticated pulls work.
+Both core GHCR packages are public, and unauthenticated `v0.3.0` pulls have been verified.
 
 ## Computation Images
 
@@ -180,6 +188,6 @@ ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0
 
 The image contains pinned Playwright/Chromium, the capture worker, the Python status controller, and the core visual sources used in fingerprints. `make web-capture-image` builds the explicitly named `unaltraweb-web-capture:dev` maintainer image; set `WEB_CAPTURE_IMAGE` to that name when testing it. The manual `Web capture image` workflow publishes default-branch, commit, and semver/release tags to GHCR.
 
-Manual PDF commands similarly consume `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0` by default. `manual-pdf-image` reuses or pulls that selected image instead of rebuilding it locally. A pending release may therefore fail to pull until it is actually published. Maintainers use `make manual-pdf-image-dev` and then pass `MANUAL_PDF_IMAGE=unaltraweb-manual-pdf:dev` for local PDF runtime changes.
+Manual PDF commands similarly consume the public `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0` by default. `manual-pdf-image` reuses or pulls that selected image instead of rebuilding it locally. Maintainers use `make manual-pdf-image-dev` and then pass `MANUAL_PDF_IMAGE=unaltraweb-manual-pdf:dev` for local PDF runtime changes.
 
 Rendering creates an ephemeral Docker `--internal` network shared only by Jekyll and Chromium, keeps browser requests on the preview origin, blocks service workers, popups, and WebSockets, drops Linux capabilities, uses a read-only container root and bounded resources, and writes only the declared PNG/SVG outputs under the mounted project. Ordinary checks run without browser execution or network access.
