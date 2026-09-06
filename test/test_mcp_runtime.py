@@ -1122,6 +1122,101 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertIn("must be inherited", command_line.stderr)
         self.assertFalse(marker.exists())
 
+    def test_mcp_make_targets_separate_release_preparation_from_development_builds(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        makefile = (root / "Makefile").read_text(encoding="utf-8")
+        assignments = {
+            key: value
+            for line in makefile.splitlines()
+            if " ?= " in line
+            for key, value in [line.split(" ?= ", 1)]
+        }
+        release_image = assignments["MCP_RELEASE_IMAGE"]
+        release_prefix = "ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:"
+        release_digest = release_image.removeprefix(release_prefix)
+
+        self.assertEqual(
+            release_image,
+            "ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:"
+            "f3ab5542e6ece56487d4b8238a5e7abd89f36a0b8d87bf7bab19645e3ced1e58",
+        )
+        self.assertTrue(release_image.startswith(release_prefix))
+        self.assertEqual(len(release_digest), 64)
+        self.assertTrue(all(character in "0123456789abcdef" for character in release_digest))
+        self.assertNotEqual(release_image, assignments["MCP_IMAGE"])
+        self.assertIn("mcp-smoke: mcp-image", makefile)
+        self.assertIn("mcp-check: mcp-image", makefile)
+        self.assertIn(
+            "mcp-runtime-image mcp-image mcp-check mcp-smoke: MCP_IMAGE = unaltraweb-mcp:dev",
+            makefile,
+        )
+        self.assertIn('--image "$(MCP_RELEASE_IMAGE)"', makefile)
+
+        make_env = os.environ.copy()
+        for variable in ["MCP_RELEASE_IMAGE", "MCP_RUNTIME_IMAGE", "MCP_IMAGE", "DOCKER_INSPECT_STATUS"]:
+            make_env.pop(variable, None)
+
+        def run_make(*arguments: str, env: dict[str, str] = make_env) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                ["make", "--no-print-directory", "-C", str(root), *arguments],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                check=False,
+            )
+
+        dry_run = run_make("--dry-run", "mcp-image")
+        self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
+        self.assertIn('-t "unaltraweb:dev"', dry_run.stdout)
+        self.assertIn('-t "unaltraweb-mcp:dev"', dry_run.stdout)
+
+        overridden = run_make(
+            "--dry-run", "mcp-image",
+            "MCP_RUNTIME_IMAGE=example/runtime:test", "MCP_IMAGE=example/mcp:test",
+        )
+        self.assertEqual(overridden.returncode, 0, overridden.stderr)
+        self.assertIn('-t "example/runtime:test"', overridden.stdout)
+        self.assertIn('-t "example/mcp:test"', overridden.stdout)
+
+        stdio = run_make("--dry-run", "mcp-stdio", env={**make_env, "MCP_CONSUMER_WORKSPACE": str(self.project)})
+        self.assertEqual(stdio.returncode, 0, stdio.stderr)
+        self.assertIn(f'--image "{release_image}"', stdio.stdout)
+
+        fake_bin = self.project / "release-image-bin"
+        fake_bin.mkdir()
+        calls = self.project / "release-image-docker-calls"
+        docker = fake_bin / "docker"
+        docker.write_text(
+            "#!/bin/sh\n"
+            "printf '%s\\n' \"$*\" >> \"$CAPTURE\"\n"
+            "if test \"$1\" = image && test \"$2\" = inspect; then\n"
+            "  exit \"${DOCKER_INSPECT_STATUS:-1}\"\n"
+            "fi\n"
+            "exit 0\n",
+            encoding="utf-8",
+        )
+        docker.chmod(0o755)
+        env = make_env.copy()
+        env.update({"PATH": f"{fake_bin}:{env['PATH']}", "CAPTURE": str(calls)})
+
+        completed = run_make("--silent", "mcp-build", env=env)
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        recorded_calls = calls.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(
+            recorded_calls,
+            [f"image inspect {release_image}", f"pull {release_image}"],
+        )
+        self.assertTrue(all(not call.startswith("build ") for call in recorded_calls))
+
+        calls.unlink()
+        env["DOCKER_INSPECT_STATUS"] = "0"
+        completed = run_make("--silent", "mcp-build", env=env)
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(calls.read_text(encoding="utf-8").splitlines(), [f"image inspect {release_image}"])
+
     def test_visualization_status_requires_provider_receipt_for_configured_project(self) -> None:
         (self.project / ".vegavisuals.yml").write_text("visualizations: []\n", encoding="utf-8")
 
