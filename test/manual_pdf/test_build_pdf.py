@@ -81,6 +81,12 @@ class ManualPdfBuilderTests(unittest.TestCase):
         self.assertIn(r"\normalfont\Large\bfseries\color{ManualSecondary}", template)
         self.assertNotIn(r"\@chapapp", template)
 
+    def test_template_reserves_toc_number_columns_for_deep_numbering(self) -> None:
+        template = TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        self.assertIn(r"\renewcommand*{\l@section}{\@dottedtocline{1}{1.5em}{3em}}", template)
+        self.assertIn(r"\renewcommand*{\l@subsection}{\@dottedtocline{2}{4.5em}{4em}}", template)
+
     def test_template_distinguishes_link_categories_and_code(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 
