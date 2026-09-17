@@ -61,7 +61,7 @@ The current publishing contract separates an up-to-date reading site from durabl
 - Stable editions use `vYYYY.MM(.N)`: `vYYYY.MM` for the first edition in a month and `vYYYY.MM.N` for an additional edition. They are deferred until a maintainer creates an explicit release, and an ordinary `latest` deployment never creates one.
 - Release checks reject generated `legacy/` or `sandbox/` trees. Keep them outside the current manual content roots.
 
-The generated site README and pull request template require one assigned issue or explicit file reservation, one task branch, one active editor per file, and a small Draft pull request. If edits overlap or conflict, stop and ask the maintainer rather than choosing a side or recreating files.
+The generated site README and pull request template require one assigned issue or explicit file reservation, one task branch, one active editing session per repository, and a small Draft pull request. Reservations limit task scope but do not permit overlapping sessions. If edits overlap or conflict, stop and ask the maintainer rather than choosing a side or recreating files.
 
 ## Executable Chapters
 

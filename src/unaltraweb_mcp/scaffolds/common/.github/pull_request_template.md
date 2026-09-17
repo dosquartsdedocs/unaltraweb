@@ -22,8 +22,10 @@ Immutable provider release, SHA, or digest:
 
 - [ ] I was assigned to the issue or a maintainer accepted my explicit file reservation.
 - [ ] This is one task on a correctly named short-lived branch; I did not edit `main` directly.
-- [ ] If working locally, I used a dedicated worktree and did not share a mutable checkout.
-- [ ] I confirmed that no other active editor is working on these files.
+- [ ] I confirmed this was the repository's only active editing session; the reservation limited scope rather than permitting concurrent edits.
+- [ ] If working locally, I used the primary mutable checkout, ran the read-only checkout preflight, and did not create or manipulate a linked worktree.
+- [ ] If the session required a process-held cooperative lease, I launched it through the control plane's `exec` wrapper.
+- [ ] For MCP-backed work, I passed the consumer root through `MCP_CONSUMER_WORKSPACE` and requested one top-level MCP with its declared dependency closure.
 - [ ] This pull request contains only the exact reserved paths.
 - [ ] I opened this as a Draft pull request and reviewed the **Files changed** tab.
 - [ ] Images use approved content paths, safe unique filenames, publishable material, and meaningful alternative text.
@@ -39,4 +41,4 @@ Immutable provider release, SHA, or digest:
 - [ ] Rendered web output and any generated manual PDF/cover were reviewed.
 - [ ] The pull request is ready to leave Draft and merge into `main`.
 - [ ] If publication is intended, deployment will be started manually only after merge.
-- [ ] After merge or closure, the reservation, worktree, and local/remote task branch will be removed.
+- [ ] After merge or closure, the reservation, cooperative lease, and local/remote task branch will be released or removed; the primary checkout will be retained.

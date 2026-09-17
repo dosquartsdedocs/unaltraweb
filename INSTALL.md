@@ -27,7 +27,7 @@ Add `--docker` only when local presence of the selected feature images should be
 
 1. Push a site created by `new_web` to a new repository. A fork of `dosquartsdedocs/unaltraweb-template` is an optional alternative when its full demo and workflow files are wanted.
 2. Read the generated `README.md`, open an issue, and get assigned or reserve the exact files with maintainer acceptance.
-3. Create one task branch, edit only its profile-appropriate content paths, and open a small Draft pull request. Never edit `main` directly, and allow only one active editor per file.
+3. Create one task branch, edit only its profile-appropriate content paths, and open a small Draft pull request. Never edit `main` directly, and allow only one active editing session per repository; exact file reservations limit scope but do not permit overlap.
 4. Stop and ask the maintainer if work overlaps or GitHub reports a conflict.
 5. The maintainer runs local checks and renders, reviews and merges the pull request, and only then publishes explicitly with the manual deploy workflow in GitHub Actions.
 

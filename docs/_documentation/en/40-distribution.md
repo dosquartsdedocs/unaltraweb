@@ -65,7 +65,7 @@ Factory-backed MCP serving, site preflight/build, computations, captures, PDF op
 
 ### GitHub-only editing
 
-Users can push a site created by `new_web` and edit small content changes in the GitHub web UI. The generated README requires an assigned issue or accepted file reservation, one task branch, one active editor per file, and a small Draft pull request. Editors never change `main` directly; they stop and ask a maintainer when work overlaps or conflicts.
+Users can push a site created by `new_web` and edit small content changes in the GitHub web UI. The generated README requires an assigned issue or accepted file reservation, one task branch, one active editing session per repository, and a small Draft pull request. A reservation limits scope rather than permitting overlapping sessions. Editors never change `main` directly; they stop and ask a maintainer when work overlaps or conflicts.
 
 This path is intended for small content edits, bibliography updates, course/manual chapter edits and configuration changes. It does not require Docker, Make or a local development environment. A maintainer checks and renders the branch locally, reviews it, merges it, and only then starts deployment manually.
 

@@ -165,7 +165,7 @@ Doctor is offline. The optional `--docker` mode only calls local Docker version/
 
 ## Global Dockerized MCP
 
-`unaltraweb` provides one global, on-demand stdio MCP whose containers are scoped to the current consumer workspace. Each client session gets an independent Docker-generated container name plus stable factory, role, and project labels, so concurrent sessions for the same project do not collide. ContExt runs `mcp-build` to prepare the exact public image selected by `MCP_RELEASE_IMAGE`, and `mcp-stdio` launches that same digest. To build and test a development image explicitly from this checkout instead:
+`unaltraweb` provides one global, on-demand stdio MCP whose containers are scoped to the current consumer workspace. Each client session gets an independent Docker-generated container name plus stable factory, role, and project labels, so concurrent processes for the same project do not collide. This runtime capability does not authorize overlapping editors: the collaboration control plane uses one primary mutable checkout and one active editing session per repository. ContExt runs `mcp-build` to prepare the exact public image selected by `MCP_RELEASE_IMAGE`, and `mcp-stdio` launches that same digest. To build and test a development image explicitly from this checkout instead:
 
 ```bash
 make mcp-image
@@ -174,7 +174,7 @@ make mcp-smoke-prebuilt MCP_IMAGE=unaltraweb-mcp:dev
 
 Source builds use the explicit local names `unaltraweb:dev` and `unaltraweb-mcp:dev` by default, avoiding shadowed public references. After each coordinated release, `MCP_RELEASE_IMAGE` advances to its recorded digest in a separate post-release change; candidate source never embeds its unknown future self-digest.
 
-ContExt reads the canonical manifest transport `make -C ${factoryRoot} mcp-stdio` and supplies `MCP_CONSUMER_WORKSPACE=${workspaceFolder}` through the process environment. The manifest continues to use `make`, an allowed container host launcher, but no consumer path is parsed by Make or interpolated into shell source. An equivalent direct launch is:
+ContExt reads the canonical manifest transport `make -C ${factoryRoot} mcp-stdio` and supplies `MCP_CONSUMER_WORKSPACE=${workspaceFolder}` through the process environment. The manifest continues to use `make`, an allowed container host launcher, but no consumer path is parsed by Make or interpolated into shell source. The collaboration control plane requests one top-level MCP, selects its declared dependency closure, preserves unrelated user registrations, and runs a read-only checkout preflight before editing. When a process-held cooperative lease is required, it launches the editing command through its `exec` wrapper; it never manipulates Git worktrees implicitly. An equivalent direct MCP launch is:
 
 ```bash
 MCP_CONSUMER_WORKSPACE="$PWD" make --silent --no-print-directory -C /path/to/unaltraweb mcp-stdio

@@ -123,6 +123,7 @@ def main() -> int:
             if not created["ok"]:
                 raise RuntimeError(f"new-web failed for {profile} from clean wheel: {created}")
             readme = (profile_site / "README.md").read_text(encoding="utf-8")
+            agents = (profile_site / "AGENTS.md").read_text(encoding="utf-8")
             collaboration = (profile_site / ".github/CONTRIBUTING.md").read_text(encoding="utf-8")
             dependabot = (profile_site / ".github/dependabot.yml").read_text(encoding="utf-8")
             pr_template = (profile_site / ".github/pull_request_template.md").read_text(encoding="utf-8")
@@ -132,7 +133,7 @@ def main() -> int:
                 f"**`{profile}`** profile: {description}",
                 f"## Editable Content For `{profile}`",
                 profile_path,
-                "only one active editor per file",
+                "only one active editing session per repository",
                 "Never edit or commit directly to `main`",
                 "Draft pull request",
                 "Starts the deploy workflow manually",
@@ -146,6 +147,18 @@ def main() -> int:
                 raise RuntimeError(f"generated {profile} README does not explain all profiles")
             if "correctly named short-lived branch" not in pr_template or "Required local checks and renders pass" not in pr_template:
                 raise RuntimeError(f"generated {profile} pull request template lacks coordination checks")
+            agent_markers = [
+                "read-only checkout preflight",
+                "primary mutable checkout",
+                "process-held cooperative lease",
+                "`exec` wrapper",
+                "one active editing session per repository",
+                "one top-level MCP",
+                "declared dependency closure",
+                "`MCP_CONSUMER_WORKSPACE`",
+            ]
+            if any(value not in agents for value in agent_markers):
+                raise RuntimeError(f"generated {profile} agent contract lacks single-checkout guidance")
             collaboration_markers = [
                 "content/<issue>-<slug>",
                 "reference/<issue>-<slug>",
@@ -158,20 +171,37 @@ def main() -> int:
                 "integration/<provider>/<issue>-<slug>",
                 "A maintainer must accept an exact reservation",
                 "not broad directories or globs",
-                "dedicated Git worktree",
-                "Never share a mutable checkout",
+                "one active editing session per repository",
+                "primary mutable checkout",
+                "read-only checkout preflight",
+                "process-held cooperative lease",
+                "`exec` wrapper",
+                "Never create, switch to, move, prune, repair, or remove Git worktrees implicitly",
+                "one top-level MCP",
+                "declared dependency closure",
+                "`MCP_CONSUMER_WORKSPACE`",
+                "factory `build`, `check`, and `smoke` operations",
                 "one atomic bundle",
                 "source, every local data/input file, output, caption-bearing content reference",
                 "immutable release, full commit SHA, or image digest",
                 "Draft pull request after the first coherent change",
                 "delete the local and remote task branch",
-                "remove the worktree",
+                "retain the primary checkout",
             ]
             if any(value not in collaboration for value in collaboration_markers):
                 raise RuntimeError(f"generated {profile} collaboration contract is incomplete")
             if "dependency-name: unaltraweb" not in dependabot or f"dependency-name: {integration['site_deploy_workflow']}" not in dependabot:
                 raise RuntimeError(f"generated {profile} Dependabot policy permits partial integration updates")
-            combined_guidance = readme + collaboration + pr_template
+            combined_guidance = readme + collaboration + pr_template + agents
+            obsolete_guidance = [
+                "dedicated Git worktree",
+                "Never share a mutable checkout",
+                "remove the worktree",
+                "one active editor per file",
+                "no other active editor",
+            ]
+            if any(value in combined_guidance for value in obsolete_guidance):
+                raise RuntimeError(f"generated {profile} guidance retains obsolete worktree coordination")
             forbidden = ["${{", "secrets.", "GITHUB_TOKEN", "id-token:", "contents: write", "on:\n  push:"]
             if any(value in combined_guidance for value in forbidden):
                 raise RuntimeError(f"generated {profile} editor guidance exposes workflow or secret internals")

@@ -1,10 +1,12 @@
 Start or resume work in an `unaltraweb` website workspace.
 
 1. Read local `AGENTS.md` if present.
-2. If the workspace has no `_config.yml`, inspect `web://new-web-scaffolds`, then use `new_web` only after the target profile, title, baseurl, url, default language, and maintained languages are known or intentionally left blank.
-3. Inspect `web://site-context` or call `site_context`.
-4. Confirm the configured `unaltraweb.site_profile`, `language_policy`, languages, and enabled features before editing.
-5. Run or inspect `profile_check`, `content_inventory`, `content_approval_inventory`, `translation_plan`, `bibliography_inventory`, and `content_freshness_check`.
-6. Keep edits inside the website workspace. Do not treat chat history as durable project memory.
-7. For visible content changes, run `build_site` or the local Make equivalent before handoff when feasible.
-8. Do not commit or publish visible content changes until the human author has reviewed the served site in a browser and explicitly approved the rendered result.
+2. Before editing, require the configured MCP control plane's read-only checkout preflight to confirm the primary mutable checkout and the repository's only active editing session. A session that needs a process-held cooperative lease must be launched through the control plane's `exec` wrapper.
+3. Request `unaltraweb` as the one top-level MCP and let the control plane select its declared dependency closure. Pass the consumer root through `MCP_CONSUMER_WORKSPACE`; never create, switch to, move, prune, repair, or remove linked worktrees implicitly.
+4. If the workspace has no `_config.yml`, inspect `web://new-web-scaffolds`, then use `new_web` only after the target profile, title, baseurl, url, default language, and maintained languages are known or intentionally left blank.
+5. Inspect `web://site-context` or call `site_context`.
+6. Confirm the configured `unaltraweb.site_profile`, `language_policy`, languages, and enabled features before editing.
+7. Run or inspect `profile_check`, `content_inventory`, `content_approval_inventory`, `translation_plan`, `bibliography_inventory`, and `content_freshness_check`.
+8. Keep edits inside the website workspace. Do not treat chat history as durable project memory.
+9. For visible content changes, run `build_site` or the local Make equivalent before handoff when feasible.
+10. Do not commit or publish visible content changes until the human author has reviewed the served site in a browser and explicitly approved the rendered result.

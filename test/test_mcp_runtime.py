@@ -142,8 +142,9 @@ class McpRuntimeTests(unittest.TestCase):
                     self.assertEqual(config["unaltraweb"]["footer"]["brand_url"], "/en/")
                 self.assertTrue((project / "README.md").is_file())
                 self.assertTrue((project / "AGENTS.md").is_file())
-                self.assertIn("Default language: `en`", (project / "AGENTS.md").read_text(encoding="utf-8"))
-                self.assertIn(".github/CONTRIBUTING.md", (project / "AGENTS.md").read_text(encoding="utf-8"))
+                agents = (project / "AGENTS.md").read_text(encoding="utf-8")
+                self.assertIn("Default language: `en`", agents)
+                self.assertIn(".github/CONTRIBUTING.md", agents)
                 self.assertTrue((project / ".github/CONTRIBUTING.md").is_file())
                 self.assertTrue((project / ".github/dependabot.yml").is_file())
                 self.assertTrue((project / ".github/workflows/deploy.yml").is_file())
@@ -211,15 +212,26 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertNotIn(f"Test {profile}", readme, "README rendering must not interpolate the user-controlled title")
                 for known_profile in expected_layouts:
                     self.assertIn(f"`{known_profile}`", readme)
-                self.assertIn("only one active editor per file", readme)
+                self.assertIn("only one active editing session per repository", readme)
                 self.assertIn("Never edit or commit directly to `main`", readme)
                 self.assertIn("Draft pull request", readme)
                 self.assertIn("ask the maintainer to coordinate it", readme)
                 self.assertIn("Runs the site's local checks and every required", readme)
                 self.assertIn("Starts the deploy workflow manually", readme)
                 self.assertIn("correctly named short-lived branch", pull_request_template)
-                self.assertIn("no other active editor", pull_request_template)
+                self.assertIn("repository's only active editing session", pull_request_template)
                 self.assertIn("Required local checks and renders pass", pull_request_template)
+                for marker in [
+                    "read-only checkout preflight",
+                    "primary mutable checkout",
+                    "process-held cooperative lease",
+                    "`exec` wrapper",
+                    "one active editing session per repository",
+                    "one top-level MCP",
+                    "declared dependency closure",
+                    "`MCP_CONSUMER_WORKSPACE`",
+                ]:
+                    self.assertIn(marker, agents)
                 for marker in [
                     "content/<issue>-<slug>",
                     "reference/<issue>-<slug>",
@@ -232,14 +244,22 @@ class McpRuntimeTests(unittest.TestCase):
                     "integration/<provider>/<issue>-<slug>",
                     "A maintainer must accept an exact reservation",
                     "not broad directories or globs",
-                    "dedicated Git worktree",
-                    "Never share a mutable checkout",
+                    "one active editing session per repository",
+                    "primary mutable checkout",
+                    "read-only checkout preflight",
+                    "process-held cooperative lease",
+                    "`exec` wrapper",
+                    "Never create, switch to, move, prune, repair, or remove Git worktrees implicitly",
+                    "one top-level MCP",
+                    "declared dependency closure",
+                    "`MCP_CONSUMER_WORKSPACE`",
+                    "factory `build`, `check`, and `smoke` operations",
                     "one atomic bundle",
                     "source, every local data/input file, output, caption-bearing content reference",
                     "immutable release, full commit SHA, or image digest",
                     "Draft pull request after the first coherent change",
                     "delete the local and remote task branch",
-                    "remove the worktree",
+                    "retain the primary checkout",
                 ]:
                     self.assertIn(marker, collaboration)
                 ignores = {
@@ -252,7 +272,15 @@ class McpRuntimeTests(unittest.TestCase):
                     ("github-actions", integration["site_deploy_workflow"]),
                     ignores,
                 )
-                combined_guidance = readme + collaboration + pull_request_template
+                combined_guidance = readme + collaboration + pull_request_template + agents
+                for obsolete in [
+                    "dedicated Git worktree",
+                    "Never share a mutable checkout",
+                    "remove the worktree",
+                    "one active editor per file",
+                    "no other active editor",
+                ]:
+                    self.assertNotIn(obsolete, combined_guidance)
                 for forbidden in ["${{", "secrets.", "GITHUB_TOKEN", "id-token:", "contents: write", "on:\n  push:"]:
                     self.assertNotIn(forbidden, combined_guidance)
                 for forbidden in ["publishes automatically", "deploys automatically", "automatic deployment"]:
