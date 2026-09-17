@@ -12,15 +12,18 @@ This repository is a thin `__PROFILE__` consumer of `unaltraweb`.
 
 Do not copy core runtime files into this site to customize behavior. Propose reusable changes in the core and keep this consumer limited to explicit configuration and content.
 
-Read `.github/CONTRIBUTING.md` before creating a branch or editing files. It is the package-managed contract for task naming, reservations, worktree isolation, figures, provider integrations, and cleanup.
+Read `.github/CONTRIBUTING.md` before creating a branch or editing files. It is the package-managed contract for task naming, reservations, single-checkout session coordination, figures, provider integrations, and cleanup.
 
 ## Working Workflow
 
-1. Inspect `site_context`, `site_doctor`, the language policy, and the active profile before editing.
-2. For `unaltremanual`, inspect `manual_authoring_capabilities` and `context/writing-profile.md` before drafting chapters.
-3. Edit executable computation, capture, diagram, or visualization sources rather than generated outputs.
-4. Run `site_check` before `build_site`, then review the labelled local preview.
-5. Keep default-language content in `draft` or `review` until the author approves it; translate only approved sources.
-6. Do not commit visible content or publish artefacts until the human author has reviewed the rendered result and explicitly approved it.
+1. Before editing locally, run the MCP control plane's read-only checkout preflight in the primary mutable checkout. Keep one active editing session per repository and use its `exec` wrapper when a process-held cooperative lease is required.
+2. For MCP-backed work, request one top-level MCP and let the control plane select its declared dependency closure. The consumer root must be passed through `MCP_CONSUMER_WORKSPACE`.
+3. Never create, switch to, move, prune, repair, or remove linked worktrees as part of an editing session.
+4. Inspect `site_context`, `site_doctor`, the language policy, and the active profile before editing.
+5. For `unaltremanual`, inspect `manual_authoring_capabilities` and `context/writing-profile.md` before drafting chapters.
+6. Edit executable computation, capture, diagram, or visualization sources rather than generated outputs.
+7. Run `site_check` before `build_site`, then review the labelled local preview.
+8. Keep default-language content in `draft` or `review` until the author approves it; translate only approved sources.
+9. Do not commit visible content or publish artefacts until the human author has reviewed the rendered result and explicitly approved it.
 
 Normal local commands are `make build`, `make serve`, `make test`, and `make down`. They must not publish or change Git history.

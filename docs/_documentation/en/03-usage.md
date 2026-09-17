@@ -21,7 +21,7 @@ nav_title: Run And Preview
 
 1. Call `new_web` with one `unaltraweb.site_profile` and the site identity/language settings.
 2. Inspect the generated `_config.yml` and localized home page.
-3. Reserve a focused task, create one branch, and open a small Draft pull request. Never edit `main` directly, and allow only one active editor per file.
+3. Reserve a focused task, create one branch, and open a small Draft pull request. Never edit `main` directly, and allow only one active editing session per repository; exact file reservations limit scope but do not permit overlap.
 4. Edit content and data files. MCP agents should read a source hash, review the default `site_source_write` dry-run, then apply the exact CAS update.
 5. Stop and ask the maintainer if another task overlaps or a conflict appears.
 6. The maintainer runs `site_doctor`, `profile_check`, `site_check`, `build_site`, and required renderers, then reviews the returned HTML audit and rendered outputs.

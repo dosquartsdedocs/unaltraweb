@@ -2,12 +2,12 @@
 
 This site uses the **`__SITE_PROFILE__`** profile: __PROFILE_DESCRIPTION__
 
-The package-managed collaboration contract is `.github/CONTRIBUTING.md`. It defines branch names, exact path reservations, local worktree isolation, generated figure bundles, and provider integrations.
+The package-managed collaboration contract is `.github/CONTRIBUTING.md`. It defines branch names, exact path reservations, single-checkout session coordination, generated figure bundles, and provider integrations.
 
 GitHub Web is suitable for small, coordinated content updates. Follow this workflow before changing a file:
 
 1. Open or choose an issue that describes one focused task.
-2. Be assigned to the issue, or add an explicit reservation naming the files you will edit and wait for the maintainer to accept it. There must be only one active editor per file.
+2. Be assigned to the issue, or add an explicit reservation naming the files you will edit and wait for the maintainer to accept it. There must be only one active editing session per repository; a file reservation limits scope but does not permit overlapping sessions.
 3. Create one correctly named branch per task as defined in `.github/CONTRIBUTING.md`. Use GitHub's branch selector or choose **Create a new branch for this commit and start a pull request**. Never edit or commit directly to `main`.
 4. Open a Draft pull request early, link the issue, and list the reserved files so other editors can avoid them.
 5. Change only the reserved content and keep the pull request small. Use another issue and branch for unrelated work.
@@ -47,7 +47,9 @@ These commands validate, build, preview, test, and stop the site. They do not pu
 
 ## MCP Agent Workflow
 
-Open this repository as the IDE workspace and read `AGENTS.md`. Use the `unaltraweb` MCP to inspect `site_context` and `site_doctor`, run `site_check` before `build_site`, and review the labelled local preview. Keep durable decisions in versioned files rather than chat history. If the selected MCP image is not available, ask the core maintainer for the published release or for the reviewed candidate build; do not replace its pin with a mutable tag.
+Open this repository as the IDE workspace and read `AGENTS.md`. Before editing, use the configured MCP control plane's read-only checkout preflight in the repository's primary mutable checkout. When a process-held cooperative lease is required, launch the editing command through its `exec` wrapper. Never create, switch to, move, prune, repair, or remove linked worktrees implicitly.
+
+Request `unaltraweb` as the one top-level MCP and let the control plane activate its declared dependency closure while preserving unrelated registrations. The consumer root must reach providers through `MCP_CONSUMER_WORKSPACE`; factory `build`, `check`, and `smoke` operations stay in each factory checkout. Use `site_context` and `site_doctor`, run `site_check` before `build_site`, and review the labelled local preview. Keep durable decisions in versioned files rather than chat history. If the selected MCP image is not available, ask the core maintainer for the published release or for the reviewed candidate build; do not replace its pin with a mutable tag.
 
 ## Upload Images Safely
 

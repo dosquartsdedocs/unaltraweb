@@ -21,7 +21,7 @@ nav_title: GitHub Web Editing
 
 1. Open or choose an issue describing one focused task.
 2. Be assigned to it, or post an explicit reservation naming every file you intend to edit and wait for maintainer acceptance.
-3. Check the issue and open pull requests before starting. There must be only one active editor per file.
+3. Check the issue and open pull requests before starting. There must be only one active editing session per repository; exact file reservations limit scope but do not permit overlap.
 4. Create one branch for the task. Never edit or commit directly to `main`.
 5. Open a Draft pull request early, link the issue, and list the reserved files.
 

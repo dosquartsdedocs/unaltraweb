@@ -6,8 +6,9 @@ This package-managed file is the shared collaboration contract for an `unaltrawe
 
 - `main` is the only long-lived human-maintained branch. Never commit to it directly.
 - Use one focused issue, one short-lived task branch, one editor or agent, and one pull request.
+- Allow only one active editing session per repository, whether the editor works locally or in GitHub Web.
 - A maintainer must accept an exact reservation before editing starts. Reserve repository-relative file paths, not broad directories or globs.
-- Add newly needed paths to the accepted reservation before touching them. Stop when another active task already owns a path.
+- A reservation limits the task and review scope; it does not authorize concurrent editing sessions. Add newly needed paths before touching them, and stop when another task already owns a path.
 
 ## Branch Names
 
@@ -23,9 +24,13 @@ Reusable provider repositories use short-lived `format/<issue>-<slug>`, `feat/<i
 
 Use lowercase ASCII slugs. Do not create personal, agent-specific, permanent content, or permanent format branches.
 
-## Isolation And Reservation
+## Checkout, Session, And Reservation
 
-- Every local agent works in a dedicated Git worktree for its task branch. Never share a mutable checkout between agents.
+- Keep one primary mutable checkout for the repository and use its current task branch. Do not create a linked worktree for an editor or agent.
+- Before local editing, run the MCP control plane's read-only checkout preflight. If the session requires a process-held cooperative lease, launch the editing command through the control plane's `exec` wrapper and hold the lease for the session.
+- Never create, switch to, move, prune, repair, or remove Git worktrees implicitly. Report a stale or unexpected registration instead of altering it.
+- For MCP-backed work, request one top-level MCP and let the control plane select its declared dependency closure. Existing unrelated registrations remain until explicitly removed and clients reconnect.
+- Pass the consumer root only through `MCP_CONSUMER_WORKSPACE`; keep factory `build`, `check`, and `smoke` operations in the factory checkout.
 - GitHub Web editors use the task branch created for their issue and never edit another task branch.
 - Push the branch after reservation and open a Draft pull request after the first coherent change.
 - Repeat the exact reserved paths in the Draft pull request so the reservation is visible without reading chat history.
@@ -46,6 +51,6 @@ Use lowercase ASCII slugs. Do not create personal, agent-specific, permanent con
 - Change only reserved paths and review the complete diff before requesting review.
 - Run every applicable source, render, web, PDF, and site check. Human review of visible output remains required.
 - Resolve conflicts by coordination; never overwrite another reservation or unreviewed work.
-- After merge or closure, release the reservation, remove the worktree, and delete the local and remote task branch. Never reuse it for another task.
+- After merge or closure, release the reservation and any cooperative lease, delete the local and remote task branch, and retain the primary checkout. Never reuse the branch for another task.
 
 Repository rulesets must block direct changes to `main`. A branch or merge does not publish the site; deployment remains an explicit maintainer action.
