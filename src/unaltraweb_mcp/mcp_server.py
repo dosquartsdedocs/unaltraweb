@@ -46,6 +46,7 @@ def run_server(project: Path, factory: Path) -> None:
             "For static Vega figures, reference a .vl.json or .vg.json source declared once in .vegavisuals.yml and use the companion vegavisuals tools to render and check its declared output."
             " After inserting a text-bearing figure or diagram, run manual_source_quality_check and use its separate web/PDF dimension suggestions; do not distort the intrinsic aspect ratio."
             " For multilingual visuals, keep the default-language source unsuffixed and add .<lang> before the complete suffix only for translated variants; missing variants fall back to the default source."
+            " For a local manual review, run manual_pdf_preview_prepare before build_site or preview_start; it stages ignored receipt-owned copies without publishing, and manual_pdf_preview_clean removes only unchanged copies."
             " Manual release tools only inspect or prepare local candidates under tmp/manual-release; publication remains a human-controlled GitHub Actions operation."
         ),
     )
@@ -342,6 +343,25 @@ def run_server(project: Path, factory: Path) -> None:
     def manual_pdf_build(language: str = "", release_selector: str = "latest") -> dict[str, Any]:
         """Build configured unaltremanual PDFs and first-page cover previews under the site's temporary directory."""
         return tools.manual_pdf_build(project, factory, language=language, release_selector=release_selector)
+
+    @mcp.tool()
+    def manual_pdf_preview_prepare() -> dict[str, Any]:
+        """Build stale latest PDFs and stage ignored receipt-owned copies for local Jekyll review without publishing."""
+        return tools.manual_pdf_preview_prepare(project, factory)
+
+    @mcp.tool()
+    def manual_pdf_preview_clean(
+        dry_run: bool = True,
+        confirm_clean: bool = False,
+        expected_receipt_sha256: str = "",
+    ) -> dict[str, Any]:
+        """Remove unchanged receipt-owned manual PDF preview copies. Real cleanup requires the reviewed receipt SHA-256 and never publishes."""
+        return tools.manual_pdf_preview_clean(
+            project,
+            dry_run=dry_run,
+            confirm_clean=confirm_clean,
+            expected_receipt_sha256=expected_receipt_sha256,
+        )
 
     @mcp.tool()
     def manual_pdf_publish(

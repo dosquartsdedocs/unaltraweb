@@ -43,15 +43,28 @@ VEGAVISUALS_CLI ?=
 DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 MANUAL_PDF_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0
 MANUAL_PDF_DEV_IMAGE ?= unaltraweb-manual-pdf:dev
+MCP_SMOKE_MANUAL_PDF_IMAGE ?= $(MANUAL_PDF_IMAGE)
 MANUAL_PDF_LANG ?=
 MANUAL_PDF_PUBLISH_DRY_RUN ?= 1
+MANUAL_PDF_CONFIRM_PUBLISH ?= 0
+MANUAL_PDF_PUBLICATION_INTENT_SHA256 ?=
+MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN ?= 1
+MANUAL_PDF_PREVIEW_CONFIRM_CLEAN ?= 0
+MANUAL_PDF_PREVIEW_RECEIPT_SHA256 ?=
 MANUAL_RELEASE_SELECTOR ?= latest
 MANUAL_RELEASE_DRY_RUN ?= 1
 MANUAL_RELEASE_CONFIRM_PREPARE ?= 0
 override MANUAL_RELEASE_SELECTOR := $(value MANUAL_RELEASE_SELECTOR)
 override MANUAL_RELEASE_DRY_RUN := $(value MANUAL_RELEASE_DRY_RUN)
 override MANUAL_RELEASE_CONFIRM_PREPARE := $(value MANUAL_RELEASE_CONFIRM_PREPARE)
-export MANUAL_RELEASE_SELECTOR
+override MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN := $(value MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN)
+override MANUAL_PDF_PREVIEW_CONFIRM_CLEAN := $(value MANUAL_PDF_PREVIEW_CONFIRM_CLEAN)
+override MANUAL_PDF_PREVIEW_RECEIPT_SHA256 := $(value MANUAL_PDF_PREVIEW_RECEIPT_SHA256)
+override MANUAL_PDF_LANG := $(value MANUAL_PDF_LANG)
+override MANUAL_PDF_PUBLISH_DRY_RUN := $(value MANUAL_PDF_PUBLISH_DRY_RUN)
+override MANUAL_PDF_CONFIRM_PUBLISH := $(value MANUAL_PDF_CONFIRM_PUBLISH)
+override MANUAL_PDF_PUBLICATION_INTENT_SHA256 := $(value MANUAL_PDF_PUBLICATION_INTENT_SHA256)
+export MANUAL_RELEASE_SELECTOR MANUAL_PDF_LANG MANUAL_PDF_PUBLISH_DRY_RUN MANUAL_PDF_CONFIRM_PUBLISH MANUAL_PDF_PUBLICATION_INTENT_SHA256 MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN MANUAL_PDF_PREVIEW_CONFIRM_CLEAN MANUAL_PDF_PREVIEW_RECEIPT_SHA256
 UNALTRAWEB_WORKER_ROLE ?=
 UNALTRAWEB_WORKER_PROJECT ?=
 UNALTRAWEB_WORKER_TOKEN ?=
@@ -80,8 +93,8 @@ ifneq ($(strip $(SCIMAGO_INPUT)),)
 SCIMAGO_ARGS += --input "$(SCIMAGO_INPUT)"
 endif
 
-.PHONY: distribution-check distribution-release-check distribution-doctor workflow-check wheel-check gem-check reproducible-site-check docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check manual-pdf-image manual-pdf-image-dev manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-release-status manual-release-check manual-release-prepare manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio compute-base-image-python compute-base-image-r web-capture-status web-capture-check web-capture-render web-capture-image visualization-status visualization-check visualization-render
-.PHONY: mcp-runtime-image mcp-image mcp-build mcp-check mcp-smoke mcp-smoke-prebuilt mcp-stdio mcp-down mcp-down-all mcp-list-tools mcp-starter-templates mcp-new-web mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-publish mcp-manual-release-status mcp-manual-release-check mcp-manual-release-prepare mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
+.PHONY: distribution-check distribution-release-check distribution-doctor workflow-check wheel-check gem-check reproducible-site-check docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check manual-pdf-image manual-pdf-image-dev manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-publish-worker manual-pdf-sync manual-release-status manual-release-check manual-release-prepare manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio compute-base-image-python compute-base-image-r web-capture-status web-capture-check web-capture-render web-capture-image visualization-status visualization-check visualization-render
+.PHONY: mcp-runtime-image mcp-image mcp-build mcp-check mcp-smoke mcp-smoke-prebuilt mcp-stdio mcp-down mcp-down-all mcp-list-tools mcp-starter-templates mcp-new-web mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-preview-prepare mcp-manual-pdf-preview-clean mcp-manual-pdf-publish mcp-manual-release-status mcp-manual-release-check mcp-manual-release-prepare mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
 
 REPOSITORY_CONTEXT_TARGETS := distribution-doctor manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio web-capture-status web-capture-check web-capture-render visualization-status visualization-check visualization-render manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-release-status manual-release-check manual-release-prepare metrics-scimago-fetch metrics-update metrics-update-all metrics-check
 $(REPOSITORY_CONTEXT_TARGETS): override PROJECT = $${MCP_CONSUMER_WORKSPACE:-$$PWD}
@@ -110,6 +123,7 @@ reproducible-site-check: ## Build the same fixed-epoch Jekyll fixture twice and 
 
 mcp-runtime-image mcp-image mcp-check mcp-smoke: MCP_RUNTIME_IMAGE = unaltraweb:dev
 mcp-runtime-image mcp-image mcp-check mcp-smoke: MCP_IMAGE = unaltraweb-mcp:dev
+mcp-smoke: MCP_SMOKE_MANUAL_PDF_IMAGE = $(MANUAL_PDF_DEV_IMAGE)
 
 mcp-runtime-image: ## Build the local development Jekyll runtime used by the MCP
 	docker build --network "$(MCP_DOCKER_BUILD_NETWORK)" -t "$(MCP_RUNTIME_IMAGE)" .
@@ -123,8 +137,8 @@ mcp-build: ## Prepare the reviewed release image used by MCP sessions, builds, a
 mcp-check: mcp-image ## Verify the Dockerized MCP CLI contract
 	docker run --rm --entrypoint unaltraweb-mcp "$(MCP_IMAGE)" version
 
-mcp-smoke: mcp-image ## Build and prove a real MCP stdio connection
-	@$(MAKE) --silent --no-print-directory mcp-smoke-prebuilt MCP_IMAGE="$(MCP_IMAGE)"
+mcp-smoke: mcp-image manual-pdf-image-dev ## Build and prove a real MCP stdio connection
+	@$(MAKE) --silent --no-print-directory mcp-smoke-prebuilt MCP_IMAGE="$(MCP_IMAGE)" MCP_SMOKE_MANUAL_PDF_IMAGE="$(MCP_SMOKE_MANUAL_PDF_IMAGE)"
 
 mcp-smoke-prebuilt: ## Prove a real MCP stdio connection using the selected prebuilt MCP image
 	docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp --entrypoint python3 "$(MCP_IMAGE)" /opt/unaltraweb/test/mcp_smoke.py
@@ -133,11 +147,13 @@ mcp-smoke-prebuilt: ## Prove a real MCP stdio connection using the selected preb
 	image_id=$$(docker image inspect --format '{{.Id}}' "$(MCP_IMAGE)"); \
 	socket_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$$docker_socket" /var/run/docker.sock); \
 	project_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(CURDIR)/tmp/mcp-preview-smoke" /workspace); \
+	mirror_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(CURDIR)/tmp/mcp-preview-smoke" "$(CURDIR)/tmp/mcp-preview-smoke"); \
 	docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" --group-add "$$socket_group" \
 	  -e HOME=/tmp -e "UNALTRAWEB_DOCKER_ROOT=$(CURDIR)/tmp/mcp-preview-smoke" \
 	  -e "UNALTRAWEB_PROJECT_USER=$(LOCAL_UID):$(LOCAL_GID)" -e "UNALTRAWEB_MCP_IMAGE=$$image_id" \
+	  -e "MANUAL_PDF_IMAGE=$(MCP_SMOKE_MANUAL_PDF_IMAGE)" \
 	  --mount "$$socket_mount" \
-	  --mount "$$project_mount" -w /workspace \
+	  --mount "$$project_mount" --mount "$$mirror_mount" -w /workspace \
 	  --entrypoint python3 "$$image_id" /opt/unaltraweb/test/mcp_preview_smoke.py
 
 mcp-stdio: ## Serve MCP_CONSUMER_WORKSPACE through the Dockerized stdio MCP
@@ -206,6 +222,12 @@ mcp-manual-pdf-status: ## Inspect manual PDF state for PROJECT
 
 mcp-manual-pdf-build: ## Build the manual PDF for PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-pdf-build --language "$(MANUAL_PDF_LANG)"
+
+mcp-manual-pdf-preview-prepare: ## Stage ignored PDF and cover copies for local Jekyll review
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-pdf-preview-prepare
+
+mcp-manual-pdf-preview-clean: ## Dry-run cleanup of receipt-owned PDF preview copies
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-pdf-preview-clean $(if $(filter 0 false FALSE no NO n N,$(MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN)),--apply,) $(if $(filter 1 true TRUE yes YES y Y,$(MANUAL_PDF_PREVIEW_CONFIRM_CLEAN)),--confirm-clean,) --expected-receipt-sha256 "$${MANUAL_PDF_PREVIEW_RECEIPT_SHA256}"
 
 mcp-manual-pdf-publish: ## Dry-run manual PDF publication for PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-pdf-publish --language "$(MANUAL_PDF_LANG)"
@@ -370,10 +392,23 @@ manual-pdf-check: ## Reject stale or unpublished manual PDF artefacts without Do
 manual-pdf-build: manual-pdf-preflight ## Build manual PDFs and cover previews under tmp
 	$(call run_manual_pdf_worker,build)
 
-manual-pdf-publish: manual-pdf-preflight ## Copy built PDF artefacts to configured public paths
+manual-pdf-publish-worker: ## Internal worker target used by provenance-aware publication
+	@if test -z "$(filter 1 true TRUE yes YES y Y,$(MANUAL_PDF_PUBLISH_DRY_RUN))"; then \
+	  test "$(MANUAL_PDF_CONFIRM_PUBLISH)" = 1 || { printf '%s\n' 'Real publication workers require MANUAL_PDF_CONFIRM_PUBLISH=1.' >&2; exit 2; }; \
+	  test -n "$(UNALTRAWEB_WORKER_TOKEN)" || { printf '%s\n' 'Real publication workers must be launched by the provenance-aware controller.' >&2; exit 2; }; \
+	  test -n "$(MANUAL_PDF_PUBLICATION_INTENT_SHA256)" || { printf '%s\n' 'Real publication workers require a controller publication intent.' >&2; exit 2; }; \
+	  PYTHONPATH="$(CURDIR)/src" /usr/bin/python3 -c 'import sys; from pathlib import Path; from unaltraweb_mcp.manual_pdf_preview import validate_publication_worker; validate_publication_worker(Path(sys.argv[1]), sys.argv[2], sys.argv[3])' "$(PROJECT_ROOT)" "$(MANUAL_PDF_PUBLICATION_INTENT_SHA256)" "$(MANUAL_PDF_LANG)"; \
+	fi
+	@$(MAKE) --silent --no-print-directory manual-pdf-preflight
+	@if test -z "$(filter 1 true TRUE yes YES y Y,$(MANUAL_PDF_PUBLISH_DRY_RUN))"; then \
+	  PYTHONPATH="$(CURDIR)/src" /usr/bin/python3 -c 'import sys; from pathlib import Path; from unaltraweb_mcp.manual_pdf_preview import validate_publication_worker; validate_publication_worker(Path(sys.argv[1]), sys.argv[2], sys.argv[3])' "$(PROJECT_ROOT)" "$(MANUAL_PDF_PUBLICATION_INTENT_SHA256)" "$(MANUAL_PDF_LANG)"; \
+	fi
 	$(call run_manual_pdf_worker,publish,$(if $(filter 1 true TRUE yes YES y Y,$(MANUAL_PDF_PUBLISH_DRY_RUN)),--dry-run,))
 
-manual-pdf-sync: manual-pdf-preflight ## Build and copy changed manual PDFs to their public paths
+manual-pdf-publish: ## Copy built PDF artefacts through provenance-aware MCP orchestration
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT_ROOT)" mcp manual-pdf-publish --language "$${MANUAL_PDF_LANG}" --release-selector "$${MANUAL_RELEASE_SELECTOR}" $(if $(filter 0 false FALSE no NO n N,$(MANUAL_PDF_PUBLISH_DRY_RUN)),--apply,) $(if $(filter 1 true TRUE yes YES y Y,$(MANUAL_PDF_CONFIRM_PUBLISH)),--confirm-publish,)
+
+manual-pdf-sync: manual-pdf-preflight ## Build and copy only changed manual PDFs; disabled configurations remain a no-op
 	$(call run_manual_pdf_worker,sync)
 
 define run_manual_release_worker

@@ -1,6 +1,14 @@
 LOCAL_CORE ?= /opt/unaltraweb
 LOCAL_GEMFILE := tmp/Gemfile.local
 MCP_IMAGE ?= __MCP_IMAGE__
+MANUAL_PDF_IMAGE ?= __MANUAL_PDF_IMAGE__
+MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN ?= 1
+MANUAL_PDF_PREVIEW_CONFIRM_CLEAN ?= 0
+MANUAL_PDF_PREVIEW_RECEIPT_SHA256 ?=
+override MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN := $(value MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN)
+override MANUAL_PDF_PREVIEW_CONFIRM_CLEAN := $(value MANUAL_PDF_PREVIEW_CONFIRM_CLEAN)
+override MANUAL_PDF_PREVIEW_RECEIPT_SHA256 := $(value MANUAL_PDF_PREVIEW_RECEIPT_SHA256)
+export MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN MANUAL_PDF_PREVIEW_CONFIRM_CLEAN MANUAL_PDF_PREVIEW_RECEIPT_SHA256
 DOCKER_MOUNT_HELPER := .unaltraweb/docker-mount.sh
 UNALTRAWEB_CAPTURE_RUNTIME := 1
 LOCAL_UID ?= $(shell id -u)
@@ -8,7 +16,7 @@ LOCAL_GID ?= $(shell id -g)
 PORT ?= 4000
 CONTAINER ?= unaltraweb-site-$(shell pwd -P | cksum | cut -d' ' -f1)
 
-.PHONY: runtime-image local-gemfile site-check-native build-native serve-capture-native serve-native test-native build serve test down clean
+.PHONY: runtime-image local-gemfile site-check-native build-native serve-capture-native serve-native test-native manual-pdf-preview-prepare manual-pdf-preview-clean build serve test down clean
 
 runtime-image:
 	@docker image inspect "$(MCP_IMAGE)" >/dev/null 2>&1 || docker pull "$(MCP_IMAGE)" >/dev/null 2>&1 || { printf '%s\n' 'Unable to use $(MCP_IMAGE). If this is an unpublished candidate, build it with make mcp-build in the unaltraweb factory checkout.' >&2; exit 1; }
@@ -35,17 +43,24 @@ serve-native: site-check-native serve-capture-native
 test-native: build-native
 	@unaltraweb-mcp --project "$${PWD}" mcp html-audit >/dev/null
 
-build: runtime-image
+manual-pdf-preview-prepare: runtime-image
+	@host_project=$$(pwd -P); docker_socket="$${UNALTRAWEB_DOCKER_SOCKET:-/var/run/docker.sock}"; project_mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$$host_project" "$$host_project"); set -- docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e "MCP_CONSUMER_WORKSPACE=$$host_project" -e "UNALTRAWEB_DOCKER_ROOT=$$host_project" -e "MANUAL_PDF_IMAGE=$(MANUAL_PDF_IMAGE)" --mount "$$project_mount"; if test -S "$$docker_socket"; then socket_path=$$(realpath -e -- "$$docker_socket") || { printf '%s\n' "Cannot resolve Docker socket: $$docker_socket" >&2; exit 1; }; test "$$(stat -c '%h' "$$socket_path")" = 1 || { printf '%s\n' 'UNALTRAWEB_DOCKER_SOCKET must not have hard-link aliases that could enter the consumer project.' >&2; exit 1; }; case "$$socket_path" in "$$host_project"|"$$host_project"/*) printf '%s\n' 'UNALTRAWEB_DOCKER_SOCKET must be outside the consumer project so the persistent preview cannot inherit it.' >&2; exit 1;; esac; socket_group=$$(stat -c '%g' "$$socket_path"); socket_mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$$socket_path" /var/run/docker.sock); set -- "$$@" --group-add "$$socket_group" --mount "$$socket_mount"; fi; "$$@" -w "$$host_project" --entrypoint unaltraweb-mcp "$(MCP_IMAGE)" --project "$$host_project" mcp manual-pdf-preview-prepare
+
+manual-pdf-preview-clean: runtime-image
+	@host_project=$$(pwd -P); project_mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$$host_project" "$$host_project"); docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e "MANUAL_PDF_PREVIEW_RECEIPT_SHA256=$${MANUAL_PDF_PREVIEW_RECEIPT_SHA256}" --mount "$$project_mount" -w "$$host_project" --entrypoint unaltraweb-mcp "$(MCP_IMAGE)" --project "$$host_project" mcp manual-pdf-preview-clean $(if $(filter 0 false FALSE no NO n N,$(MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN)),--apply,) $(if $(filter 1 true TRUE yes YES y Y,$(MANUAL_PDF_PREVIEW_CONFIRM_CLEAN)),--confirm-clean,) --expected-receipt-sha256 "$${MANUAL_PDF_PREVIEW_RECEIPT_SHA256}"
+
+build: manual-pdf-preview-prepare
 	@mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$${PWD}" /workspace); docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp --mount "$$mount" -w /workspace --entrypoint make "$(MCP_IMAGE)" --silent build-native LOCAL_CORE=/opt/unaltraweb
 
-serve: runtime-image
+serve: manual-pdf-preview-prepare
 	@mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$${PWD}" /workspace); docker run --rm --name "$(CONTAINER)" --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -p "$(PORT):$(PORT)" --mount "$$mount" -w /workspace --entrypoint make "$(MCP_IMAGE)" --silent serve-native LOCAL_CORE=/opt/unaltraweb HOST=0.0.0.0 PORT="$(PORT)"
 
-test: runtime-image
+test: manual-pdf-preview-prepare
 	@mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$${PWD}" /workspace); docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp --mount "$$mount" -w /workspace --entrypoint make "$(MCP_IMAGE)" --silent test-native LOCAL_CORE=/opt/unaltraweb
 
 down:
 	@container="$$(docker ps -aq --filter "name=^/$(CONTAINER)$$")"; if test -n "$$container"; then docker rm -f "$$container" >/dev/null; fi
 
 clean:
+	@test ! -e .cache/unaltraweb/manual-pdf-preview.json && test ! -L .cache/unaltraweb/manual-pdf-preview.json || { printf '%s\n' 'Run and confirm manual_pdf_preview_clean before make clean.' >&2; exit 1; }
 	@rm -rf _site tmp .jekyll-cache

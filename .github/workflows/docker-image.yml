@@ -295,7 +295,8 @@ jobs:
       - name: Smoke test exact MCP
         env:
           MCP_IMAGE: ghcr.io/dosquartsdedocs/unaltraweb-mcp@${{ needs.build-candidates.outputs.mcp_digest }}
-        run: make mcp-smoke-prebuilt MCP_IMAGE="$MCP_IMAGE"
+          MCP_SMOKE_MANUAL_PDF_IMAGE: ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@${{ needs.build-candidates.outputs.manual_pdf_digest }}
+        run: make mcp-smoke-prebuilt MCP_IMAGE="$MCP_IMAGE" MCP_SMOKE_MANUAL_PDF_IMAGE="$MCP_SMOKE_MANUAL_PDF_IMAGE"
 
       - name: Build docs with exact runtime
         env:

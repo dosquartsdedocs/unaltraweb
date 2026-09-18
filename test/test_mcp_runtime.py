@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import shutil
+import socket
 import subprocess
 import tempfile
 import time
@@ -173,6 +174,22 @@ class McpRuntimeTests(unittest.TestCase):
                 makefile = (project / "Makefile").read_text(encoding="utf-8")
                 self.assertIn("docker run", makefile)
                 self.assertIn(".unaltraweb/docker-mount.sh", makefile)
+                self.assertIn(f"MANUAL_PDF_IMAGE ?= {integration['manual_pdf_image']}", makefile)
+                self.assertIn("manual-pdf-preview-prepare: runtime-image", makefile)
+                self.assertIn("manual-pdf-preview-clean: runtime-image", makefile)
+                self.assertIn("MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN ?= 1", makefile)
+                self.assertIn("MANUAL_PDF_PREVIEW_CONFIRM_CLEAN ?= 0", makefile)
+                self.assertIn("MANUAL_PDF_PREVIEW_RECEIPT_SHA256 ?=", makefile)
+                self.assertIn("--expected-receipt-sha256", makefile)
+                self.assertIn("build: manual-pdf-preview-prepare", makefile)
+                self.assertIn("serve: manual-pdf-preview-prepare", makefile)
+                self.assertIn("test: manual-pdf-preview-prepare", makefile)
+                prepare_recipe = next(line for line in makefile.splitlines() if "mcp manual-pdf-preview-prepare" in line)
+                serve_recipe = next(line for line in makefile.splitlines() if "--silent serve-native" in line)
+                self.assertIn("/var/run/docker.sock", prepare_recipe)
+                self.assertIn("if test -S", prepare_recipe)
+                self.assertIn("must be outside the consumer project", prepare_recipe)
+                self.assertNotIn("/var/run/docker.sock", serve_recipe)
                 self.assertIn("serve-native: site-check-native serve-capture-native", makefile)
                 self.assertIn("runtime-image", makefile)
                 self.assertIn("group :jekyll_plugins do", makefile)
@@ -324,6 +341,150 @@ class McpRuntimeTests(unittest.TestCase):
                     self.assertNotIn(site_owned, scaffold["files"])
                 for path in site_tools.PROFILE_CONTRACTS[profile]["recommended_paths"]:
                     self.assertTrue((project / path).exists(), path)
+
+    def test_managed_preview_prepare_rejects_socket_inside_project_mount(self) -> None:
+        project = self.project / "socket-site"
+        site_tools.new_web(project, site_profile_value="unaltremanual")
+        fake_bin = self.project / "fake-bin"
+        fake_bin.mkdir()
+        docker = fake_bin / "docker"
+        docker.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        docker.chmod(0o755)
+        socket_path = project / "runtime.sock"
+        runtime_socket = socket.socket(socket.AF_UNIX)
+        runtime_socket.bind(str(socket_path))
+        try:
+            environment = os.environ.copy()
+            environment["PATH"] = f"{fake_bin}:{environment['PATH']}"
+            environment["UNALTRAWEB_DOCKER_SOCKET"] = str(socket_path)
+            completed = subprocess.run(
+                ["make", "--silent", "manual-pdf-preview-prepare"],
+                cwd=project,
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            bootstrap = Path(__file__).resolve().parents[1] / "scripts/unaltraweb-mcp-bootstrap.sh"
+            canonical = subprocess.run(
+                [str(bootstrap), "--project", str(project), "--image", "unused"],
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            socket_alias = self.project / "outside-socket-alias"
+            socket_alias.symlink_to(socket_path)
+            environment["UNALTRAWEB_DOCKER_SOCKET"] = str(socket_alias)
+            aliased = subprocess.run(
+                ["make", "--silent", "manual-pdf-preview-prepare"],
+                cwd=project,
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            canonical_aliased = subprocess.run(
+                [str(bootstrap), "--project", str(project), "--image", "unused"],
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            hard_link_alias = self.project / "outside-socket-hard-link"
+            os.link(socket_path, hard_link_alias)
+            environment["UNALTRAWEB_DOCKER_SOCKET"] = str(hard_link_alias)
+            hard_linked = subprocess.run(
+                ["make", "--silent", "manual-pdf-preview-prepare"],
+                cwd=project,
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+            canonical_hard_linked = subprocess.run(
+                [str(bootstrap), "--project", str(project), "--image", "unused"],
+                env=environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False,
+            )
+        finally:
+            runtime_socket.close()
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("must be outside the consumer project", completed.stderr)
+        self.assertNotEqual(canonical.returncode, 0)
+        self.assertIn("must be outside the consumer project", canonical.stderr)
+        self.assertNotEqual(aliased.returncode, 0)
+        self.assertIn("must be outside the consumer project", aliased.stderr)
+        self.assertNotEqual(canonical_aliased.returncode, 0)
+        self.assertIn("must be outside the consumer project", canonical_aliased.stderr)
+        self.assertNotEqual(hard_linked.returncode, 0)
+        self.assertIn("must not have hard-link aliases", hard_linked.stderr)
+        self.assertNotEqual(canonical_hard_linked.returncode, 0)
+        self.assertIn("must not have hard-link aliases", canonical_hard_linked.stderr)
+
+    def test_managed_preview_cleanup_variables_do_not_expand_make_functions(self) -> None:
+        project = self.project / "cleanup-variable-site"
+        site_tools.new_web(project, site_profile_value="unaltremanual")
+        marker = self.project / "cleanup-variable-expanded"
+
+        completed = subprocess.run(
+            [
+                "make",
+                "--dry-run",
+                "--silent",
+                "manual-pdf-preview-clean",
+                f"MANUAL_PDF_PREVIEW_RECEIPT_SHA256=$(shell touch {marker})",
+            ],
+            cwd=project,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertFalse(marker.exists())
+
+    def test_managed_disabled_preview_can_run_controller_without_a_socket(self) -> None:
+        project = self.project / "socket-free-controller-site"
+        site_tools.new_web(project, site_profile_value="unaltremanual")
+        fake_bin = self.project / "socket-free-bin"
+        fake_bin.mkdir()
+        capture = self.project / "socket-free-docker-calls"
+        docker = fake_bin / "docker"
+        docker.write_text(
+            "#!/bin/sh\nprintf '%s\\n' CALL \"$@\" >> \"$CAPTURE\"\n",
+            encoding="utf-8",
+        )
+        docker.chmod(0o755)
+        environment = os.environ.copy()
+        environment["PATH"] = f"{fake_bin}:{environment['PATH']}"
+        environment["CAPTURE"] = str(capture)
+        environment["UNALTRAWEB_DOCKER_SOCKET"] = str(self.project / "missing-docker.sock")
+
+        completed = subprocess.run(
+            ["make", "--silent", "manual-pdf-preview-prepare"],
+            cwd=project,
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        calls = capture.read_text(encoding="utf-8")
+        self.assertNotIn("--group-add", calls)
+        self.assertNotIn("/var/run/docker.sock", calls)
 
     def test_manual_generated_ignores_follow_configured_languages_and_paths(self) -> None:
         project = self.project / "custom-manual"
@@ -1172,8 +1333,17 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertEqual(len(release_digest), 64)
         self.assertTrue(all(character in "0123456789abcdef" for character in release_digest))
         self.assertNotEqual(release_image, assignments["MCP_IMAGE"])
-        self.assertIn("mcp-smoke: mcp-image", makefile)
+        self.assertIn("mcp-smoke: mcp-image manual-pdf-image-dev", makefile)
         self.assertIn("mcp-check: mcp-image", makefile)
+        self.assertIn("MANUAL_PDF_CONFIRM_PUBLISH ?= 0", makefile)
+        self.assertIn("manual-pdf-publish-worker: ## Internal worker", makefile)
+        self.assertIn("validate_publication_worker", makefile)
+        self.assertIn("must be launched by the provenance-aware controller", makefile)
+        self.assertIn("mcp manual-pdf-publish", makefile)
+        self.assertIn("Real publication workers require MANUAL_PDF_CONFIRM_PUBLISH=1", makefile)
+        self.assertIn("manual-pdf-sync: manual-pdf-preflight", makefile)
+        self.assertIn("run_manual_pdf_worker,sync", makefile)
+        self.assertIn('MANUAL_PDF_IMAGE=$(MCP_SMOKE_MANUAL_PDF_IMAGE)', makefile)
         self.assertIn(
             "mcp-runtime-image mcp-image mcp-check mcp-smoke: MCP_IMAGE = unaltraweb-mcp:dev",
             makefile,
@@ -1193,6 +1363,34 @@ class McpRuntimeTests(unittest.TestCase):
                 env=env,
                 check=False,
             )
+
+        blocked_worker = run_make(
+            "--silent",
+            "manual-pdf-publish-worker",
+            "MANUAL_PDF_PUBLISH_DRY_RUN=0",
+            env={**make_env, "MCP_CONSUMER_WORKSPACE": str(self.project)},
+        )
+        self.assertNotEqual(blocked_worker.returncode, 0)
+        self.assertIn("MANUAL_PDF_CONFIRM_PUBLISH=1", blocked_worker.stderr)
+
+        subprocess.run(
+            ["git", "-C", str(self.project), "init", "--quiet"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        blocked_python_override = run_make(
+            "--silent",
+            "manual-pdf-publish-worker",
+            "MANUAL_PDF_PUBLISH_DRY_RUN=0",
+            "MANUAL_PDF_CONFIRM_PUBLISH=1",
+            f"MANUAL_PDF_PUBLICATION_INTENT_SHA256={'a' * 64}",
+            "UNALTRAWEB_WORKER_TOKEN=forged",
+            "PYTHON=true",
+            env={**make_env, "MCP_CONSUMER_WORKSPACE": str(self.project)},
+        )
+        self.assertNotEqual(blocked_python_override.returncode, 0)
+        self.assertIn("controller project lock", blocked_python_override.stderr)
 
         dry_run = run_make("--dry-run", "mcp-image")
         self.assertEqual(dry_run.returncode, 0, dry_run.stderr)
@@ -1259,7 +1457,7 @@ class McpRuntimeTests(unittest.TestCase):
     def test_inventory_exposes_runtime_tools(self) -> None:
         tools = site_tools.list_tools()["tools"]
 
-        for name in ["new_web", "detect_site", "build_site", "preview_start", "preview_status", "preview_stop"]:
+        for name in ["new_web", "detect_site", "build_site", "manual_pdf_preview_prepare", "manual_pdf_preview_clean", "preview_start", "preview_status", "preview_stop"]:
             self.assertIn(name, tools)
 
     def test_prompt_inventory_is_structured_and_complete(self) -> None:
@@ -1294,6 +1492,15 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertIn(".vegavisuals.yml", manifest["workspace_rule"]["source_paths"])
         self.assertIn(".unaltraweb/receipts/diavisuals.json", manifest["workspace_rule"]["generated_paths"])
         self.assertIn(".unaltraweb/receipts/vegavisuals.json", manifest["workspace_rule"]["generated_paths"])
+        self.assertIn(".cache/unaltraweb/manual-pdf-preview.json", manifest["workspace_rule"]["generated_paths"])
+        self.assertIn(".cache/unaltraweb/manual-pdf-publication-intent.json", manifest["workspace_rule"]["generated_paths"])
+        self.assertIn(".cache/unaltraweb/manual-pdf-publication.json", manifest["workspace_rule"]["generated_paths"])
+        self.assertIn(".cache/unaltraweb/manual-pdf-preview.lock", manifest["workspace_rule"]["generated_paths"])
+        self.assertIn(".cache/unaltraweb/manual-pdf-preview-recovery", manifest["workspace_rule"]["generated_paths"])
+        self.assertIn(
+            "configured unaltraweb.manual.pdf.output and cover_output deployment products",
+            manifest["workspace_rule"]["generated_paths"],
+        )
         self.assertEqual(manifest["schema_version"], 1)
         self.assertEqual(
             manifest["transport"]["command"],

@@ -191,6 +191,26 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertTrue(any("checkout must fetch history for reviewed core SHA validation" in error for error in errors), errors)
 
+    def test_ci_policy_pairs_mcp_smoke_images_from_the_same_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workflows = self.copied_repository(root)
+            ci = workflows / "ci.yml"
+            text = ci.read_text(encoding="utf-8")
+            self.assertIn("MCP_SMOKE_MANUAL_PDF_IMAGE: unaltraweb-manual-pdf:ci", text)
+            ci.write_text(
+                text.replace(
+                    "MCP_SMOKE_MANUAL_PDF_IMAGE: unaltraweb-manual-pdf:ci",
+                    "MCP_SMOKE_MANUAL_PDF_IMAGE: ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.3.0",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            with patch("scripts.validate_workflows.ROOT", root):
+                errors = validate_workflows(workflows)
+
+        self.assertTrue(any("images built from the same checkout" in error for error in errors), errors)
+
     def test_package_publish_policy_rejects_oidc_in_the_verification_job(self) -> None:
         errors = self.package_publish_mutation_errors(
             [("      contents: read\n    steps:\n", "      contents: read\n      id-token: write\n    steps:\n")]
@@ -415,6 +435,18 @@ class WorkflowTests(unittest.TestCase):
         )
 
         self.assertTrue(any("Smoke test exact MCP" in error for error in errors))
+
+    def test_core_docker_policy_pairs_exact_mcp_and_manual_pdf_candidates(self) -> None:
+        errors = self.docker_mutation_errors(
+            [
+                (
+                    "          MCP_SMOKE_MANUAL_PDF_IMAGE: ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@${{ needs.build-candidates.outputs.manual_pdf_digest }}\n",
+                    "",
+                )
+            ]
+        )
+
+        self.assertTrue(any("Smoke test exact MCP" in error for error in errors), errors)
 
     def test_core_docker_policy_requires_sha_no_clobber_and_revision_checks(self) -> None:
         errors = self.docker_mutation_errors(

@@ -628,9 +628,17 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
                 "MCP_IMAGE": (
                     "ghcr.io/dosquartsdedocs/unaltraweb-mcp@"
                     "${{ needs.build-candidates.outputs.mcp_digest }}"
-                )
+                ),
+                "MCP_SMOKE_MANUAL_PDF_IMAGE": (
+                    "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@"
+                    "${{ needs.build-candidates.outputs.manual_pdf_digest }}"
+                ),
             },
-            ["mcp-smoke-prebuilt", 'MCP_IMAGE="$MCP_IMAGE"'],
+            [
+                "mcp-smoke-prebuilt",
+                'MCP_IMAGE="$MCP_IMAGE"',
+                'MCP_SMOKE_MANUAL_PDF_IMAGE="$MCP_SMOKE_MANUAL_PDF_IMAGE"',
+            ],
         ),
         "Build docs with exact runtime": (
             {
@@ -1048,6 +1056,24 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
     manual_pdf_tests = str(_named_step(ci_docker, "Test all manual PDF integrations").get("run") or "")
     if "-m unittest discover -s test/manual_pdf -p 'test_*_integration.py'" not in manual_pdf_tests:
         errors.append("ci.yml: manual PDF image must run every test_*_integration.py suite")
+    mcp_smoke = _named_step(ci_docker, "Smoke test MCP")
+    mcp_smoke_run = str(mcp_smoke.get("run") or "")
+    if (
+        mcp_smoke.get("env") != {
+            "MCP_IMAGE": "unaltraweb-mcp:ci",
+            "MCP_SMOKE_MANUAL_PDF_IMAGE": "unaltraweb-manual-pdf:ci",
+        }
+        or "continue-on-error" in mcp_smoke
+        or not all(
+            marker in mcp_smoke_run
+            for marker in [
+                "mcp-smoke-prebuilt",
+                'MCP_IMAGE="$MCP_IMAGE"',
+                'MCP_SMOKE_MANUAL_PDF_IMAGE="$MCP_SMOKE_MANUAL_PDF_IMAGE"',
+            ]
+        )
+    ):
+        errors.append("ci.yml: MCP smoke must pair MCP and manual PDF images built from the same checkout")
 
     package = workflows.get("package-prepare.yml", {})
     package_text = json.dumps(package)

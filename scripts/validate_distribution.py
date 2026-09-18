@@ -241,7 +241,7 @@ def validate(root: Path = ROOT) -> list[str]:
     scaffold_templates = {
         "Gemfile.tmpl": ["__GEM_VERSION__", "__CORE_REPOSITORY__", "__CORE_SHA__"],
         "Gemfile.lock.tmpl": ["__GEM_VERSION__", "__CORE_REPOSITORY__", "__CORE_SHA__"],
-        "Makefile.tmpl": ["__MCP_IMAGE__"],
+        "Makefile.tmpl": ["__MCP_IMAGE__", "__MANUAL_PDF_IMAGE__"],
         ".github/workflows/deploy.yml.tmpl": [
             "__SITE_DEPLOY_WORKFLOW__",
             "__CORE_SHA__",

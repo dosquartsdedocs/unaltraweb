@@ -147,7 +147,10 @@ jobs:
         run: make reproducible-site-check DOCKER_IMAGE=unaltraweb-mcp:ci
 
       - name: Smoke test MCP
-        run: make mcp-smoke-prebuilt MCP_IMAGE=unaltraweb-mcp:ci
+        env:
+          MCP_IMAGE: unaltraweb-mcp:ci
+          MCP_SMOKE_MANUAL_PDF_IMAGE: unaltraweb-manual-pdf:ci
+        run: make mcp-smoke-prebuilt MCP_IMAGE="$MCP_IMAGE" MCP_SMOKE_MANUAL_PDF_IMAGE="$MCP_SMOKE_MANUAL_PDF_IMAGE"
 
       - name: Build docs
         run: make docs-build DOCKER_IMAGE=unaltraweb-runtime:ci
