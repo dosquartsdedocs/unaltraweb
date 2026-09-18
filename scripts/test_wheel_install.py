@@ -73,6 +73,7 @@ def main() -> int:
             "unaltraweb_mcp/calibre_import.py",
             "unaltraweb_mcp/component-contract.json",
             "unaltraweb_mcp/component-contract.schema.json",
+            "unaltraweb_mcp/manual_pdf_preview.py",
             "unaltraweb_mcp/manual_release.py",
             "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",
@@ -228,6 +229,7 @@ def main() -> int:
                 raise RuntimeError(f"generated {profile} .gitignore ignores arbitrary publication assets")
             gemfile = (profile_site / "Gemfile").read_text(encoding="utf-8")
             lockfile = (profile_site / "Gemfile.lock").read_text(encoding="utf-8")
+            makefile = (profile_site / "Makefile").read_text(encoding="utf-8")
             deploy = (profile_site / ".github/workflows/deploy.yml").read_text(encoding="utf-8")
             if f'git: "{integration["core_repository"]}"' not in gemfile or f'ref: "{integration["core_sha"]}"' not in gemfile:
                 raise RuntimeError(f"generated {profile} Gemfile does not use the reviewed core revision")
@@ -237,6 +239,16 @@ def main() -> int:
                 raise RuntimeError(f"generated {profile} deploy caller does not use the reviewed core revision")
             if f'manual-pdf-image: "{integration["manual_pdf_image"]}"' not in deploy:
                 raise RuntimeError(f"generated {profile} deploy caller does not use the reviewed PDF image")
+            makefile_markers = [
+                f"MANUAL_PDF_IMAGE ?= {integration['manual_pdf_image']}",
+                "manual-pdf-preview-prepare: runtime-image",
+                "manual-pdf-preview-clean: runtime-image",
+                "build: manual-pdf-preview-prepare",
+                "serve: manual-pdf-preview-prepare",
+                "test: manual-pdf-preview-prepare",
+            ]
+            if any(value not in makefile for value in makefile_markers):
+                raise RuntimeError(f"generated {profile} Makefile lacks managed manual PDF preview staging")
             if f'vegavisuals-sha: "{integration["vegavisuals_sha"]}"' not in deploy:
                 raise RuntimeError(f"generated {profile} deploy caller does not use the reviewed Vega renderer")
             manifest = json.loads((profile_site / ".unaltraweb/scaffold.json").read_text(encoding="utf-8"))

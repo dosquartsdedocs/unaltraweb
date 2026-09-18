@@ -62,6 +62,7 @@ MAKE_TIMEOUTS = {
     "manual-pdf-build": 1800.0,
     "manual-pdf-status": 60.0,
     "manual-pdf-publish": 300.0,
+    "manual-pdf-publish-worker": 300.0,
     "manual-release-status": 300.0,
     "manual-release-check": 300.0,
     "manual-release-prepare": 900.0,
@@ -83,6 +84,7 @@ WORKER_TARGET_ROLES = {
     "manual-pdf-status": "manual-pdf",
     "manual-pdf-build": "manual-pdf",
     "manual-pdf-publish": "manual-pdf",
+    "manual-pdf-publish-worker": "manual-pdf",
 }
 PROMPT_SPECS: dict[str, dict[str, Any]] = {
     "start_site_session": {
@@ -298,7 +300,7 @@ PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
 
 - `latest` is a manual-only deployment built from the reviewed `main` branch.
 - Pushing or merging to `main` does not publish the manual. A maintainer starts the deployment manually after local checks, required renders, and human review.
-- When PDF output is enabled, the default PDF and cover outputs, `assets/pdf/manual-<lang>.pdf` and `assets/img/manual-cover-<lang>.png`, are generated for deployment and are not versioned. Do not upload, edit, or commit them.
+- When PDF output is enabled, the default PDF and cover outputs, `assets/pdf/manual-<lang>.pdf` and `assets/img/manual-cover-<lang>.png`, are generated for deployment and are not versioned. Use `manual_pdf_preview_prepare` to review them with the local site, then `manual_pdf_preview_clean` to remove only unchanged receipt-owned preview copies. Do not upload, edit, or commit them.
 - The generated manual home, `manual-release.json`, and PDF editorial credits identify the publication channel and selector. Use the same selector for PDF build, site build, and local candidate checks.
 - Stable editions use `vYYYY.MM(.N)`: `vYYYY.MM` for the first edition in a month and `vYYYY.MM.N` for an additional edition. They are deferred to explicit releases, and a `latest` deployment never creates one.
 - Prepare a stable candidate only from the exact clean reviewed commit and an `unaltraweb-mcp` image selected by immutable digest; the candidate records both identities.
@@ -2846,7 +2848,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
             },
         ],
         "web_only_or_pdf_review_required": ["tabs", "details", "interactive charts", "interactive maps", "galleries", "audio", "video", "arbitrary Liquid figure includes"],
-        "quality_tools": ["manual_source_quality_check", "manual_editorial_quality_check", "manual_computation_check", "web_capture_check", "visualization_check", "build_site", "manual_pdf_build"],
+        "quality_tools": ["manual_source_quality_check", "manual_editorial_quality_check", "manual_computation_check", "web_capture_check", "visualization_check", "build_site", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean"],
         "source_guides": [
             "docs/agents/manual-authoring-components.md",
             "plugins/unaltraweb-site/skills/manual-pedagogical-writing/SKILL.md",
@@ -4949,6 +4951,11 @@ def _manual_pdf_args(language: str) -> list[str]:
     return [f"MANUAL_PDF_LANG={value}"] if value else []
 
 
+def _manual_pdf_preview_inventory(languages: list[dict[str, Any]]) -> list[tuple[str, ...]]:
+    keys = ["language", "generated_pdf", "generated_cover", "published_pdf", "published_cover"]
+    return sorted(tuple(str(item.get(key) or "") for key in keys) for item in languages)
+
+
 def manual_pdf_status(project: Path, factory: Path, language: str = "", release_selector: str = "latest") -> dict[str, Any]:
     return run_factory_make(
         factory,
@@ -4969,6 +4976,259 @@ def manual_pdf_build(project: Path, factory: Path, language: str = "", release_s
     )
 
 
+def manual_pdf_preview_prepare(project: Path, factory: Path) -> dict[str, Any]:
+    from . import manual_pdf_preview
+
+    project = project_path(project)
+    built_languages: list[str] = []
+    build_results: list[dict[str, Any]] = []
+    status: dict[str, Any] = {}
+    try:
+        status = manual_pdf_status(project, factory, release_selector="latest")
+        if status.get("enabled") is False:
+            if manual_pdf_preview.receipt_present(project):
+                return {
+                    "ok": False,
+                    "enabled": False,
+                    "skipped": False,
+                    "publishes": False,
+                    "built_languages": [],
+                    "status": status,
+                    "error": "PDF output is disabled while receipt-owned preview artifacts remain; clean the preview artifacts first.",
+                }
+            return {
+                "ok": True,
+                "enabled": False,
+                "skipped": True,
+                "publishes": False,
+                "built_languages": [],
+                "status": status,
+            }
+        if status.get("enabled") is not True:
+            return {
+                "ok": False,
+                "enabled": None,
+                "publishes": False,
+                "built_languages": [],
+                "status": status,
+                "error": str(status.get("error") or "Manual PDF status did not report whether PDF output is enabled."),
+            }
+        with manual_pdf_preview.project_lock(project):
+            config_digest = manual_pdf_preview.config_sha256(project)
+            status = manual_pdf_status(project, factory, release_selector="latest")
+            if status.get("enabled") is False:
+                if manual_pdf_preview.receipt_present(project):
+                    return {
+                        "ok": False,
+                        "enabled": False,
+                        "skipped": False,
+                        "publishes": False,
+                        "built_languages": [],
+                        "status": status,
+                        "error": "PDF output is disabled while receipt-owned preview artifacts remain; clean the preview artifacts first.",
+                    }
+                return {
+                    "ok": True,
+                    "enabled": False,
+                    "skipped": True,
+                    "publishes": False,
+                    "built_languages": [],
+                    "status": status,
+                }
+            languages = status.get("languages")
+            if (
+                status.get("enabled") is not True
+                or status.get("configuration_ok") is not True
+                or not isinstance(languages, list)
+                or not languages
+                or any(not isinstance(item, dict) for item in languages)
+            ):
+                return {
+                    "ok": False,
+                    "enabled": True,
+                    "publishes": False,
+                    "built_languages": [],
+                    "status": status,
+                    "error": "Manual PDF preview preparation requires a valid enabled PDF configuration.",
+                }
+            replaceable_public: dict[str, dict[str, dict[str, Any]]] = {}
+            if any(
+                item.get("published_pdf_exists") is True or item.get("published_cover_exists") is True
+                for item in languages
+            ):
+                replaceable_public = manual_pdf_preview.known_publication_languages(
+                    project,
+                    languages,
+                    lock_held=True,
+                )
+                matching_generated = manual_pdf_preview.matching_public_languages(project, languages)
+                for language, records in matching_generated.items():
+                    replaceable_public.setdefault(language, {}).update(records)
+            for language_status in languages:
+                if language_status.get("fresh") is True:
+                    continue
+                language = str(language_status.get("language") or "")
+                result = manual_pdf_build(project, factory, language=language, release_selector="latest")
+                build_results.append(result)
+                if result.get("ok") is not True:
+                    return {
+                        "ok": False,
+                        "enabled": True,
+                        "publishes": False,
+                        "built_languages": built_languages,
+                        "builds": build_results,
+                        "status": status,
+                        "error": f"Could not build stale manual PDF language: {language}",
+                    }
+                built_languages.append(language)
+
+            final_status = manual_pdf_status(project, factory, release_selector="latest")
+            status = final_status
+            final_languages = final_status.get("languages")
+            if (
+                final_status.get("enabled") is not True
+                or final_status.get("configuration_ok") is not True
+                or final_status.get("ready_to_publish") is not True
+                or not isinstance(final_languages, list)
+                or not final_languages
+                or any(not isinstance(item, dict) for item in final_languages)
+            ):
+                return {
+                    "ok": False,
+                    "enabled": True,
+                    "publishes": False,
+                    "built_languages": built_languages,
+                    "builds": build_results,
+                    "status": final_status,
+                    "error": "Manual PDF artifacts are not fresh after the preview build step.",
+                }
+            staging_languages = []
+            for item in final_languages:
+                staged_item = dict(item)
+                previous = replaceable_public.get(str(item.get("language") or ""))
+                if previous:
+                    staged_item["_replaceable_previous_public"] = previous
+                staging_languages.append(staged_item)
+            staged = manual_pdf_preview.prepare(
+                project,
+                staging_languages,
+                expected_config_sha256=config_digest,
+                lock_held=True,
+            )
+            if staged.get("ok") is not True:
+                return {
+                    **staged,
+                    "enabled": True,
+                    "built_languages": built_languages,
+                    "builds": build_results,
+                    "status": final_status,
+                    "publishes": False,
+                }
+            verified_status = manual_pdf_status(project, factory, release_selector="latest")
+            verified_languages = verified_status.get("languages")
+            config_matches = False
+            try:
+                config_matches = manual_pdf_preview.config_sha256(project) == config_digest
+            except (manual_pdf_preview.ManualPdfPreviewError, OSError, UnicodeError):
+                pass
+            receipt_review: dict[str, Any] = {}
+            receipt_matches = staged.get("state") != "staged"
+            if staged.get("state") == "staged":
+                try:
+                    receipt_review = manual_pdf_preview.clean(project, lock_held=True)
+                except (manual_pdf_preview.ManualPdfPreviewError, OSError, UnicodeError) as exc:
+                    receipt_review = {"ok": False, "error": str(exc)}
+                receipt_matches = (
+                    receipt_review.get("ok") is True
+                    and receipt_review.get("state") == "planned"
+                    and receipt_review.get("receipt_sha256") == staged.get("receipt_sha256")
+                )
+            verification_failed = (
+                verified_status.get("enabled") is not True
+                or verified_status.get("configuration_ok") is not True
+                or verified_status.get("ready_to_publish") is not True
+                or not isinstance(verified_languages, list)
+                or not verified_languages
+                or any(not isinstance(item, dict) for item in verified_languages)
+                or any(
+                    item.get("fresh") is not True
+                    or item.get("ready_to_publish") is not True
+                    or item.get("published_current") is not True
+                    or item.get("release_selector") != "latest"
+                    for item in verified_languages
+                )
+                or _manual_pdf_preview_inventory(verified_languages) != _manual_pdf_preview_inventory(final_languages)
+                or not config_matches
+                or not receipt_matches
+            )
+            if verification_failed:
+                cleanup: dict[str, Any] = {}
+                receipt_sha256 = str(staged.get("receipt_sha256") or "")
+                if staged.get("state") == "staged" and re.fullmatch(r"[0-9a-f]{64}", receipt_sha256):
+                    cleanup = manual_pdf_preview.clean(
+                        project,
+                        dry_run=False,
+                        confirm_clean=True,
+                        expected_receipt_sha256=receipt_sha256,
+                        lock_held=True,
+                    )
+                return {
+                    "ok": False,
+                    "enabled": True,
+                    "publishes": False,
+                    "built_languages": built_languages,
+                    "builds": build_results,
+                    "status": verified_status,
+                    "receipt_review": receipt_review,
+                    "cleanup": cleanup,
+                    "error": "Manual PDF sources changed while preview artifacts were staged.",
+                }
+            return {
+                **staged,
+                "enabled": True,
+                "built_languages": built_languages,
+                "builds": build_results,
+                "status": verified_status,
+                "publishes": False,
+            }
+    except (manual_pdf_preview.ManualPdfPreviewError, OSError, UnicodeError, ValueError) as exc:
+        return {
+            "ok": False,
+            "enabled": status.get("enabled") if isinstance(status.get("enabled"), bool) else None,
+            "publishes": False,
+            "built_languages": built_languages,
+            "builds": build_results,
+            "status": status,
+            "error": str(exc),
+        }
+
+
+def manual_pdf_preview_clean(
+    project: Path,
+    *,
+    dry_run: bool = True,
+    confirm_clean: bool = False,
+    expected_receipt_sha256: str = "",
+) -> dict[str, Any]:
+    from . import manual_pdf_preview
+
+    try:
+        return manual_pdf_preview.clean(
+            project_path(project),
+            dry_run=dry_run,
+            confirm_clean=confirm_clean,
+            expected_receipt_sha256=expected_receipt_sha256,
+        )
+    except (manual_pdf_preview.ManualPdfPreviewError, OSError, UnicodeError, ValueError) as exc:
+        return {
+            "ok": False,
+            "publishes": False,
+            "dry_run": dry_run,
+            "confirmed": confirm_clean,
+            "error": str(exc),
+        }
+
+
 def manual_pdf_publish(
     project: Path,
     factory: Path,
@@ -4978,18 +5238,94 @@ def manual_pdf_publish(
     dry_run: bool = True,
     confirm_publish: bool = False,
 ) -> dict[str, Any]:
+    from . import manual_pdf_preview
+
     if not dry_run and not confirm_publish:
         raise RuntimeError("A real manual PDF publication requires confirm_publish=True after reviewing the dry-run.")
+    project = project_path(project)
     args = _manual_pdf_args(language)
     args.append(f"MANUAL_PDF_PUBLISH_DRY_RUN={1 if dry_run else 0}")
-    result = run_factory_make(
-        factory,
-        project,
-        "manual-pdf-publish",
-        extra_args=args,
-        env=_manual_release_env(release_selector),
-    )
-    return {**result, "dry_run": dry_run, "confirmed": confirm_publish}
+    if dry_run:
+        result = run_factory_make(
+            factory,
+            project,
+            "manual-pdf-publish-worker",
+            extra_args=args,
+            env=_manual_release_env(release_selector),
+        )
+        return {**result, "dry_run": True, "confirmed": confirm_publish}
+
+    with manual_pdf_preview.project_lock(project):
+        if manual_pdf_preview.receipt_present(project):
+            raise RuntimeError("Clean receipt-owned manual PDF preview files before real publication.")
+        preflight_status = manual_pdf_status(
+            project,
+            factory,
+            language=language,
+            release_selector=release_selector,
+        )
+        preflight_languages = preflight_status.get("languages")
+        if (
+            preflight_status.get("ready_to_publish") is not True
+            or not isinstance(preflight_languages, list)
+            or not preflight_languages
+            or any(not isinstance(item, dict) for item in preflight_languages)
+        ):
+            raise RuntimeError("Manual PDF artifacts must be fresh before confirmed publication.")
+        intent = manual_pdf_preview.begin_publication(project, preflight_languages, lock_held=True)
+        worker_args = [
+            *args,
+            "MANUAL_PDF_CONFIRM_PUBLISH=1",
+            f"MANUAL_PDF_PUBLICATION_INTENT_SHA256={intent['sha256']}",
+        ]
+        result = run_factory_make(
+            factory,
+            project,
+            "manual-pdf-publish-worker",
+            extra_args=worker_args,
+            env=_manual_release_env(release_selector),
+        )
+        payload = {
+            **result,
+            "dry_run": False,
+            "confirmed": confirm_publish,
+            "publication_intent": intent,
+        }
+        if result.get("ok") is not True:
+            return payload
+        status = manual_pdf_status(
+            project,
+            factory,
+            language=language,
+            release_selector=release_selector,
+        )
+        languages = status.get("languages")
+        if (
+            status.get("published_current") is not True
+            or not isinstance(languages, list)
+            or not languages
+            or any(not isinstance(item, dict) for item in languages)
+        ):
+            return {
+                **payload,
+                "ok": False,
+                "status": status,
+                "error": "Publication completed, but its public artifacts could not be verified for local provenance.",
+            }
+        if _manual_pdf_preview_inventory(languages) != _manual_pdf_preview_inventory(preflight_languages):
+            return {
+                **payload,
+                "ok": False,
+                "status": status,
+                "error": "Publication completed, but its language and destination inventory changed during the operation.",
+            }
+        provenance = manual_pdf_preview.record_publication(
+            project,
+            languages,
+            lock_held=True,
+            expected_intent_sha256=intent["sha256"],
+        )
+        return {**payload, "status": status, "publication_receipt": provenance}
 
 
 def _manual_release_env(selector: str, *, dry_run: bool | None = None, confirm_prepare: bool = False) -> dict[str, str]:
@@ -5454,7 +5790,7 @@ def list_tools() -> dict[str, Any]:
     return {
         "resources": ["web://distribution", "web://site-context", "web://site-doctor", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": list(PROMPT_SPECS),
-        "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_publish", "manual_release_status", "manual_release_check", "manual_release_prepare", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
+        "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean", "manual_pdf_publish", "manual_release_status", "manual_release_check", "manual_release_prepare", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
 
 

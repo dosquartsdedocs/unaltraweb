@@ -58,6 +58,12 @@ workspace_rule:
     - _site
     - tmp
     - .cache/scimago
+    - .cache/unaltraweb/manual-pdf-publication-intent.json
+    - .cache/unaltraweb/manual-pdf-publication.json
+    - .cache/unaltraweb/manual-pdf-preview.json
+    - .cache/unaltraweb/manual-pdf-preview.lock
+    - .cache/unaltraweb/manual-pdf-preview-recovery
+    - configured unaltraweb.manual.pdf.output and cover_output deployment products
     - .unaltraweb/computations.lock.json
     - .unaltraweb/receipts/diavisuals.json
     - .unaltraweb/receipts/vegavisuals.json
@@ -157,6 +163,8 @@ mcp:
     - web_capture_render
     - manual_pdf_status
     - manual_pdf_build
+    - manual_pdf_preview_prepare
+    - manual_pdf_preview_clean
     - manual_pdf_publish
     - manual_release_status
     - manual_release_check

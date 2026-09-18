@@ -25,6 +25,7 @@ FACTORY_REQUIRED_MCP_COMMANDS = {
     "web-capture-render",
     "manual-pdf-status",
     "manual-pdf-build",
+    "manual-pdf-preview-prepare",
     "manual-pdf-publish",
     "manual-release-status",
     "manual-release-check",
@@ -50,6 +51,7 @@ PACKAGE_ONLY_MCP_COMMANDS = {
     "list-tools",
     "manual-authoring-capabilities",
     "manual-editorial-quality-check",
+    "manual-pdf-preview-clean",
     "manual-source-quality-check",
     "new-web",
     "preview-start",
@@ -273,6 +275,18 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return print_json(tools.manual_pdf_status(project, factory, language=args.language, release_selector=args.release_selector))
     if command == "manual-pdf-build":
         return print_json(tools.manual_pdf_build(project, factory, language=args.language, release_selector=args.release_selector))
+    if command == "manual-pdf-preview-prepare":
+        return print_json(tools.manual_pdf_preview_prepare(project, factory), enforce_ok=True)
+    if command == "manual-pdf-preview-clean":
+        return print_json(
+            tools.manual_pdf_preview_clean(
+                project,
+                dry_run=not args.apply,
+                confirm_clean=args.confirm_clean,
+                expected_receipt_sha256=args.expected_receipt_sha256,
+            ),
+            enforce_ok=True,
+        )
     if command == "manual-pdf-publish":
         return print_json(
             tools.manual_pdf_publish(
@@ -282,7 +296,8 @@ def cmd_mcp(args: argparse.Namespace) -> int:
                 release_selector=args.release_selector,
                 dry_run=not args.apply,
                 confirm_publish=args.confirm_publish,
-            )
+            ),
+            enforce_ok=True,
         )
     if command == "manual-release-status":
         return print_json(tools.manual_release_status(project, factory, selector=args.selector), enforce_ok=True)
@@ -435,6 +450,13 @@ def build_parser() -> argparse.ArgumentParser:
         manual_pdf = mcp_sub.add_parser(name)
         manual_pdf.add_argument("--language", default="")
         manual_pdf.add_argument("--release-selector", default="latest")
+
+    mcp_sub.add_parser("manual-pdf-preview-prepare")
+
+    manual_pdf_preview_clean = mcp_sub.add_parser("manual-pdf-preview-clean")
+    manual_pdf_preview_clean.add_argument("--apply", action="store_true")
+    manual_pdf_preview_clean.add_argument("--confirm-clean", action="store_true")
+    manual_pdf_preview_clean.add_argument("--expected-receipt-sha256", default="")
 
     manual_pdf_publish = mcp_sub.add_parser("manual-pdf-publish")
     manual_pdf_publish.add_argument("--language", default="")

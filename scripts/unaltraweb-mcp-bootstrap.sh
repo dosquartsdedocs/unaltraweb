@@ -62,6 +62,24 @@ project_id="$(/bin/sh "$script_dir/unaltraweb-mcp-project-id.sh" "$project")"
 workspace_mount="$(/bin/sh "$script_dir/unaltraweb-docker-mount.sh" "$project" /workspace)"
 mirror_mount="$(/bin/sh "$script_dir/unaltraweb-docker-mount.sh" "$project" "$project")"
 
+if [ -S "$docker_socket" ]; then
+  unresolved_socket="$docker_socket"
+  if ! docker_socket="$(realpath -e -- "$unresolved_socket")"; then
+    printf '%s\n' "Cannot resolve Docker socket: $unresolved_socket" >&2
+    exit 1
+  fi
+  if [ "$(stat -c '%h' "$docker_socket")" != 1 ]; then
+    printf '%s\n' 'UNALTRAWEB_DOCKER_SOCKET must not have hard-link aliases that could enter the consumer project.' >&2
+    exit 1
+  fi
+  case "$docker_socket" in
+    "$project"|"$project"/*)
+      printf '%s\n' 'UNALTRAWEB_DOCKER_SOCKET must be outside the consumer project so the persistent preview cannot inherit it.' >&2
+      exit 1
+      ;;
+  esac
+fi
+
 if ! resolved_image="$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/null)"; then
   docker pull "$image" >/dev/null
   resolved_image="$(docker image inspect --format '{{.Id}}' "$image")"

@@ -62,12 +62,18 @@ For a configured `unaltremanual` PDF edition, Docker remains the only runtime pr
 
 ```text
 manual_pdf_status
-manual_pdf_build
+manual_pdf_preview_prepare
+build_site
+preview_start
+manual_pdf_preview_clean
+manual_pdf_preview_clean(dry_run=false, confirm_clean=true, expected_receipt_sha256="<dry-run receipt_sha256>")
 manual_pdf_publish
 manual_pdf_publish(dry_run=false, confirm_publish=true)
 ```
 
-PDF status and checks are offline and do not pull or start a Docker image. Build, publish, and sync use the selected PDF worker. MCP publication is a local dry-run by default; a real copy into the configured `assets/pdf/` and cover paths requires both `dry_run=false` and `confirm_publish=true`. Factory maintainers can use the corresponding `make -C /path/to/unaltraweb manual-pdf-*` targets with `MCP_CONSUMER_WORKSPACE=/path/to/site`; Make publication requires `MANUAL_PDF_PUBLISH_DRY_RUN=0`. Review the generated files under `tmp/manual-pdf/` first. The default public PDF and cover outputs are ignored deployment products rather than versioned files. If an older repository already tracks them, remove only those configured outputs from the index once with `git rm --cached -- <pdf-path> <cover-path>` and review that commit before deployment.
+PDF status and checks are offline and do not pull or start a Docker image. Preview preparation builds only stale `latest` artifacts with the selected PDF worker, then copies the PDF and cover to their configured public paths for Jekyll review. It reports `publishes: false`, requires those destinations to be ignored and untracked, and records file identity and SHA-256 under `.cache/unaltraweb/`; cleanup defaults to dry-run and removes only unchanged receipt-owned copies. A real cleanup requires the exact `receipt_sha256` returned by that reviewed dry-run. Make-only cleanup can apply the reviewed plan with `MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN=0 MANUAL_PDF_PREVIEW_CONFIRM_CLEAN=1 MANUAL_PDF_PREVIEW_RECEIPT_SHA256=<sha256>`. Managed `make build`, `make test`, and `make serve` prepare the preview before starting Jekyll, while the persistent preview container never receives the Docker socket. The short-lived controller can run without a socket when no nested PDF build is needed. Clean receipt-owned copies before disabling PDF output or real publication. Before a confirmed publication mutates public files, it records expected hashes in `.cache/unaltraweb/manual-pdf-publication-intent.json`; afterward it writes separate non-owning identity provenance at `.cache/unaltraweb/manual-pdf-publication.json`. An interrupted operation therefore still permits a later preview cycle to replace only matching ignored deployment products, even after `tmp/` was cleaned. When an individual public PDF or cover already matches its generated artifact, preparation leaves that file unchanged and does not claim it in a preview receipt. `make clean` refuses to remove `tmp/` while a preview receipt remains.
+
+MCP publication remains a local dry-run by default; a real copy into the configured `assets/pdf/` and cover paths requires both `dry_run=false` and `confirm_publish=true`. Factory maintainers can use the corresponding `make -C /path/to/unaltraweb manual-pdf-*` targets with `MCP_CONSUMER_WORKSPACE=/path/to/site`; Make publication requires both `MANUAL_PDF_PUBLISH_DRY_RUN=0` and `MANUAL_PDF_CONFIRM_PUBLISH=1` and routes through the same provenance-aware controller. Review the generated files under `tmp/manual-pdf/` first. The default public PDF and cover outputs are ignored deployment products rather than versioned files. If an older repository already tracks them, remove only those configured outputs from the index once with `git rm --cached -- <pdf-path> <cover-path>` and review that commit before deployment.
 
 ## Core Development Workflow
 
