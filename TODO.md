@@ -91,7 +91,7 @@ Important current template behaviour:
 - Playwright render smoke tests verify `unaltreselfie`, `unaltreprojecte`, `unaltremanual` and `unaltredocs` profiles, desktop/mobile rendering, theme modes and screenshots.
 - The template deploy workflow calls `.github/workflows/site-deploy.yml` from this core.
 - The template manual `Update publication metrics` workflow calls `.github/workflows/metrics-update.yml` from this core.
-- The package scaffold local runtime defaults to the selected `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0`; the external template fixture should align its consumer defaults while `LOCAL_CORE=../unaltraweb` remains the side-by-side development path.
+- The candidate package scaffold local runtime selects `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.4.0`; `v0.3.0` remains the public runtime until coordinated publication, and the external template fixture should align only after the new release while `LOCAL_CORE=../unaltraweb` remains the side-by-side development path.
 - The template README explains the four profiles, the GitHub-only content workflow and the local Docker workflow.
 
 ## Next Work

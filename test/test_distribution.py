@@ -134,14 +134,15 @@ class DistributionTests(unittest.TestCase):
         self.assertNotIn("UW-DIST-RELEASE-PENDING", {item["code"] for item in result["findings"]})
 
     def test_doctor_inspects_only_features_selected_by_project_config(self) -> None:
+        version = distribution_contract()["release"]["version"]
         with tempfile.TemporaryDirectory() as raw_project:
             project = Path(raw_project)
             (project / "_config.yml").write_text(
                 "theme: unaltraweb\nunaltraweb:\n  site_profile: unaltremanual\n  manual:\n    pdf:\n      enabled: true\n",
                 encoding="utf-8",
             )
-            (project / "Gemfile").write_text('gem "unaltraweb", "= 0.3.0"\n', encoding="utf-8")
-            (project / "Gemfile.lock").write_text("DEPENDENCIES\n  unaltraweb (= 0.3.0)\n", encoding="utf-8")
+            (project / "Gemfile").write_text(f'gem "unaltraweb", "= {version}"\n', encoding="utf-8")
+            (project / "Gemfile.lock").write_text(f"DEPENDENCIES\n  unaltraweb (= {version})\n", encoding="utf-8")
             (project / "Makefile").write_text(f"MCP_IMAGE ?= {component_reference('mcp')}\n", encoding="utf-8")
             (project / ".unaltraweb").mkdir()
             (project / ".unaltraweb/computations.yml").write_text(
@@ -178,6 +179,7 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(result["docker"]["images"]["compute_r"], component_reference("compute_r"))
 
     def test_project_doctor_associates_git_pins_with_unaltraweb(self) -> None:
+        version = distribution_contract()["release"]["version"]
         integration = consumer_integration()
         wrong_sha = "0" * 40
         with tempfile.TemporaryDirectory() as raw_project:
@@ -190,7 +192,7 @@ class DistributionTests(unittest.TestCase):
                 "source \"https://rubygems.org\"\n\n"
                 "group :jekyll_plugins do\n"
                 f"  gem \"decoy\", \"= 1.0.0\",\n      git: \"{integration['core_repository']}\",\n      ref: \"{integration['core_sha']}\"\n"
-                f"  gem \"unaltraweb\", \"= 0.3.0\",\n      git: \"https://github.com/example/wrong.git\",\n      ref: \"{wrong_sha}\"\n"
+                f"  gem \"unaltraweb\", \"= {version}\",\n      git: \"https://github.com/example/wrong.git\",\n      ref: \"{wrong_sha}\"\n"
                 "end\n",
                 encoding="utf-8",
             )
@@ -200,8 +202,8 @@ class DistributionTests(unittest.TestCase):
                 "  specs:\n    decoy (1.0.0)\n\n"
                 "GIT\n"
                 f"  remote: https://github.com/example/wrong.git\n  revision: {wrong_sha}\n  ref: {wrong_sha}\n"
-                "  specs:\n    unaltraweb (0.3.0)\n\n"
-                "DEPENDENCIES\n  unaltraweb (= 0.3.0)!\n",
+                f"  specs:\n    unaltraweb ({version})\n\n"
+                f"DEPENDENCIES\n  unaltraweb (= {version})!\n",
                 encoding="utf-8",
             )
             (project / "Makefile").write_text(f"MCP_IMAGE ?= {component_reference('mcp')}\n", encoding="utf-8")
@@ -214,12 +216,13 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(finding["actual"]["lock_repository"], "https://github.com/example/wrong.git")
 
     def test_project_doctor_accepts_an_exact_one_line_gem_declaration(self) -> None:
+        version = distribution_contract()["release"]["version"]
         integration = consumer_integration()
         with tempfile.TemporaryDirectory() as raw_project:
             project = Path(raw_project)
             site_tools.new_web(project, site_profile_value="unaltredocs")
             (project / "Gemfile").write_text(
-                f'gem "unaltraweb", "= 0.3.0", git: "{integration["core_repository"]}", ref: "{integration["core_sha"]}"\n',
+                f'gem "unaltraweb", "= {version}", git: "{integration["core_repository"]}", ref: "{integration["core_sha"]}"\n',
                 encoding="utf-8",
             )
 
@@ -247,6 +250,7 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(finding["actual"]["lock_ref"], "main")
 
     def test_project_doctor_ignores_spoofed_gemfile_pins_in_comments(self) -> None:
+        version = distribution_contract()["release"]["version"]
         integration = consumer_integration()
         wrong_sha = "0" * 40
         with tempfile.TemporaryDirectory() as raw_project:
@@ -255,7 +259,7 @@ class DistributionTests(unittest.TestCase):
             (project / "Gemfile").write_text(
                 "source \"https://rubygems.org\"\n\n"
                 "group :jekyll_plugins do\n"
-                "  gem \"unaltraweb\", \"= 0.3.0\",\n"
+                f"  gem \"unaltraweb\", \"= {version}\",\n"
                 f"      # git: \"{integration['core_repository']}\", ref: \"{integration['core_sha']}\"\n"
                 "      git: \"https://github.com/example/wrong.git\",\n"
                 f"      ref: \"{wrong_sha}\"\n"
@@ -509,22 +513,24 @@ class DistributionTests(unittest.TestCase):
 
     def test_publish_ref_must_match_the_distribution_release(self) -> None:
         contract = distribution_contract()
+        release_tag = contract["release"]["tag"]
+        candidate_ids = ["gem", "wheel", "runtime", "mcp", "manual_pdf"]
         pending = copy.deepcopy(contract)
-        for component_id in ["gem", "wheel", "runtime", "mcp", "web_capture", "manual_pdf"]:
+        for component_id in candidate_ids:
             pending["components"][component_id]["release_status"] = "pending"
 
         pending_tag_errors = publish_ref_errors(
             pending,
             ref_type="tag",
-            ref_name="v0.3.0",
+            ref_name=release_tag,
             default_branch="main",
             component_ids=["runtime", "mcp"],
         )
         self.assertTrue(any("gem must be release-ready" in error for error in pending_tag_errors))
         self.assertTrue(any("runtime must be release-ready" in error for error in pending_tag_errors))
         self.assertEqual(
-            pending_tag_errors[-6:],
-            release_tag_status_errors(pending, ref_type="tag", ref_name="v0.3.0"),
+            pending_tag_errors[-len(candidate_ids):],
+            release_tag_status_errors(pending, ref_type="tag", ref_name=release_tag),
         )
         self.assertEqual(publish_ref_errors(
             contract,
@@ -549,7 +555,7 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(publish_ref_errors(
             released,
             ref_type="tag",
-            ref_name="v0.3.0",
+            ref_name=release_tag,
             default_branch="main",
             component_ids=["runtime", "mcp"],
         ), [])
@@ -558,7 +564,7 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("runtime must be release-ready", publish_ref_errors(
             released,
             ref_type="tag",
-            ref_name="v0.3.0",
+            ref_name=release_tag,
             default_branch="main",
             component_ids=["runtime"],
         )[-1])
@@ -569,7 +575,7 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(publish_ref_errors(
             ready,
             ref_type="tag",
-            ref_name="v0.3.0",
+            ref_name=release_tag,
             default_branch="main",
             component_ids=["runtime", "mcp"],
         ), [])
@@ -670,18 +676,18 @@ class DistributionTests(unittest.TestCase):
         for component in contract["components"].values():
             if component["release_status"] == "pending":
                 component["release_status"] = "ready"
+        version = contract["release"]["version"]
         source_commit = "a" * 40
         digest = "b" * 64
         receipt = {
             "schema_version": 1,
-            "release": "v0.3.0",
+            "release": contract["release"]["tag"],
             "source_commit": source_commit,
             "components": {
-                "gem": {"artifact": "unaltraweb-0.3.0.gem", "sha256": digest},
-                "wheel": {"artifact": "unaltraweb_mcp-0.3.0-py3-none-any.whl", "sha256": digest},
+                "gem": {"artifact": f"unaltraweb-{version}.gem", "sha256": digest},
+                "wheel": {"artifact": f"unaltraweb_mcp-{version}-py3-none-any.whl", "sha256": digest},
                 "runtime": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb@sha256:{digest}"},
                 "mcp": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:{digest}"},
-                "web_capture": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb-web-capture@sha256:{digest}"},
                 "manual_pdf": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:{digest}"},
             },
         }
@@ -714,9 +720,9 @@ class DistributionTests(unittest.TestCase):
             release_candidate_receipt_errors(contract, injected),
         )
         swapped_package = copy.deepcopy(receipt)
-        swapped_package["components"]["gem"]["artifact"] = "unaltraweb_mcp-0.3.0-py3-none-any.whl"
+        swapped_package["components"]["gem"]["artifact"] = f"unaltraweb_mcp-{version}-py3-none-any.whl"
         self.assertIn(
-            "gem candidate artifact must be unaltraweb-0.3.0.gem",
+            f"gem candidate artifact must be unaltraweb-{version}.gem",
             release_candidate_receipt_errors(contract, swapped_package),
         )
         self.assertIn(
@@ -738,7 +744,7 @@ class DistributionTests(unittest.TestCase):
         digest = "b" * 64
         receipt = {
             "schema_version": 1,
-            "release": "v0.3.0",
+            "release": contract["release"]["tag"],
             "source_commit": "a" * 40,
             "components": {
                 "runtime": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb@sha256:{digest}"},

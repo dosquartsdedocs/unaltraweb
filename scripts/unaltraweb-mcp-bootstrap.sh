@@ -10,7 +10,7 @@ If --project is omitted, MCP_CONSUMER_WORKSPACE is used, then the current direct
 USAGE
 }
 
-image="${UNALTRAWEB_MCP_IMAGE:-ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0}"
+image="${UNALTRAWEB_MCP_IMAGE:-ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.4.0}"
 project="${MCP_CONSUMER_WORKSPACE:-${UNALTRAWEB_PROJECT:-}}"
 
 while [ "$#" -gt 0 ]; do

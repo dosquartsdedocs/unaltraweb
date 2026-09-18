@@ -37,7 +37,7 @@ except ImportError as exc:  # pragma: no cover - supplied by project tooling
 
 LOCK_PATH = Path(".unaltraweb/web-captures.lock.json")
 SOURCE_SUFFIXES = (".capture.yml", ".capture.yaml")
-DEFAULT_IMAGE = "ghcr.io/dosquartsdedocs/unaltraweb-web-capture:0.3.0"
+DEFAULT_IMAGE = "ghcr.io/dosquartsdedocs/unaltraweb-web-capture@sha256:0bf1bc67fe63e1440bffe708a168beefa11c54441650a871ab99380d362f7c1e"
 DEFAULT_VIEWPORT = {"width": 1440, "height": 900, "device_scale_factor": 1}
 CAPTURE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,79}$")
 SAFE_SOURCE_RE = re.compile(r"^[A-Za-z0-9_./-]+\.capture\.ya?ml$")
