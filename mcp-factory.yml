@@ -1,7 +1,7 @@
 schema_version: 1
 name: unaltraweb
 kind: codex-mcp-factory
-version: 0.3.0
+version: 0.4.0
 description: Reusable Jekyll website factory with package-owned site creation and MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, build checks, and local manual release candidates.
 repository: https://github.com/dosquartsdedocs/unaltraweb
 install_scope: user
@@ -74,7 +74,7 @@ workspace_rule:
 runtime:
   kind: container
   package_manager: docker
-  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0
+  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.4.0
   package: unaltraweb-mcp
   module: unaltraweb_mcp
 transport:
@@ -110,7 +110,7 @@ discovery:
     - Durable website state belongs in versioned site files, not in chat history.
     - Manual release tools prepare local candidates only; publication remains a human-controlled GitHub Actions operation.
 release:
-  default: v0.3.0
+  default: v0.4.0
 contracts:
   component_bom: 1
   distribution_doctor: 1

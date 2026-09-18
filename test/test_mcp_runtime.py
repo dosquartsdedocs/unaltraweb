@@ -199,7 +199,7 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertIn(f'git: "{integration["core_repository"]}"', gemfile)
                 self.assertIn(f'ref: "{integration["core_sha"]}"', gemfile)
                 self.assertIn(f"revision: {integration['core_sha']}", lockfile)
-                self.assertIn("unaltraweb (= 0.3.0)!", lockfile)
+                self.assertIn(f"{component_reference('gem')}!", lockfile)
                 self.assertIn("jekyll-scholar (>= 7.3, < 8)", lockfile)
                 self.assertEqual((project / "context/writing-profile.md").is_file(), profile == "unaltremanual")
                 computations_path = project / ".unaltraweb/computations.yml"

@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-IMAGE = os.environ.get("DOCKER_IMAGE", "ghcr.io/dosquartsdedocs/unaltraweb:0.3.0")
+IMAGE = os.environ.get("DOCKER_IMAGE", "ghcr.io/dosquartsdedocs/unaltraweb:0.4.0")
 SELECTOR = "v2026.09"
 EPOCH = "946684800"
 

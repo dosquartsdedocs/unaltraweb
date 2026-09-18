@@ -27,13 +27,13 @@ nav_title: Local Tools
 
 ## Local Runtime
 
-The template uses the shared runtime image by default:
+The currently published integration template uses the shared `v0.3.0` runtime image by default:
 
 ```bash
 ghcr.io/dosquartsdedocs/unaltraweb:0.3.0
 ```
 
-That image provides Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local commands. The GHCR package must be public before unauthenticated users can pull it.
+That image provides Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local commands. The `v0.4.0` candidate source selects matching `0.4.0` runtime and MCP images for package-generated sites, but consumers must not adopt those references until coordinated publication completes. The GHCR package must be public before unauthenticated users can pull it.
 
 ## Generated Site Commands
 

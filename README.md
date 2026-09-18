@@ -127,7 +127,7 @@ make docs-serve DOCKER_IMAGE=unaltraweb:dev
 make docs-build DOCKER_IMAGE=unaltraweb:dev
 ```
 
-The released distribution contract selects `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0` for normal generated-site commands. The mutable `:main` channel is reserved for explicit maintainer testing; locally built core images use the `:dev` name.
+The candidate distribution contract selects `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.4.0` for normal generated-site commands after coordinated publication. Until that release completes, `v0.3.0` and the digest-pinned `MCP_RELEASE_IMAGE` remain the public runtime. The mutable `:main` channel is reserved for explicit maintainer testing; locally built core images use the `:dev` name.
 
 The lower-level `unaltraweb` image supplies Ruby, Jekyll and runtime dependencies. The MCP image layers the full reviewed factory and installed Python package on top; generated Make targets load the theme as a path gem from `/opt/unaltraweb`. Native Bundler consumers can instead resolve the independently published gem, and native Python users can install the wheel.
 
