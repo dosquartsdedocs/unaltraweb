@@ -32,6 +32,30 @@ A version-1 receipt contains only the provider result contract: `schema_version`
 
 The request digest is SHA-256 over `unaltraweb-companion-receipt-v1\0OWNER\0`, followed for each sorted provider source by its UTF-8 project-relative path and bytes, each prefixed by an unsigned eight-byte big-endian length. Vega sources are the manifest and all project Vega/Vega-Lite specifications; diagram sources are all supported Mermaid and PlantUML files. Receipt publication remains provider-owned, but a provider cannot expand or reduce the input inventory accepted by unaltraweb.
 
+## Discovery Workspace Policies
+
+`mcp-factory.yml` declares schema-v1 `workspace_rule.path_policies` against the
+consumer root `.`. The central manager owns `workspace-check`; it is not an
+unaltraweb MCP tool and does not invoke `site_check`, `down`, rendering or any
+other provider command. It checks the complete `install: true` dependency closure,
+retaining each provider's own binding and root. The current selection is
+`diavisuals`, `vegavisuals`, then `unaltraweb` (three factories, two dependencies).
+
+Ignored paths require real Git ignore coverage and no indexed descendants;
+existing versioned files must be indexed and not ignored; absent versioned paths
+are allowed. `consumer` leaves the Git decision to the project. Cleanup metadata
+does not authorize deletion, and `generated_paths` alone conveys neither ignore
+nor cleanup policy. Optional computation/PDF paths do not initialize those
+features or require manual content in other profiles.
+
+The [path audit and consumer update procedure](../_documentation/en/43-workspace-path-policies.md)
+documents why `tmp`, Scimago inputs, PDF provenance, preview ownership, locks and
+recovery backups need explicit preservation decisions. Renderer receipts and Vega
+paths retain their provider policies; configurable outputs and edited visual
+assets have no blanket policy here. The initial adoption changes discovery only:
+the four v0.4.0 package scaffolds already meet these policies, and neither their
+baseline format nor runtime cleanup changes.
+
 ## Resources
 
 | Resource | Description |

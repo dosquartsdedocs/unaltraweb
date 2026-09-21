@@ -195,6 +195,16 @@ env -u MCP_CONSUMER_WORKSPACE MCP_PROJECT_ID=0123456789abcdef make mcp-down
 When the workspace is live, a supplied `MCP_PROJECT_ID` must match its canonical path. A retained ID is accepted only without a live workspace, making stale-resource cleanup explicit. Cleanup selects only resources carrying both `io.context.mcp-factory=unaltraweb` and that project's stable `io.context.mcp-project` label. Maintainers can deliberately clean every labelled unaltraweb MCP resource with `make mcp-down-all`; neither target deletes images or touches unlabelled containers and networks.
 Replace the example retained ID with the 16-hex value from that project's `io.context.mcp-project` Docker label.
 
+## Workspace Path Policies
+
+For consumer filesystem ownership, the discovery manifest declares literal
+`workspace_rule.path_policies`. The central manager's read-only `workspace-check`
+checks the selected consumer plus the installable `diavisuals` and `vegavisuals`
+dependency closure. It does not run provider commands or clean files. In
+particular, ignored PDF recovery state and `tmp` require explicit review, not
+blanket deletion. See [Workspace Path Policies And Consumer Updates](docs/_documentation/en/43-workspace-path-policies.md)
+for the audited paths, package/scaffold compatibility and migration procedure.
+
 ## Bibliometrics
 
 Normal Jekyll builds must stay static. External metrics are fetched only through explicit update commands and written back to local data files before build time.
