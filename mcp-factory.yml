@@ -71,6 +71,72 @@ workspace_rule:
     - assets/**/*.capture.png and assets/**/*.capture.svg from selector-based web capture recipes
     - .vegavisuals.lock.json and outputs declared by .vegavisuals.yml
   allowed_external_writes: []
+  path_policies:
+    - path: _site
+      type: directory
+      role: jekyll-build-output
+      git: ignored
+      cleanup: disposable
+    - path: tmp
+      type: directory
+      role: build-staging-and-local-release-evidence
+      git: ignored
+      cleanup: explicit
+    - path: .cache/scimago
+      type: directory
+      role: external-bibliometrics-input-cache
+      git: ignored
+      cleanup: explicit
+    - path: .cache/unaltraweb/manual-pdf-publication-intent.json
+      type: file
+      role: pdf-publication-recovery-intent
+      git: ignored
+      cleanup: explicit
+    - path: .cache/unaltraweb/manual-pdf-publication.json
+      type: file
+      role: pdf-publication-provenance
+      git: ignored
+      cleanup: explicit
+    - path: .cache/unaltraweb/manual-pdf-preview.json
+      type: file
+      role: pdf-preview-ownership-receipt
+      git: ignored
+      cleanup: explicit
+    - path: .cache/unaltraweb/manual-pdf-preview.lock
+      type: file
+      role: pdf-preview-coordination-lock
+      git: ignored
+      cleanup: explicit
+    - path: .cache/unaltraweb/manual-pdf-preview-recovery
+      type: directory
+      role: pdf-preview-retained-recovery-backups
+      git: ignored
+      cleanup: explicit
+    - path: _config.yml
+      type: file
+      role: consumer-site-configuration
+      git: versioned
+      cleanup: never
+    - path: .unaltraweb/scaffold.json
+      type: file
+      role: managed-scaffold-baseline
+      git: versioned
+      cleanup: never
+    - path: .unaltraweb/docker-mount.sh
+      type: file
+      role: managed-docker-mount-helper
+      git: versioned
+      cleanup: never
+    - path: .unaltraweb/computations.yml
+      type: file
+      role: optional-consumer-computation-configuration
+      git: versioned
+      cleanup: never
+    - path: .unaltraweb/computations.lock.json
+      type: file
+      role: computation-output-provenance
+      git: consumer
+      cleanup: explicit
 runtime:
   kind: container
   package_manager: docker
