@@ -29,7 +29,7 @@ The base provides Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node f
 
 The `v0.4.0` receipt binds matching `unaltraweb:0.4.0` and `unaltraweb-mcp:0.4.0` references to their tested immutable digests. The semver aliases were promoted only after the coordinated receipt and tag checks completed.
 
-ContExt prepares and launches the MCP image through the full digest in `MCP_RELEASE_IMAGE`. That post-release pin is separate from the semver scaffold reference and cannot be shadowed by checkout builds, which use local `:dev` names. A new release advances the pin only after its receipt records the published digest.
+gContExt prepares and launches the MCP image through the full digest in `MCP_RELEASE_IMAGE`. That post-release pin is separate from the semver scaffold reference and cannot be shadowed by checkout builds, which use local `:dev` names. A new release advances the pin only after its receipt records the published digest.
 
 The GHCR package is kept because it makes the local Docker workflow cheap and repeatable. Publishing is manual. Its unprivileged `preflight` job performs package and source checks without a registry login or Docker build. A default-branch run then crosses three separate credential boundaries:
 

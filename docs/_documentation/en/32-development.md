@@ -65,7 +65,7 @@ docker compose -f docker-compose.yml down --remove-orphans
 
 This can be resource-heavy because the inherited demo build minifies JavaScript and can generate many responsive WebP images.
 
-The currently public base Dockerfile image is `ghcr.io/dosquartsdedocs/unaltraweb:0.4.0`. Published generated consumers select the higher-level `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.4.0`, which adds the reviewed core and Python control plane. Their Make targets use `/opt/unaltraweb` as a path gem; the RubyGems package remains the optional native Bundler channel. ContExt prepares the full post-release `MCP_RELEASE_IMAGE` digest with `mcp-build`, while `mcp-image`, `mcp-check` and `mcp-smoke` reserve local `:dev` names for source testing. Mutable `:main` channels remain explicit maintainer paths.
+The currently public base Dockerfile image is `ghcr.io/dosquartsdedocs/unaltraweb:0.4.0`. Published generated consumers select the higher-level `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.4.0`, which adds the reviewed core and Python control plane. Their Make targets use `/opt/unaltraweb` as a path gem; the RubyGems package remains the optional native Bundler channel. gContExt prepares the full post-release `MCP_RELEASE_IMAGE` digest with `mcp-build`, while `mcp-image`, `mcp-check` and `mcp-smoke` reserve local `:dev` names for source testing. Mutable `:main` channels remain explicit maintainer paths.
 
 The root core build excludes `docs/`. The reference site is published from the `docs/` folder through a dedicated workflow so its root-relative permalinks do not collide with the inherited core demo build.
 

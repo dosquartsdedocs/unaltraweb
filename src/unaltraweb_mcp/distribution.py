@@ -439,7 +439,7 @@ def _factory_findings(factory: Path) -> list[dict[str, Any]]:
                 (
                     "No action required."
                     if actual_lifecycle == expected_lifecycle
-                    else f"Align {component_id} dependency lifecycle with the required ContExt contract."
+                    else f"Align {component_id} dependency lifecycle with the required gContExt contract."
                 ),
                 component_id=component_id,
             )

@@ -32,7 +32,7 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 - Keep reusable functionality in `unaltraweb`; keep `unaltraweb-template` thin.
 - Use Docker-first commands for child sites so users can run `make serve`, `make build`, `make test` and `make down` without remembering Docker details. The package-owned common scaffold now provides this contract through the MCP image.
 - Treat `ghcr.io/dosquartsdedocs/unaltraweb-mcp` as the canonical normal local delivery. It contains the reviewed core at `/opt/unaltraweb`; generated Make targets do not need to download PyPI or RubyGems packages at runtime.
-- ContExt `mcp-build` prepares the digest-pinned `MCP_RELEASE_IMAGE`; `mcp-image`, `mcp-check` and `mcp-smoke` use local `:dev` names for checkout testing. Advance the release pin only in a post-release change after the new receipt exists, never in candidate source.
+- gContExt `mcp-build` prepares the digest-pinned `MCP_RELEASE_IMAGE`; `mcp-image`, `mcp-check` and `mcp-smoke` use local `:dev` names for checkout testing. Advance the release pin only in a post-release change after the new receipt exists, never in candidate source.
 - Keep the Ruby gem and Python wheel as independently tested native interoperability channels. Their registry publication is optional for Docker users, while their package boundaries remain useful inside the image and for non-Docker integrations.
 - Keep browser capture, PDF and computation toolchains in separate worker images rather than growing one privileged all-tools image.
 - Do not add backward-compatibility branches unless there is a concrete persisted-data, shipped-behaviour or external-consumer need.
@@ -112,7 +112,7 @@ Do not rebuild or republish this version, move its tag, or rerun its package pub
 - Initial stdio MCP scaffold exists under `src/unaltraweb_mcp/`, with `mcp-factory.yml`, Make targets, reusable prompts, and a plugin skeleton under `plugins/unaltraweb-site/`.
 - The `unaltraweb` MCP is for agent-assisted site maintenance: updating pages/posts/news, adding bibliography entries, editing project/output/team data, checking profile-specific content contracts and preparing deploy-safe content changes.
 - The MCP declares `diavisuals` as a required MCP dependency instead of embedding Mermaid, PlantUML, Chromium or Java in this repository.
-- The dependency manifest should use the shared fields understood by ContExt:
+- The dependency manifest should use the shared fields understood by gContExt:
 
 ```yaml
 mcp_dependencies:
