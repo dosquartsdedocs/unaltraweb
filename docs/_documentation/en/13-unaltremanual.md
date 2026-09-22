@@ -166,7 +166,7 @@ Deleting or disabling a source leaves its lock record and generated artifacts as
 
 Static Vega-Lite and Vega figures use `*.vl.json` and `*.vg.json` sources declared in `.vegavisuals.yml`. A chapter references the specification as a captioned Markdown image; Jekyll and the PDF builder resolve it to the same single manifest output without changing the caption or figure attributes. Prefer SVG when the figure must work identically on the web and in print.
 
-Use the required companion `vegavisuals` MCP and its `initialize_project`, `visualization_status`, `render_visualizations`, and `visualization_check` tools for the source-to-output lifecycle. ContExt registers the companion separately rather than copying it into the site. Run `visualization_check` before PDF status, build, or publication when a manifest exists; the unaltraweb PDF tool does not proxy the separate MCP. Commit the manifest, lock, provider receipt, source data, and generated outputs together.
+Use the required companion `vegavisuals` MCP and its `initialize_project`, `visualization_status`, `render_visualizations`, and `visualization_check` tools for the source-to-output lifecycle. gContExt registers the companion separately rather than copying it into the site. Run `visualization_check` before PDF status, build, or publication when a manifest exists; the unaltraweb PDF tool does not proxy the separate MCP. Commit the manifest, lock, provider receipt, source data, and generated outputs together.
 
 ## PDF Edition
 

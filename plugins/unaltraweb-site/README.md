@@ -1,6 +1,6 @@
 # unaltraweb site agent plugin
 
-This plugin bundles reusable agent roles and skills for `unaltraweb` website workspaces. It complements the stdio MCP server declared by `mcp-factory.yml`; client registration is normally handled by ContExt or another MCP factory manager.
+This plugin bundles reusable agent roles and skills for `unaltraweb` website workspaces. It complements the stdio MCP server declared by `mcp-factory.yml`; client registration is normally handled by gContExt or another MCP factory manager.
 
 Agent roles:
 
