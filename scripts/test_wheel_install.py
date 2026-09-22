@@ -312,6 +312,15 @@ def main() -> int:
         scaffold = json.loads(run([str(cli), "--project", str(site), "mcp", "scaffold-sync"], cwd=temp).stdout)
         if not scaffold["ok"] or not scaffold["dry_run"]:
             raise RuntimeError(f"wheel scaffold sync dry-run failed: {scaffold}")
+        context = json.loads(run([str(cli), "--project", str(site), "mcp", "site-context"], cwd=temp).stdout)
+        if context["update_status"]["state"] != "current" or context["update_status"]["can_apply"]:
+            raise RuntimeError(f"wheel consumer update advisory failed: {context['update_status']}")
+        confirmed = json.loads(run([
+            str(cli), "--project", str(site), "mcp", "scaffold-sync", "--apply", "--confirm-sync",
+            "--expected-plan-sha256", scaffold["plan_sha256"],
+        ], cwd=temp).stdout)
+        if not confirmed["ok"] or not confirmed["applied"]:
+            raise RuntimeError(f"wheel reviewed scaffold synchronization failed: {confirmed}")
 
         factory_error = run([str(cli), "--project", str(site), "mcp", "prompts"], cwd=temp, expected=1)
         if "requires the unaltraweb factory checkout" not in factory_error.stderr:

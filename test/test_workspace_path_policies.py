@@ -169,7 +169,8 @@ class WorkspacePolicyContractTests(unittest.TestCase):
                     result = site_tools.scaffold_sync(project, **options)
                     self.assertFalse(result["ok"])
                     self.assertFalse(result["applied"])
-                    self.assertEqual({item["path"] for item in result["conflicts"]}, {".gitignore", "Makefile", str(collision)})
+                    self.assertEqual({item["path"] for item in result["conflicts"]}, {str(collision)})
+                    self.assertEqual(set(result["preserved"]), {".gitignore", "Makefile"})
                     self.assertEqual(snapshot(project), before)
 
 

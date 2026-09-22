@@ -19,7 +19,7 @@ Read `.github/CONTRIBUTING.md` before creating a branch or editing files. It is 
 1. Before editing locally, run the MCP control plane's read-only checkout preflight in the primary mutable checkout. Keep one active editing session per repository and use its `exec` wrapper when a process-held cooperative lease is required.
 2. For MCP-backed work, request one top-level MCP and let the control plane select its declared dependency closure. The consumer root must be passed through `MCP_CONSUMER_WORKSPACE`.
 3. Never create, switch to, move, prune, repair, or remove linked worktrees as part of an editing session.
-4. Inspect `site_context`, `site_doctor`, the language policy, and the active profile before editing.
+4. Inspect `site_context`, `site_doctor`, the language policy, and the active profile before editing. Read `site_context.update_status`, explain any available update and its planned paths, and ask the user whether to apply it. After explicit acceptance and the normal reservation, call `scaffold_sync` with the reviewed `plan_sha256` as `expected_plan_sha256`. Preserve local customizations, stop on genuine conflicts, and never downgrade a newer consumer. A declined update does not authorize changing pins or interrupting unrelated content work.
 5. For `unaltremanual`, inspect `manual_authoring_capabilities` and `context/writing-profile.md` before drafting chapters.
 6. Edit executable computation, capture, diagram, or visualization sources rather than generated outputs.
 7. Run `site_check` before `build_site`, then review the labelled local preview.

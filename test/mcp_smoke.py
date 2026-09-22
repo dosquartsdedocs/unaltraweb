@@ -11,6 +11,7 @@ import sys
 import tempfile
 from html.parser import HTMLParser
 from pathlib import Path
+from unittest.mock import patch
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -85,8 +86,55 @@ def seed_fresh_manual_pdf(factory: Path, project: Path) -> list[dict[str, str]]:
     return seeded
 
 
+async def consumer_update_smoke(factory: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="unaltraweb-mcp-update-") as temporary:
+        project = Path(temporary)
+        replacements = site_tools._common_scaffold_replacements()
+        replacements.update({
+            "GEM_VERSION": "0.3.0",
+            "MCP_IMAGE": "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.3.0",
+            "CORE_SHA": "1" * 40,
+        })
+        with patch.object(site_tools, "_common_scaffold_replacements", return_value=replacements):
+            assert site_tools.new_web(project)["ok"] is True
+        ignore = project / ".gitignore"
+        original_ignore = ignore.read_bytes() + b"\n/private-notes/\n"
+        ignore.write_bytes(original_ignore)
+        home = project / "_pages/en/index.md"
+        original_home = home.read_bytes() + b"\nAuthor-owned content.\n"
+        home.write_bytes(original_home)
+        before = {path.relative_to(project).as_posix(): path.read_bytes() for path in project.rglob("*") if path.is_file()}
+        params = StdioServerParameters(
+            command=sys.executable,
+            args=["-m", "unaltraweb_mcp.cli", "--project", str(project), "mcp", "serve"],
+            env={**os.environ, "UNALTRAWEB_FACTORY_DIR": str(factory)},
+        )
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                context = tool_payload(await session.call_tool("site_context", {}))
+                update = context["update_status"]
+                assert update["state"] == "update_available" and update["can_apply"], update
+                assert update["current_versions"]["mcp_version"] == "0.3.0"
+                refused = await session.call_tool("scaffold_sync", {
+                    "dry_run": False, "expected_plan_sha256": update["plan_sha256"],
+                })
+                assert refused.isError is True, refused
+                assert {path.relative_to(project).as_posix(): path.read_bytes() for path in project.rglob("*") if path.is_file()} == before
+                applied = tool_payload(await session.call_tool("scaffold_sync", update["apply_arguments"]))
+                assert applied["ok"] and applied["applied"], applied
+                assert applied["preserved"] == [".gitignore"], applied
+                current = tool_payload(await session.call_tool("site_context", {}))
+                assert current["update_status"]["state"] == "current_customized", current
+                assert ignore.read_bytes() == original_ignore
+                assert home.read_bytes() == original_home
+                checked = tool_payload(await session.call_tool("site_check", {}))
+                assert checked["ok"], checked
+
+
 async def smoke() -> None:
     factory = Path(os.environ.get("UNALTRAWEB_FACTORY_DIR", "/opt/unaltraweb")).resolve()
+    await consumer_update_smoke(factory)
     with tempfile.TemporaryDirectory(prefix="unaltraweb-mcp-smoke-") as temporary:
         project = Path(temporary)
 
@@ -127,6 +175,10 @@ async def smoke() -> None:
                 detection = tool_payload(await session.call_tool("detect_site", {}))
                 assert detection["is_unaltraweb_site"] is True
                 assert detection["project"] == str(project)
+
+                context = tool_payload(await session.call_tool("site_context", {}))
+                assert context["update_status"]["state"] == "current", context
+                assert context["update_status"]["can_apply"] is False
 
                 distribution = tool_payload(await session.call_tool("distribution_doctor", {}))
                 assert distribution["ok"] is True, distribution
@@ -181,6 +233,11 @@ async def smoke() -> None:
                 scaffold = tool_payload(await session.call_tool("scaffold_sync", {}))
                 assert scaffold["ok"] is True, scaffold
                 assert scaffold["dry_run"] is True
+                confirmed = tool_payload(await session.call_tool("scaffold_sync", {
+                    "dry_run": False, "confirm_sync": True,
+                    "expected_plan_sha256": scaffold["plan_sha256"],
+                }))
+                assert confirmed["applied"] is True, confirmed
 
                 doctor = tool_payload(await session.call_tool("site_doctor", {}))
                 assert doctor["ok"] is True, doctor

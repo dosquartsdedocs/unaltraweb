@@ -153,10 +153,12 @@ async def exercise_previous_scaffold(args) -> dict:
     before = snapshot(project)
     async with connect(project, args.image) as session:
         results = []
+        update = await call(session, "site_context")
+        assert update["update_status"]["state"] == "current_customized", update
         for options in ({"dry_run": True}, {"dry_run": False, "confirm_sync": True}):
-            result = await call(session, "scaffold_sync", options, success=False)
-            assert not result["ok"] and not result["applied"], result
-            assert {item["path"] for item in result["conflicts"]} == {".gitignore", "Makefile"}, result
+            result = await call(session, "scaffold_sync", options)
+            assert result["ok"] and not result["conflicts"], result
+            assert set(result["preserved"]) == {".gitignore", "Makefile"}, result
             assert snapshot(project) == before, "sync modified customized prior scaffold"
             results.append(result)
     assert collision.read_bytes() == collision_before

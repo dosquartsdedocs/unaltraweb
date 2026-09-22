@@ -172,15 +172,19 @@ other profiles. This change leaves package assets, the managed file set and
    `.github/workflows/deploy.yml`, `Makefile`, `Gemfile` and `Gemfile.lock`, with
    `.unaltraweb/scaffold.json` written last. Reserve the actual changed paths.
    `_config.yml`, README, AGENTS and editorial files are not synchronized.
-4. A customized `.gitignore` or edited managed file causes a conflict and prevents
-   the entire apply. Compare current bytes with the recorded baseline and package
-   proposal; preserve local rules and ask the owner which changes to integrate.
+4. In an MCP with the guided update flow, a customized `.gitignore` or other
+   managed file is preserved when the incoming package still equals its recorded
+   baseline. Conflicting local/upstream changes prevent the entire apply. The
+   original v0.4.0 synchronizer was stricter and reported all differing local
+   edits as conflicts. Compare current bytes with the recorded baseline and
+   package proposal; preserve local rules and ask the owner which changes to integrate.
    Do not forge baseline hashes, force overwrites, or remove a colliding local
    artefact. Exact current package bytes can be adopted; remaining customizations
    may intentionally remain conflicts. Policy compliance does not require
    overwriting a customized file merely to obtain a clean sync report.
 5. Where the reviewed plan is conflict-free, call
-   `scaffold_sync(dry_run=false, confirm_sync=true)`. A current v0.4.0 consumer
+   `scaffold_sync(dry_run=false, confirm_sync=true, expected_plan_sha256=<reviewed digest>)`
+   when using the guided flow. A current v0.4.0 consumer
    needs no scaffold writes for this policy adoption. Inspect Git ignore matches
    and indexed descendants of every ignored policy. Decisions to untrack existing
    files require consumer review; keep the actual files and any recovery evidence.
