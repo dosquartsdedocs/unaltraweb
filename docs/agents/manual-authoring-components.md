@@ -69,6 +69,22 @@ Use an explicit Markdown title as the caption:
 
 Every teaching figure needs meaningful alt text and a caption. The manual numbers figures automatically on the web; the same image and caption are available to the PDF builder.
 
+Keep the automatic number/label, descriptive caption and source/credits separate.
+Add an optional `data-caption-source` field instead of appending attribution to
+the image title:
+
+```markdown
+![Accessible description](assets/img/map.svg "Distribution by municipality"){: data-caption-source="Source: verified data. Credits: map creator."}
+```
+
+The web emits `.figlabel`, `.md-caption-text` and `.md-caption-source`. Credits
+continue inline, in a smaller italic style. PDF full captions retain credits,
+links and citations, while lists of figures/tables include only the description.
+The field accepts inline Markdown and existing Liquid bibliography citations;
+use the appropriate source/credit label for the content language. Never invent
+attribution. Existing unsplit captions remain valid; split them only after
+identifying the actual source portion.
+
 When the same width works on both supports, narrow and centre the complete figure container without setting a fixed height:
 
 ```markdown
@@ -126,6 +142,20 @@ Every teaching table must use a captioned block:
 ```
 
 Bare pipe tables fail `manual_source_quality_check`. Captioned tables are numbered on the web and converted to Pandoc tables in the PDF.
+
+Add credits after the opening caption, using the same field as figures:
+
+```markdown
+::: table "Checks before joining a table to a layer" {: data-caption-source="Source: verified methodology."}
+| Check | Criterion |
+| --- | --- |
+| Key | Unique and stored with the same type |
+:::
+```
+
+The same opening-line attribute credits a `subfigures` group. Individual panel
+images can carry their own `data-caption-source`. Keep the shared caption focused
+on the comparison so its PDF index entry remains concise.
 
 ## Diagrams
 

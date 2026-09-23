@@ -121,6 +121,24 @@ Text <!-- ![TODO](path) --> remains.
         self.assertTrue({"/0/bio_ca", "/title", "alt", "caption", "img.alt"} <= fields, fields)
         self.assertFalse(any(item["field"].endswith("content_status") for item in result["findings"]))
 
+    def test_visible_caption_sources_are_checked_but_code_examples_are_not(self):
+        self.write("_pages/en/about.md", '''![A](a.svg "Caption"){: data-caption-source="As requested, source."}
+::: table "Table" {: data-caption-source="TODO source"}
+| A | B |
+| --- | --- |
+| 1 | 2 |
+:::
+```markdown
+![A](a.svg "Caption"){: data-caption-source="TODO example"}
+```
+Inline `data-caption-source="TODO example"` is code.
+''')
+        result = ed.prose_check(self.project)
+        credits = [item for item in result["findings"] if item["field"] == "data-caption-source"]
+        self.assertFalse(result["ok"])
+        self.assertEqual({item["line"] for item in credits}, {1, 2})
+        self.assertFalse(any(item["line"] >= 7 for item in result["findings"]))
+
     def test_root_jekyll_pages_and_raw_html(self):
         self.write("index.html", "---\ntitle: Root\n---\n<p>As requested, Root.</p><code>TODO</code>\n")
         self.write("README.md", "TODO repository instructions\n")

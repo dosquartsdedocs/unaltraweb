@@ -2772,9 +2772,10 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
                     '![Alt text](assets/img/example.png "Explicit caption")',
                     '![Alt text](assets/img/example.png "Explicit caption"){: data-figure-width="22rem"}',
                     '![Alt text](assets/img/example.svg "Explicit caption"){: data-figure-width-web="44rem" data-figure-width-pdf="82%"}',
+                    '![Alt text](assets/img/example.svg "Descriptive caption"){: data-caption-source="Source: verified origin. Credits: creator."}',
                 ],
                 "web": "supported with localized numbering; data-figure-width-web and data-figure-height-web control the web box independently",
-                "pdf": "supported; data-figure-width-pdf and data-figure-height-pdf become Pandoc print constraints with aspect ratio preserved",
+                "pdf": "supported; data-figure-width-pdf and data-figure-height-pdf become Pandoc print constraints with aspect ratio preserved; data-caption-source stays in the full caption but is omitted from the list of figures",
                 "guidance": "Always provide meaningful alt text and an explicit Markdown title caption. Keep height auto unless a real support limit requires a maximum. Use data-figure-width as a compatible shared fallback, or support-specific attributes when web and PDF need different visible sizes. Run manual_source_quality_check after inserting a text-bearing SVG: it compares the smallest embedded text with body text on both supports and returns suggested dimensions. For localized visuals, reference the unsuffixed default-language source; add .<lang> before the complete suffix only when a translated visual is needed. Missing localized variants fall back to the default source. To publish a figure computed with R or Python, reference the executable source instead of its SVG and let the build rewrite it to the declared mode:figure output (see executable_sources).",
             },
             {
@@ -2786,9 +2787,9 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
             },
             {
                 "id": "captioned_tables",
-                "syntax": ['::: table "Caption"', "| Column | Column |", "| --- | --- |", ":::"] ,
+                "syntax": ['::: table "Caption"', "| Column | Column |", "| --- | --- |", ":::", '::: table "Caption" {: data-caption-source="Source: verified data."}'] ,
                 "web": "supported with localized numbering",
-                "pdf": "supported through Pandoc table captions",
+                "pdf": "supported through Pandoc table captions; data-caption-source stays in the full caption but is omitted from the list of tables",
                 "guidance": "Bare pipe tables are rejected by manual_source_quality_check. Inline code spans in cells are rendered by the core table parser; update the consumer lock file if literal backticks appear in numbered tables.",
             },
             {

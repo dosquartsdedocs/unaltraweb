@@ -81,6 +81,19 @@ Una font oficial ha d'identificar l'organisme responsable, la data de referènci
         self.assertEqual(result["findings"], [])
         self.assertEqual(result["policy"]["profile"], "unaltremanual")
 
+    def test_caption_sources_are_supported_by_the_authoring_and_source_checks(self) -> None:
+        (self.project / "_chapters/ca/chapter.md").write_text(
+            '![Mapa](assets/img/map.png "Descripció"){: data-caption-source="Font: exemple sintètic."}\n\n'
+            '::: table "Valors" {: data-caption-source="Font: exemple sintètic."}\n'
+            '| A | B |\n| --- | --- |\n| 1 | 2 |\n:::\n', encoding="utf-8",
+        )
+        checked = site_tools.manual_source_quality_check(self.project)
+        self.assertEqual(checked["bare_tables"], [])
+        self.assertEqual(checked["figures_without_title"], [])
+        components = {item["id"]: item for item in site_tools.manual_authoring_capabilities(self.project)["components"]}
+        self.assertIn("data-caption-source", " ".join(components["figures"]["syntax"]))
+        self.assertIn("omitted from the list", components["captioned_tables"]["pdf"])
+
     def test_custom_manual_collection_markdown_is_covered_even_when_pdf_excluded(self) -> None:
         (self.project / "_config.yml").write_text(
             "default_lang: en\n"

@@ -1461,7 +1461,9 @@ html[data-theme="cafe"] .site-profile-unaltredocs .documentation-sidebar-logo-ca
   flex: 1 0 auto;
 }
 
-.documentation-content table {
+// Rouge uses a table for its gutter and code. Its preformatted whitespace and
+// sizing belong to .uw-code-block, not to prose/data-table wrapping rules.
+.documentation-content table:not(.rouge-table) {
   display: block;
   width: max-content;
   min-width: 100%;
@@ -1470,8 +1472,8 @@ html[data-theme="cafe"] .site-profile-unaltredocs .documentation-sidebar-logo-ca
   overflow-x: auto;
 }
 
-.documentation-content table th,
-.documentation-content table td {
+.documentation-content table:not(.rouge-table) th,
+.documentation-content table:not(.rouge-table) td {
   overflow-wrap: normal;
   word-break: normal;
 }
@@ -1485,8 +1487,8 @@ html[data-theme="cafe"] .site-profile-unaltredocs .documentation-sidebar-logo-ca
   overflow: visible;
 }
 
-.documentation-content table a,
-.documentation-content table code {
+.documentation-content table:not(.rouge-table) a,
+.documentation-content table:not(.rouge-table) code {
   white-space: normal;
   overflow-wrap: break-word;
   word-break: normal;

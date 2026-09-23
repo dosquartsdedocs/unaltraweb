@@ -248,15 +248,17 @@ def blank(text: str) -> str:
     return re.sub(r"[^\n]", " ", text)
 
 
-def prose_projection(text: str, *, mask_quotes: bool = True) -> str:
+def prose_projection(text: str, *, mask_quotes: bool = True, mask_attributes: bool = True) -> str:
     for pattern in (r"<!--.*?(?:-->|\Z)", r"{%\s*comment\s*%}.*?(?:{%\s*endcomment\s*%}|\Z)",
                     r"<(pre|code|script|style|blockquote|q)\b[^>]*>.*?</\1\s*>",
                     r"(?<!`)(`+)(?!`)[^`\n]*?\1(?!`)", r"\$\$.*?\$\$|\$[^$\n]+\$", r"{%.*?%}|{{.*?}}",
-                    r"\{:[^\n}]*\}", r"(?<!!)\[([^]\n]+)\]\(([^)\n]+)\)"):
+                    r"(?<!!)\[([^]\n]+)\]\(([^)\n]+)\)"):
         if pattern.startswith(r"(?<!!)"):
             text = re.sub(pattern, lambda m: " " + m[1] + blank(m[0][len(m[1]) + 1:]), text)
         else:
             text = re.sub(pattern, lambda m: blank(m[0]), text, flags=re.S | re.I)
+    if mask_attributes:
+        text = re.sub(r'''\{:(?:[^{}"'\n]|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')*\}''', lambda m: blank(m[0]), text)
     if mask_quotes:
         text = re.sub(r'"[^"\n]+"|“[^”\n]+”|«[^»\n]+»', lambda m: blank(m[0]), text)
     return text
@@ -291,7 +293,7 @@ class HTMLFragments(HTMLParser):
             self.language = dict(attrs).get("lang") or self.language
         if not self.stack:
             for key, value in attrs:
-                if key in {"alt", "title"} and value:
+                if key in {"alt", "title", "data-caption-source"} and value:
                     self.add(value, "metadata", f"{tag}.{key}")
 
     def handle_endtag(self, tag):
@@ -348,7 +350,7 @@ def document_fragments(path: str, text: str, language: str, genre: str) -> tuple
     if genre not in GENRES:
         raise EditorialError(f"Unknown editorial genre in {path}: {genre}")
     result = metadata_fragments(path, front, language, genre)
-    projected = prose_projection(body, mask_quotes=False)
+    projected = prose_projection(body, mask_quotes=False, mask_attributes=False)
     if Path(path).suffix.lower() == ".html":
         parser = HTMLFragments(path, language, genre, line_offset=offset)
         parser.feed(projected)
@@ -375,6 +377,13 @@ def document_fragments(path: str, text: str, language: str, genre: str) -> tuple
         if not stripped:
             continue
         image = re.compile(r'!\[([^]\n]*)\]\(([^)\n]*?)(?:\s+"([^"\n]*)")?\)')
+        if image.search(raw) or re.match(r"^:::\s*(?:table|subfigures)\b", stripped):
+            for credit in re.finditer(r'''\bdata-caption-source\s*=\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|([^\s}]+))''', raw):
+                group = next(index for index in (1, 2, 3) if credit[index] is not None)
+                content = original[credit.start(group):credit.end(group)]
+                result.append(fragment(path, content, line=line, field="data-caption-source", kind="metadata",
+                                       genre=genre, language=language, ordinal=len(result)))
+        raw = re.sub(r'''\{:(?:[^{}"'\n]|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')*\}''', lambda m: blank(m[0]), raw)
         for item in image.finditer(raw):
             for label, content in (("alt", item[1]), ("caption", item[3])):
                 if content:
