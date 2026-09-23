@@ -179,6 +179,28 @@ async def smoke() -> None:
                 context = tool_payload(await session.call_tool("site_context", {}))
                 assert context["update_status"]["state"] == "current", context
                 assert context["update_status"]["can_apply"] is False
+                assert context["editorial"]["revision"] == 0, context
+                assert {"web://editorial-policy", "web://editorial-status"} <= resources
+                prose = tool_payload(await session.call_tool("prose_check", {}))
+                assert prose["ok"], prose
+                prepared = tool_payload(await session.call_tool("editorial_review_prepare", {"target": "_pages/en/index.md"}))
+                fragment = prepared["fragments"][0]
+                report = {
+                    "id": "smoke-review", "target": prepared["target"], "kind": "line",
+                    "source_digest": prepared["source_digest"], "reviewer": "Smoke reviewer", "findings": [{
+                        "id": "clarity", "anchor": fragment["id"], "quote": fragment["text"],
+                        "severity": "preference", "reason": "Review the intended audience.", "suggestion": "Retain if appropriate.",
+                    }],
+                }
+                recorded = tool_payload(await session.call_tool("editorial_review_record", {"report": report, "expected_revision": 0}))
+                assert recorded["revision"] == 1 and not recorded["approves_content"], recorded
+                resolved = tool_payload(await session.call_tool("editorial_review_resolve", {
+                    "review_id": "smoke-review", "finding_id": "clarity", "status": "rejected",
+                    "reason": "The title matches the intended audience.", "expected_revision": 1,
+                }))
+                assert resolved["revision"] == 2, resolved
+                editorial = tool_payload(await session.call_tool("editorial_status", {}))
+                assert not editorial["reviews"]["smoke-review"]["stale"], editorial
 
                 distribution = tool_payload(await session.call_tool("distribution_doctor", {}))
                 assert distribution["ok"] is True, distribution

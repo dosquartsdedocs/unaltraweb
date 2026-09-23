@@ -8,6 +8,7 @@ from pathlib import Path
 from . import __version__
 from . import calibre_import
 from .distribution import distribution_doctor
+from .editorial_sources import strict_json
 from . import site_tools as tools
 
 
@@ -44,6 +45,13 @@ PACKAGE_ONLY_MCP_COMMANDS = {
     "content-freshness-check",
     "content-inventory",
     "detect-site",
+    "prose-check",
+    "editorial-policy",
+    "editorial-status",
+    "editorial-review-prepare",
+    "editorial-review-record",
+    "editorial-review-resolve",
+    "editorial-publication-check",
     "html-audit",
     "http-check",
     "initialize-site",
@@ -254,7 +262,21 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "manual-source-quality-check":
         return print_json(tools.manual_source_quality_check(project))
     if command == "manual-editorial-quality-check":
-        return print_json(tools.manual_editorial_quality_check(project))
+        return print_json(tools.manual_editorial_quality_check(project), enforce_ok=True)
+    if command == "prose-check":
+        return print_json(tools.prose_check(project, args.target), enforce_ok=True)
+    if command == "editorial-policy":
+        return print_json(tools.editorial_policy(project))
+    if command == "editorial-status":
+        return print_json(tools.editorial_status(project))
+    if command == "editorial-review-prepare":
+        return print_json(tools.editorial_review_prepare(project, args.target, args.kind))
+    if command == "editorial-review-record":
+        return print_json(tools.editorial_review_record(project, args.report_json, args.expected_revision))
+    if command == "editorial-review-resolve":
+        return print_json(tools.editorial_review_resolve(project, args.review_id, args.finding_id, args.status, args.reason, args.expected_revision))
+    if command == "editorial-publication-check":
+        return print_json(tools.editorial_publication_check(project, args.output_folder), enforce_ok=True)
     if command == "manual-authoring-capabilities":
         return print_json(tools.manual_authoring_capabilities(project))
     if command == "manual-computation-status":
@@ -403,6 +425,25 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
     for name in ["serve", "list-tools", "starter-templates", "detect-site", "site-context", "site-doctor", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "html-audit", "preview-stop", "prompts"]:
         mcp_sub.add_parser(name)
+
+    for name in ["editorial-policy", "editorial-status"]:
+        mcp_sub.add_parser(name)
+    prose = mcp_sub.add_parser("prose-check")
+    prose.add_argument("--target", default="")
+    editorial_prepare = mcp_sub.add_parser("editorial-review-prepare")
+    editorial_prepare.add_argument("--target", default="")
+    editorial_prepare.add_argument("--kind", choices=["structure", "line", "copy", "evidence"], default="line")
+    editorial_record = mcp_sub.add_parser("editorial-review-record")
+    editorial_record.add_argument("--report-json", type=strict_json, required=True, help="JSON report bound to a prepared source_digest and exact fragment anchors")
+    editorial_record.add_argument("--expected-revision", type=int, required=True)
+    editorial_resolve = mcp_sub.add_parser("editorial-review-resolve")
+    editorial_resolve.add_argument("--review-id", required=True)
+    editorial_resolve.add_argument("--finding-id", required=True)
+    editorial_resolve.add_argument("--status", choices=["accepted", "rejected", "resolved"], required=True)
+    editorial_resolve.add_argument("--reason", required=True)
+    editorial_resolve.add_argument("--expected-revision", type=int, required=True)
+    editorial_publication = mcp_sub.add_parser("editorial-publication-check")
+    editorial_publication.add_argument("--output-folder", default="")
 
     source_read = mcp_sub.add_parser("site-source-read")
     source_read.add_argument("--path", required=True)

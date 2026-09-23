@@ -190,6 +190,8 @@ mcp:
     - web://new-web-scaffolds
     - web://starter-templates
     - web://profile-contract
+    - web://editorial-policy
+    - web://editorial-status
     - web://manual-writing-guidance
     - web://manual-authoring-components
     - web://manual-computations
@@ -217,6 +219,13 @@ mcp:
     - site_source_delete
     - scaffold_sync
     - profile_check
+    - prose_check
+    - editorial_policy
+    - editorial_status
+    - editorial_review_prepare
+    - editorial_review_record
+    - editorial_review_resolve
+    - editorial_publication_check
     - manual_source_quality_check
     - manual_editorial_quality_check
     - manual_authoring_capabilities

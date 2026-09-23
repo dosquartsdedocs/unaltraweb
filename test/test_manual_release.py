@@ -257,6 +257,23 @@ class ManualReleaseTests(unittest.TestCase):
         self.assertEqual(self.tree_inventory(), before)
         self.assertFalse((self.project / "tmp/manual-release").exists())
 
+    def test_latest_publication_honours_opt_in_review_policy(self) -> None:
+        from unaltraweb_mcp import editorial
+
+        context = self.project / "context"
+        context.mkdir()
+        (context / "editorial-policy.json").write_text('{"schema_version":1,"require_reviews":true}', encoding="utf-8")
+        manual_release.write_site_build_receipt(self.project, "latest")
+        blocked = manual_release.release_status(self.project, "latest", self.pdf_status)
+        self.assertFalse(blocked["ready"])
+        self.assertIn("UW-RELEASE-EDITORIAL", {item["code"] for item in blocked["issues"]})
+        prepared = editorial.editorial_review_prepare(self.project)
+        editorial.editorial_review_record(self.project, {
+            "id": "reviewed", "source_digest": prepared["source_digest"], "reviewer": "Test editor", "findings": [],
+        }, 0)
+        manual_release.write_site_build_receipt(self.project, "latest")
+        self.assertTrue(manual_release.release_status(self.project, "latest", self.pdf_status)["ready"])
+
     def test_pdf_status_and_site_copy_must_be_current(self) -> None:
         stale = json.loads(json.dumps(self.pdf_status))
         stale["languages"][0]["published_current"] = False
