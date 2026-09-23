@@ -1,0 +1,22 @@
+title: Peus de figura i taula
+description: Demostració de descripcions i crèdits separats.
+lang: ca
+default_lang: ca
+languages: [ca]
+url: https://dosquartsdedocs.github.io
+baseurl: /unaltraweb
+unaltraweb:
+  site_profile: unaltremanual
+  manual:
+    collection: chapters
+    bibliography: false
+    metadata:
+      title: Peus de figura i taula
+      short_title: Peus i crèdits
+      instructors: []
+    pdf:
+      enabled: true
+      languages: [ca]
+      include_home: false
+      include_bibliography: false
+      draft: false

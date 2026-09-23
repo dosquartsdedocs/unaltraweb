@@ -45,11 +45,18 @@ DISPLAY_MATH_BLOCK_RE = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 BASEURL_RE = re.compile(r"\{\{\s*site\.baseurl\s*\}\}")
+KRAMDOWN_ATTRS = r'''\{:(?:[^{}"'\n]|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')*\}'''
+CAPTION_SOURCE_ATTR_RE = re.compile(
+    r'''(?:\A|\s)data-caption-source\s*=\s*(?:"(?P<double>(?:\\.|[^"\\])*)"|'(?P<single>(?:\\.|[^'\\])*)'|(?P<bare>[^\s}]+))'''
+)
 IMAGE_RE = re.compile(
     r"!\[(?P<alt>[^\]]*)\]\((?P<path>\S+?)(?:\s+(?:\"(?P<double_title>[^\"]*)\"|'(?P<single_title>[^']*)'))?\)"
-    r"(?P<attrs>\{:[^}\n]*\})?"
+    rf"(?:[ \t]*(?P<attrs>{KRAMDOWN_ATTRS}))?"
 )
-TABLE_DIV_RE = re.compile(r'^::: table\s+["\'](.+?)["\']\s*\n(.*?)^:::\s*$', re.MULTILINE | re.DOTALL)
+TABLE_DIV_RE = re.compile(
+    rf'''^:::\s*table\s+(?P<quote>["'])(?P<caption>[^\n]+?)(?P=quote)(?:[ \t]+(?P<attrs>{KRAMDOWN_ATTRS}))?[ \t]*\n(?P<body>.*?)^:::\s*$''',
+    re.MULTILINE | re.DOTALL,
+)
 LISTING_DIV_RE = re.compile(
     r'^:::\s*listing\s+"(?P<caption>[^"]+)"\s*\n(?P<body>.*?)^:::\s*$',
     re.MULTILINE | re.DOTALL,
@@ -61,7 +68,7 @@ TABLE_GUARD_AFTER_HEADING_RE = re.compile(
     re.MULTILINE,
 )
 SUBFIGURES_DIV_RE = re.compile(
-    r'^:::\s*subfigures(?:\s+(?P<layout>[^\s"]+))?(?:\s+"(?P<caption>[^"]*)")?\s*\n'
+    rf'^:::\s*subfigures(?:[ \t]+(?P<layout>[^\s"{{]+))?(?:[ \t]+"(?P<caption>[^"]*)")?(?:[ \t]+(?P<attrs>{KRAMDOWN_ATTRS}))?[ \t]*\n'
     r'(?P<body>.*?)^:::\s*$',
     re.MULTILINE | re.DOTALL,
 )
@@ -787,6 +794,60 @@ def resolve_visual_source(
     raise ManualPdfError(f"No printable SVG found for diagram source: {path}")
 
 
+def caption_source_attribute(raw: str) -> tuple[str, str]:
+    """Consume the caption-only field before emitting image attributes."""
+    source = raw.strip().removeprefix("{:").removesuffix("}").strip()
+    match = CAPTION_SOURCE_ATTR_RE.search(source)
+    if not match:
+        return "", raw
+    credit = next(value for value in match.group("double", "single", "bare") if value is not None)
+    credit = re.sub(r'''\\(["'\\])''', r"\1", credit).strip()
+    remaining = (source[:match.start()] + " " + source[match.end():]).strip()
+    return credit, "{: " + remaining + "}" if remaining else ""
+
+
+def caption_with_source(caption: str, source: str) -> str:
+    return caption + f" [{source}]{{.uw-caption-source}}" if source else caption
+
+
+def image_destinations(markdown: str) -> list[str]:
+    """Find assets after transformation, including nested caption spans/cites.
+
+    The source IMAGE_RE cannot represent arbitrary nested inline brackets. Asset
+    freshness must still include every image consumed by Pandoc, including an
+    inline image nested in another image's caption.
+    """
+    paths = []
+    for opening in re.finditer(r"(?<!\\)!\[", markdown):
+        index, depth = opening.end(), 1
+        while index < len(markdown) and depth:
+            character = markdown[index]
+            if character == "\\":
+                index += 2
+                continue
+            if character == "[":
+                depth += 1
+            elif character == "]":
+                depth -= 1
+            index += 1
+        if depth or index >= len(markdown) or markdown[index] != "(":
+            continue
+        start = index = index + 1
+        parentheses = 0
+        while index < len(markdown):
+            character = markdown[index]
+            if character.isspace() or (character == ")" and not parentheses):
+                break
+            if character == "(":
+                parentheses += 1
+            elif character == ")":
+                parentheses -= 1
+            index += 1
+        if index > start:
+            paths.append(markdown[start:index])
+    return paths
+
+
 def pandoc_image_attributes(raw: str) -> str:
     source = raw.strip()
     if not source:
@@ -887,7 +948,9 @@ def transform_markdown(
         return "[" + "; ".join(f"@{key}" for key in keys) + "]"
 
     def table(match: re.Match[str]) -> str:
-        body = match.group(2).strip()
+        body = match.group("body").strip()
+        credit, _ = caption_source_attribute(match.group("attrs") or "")
+        caption = caption_with_source(match.group("caption").strip(), credit)
         rows = [
             re.sub(r"\s+", " ", line.strip().strip("|"))
             for line in body.splitlines()
@@ -898,7 +961,7 @@ def transform_markdown(
         page_guard = r"\clearpage" if required_baselines >= 40 else f"\\Needspace{{{required_baselines}\\baselineskip}}"
         return (
             f"```{{=latex}}\n{page_guard}\n```\n\n"
-            f"Table: {match.group(1).strip()}\n\n{body}"
+            f"Table: {caption}\n\n{body}"
         )
 
     def listing(match: re.Match[str]) -> str:
@@ -957,8 +1020,9 @@ def transform_markdown(
             default_language=visual_default_language,
             languages=[str(value) for value in configured_visual_languages],
         )
-        caption = title or alt
-        attributes = pandoc_image_attributes(match.group("attrs") or "")
+        credit, raw_attrs = caption_source_attribute(match.group("attrs") or "")
+        caption = caption_with_source(title or alt, credit)
+        attributes = pandoc_image_attributes(raw_attrs)
         return f"![{caption}]({printable}){attributes}"
 
     def callout(match: re.Match[str]) -> str:
@@ -991,6 +1055,12 @@ def transform_markdown(
             padding = " " if value.startswith("`") or value.endswith("`") else ""
             return f"{fence}{padding}{value}{padding}{fence}{{=latex}}"
 
+        def credited_caption(caption: str, credit: str) -> str:
+            # Leave credit-bearing captions as Pandoc inlines so citeproc and
+            # links see them before the figure filter styles the credit span.
+            return (raw_latex_inline(r"\caption[{") + caption + raw_latex_inline("}]{")
+                    + caption_with_source(caption, credit) + raw_latex_inline("}"))
+
         images = list(IMAGE_RE.finditer(match.group("body")))
         if not images:
             raise ManualPdfError(f"Subfigures block contains no images in {source.relative_to(project)}")
@@ -1008,13 +1078,16 @@ def transform_markdown(
             )
 
         overall_caption = latex_caption(match.group("caption") or "")
+        overall_credit, _ = caption_source_attribute(match.group("attrs") or "")
         figure_start = "```{=latex}\n\\begin{figure}[H]\n\\centering\n"
-        if overall_caption:
+        if overall_caption and not overall_credit:
             figure_start += (
                 f"\\caption{{{overall_caption}}}\n"
                 "{\\color{ManualMuted!45}\\rule{\\linewidth}{0.35pt}}\\par\\medskip\n"
             )
         rendered = [figure_start + "```"]
+        if overall_credit:
+            rendered.append(credited_caption(match.group("caption") or "", overall_credit))
         image_index = 0
         max_image_height = f"{0.52 / len(row_sizes):.3f}".rstrip("0").rstrip(".")
         for row_index, row_size in enumerate(row_sizes):
@@ -1031,7 +1104,8 @@ def transform_markdown(
                     default_language=visual_default_language,
                     languages=[str(value) for value in configured_visual_languages],
                 )
-                attributes = pandoc_image_attributes(item.group("attrs") or "")
+                credit, raw_attrs = caption_source_attribute(item.group("attrs") or "")
+                attributes = pandoc_image_attributes(raw_attrs)
                 row.extend([
                     raw_latex_inline(
                         f"\\begin{{subfigure}}[t]{{{panel_width}\\linewidth}}"
@@ -1041,10 +1115,11 @@ def transform_markdown(
                     f"![]({printable}){attributes}",
                 ])
                 separator = r"\hfill" if column_index < row_size - 1 else ""
-                row.append(raw_latex_inline(
-                    f"\\caption{{{latex_caption(caption)}}}"
-                    f"\\end{{subfigure}}{separator}"
-                ))
+                if credit:
+                    row.append(credited_caption(caption, credit))
+                else:
+                    row.append(raw_latex_inline(f"\\caption{{{latex_caption(caption)}}}"))
+                row.append(raw_latex_inline(f"\\end{{subfigure}}{separator}"))
             rendered.append("".join(row))
             if row_index < len(row_sizes) - 1:
                 rendered.append("```{=latex}\n\\par\\medskip\n```")
@@ -1246,7 +1321,9 @@ def assemble(project: Path, config: dict[str, Any], lang: str, paths: dict[str, 
     metadata["include-home"] = includes_home
     metadata["has-listings"] = "data-listing-caption=" in assembled_markdown
     prose_markdown = FENCED_CODE_BLOCK_RE.sub("", assembled_markdown)
-    metadata["has-figures"] = bool(IMAGE_RE.search(prose_markdown) or r"\begin{figure}" in prose_markdown)
+    # Transformed image captions can contain nested credit spans/citations;
+    # IMAGE_RE is the source reader, not a parser for those Pandoc inlines.
+    metadata["has-figures"] = bool(image_destinations(MARKDOWN_INLINE_CODE_RE.sub("", prose_markdown)) or r"\begin{figure}" in prose_markdown)
     metadata["has-tables"] = bool(re.search(r"^Table:\s+\S", prose_markdown, re.MULTILINE))
     return metadata, source_paths, assembled_markdown
 
@@ -1410,8 +1487,7 @@ def build_dependencies(project: Path, metadata: dict[str, Any], source_paths: li
             dependencies.append((f"asset:{path.relative_to(project)}", path))
     dependency_markdown = FENCED_CODE_BLOCK_RE.sub("", markdown)
     dependency_markdown = MARKDOWN_INLINE_CODE_RE.sub("", dependency_markdown)
-    for match in IMAGE_RE.finditer(dependency_markdown):
-        raw = match.group("path")
+    for raw in image_destinations(dependency_markdown):
         if raw.startswith(("http://", "https://", "data:", "#")):
             continue
         local_path, _ = split_url_decoration(raw)

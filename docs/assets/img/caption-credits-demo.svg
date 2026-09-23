@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="180" viewBox="0 0 640 180" role="img" aria-labelledby="title desc">
+  <title id="title">Three linked stages</title>
+  <desc id="desc">Three labelled boxes, A, B and C, connected from left to right.</desc>
+  <rect width="640" height="180" fill="#fff"/>
+  <g fill="#eaf1f7" stroke="#315a75" stroke-width="2">
+    <rect x="35" y="45" width="150" height="90" rx="8"/>
+    <rect x="245" y="45" width="150" height="90" rx="8"/>
+    <rect x="455" y="45" width="150" height="90" rx="8"/>
+  </g>
+  <g fill="none" stroke="#315a75" stroke-width="3">
+    <path d="M185 90h50m-10-8 10 8-10 8"/>
+    <path d="M395 90h50m-10-8 10 8-10 8"/>
+  </g>
+  <g fill="#213f56" font-family="sans-serif" font-size="18" text-anchor="middle">
+    <text x="110" y="97">A</text>
+    <text x="320" y="97">B</text>
+    <text x="530" y="97">C</text>
+  </g>
+</svg>

@@ -7,6 +7,52 @@ require "nokogiri"
 require_relative "../../_plugins/figure_captions"
 
 class FigureCaptionsTest < Minitest::Test
+  def test_figure_caption_has_separate_number_description_and_source
+    markdown = %q{![Accessible map](map.svg "A descriptive caption"){: data-caption-source="Source: [Verified origin](https://example.org/)." data-figure-width="22rem"}}
+    result = Unaltraweb::FigureCaptions.transform_markdown_images(markdown, "en", "Figure")
+    figure = Nokogiri::HTML::DocumentFragment.parse(result).at_css("figure")
+
+    assert_equal "Figure 1.", figure.at_css(".figlabel").text
+    assert_equal "A descriptive caption", figure.at_css(".md-caption-text").text
+    assert_equal "Source: Verified origin.", figure.at_css(".md-caption-source").text
+    assert_equal "https://example.org/", figure.at_css(".md-caption-source a")["href"]
+    assert_equal "Accessible map", figure.at_css("img")["alt"]
+    assert_nil figure.at_css("img")["data-caption-source"]
+    assert_includes figure["style"], "22rem"
+  end
+
+  def test_source_with_liquid_braces_and_unicode_apostrophe_is_not_truncated
+    markdown = %q{![Map](map.svg "Description"){: data-caption-source='Font: {% cite verified %}; elaboració de l’autor.'}}
+    result = Unaltraweb::FigureCaptions.transform_markdown_images(markdown, "ca", "Figura")
+    figure = Nokogiri::HTML::DocumentFragment.parse(result).at_css("figure")
+
+    assert_equal "Font: {% cite verified %}; elaboració de l’autor.", figure.at_css(".md-caption-source").text
+    assert_equal ["src", "alt"], figure.at_css("img").attribute_nodes.map(&:name)
+  end
+
+  def test_table_and_subfigures_keep_sources_with_the_correct_caption
+    markdown = <<~MARKDOWN
+      ::: table "Table description" {: data-caption-source="Source: synthetic values."}
+      | A | B |
+      | --- | --- |
+      | 1 | 2 |
+      :::
+
+      ::: subfigures a+b "Shared description" {: data-caption-source="Source: shared credits."}
+      ![A](a.svg "Panel A"){: data-caption-source="Source: panel A."}
+      ![B](b.svg "Panel B")
+      :::
+    MARKDOWN
+    result = Unaltraweb::FigureCaptions.transform_markdown_sugar(markdown, "en", "Figure", "Table")
+    fragment = Nokogiri::HTML::DocumentFragment.parse(result)
+
+    assert_equal "Source: synthetic values.", fragment.at_css(".md-table-caption .md-caption-source").text
+    assert_equal "Table 1.", fragment.at_css(".md-table .figlabel").text
+    assert_equal "Source: shared credits.", fragment.at_css(".md-figcaption .md-caption-source").text
+    assert_equal "Source: panel A.", fragment.at_css(".md-subfigure-caption .md-caption-source").text
+    assert_equal 3, fragment.css(".md-caption-source").length
+  end
+
   def test_uses_web_dimensions_and_ignores_pdf_dimensions_in_html_layout
     markdown = <<~MARKDOWN.strip
       ![Map](assets/img/map.svg "Map caption"){: data-figure-width-web="44rem" data-figure-height-web="32rem" data-figure-width-pdf="82%" data-figure-height-pdf="420pt"}
