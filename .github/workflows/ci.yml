@@ -96,6 +96,9 @@ jobs:
         with:
           ruby-version: "3.3.11"
 
+      - name: Install native editorial checker dependency
+        run: python -m pip install PyYAML==6.0.2
+
       - name: Build and inspect gem
         run: make gem-check
 
