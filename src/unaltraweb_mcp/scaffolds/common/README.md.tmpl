@@ -51,6 +51,21 @@ Open this repository as the IDE workspace and read `AGENTS.md`. Before editing, 
 
 Request `unaltraweb` as the one top-level MCP and let the control plane activate its declared dependency closure while preserving unrelated registrations. The consumer root must reach providers through `MCP_CONSUMER_WORKSPACE`; factory `build`, `check`, and `smoke` operations stay in each factory checkout. Use `site_context` and `site_doctor`, run `site_check` before `build_site`, and review the labelled local preview. For a manual with PDF output enabled, call `manual_pdf_preview_prepare` before direct MCP builds or previews; managed `make build`, `make test`, and `make serve` do this automatically. The operation returns `publishes: false` and stages only ignored, untracked PDF and cover copies. After review, dry-run `manual_pdf_preview_clean`, then pass that result's `receipt_sha256` as `expected_receipt_sha256` when confirming cleanup of unchanged receipt-owned copies. Make-only users can confirm the same operation with `make manual-pdf-preview-clean MANUAL_PDF_PREVIEW_CLEAN_DRY_RUN=0 MANUAL_PDF_PREVIEW_CONFIRM_CLEAN=1 MANUAL_PDF_PREVIEW_RECEIPT_SHA256=<sha256>`. Clean preview copies before disabling PDF output; `make clean` refuses to discard the supporting draft while a preview receipt remains. Keep durable decisions in versioned files rather than chat history. If the selected MCP image is not available, ask the core maintainer for the published release or for the reviewed candidate build; do not replace its pin with a mutable tag.
 
+## Guided Consumer Updates
+
+An updated MCP reports `site_context.update_status` when the agent opens a site
+session. The agent shows current and available package versions, planned paths,
+preserved customizations and conflicts, then asks whether to update. The target is
+the package already running in this MCP, not an unchecked release fetched online.
+After acceptance and the normal issue/branch/reservation, the agent applies
+`scaffold_sync` with the reviewed `plan_sha256` as `expected_plan_sha256`, then runs
+`site_check` and the relevant local build. Changed plans require a fresh review.
+An edited managed file is preserved when the package has not changed that file
+since the recorded baseline. Conflicting local/upstream edits still require a
+decision; the updater never recreates the site or overwrites editorial content.
+Updating the factory checkout alone does not replace a pinned MCP image; install
+the reviewed MCP release and reconnect the client first.
+
 ## Upload Images Safely
 
 1. Reserve the destination filename with the rest of the task and upload on the task branch, never on `main`.

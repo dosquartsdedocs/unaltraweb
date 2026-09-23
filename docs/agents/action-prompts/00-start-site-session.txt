@@ -5,8 +5,9 @@ Start or resume work in an `unaltraweb` website workspace.
 3. Request `unaltraweb` as the one top-level MCP and let the control plane select its declared dependency closure. Pass the consumer root through `MCP_CONSUMER_WORKSPACE`; never create, switch to, move, prune, repair, or remove linked worktrees implicitly.
 4. If the workspace has no `_config.yml`, inspect `web://new-web-scaffolds`, then use `new_web` only after the target profile, title, baseurl, url, default language, and maintained languages are known or intentionally left blank.
 5. Inspect `web://site-context` or call `site_context`.
-6. Confirm the configured `unaltraweb.site_profile`, `language_policy`, languages, and enabled features before editing.
-7. Run or inspect `profile_check`, `content_inventory`, `content_approval_inventory`, `translation_plan`, `bibliography_inventory`, and `content_freshness_check`.
-8. Keep edits inside the website workspace. Do not treat chat history as durable project memory.
-9. For visible content changes, run `build_site` or the local Make equivalent before handoff when feasible.
-10. Do not commit or publish visible content changes until the human author has reviewed the served site in a browser and explicitly approved the rendered result.
+6. Read `site_context.update_status`. If an update is available in the active MCP package, explain the current/target versions, planned paths, preserved customizations and conflicts, and ask whether to update. Apply only after explicit acceptance and the normal reservation, using `scaffold_sync(dry_run=false, confirm_sync=true, expected_plan_sha256=<reviewed plan_sha256>)`. If the plan changes, request a fresh review. Never bypass conflicts or downgrade a newer consumer. If declined, continue the requested content work; do not repeatedly ask about the same plan in this session. After applying, inspect `site_context` again, run `site_check`, then the relevant build; regenerate only genuinely stale artifacts under the appropriate reservation.
+7. Confirm the configured `unaltraweb.site_profile`, `language_policy`, languages, and enabled features before editing.
+8. Run or inspect `profile_check`, `content_inventory`, `content_approval_inventory`, `translation_plan`, `bibliography_inventory`, and `content_freshness_check`.
+9. Keep edits inside the website workspace. Do not treat chat history as durable project memory.
+10. For visible content changes, run `build_site` or the local Make equivalent before handoff when feasible.
+11. Do not commit or publish visible content changes until the human author has reviewed the served site in a browser and explicitly approved the rendered result.

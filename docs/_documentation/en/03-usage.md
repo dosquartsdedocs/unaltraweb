@@ -88,6 +88,67 @@ The generated repository contains one profile. Create a separate temporary site 
 - Reusable workflow updates change optional GitHub build and deploy behavior.
 - Package scaffold changes affect newly generated sites. Existing generated repositories can review `scaffold_sync`, which manages exactly `.gitignore`, `.unaltraweb/docker-mount.sh`, `.github/CONTRIBUTING.md`, `.github/dependabot.yml`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, and `.github/workflows/deploy.yml` from `.unaltraweb/scaffold.json`. It can adopt bytes that already equal the current package payload without rewriting the file. A conflict aborts the entire apply, and retired entries are removed from the baseline without deleting project files. Synchronization never changes site-owned README/agent guidance, config, or content.
 
+### Guided Consumer Updates
+
+At the start of a site session, the agent inspects `site_context.update_status`.
+The MCP compares the consumer's literal MCP/gem pins and managed baseline with
+the package active in this session. It reports the target version and integration
+tuple, planned paths, preserved customizations, conflicts and a `plan_sha256`.
+This is an offline check, not a query for the newest version on GitHub or PyPI.
+A change to documentation or the factory discovery manifest alone does not imply
+that the consumer needs updating.
+
+When changes are available, the agent explains them and asks whether to proceed.
+After acceptance and the normal issue, branch and path reservation, it calls:
+
+```text
+scaffold_sync(dry_run=false, confirm_sync=true, expected_plan_sha256=<reviewed plan_sha256>)
+```
+
+The equivalent native CLI flow is:
+
+```bash
+unaltraweb-mcp --project . mcp site-context
+unaltraweb-mcp --project . mcp scaffold-sync
+unaltraweb-mcp --project . mcp scaffold-sync --apply --confirm-sync --expected-plan-sha256 <reviewed-sha256>
+```
+
+The confirmation is bound to that consumer, package proposal, configuration and
+managed-file snapshot. If the plan changes, inspect it again before confirming.
+After applying, inspect context again, run `site_check`, then `build_site` or the
+appropriate local build. Manual PDF review still uses managed preparation and
+cleanup. The update does not commit, publish or regenerate editorial artefacts.
+Declining the offer leaves the repository untouched and lets content work continue.
+
+An extra local ignore rule need not block a runtime-pin update: if the incoming
+`.gitignore` still equals its recorded baseline, synchronization preserves the
+customized file and its original package baseline. The same rule applies to other
+managed files. If both the local file and the incoming package changed, there is
+a genuine conflict; no file is overwritten and the entire apply is blocked.
+New-path collisions and missing/unsafe baselines also need review. Known newer
+consumer versions are never silently downgraded by an older MCP. Custom image
+digests and non-literal version expressions are not guessed or resolved online.
+
+The planner and transaction are deterministic Python code. For the same consumer
+path, package/BOM, configuration, baseline and managed bytes, they produce the same
+plan digest and intended control-file bytes. No model generates the replacement
+files. Diagnostic timestamps such as `site_context.generated_at`, temporary names
+and filesystem timestamps are not reproducibility guarantees of the plan.
+
+The agent initiates the check, presents its result, asks for acceptance and
+coordinates the normal Git/review workflow. An automatic offer therefore depends
+on the agent following the session instructions; the MCP does not force a popup
+or run a background update. The CLI commands above use the same engine without
+an agent. Reconciliation of a genuine conflict is a separate reviewed change,
+after which the engine computes a new plan.
+
+Existing consumers receive this flow
+when they reconnect to an MCP release that includes it; their site-owned AGENTS
+and README do not need to be replaced. Publishing that new MCP/package release
+and advancing its reviewed runtime pin remain maintainer actions. An already
+running v0.4.0 image will not gain the feature simply because the factory checkout
+was updated.
+
 ## Safe MCP Editing
 
 `site_source_read`, `site_source_write`, and `site_source_delete` are deliberately restricted to `_config.yml`, Markdown/HTML content collections, YAML/JSON/CSV below `_data/`, and Markdown below `context/`. They do not expose generic filesystem access and cannot mutate workflows, runtime files, core overrides, bibliography, assets, or generated output. Writes default to dry-run and use SHA-256 optimistic concurrency; destructive deletes additionally require explicit confirmation and can never remove `_config.yml`.

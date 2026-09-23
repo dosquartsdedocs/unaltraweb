@@ -36,6 +36,10 @@ def run_server(project: Path, factory: Path) -> None:
     mcp = FastMCP(
         "unaltraweb",
         instructions=(
+            "At the start of each site session, inspect site_context.update_status. It compares this active MCP package with the consumer offline, not with the latest release online. "
+            "If an update is available, show the current and target versions, planned paths, preserved customizations and conflicts, and ask the user whether to update. "
+            "Only after explicit acceptance and the normal issue/branch/path reservation, apply scaffold_sync with dry_run=false, confirm_sync=true and the reviewed plan_sha256 as expected_plan_sha256. "
+            "Never bypass conflicts or downgrade a newer consumer. If the user declines, continue the requested content work without changing pins or repeating the same offer in this session. After an update inspect site_context again and run site_check before building, and do not regenerate unrelated artifacts. "
             "Use new_web to create a fresh site from one of the four package-owned profile scaffolds. "
             "For unaltremanual work, inspect manual_authoring_capabilities before editing. "
             "Run site_check and resolve blocking validation failures before build_site. "
@@ -246,7 +250,7 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def site_context() -> dict[str, Any]:
-        """Return site profile, features, content, bibliography, bibliometrics, and build state."""
+        """Return site state and an offline consumer-update advisory for this MCP package."""
         return tools.site_context(project, factory)
 
     @mcp.tool()
@@ -275,9 +279,9 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.site_source_delete(project, path, expected_sha256=expected_sha256, dry_run=dry_run, confirm_delete=confirm_delete)
 
     @mcp.tool()
-    def scaffold_sync(dry_run: bool = True, confirm_sync: bool = False) -> dict[str, Any]:
-        """Synchronize package-managed scaffold controls only when they match their baseline or new package bytes."""
-        return tools.scaffold_sync(project, dry_run=dry_run, confirm_sync=confirm_sync)
+    def scaffold_sync(dry_run: bool = True, confirm_sync: bool = False, expected_plan_sha256: str = "") -> dict[str, Any]:
+        """Synchronize reviewed package controls; preserve edits without upstream changes and refuse conflicts or downgrades."""
+        return tools.scaffold_sync(project, dry_run=dry_run, confirm_sync=confirm_sync, expected_plan_sha256=expected_plan_sha256)
 
     @mcp.tool()
     def profile_check() -> dict[str, Any]:

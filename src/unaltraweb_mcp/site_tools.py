@@ -1245,6 +1245,33 @@ def new_web(
     }
 
 
+def _scaffold_versions(contents: dict[str, bytes | None]) -> dict[str, str]:
+    from .distribution import _bundler_git_pin, _gemfile_declaration, _ruby_without_comments
+
+    makefile = (contents.get("Makefile") or b"").decode("utf-8", errors="replace")
+    images = re.findall(r"(?m)^MCP_IMAGE\s*\?[:+]?=\s*([^\s#]+)", makefile)
+    image = images[0].strip("\"'") if len(images) == 1 else ""
+    image_version = re.fullmatch(
+        re.escape(component("mcp")["image_repository"]) + r":([0-9]+\.[0-9]+\.[0-9]+)", image,
+    )
+    gemfile = (contents.get("Gemfile") or b"").decode("utf-8", errors="replace")
+    declaration = _ruby_without_comments(_gemfile_declaration(gemfile, "unaltraweb"))
+    gem_version = re.search(r"gem\s+['\"]unaltraweb['\"]\s*,\s*['\"](?:=\s*)?([0-9]+\.[0-9]+\.[0-9]+)['\"]", declaration)
+    lock = (contents.get("Gemfile.lock") or b"").decode("utf-8", errors="replace")
+    return {
+        "mcp_image": image,
+        "mcp_version": image_version.group(1) if image_version else "",
+        "gem_version": gem_version.group(1) if gem_version else "",
+        "locked_gem_version": _bundler_git_pin(lock, "unaltraweb")[3],
+    }
+
+
+def _release_number(version: str) -> tuple[int, ...] | None:
+    if re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+        return tuple(int(part) for part in version.split("."))
+    return None
+
+
 def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
     root_fd = _open_project_root(project)
     try:
@@ -1287,7 +1314,10 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
         updates: list[dict[str, str]] = []
         unchanged: list[str] = []
         adopted: list[str] = []
+        preserved: list[str] = []
         conflicts: list[dict[str, str]] = []
+        observed: dict[str, str] = {}
+        version_contents: dict[str, bytes | None] = {}
         for relative in SCAFFOLD_MANAGED_PATHS:
             path = relative.as_posix()
             package_hash = _source_hash(payloads[relative])
@@ -1300,6 +1330,9 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
                 conflicts.append({"path": path, "reason": f"managed path is unsafe or unreadable: {exc}"})
                 continue
             current_hash = _source_hash(current) if current is not None else ""
+            observed[path] = current_hash
+            if path in {"Makefile", "Gemfile", "Gemfile.lock"}:
+                version_contents[path] = current
 
             if baseline_hash:
                 if current is None:
@@ -1308,6 +1341,10 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
                     (unchanged if current_hash == baseline_hash else adopted).append(path)
                 elif current_hash == baseline_hash:
                     updates.append({"path": path, "expected_sha256": current_hash, "sha256": package_hash})
+                elif package_hash == baseline_hash:
+                    # No upstream change: retain the user's bytes and the original
+                    # package baseline, so a later upstream edit still conflicts.
+                    preserved.append(path)
                 else:
                     conflicts.append({"path": path, "reason": "local file differs from its recorded baseline"})
             elif current is None:
@@ -1317,18 +1354,45 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
             else:
                 conflicts.append({"path": path, "reason": "new package-managed path already exists with different content"})
 
+        current_versions = _scaffold_versions(version_contents)
+        target_version = str(component("mcp")["version"])
+        target_number = _release_number(target_version)
+        for key, path in [("mcp_version", "Makefile"), ("gem_version", "Gemfile"), ("locked_gem_version", "Gemfile.lock")]:
+            current_number = _release_number(current_versions[key])
+            if target_number is not None and current_number is not None and current_number > target_number:
+                conflicts.append({
+                    "path": path, "code": "newer-consumer-version",
+                    "reason": f"Consumer version {current_versions[key]} is newer than this MCP's {target_version}; update/reconnect the MCP instead of downgrading the consumer.",
+                })
+            elif path in preserved and current_number is not None and current_number != target_number:
+                conflicts.append({
+                    "path": path, "code": "custom-version-pin",
+                    "reason": "A locally customized version pin differs from this MCP; review the override before synchronizing the integration tuple.",
+                })
+
         retired = sorted(path for path in baseline if path not in {item.as_posix() for item in SCAFFOLD_MANAGED_PATHS})
         managed_paths = {item.as_posix() for item in SCAFFOLD_MANAGED_PATHS}
         next_baseline = {path: digest for path, digest in baseline.items() if path in managed_paths}
         next_baseline.update({path.as_posix(): _source_hash(payloads[path]) for path in SCAFFOLD_MANAGED_PATHS})
         next_manifest = _scaffold_manifest_bytes(next_baseline)
+        target = {"version": target_version, "mcp_image": component_reference("mcp"), **consumer_integration()}
+        plan_sha256 = _source_hash(json.dumps({
+            "schema_version": 1, "project": str(project), "target": target,
+            "config_sha256": _source_hash(config_content), "baseline_sha256": _source_hash(manifest_content),
+            "observed": observed,
+            "package": {path.as_posix(): _source_hash(content) for path, content in payloads.items()},
+        }, sort_keys=True, separators=(",", ":")).encode("utf-8"))
         return {
             "ok": not conflicts,
             "project": str(project),
+            "plan_sha256": plan_sha256,
+            "current_versions": current_versions,
+            "target": target,
             "creates": creates,
             "updates": updates,
             "unchanged": unchanged,
             "adopted": adopted,
+            "preserved": preserved,
             "retired": retired,
             "conflicts": conflicts,
             "manifest_update": next_manifest != manifest_content,
@@ -1338,6 +1402,7 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
             "_config_content": config_content,
             "_config_sha256": _source_hash(config_content),
             "_config_identity": _path_identity(config_metadata),
+            "_observed_sha256": observed,
         }
     finally:
         os.close(root_fd)
@@ -1492,8 +1557,16 @@ def _recheck_scaffold_config(root_fd: int, plan: dict[str, Any], message: str) -
         raise RuntimeError(message)
 
 
+def _recheck_preserved_scaffold_files(root_fd: int, plan: dict[str, Any], phase: str) -> None:
+    for path in plan["preserved"]:
+        current = _read_scaffold_file(root_fd, Path(path))
+        if _source_hash(current) != plan["_observed_sha256"][path]:
+            raise RuntimeError(f"Preserved managed file changed {phase}: {path}")
+
+
 def _recheck_scaffold_sync(root_fd: int, plan: dict[str, Any]) -> None:
     _recheck_scaffold_config(root_fd, plan, "_config.yml changed after scaffold_sync preflight.")
+    _recheck_preserved_scaffold_files(root_fd, plan, "after scaffold_sync preflight")
     for item in plan["creates"]:
         relative = Path(item["path"])
         parent_fd: int | None = None
@@ -1524,6 +1597,7 @@ def _recheck_scaffold_sync(root_fd: int, plan: dict[str, Any]) -> None:
 
 def _recheck_scaffold_sync_before_manifest(root_fd: int, plan: dict[str, Any]) -> None:
     _recheck_scaffold_config(root_fd, plan, "_config.yml changed before scaffold_sync manifest commit.")
+    _recheck_preserved_scaffold_files(root_fd, plan, "before scaffold_sync manifest commit")
     for path in [*plan["unchanged"], *plan["adopted"]]:
         current = _read_scaffold_file(root_fd, Path(path))
         if _source_hash(current) != _source_hash(plan["_payloads"][Path(path)]):
@@ -1535,6 +1609,7 @@ def _recheck_scaffold_sync_before_manifest(root_fd: int, plan: dict[str, Any]) -
 
 def _verify_scaffold_sync_committed(root_fd: int, plan: dict[str, Any]) -> None:
     _recheck_scaffold_config(root_fd, plan, "_config.yml changed during scaffold_sync manifest commit.")
+    _recheck_preserved_scaffold_files(root_fd, plan, "during scaffold_sync manifest commit")
     for path in [*plan["unchanged"], *plan["adopted"]]:
         current = _read_scaffold_file(root_fd, Path(path))
         if _source_hash(current) != _source_hash(plan["_payloads"][Path(path)]):
@@ -1549,9 +1624,15 @@ def scaffold_sync(
     *,
     dry_run: bool = True,
     confirm_sync: bool = False,
+    expected_plan_sha256: str = "",
 ) -> dict[str, Any]:
     project = project_path(project)
     plan = _scaffold_sync_plan(project)
+    if expected_plan_sha256:
+        if not re.fullmatch(r"[0-9a-f]{64}", expected_plan_sha256):
+            raise ValueError("expected_plan_sha256 must be a lowercase SHA-256 digest.")
+        if expected_plan_sha256 != plan["plan_sha256"]:
+            raise RuntimeError("Scaffold update plan changed since review; inspect site_context or scaffold_sync again before confirming.")
     public_plan = {key: value for key, value in plan.items() if not key.startswith("_")}
     if plan["conflicts"]:
         return {**public_plan, "dry_run": dry_run, "applied": False}
@@ -1614,6 +1695,53 @@ def scaffold_sync(
                 fcntl.flock(root_fd, fcntl.LOCK_UN)
                 os.close(root_fd)
     return {**public_plan, "dry_run": False, "applied": True}
+
+
+def consumer_update_status(project: Path) -> dict[str, Any]:
+    """Offline advisory for the active package, not remote release discovery."""
+    target = {"version": str(component("mcp")["version"]), "mcp_image": component_reference("mcp")}
+    try:
+        plan = _scaffold_sync_plan(project)
+    except (OSError, ValueError, RuntimeError) as exc:
+        return {
+            "offline": True, "state": "unavailable", "target": target,
+            "update_available": False, "can_apply": False, "error": str(exc),
+            "message": "Managed updates cannot be planned from this consumer's baseline; inspect it without recreating or overwriting the site.",
+        }
+    changes = [item["path"] for item in [*plan["creates"], *plan["updates"]]]
+    if plan["manifest_update"]:
+        changes.append(SCAFFOLD_MANIFEST_PATH.as_posix())
+    target_number = _release_number(plan["target"]["version"])
+    numbers = [_release_number(plan["current_versions"][key]) for key in ("mcp_version", "gem_version", "locked_gem_version")]
+    known = [number for number in numbers if number is not None]
+    newer_consumer = any(item.get("code") == "newer-consumer-version" for item in plan["conflicts"])
+    newer_available = not newer_consumer and target_number is not None and any(number < target_number for number in known)
+    available = bool(changes or newer_available) and not newer_consumer
+    can_apply = available and plan["ok"]
+    if newer_consumer:
+        state = "newer_consumer"
+        message = "The consumer uses a newer version than this MCP. Update/reconnect the MCP; do not downgrade the site."
+    elif plan["conflicts"]:
+        state = "conflicts"
+        message = "Review the reported local/upstream conflicts before updating. No files have changed."
+    elif available:
+        state = "update_available"
+        message = f"This MCP provides unaltraweb {target['version']}. Show the planned paths and ask the user whether to update this consumer."
+    else:
+        state = "current_customized" if plan["preserved"] else "current"
+        message = "No managed update is needed for this MCP version; local customizations are preserved."
+    return {
+        "offline": True, "state": state, "source": "active MCP package",
+        "current_versions": plan["current_versions"], "target": plan["target"],
+        "update_available": available, "newer_version_available": newer_available,
+        "can_apply": can_apply, "planned_paths": changes,
+        "preserved": plan["preserved"], "conflicts": plan["conflicts"],
+        "plan_sha256": plan["plan_sha256"], "message": message,
+        "apply_tool": "scaffold_sync",
+        "apply_arguments": {
+            "dry_run": False, "confirm_sync": True, "expected_plan_sha256": plan["plan_sha256"],
+        } if can_apply else {},
+    }
 
 
 def initialize_site(
@@ -5773,6 +5901,7 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
         "detection": detect_site(project),
         "title": str(config.get("title") or ""),
         "profile": site_profile(config),
+        "update_status": consumer_update_status(project),
         "language_policy": language_policy(project),
         "languages": configured_languages(config),
         "features": feature_flags(config),

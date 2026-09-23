@@ -115,7 +115,7 @@ For that reason:
 - normal local-runtime improvements should ship through a versioned MCP image; native consumers receive corresponding gem or wheel releases when their package boundary changes;
 - site repositories can enable Dependabot for Bundler and GitHub Actions, but deploy workflows should remain manual;
 - breaking changes should be released with migration notes;
-- scaffold changes should be rare; generated sites can explicitly dry-run `scaffold_sync`, which updates only unchanged baseline runtime files (including the pull-request template), creates newly managed missing files, reports conflicts, never deletes paths, stages every output, rechecks adopted and unchanged files around the manifest write, rolls the whole transaction back on failure, and commits its manifest last. Generated README prose is site-owned and is not overwritten by synchronization.
+- scaffold changes should be rare; generated sites can explicitly dry-run `scaffold_sync`, which updates unchanged baseline runtime files (including the pull-request template), creates newly managed missing files, and preserves local edits when the upstream file still equals its original baseline. Conflicting local/upstream edits remain blocked. The transaction never deletes paths, stages every output, rechecks adopted, unchanged and preserved files around the manifest write, rolls back on failure, and commits its manifest last. `site_context.update_status` guides the agent's version/update offer; `expected_plan_sha256` binds confirmation to the reviewed proposal. Generated README prose is site-owned and is not overwritten by synchronization.
 
 ## Docker Runtime
 

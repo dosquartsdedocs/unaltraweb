@@ -246,7 +246,7 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         )
     if command == "scaffold-sync":
         return print_json(
-            tools.scaffold_sync(project, dry_run=not args.apply, confirm_sync=args.confirm_sync),
+            tools.scaffold_sync(project, dry_run=not args.apply, confirm_sync=args.confirm_sync, expected_plan_sha256=args.expected_plan_sha256),
             enforce_ok=True,
         )
     if command == "profile-check":
@@ -423,6 +423,7 @@ def build_parser() -> argparse.ArgumentParser:
     scaffold_sync = mcp_sub.add_parser("scaffold-sync")
     scaffold_sync.add_argument("--apply", action="store_true")
     scaffold_sync.add_argument("--confirm-sync", action="store_true")
+    scaffold_sync.add_argument("--expected-plan-sha256", default="", help="SHA-256 of the reviewed site-context/scaffold-sync plan")
 
     mcp_new_web = mcp_sub.add_parser("new-web")
     _add_new_web_arguments(mcp_new_web)
