@@ -20,7 +20,7 @@ from .editorial_sources import (
 STATE = "context/editorial-state.json"
 POLICY = "context/editorial-policy.json"
 WRITING_PROFILE = "context/writing-profile.md"
-RULESET_VERSION = 1
+RULESET_VERSION = 2
 KINDS = ("structure", "line", "copy", "evidence")
 PROFILES = {
     "unaltreselfie": {

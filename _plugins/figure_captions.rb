@@ -8,6 +8,7 @@ module Unaltraweb
 
     PANEL_SEQUENCE = ("a".."z").to_a.freeze
     FENCED_CODE_BLOCK = /^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$/m.freeze
+    CAPTION_SOURCE_ATTRIBUTE = /(?:\A|\s)data-caption-source\s*=\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s}]+)/.freeze
 
     def enabled?(site)
       config = config_for(site)
@@ -104,6 +105,7 @@ module Unaltraweb
               out << figure_html(
                 img: %(<img src="#{h(url.strip)}" alt="#{h(strip_liquid(alt))}"#{attrs.empty? ? "" : " #{attrs}"}>),
                 caption: render_inline_markdown(caption),
+                source: render_inline_markdown(kramdown_attr_value(attrs_raw, "data-caption-source")),
                 label: label,
                 lang: lang,
                 count: count,
@@ -196,7 +198,7 @@ module Unaltraweb
 
       line_end = source.index("\n", start_index) || source.length
       opening = source[start_index...line_end]
-      match = opening.match(/\A:::\s*subfigures(?:\s+([^\s"]+))?(?:\s+"([^"]+)")?\s*\z/)
+      match = opening.match(/\A:::\s*subfigures(?:\s+([^\s"{]+))?(?:\s+"([^"]+)")?(?:\s+(\{:[^\n]*\}))?\s*\z/)
       return nil unless match
 
       body_start = line_end == source.length ? line_end : line_end + 1
@@ -206,6 +208,7 @@ module Unaltraweb
       {
         layout: match[1].to_s,
         caption: match[2].to_s,
+        attrs: match[3],
         body: source[body_start...closing.begin(0)],
         raw: source[start_index...closing.end(0)],
         end_idx: closing.end(0)
@@ -217,7 +220,7 @@ module Unaltraweb
 
       line_end = source.index("\n", start_index) || source.length
       opening = source[start_index...line_end]
-      match = opening.match(/\A:::\s*table(?:\s+"([^"]+)")?\s*\z/)
+      match = opening.match(/\A:::\s*table(?:\s+"([^"]+)")?(?:\s+(\{:[^\n]*\}))?\s*\z/)
       return nil unless match
 
       body_start = line_end == source.length ? line_end : line_end + 1
@@ -226,6 +229,7 @@ module Unaltraweb
 
       {
         caption: match[1].to_s,
+        attrs: match[2],
         body: source[body_start...closing.begin(0)],
         raw: source[start_index...closing.end(0)],
         end_idx: closing.end(0)
@@ -271,7 +275,7 @@ module Unaltraweb
           image = images[slot[:index]]
           attrs = kramdown_attrs_to_html(image[:attrs])
           panel_attrs = subfigure_panel_attrs(image[:attrs])
-          caption = render_inline_markdown(image[:caption])
+          caption = caption_content(render_inline_markdown(image[:caption]), render_inline_markdown(kramdown_attr_value(image[:attrs], "data-caption-source")))
           panel = h(slot[:label])
           caption_html = caption.to_s.strip.empty? ? "" : %Q{<p class="md-subfigure-caption"><span class="md-subfigure-label">#{panel}</span> #{caption}</p>}
           %Q{<div class="md-subfigure" data-panel="#{panel}"#{panel_attrs}>#{caption_html}<img src="#{h(image[:url].strip)}" alt="#{h(strip_liquid(image[:alt]))}"#{attrs.empty? ? "" : " #{attrs}"}></div>}
@@ -279,7 +283,7 @@ module Unaltraweb
         %Q{<div class="md-subfigure-row" data-count="#{row.length}">\n#{cells}\n</div>}
       end.join("\n")
 
-      clean_caption = render_inline_markdown(block[:caption]).to_s.strip
+      clean_caption = caption_content(render_inline_markdown(block[:caption]), render_inline_markdown(kramdown_attr_value(block[:attrs], "data-caption-source")))
       figcaption = clean_caption.empty? ? "" : %(<figcaption class="md-figcaption"><span class="figlabel">#{h(label)} #{count}.</span> #{clean_caption}</figcaption>)
 
       html = <<~HTML.strip
@@ -301,7 +305,7 @@ module Unaltraweb
       return [block[:raw], count] unless parsed_table
 
       count += 1
-      caption = render_inline_markdown(block[:caption]).to_s.strip
+      caption = caption_content(render_inline_markdown(block[:caption]), render_inline_markdown(kramdown_attr_value(block[:attrs], "data-caption-source")))
       caption_html = caption.empty? ? "" : %(<figcaption class="md-table-caption"><span class="figlabel">#{h(label)} #{count}.</span> #{caption}</figcaption>)
       thead = table_row_html(parsed_table[:headers], "th", parsed_table[:alignments])
       tbody = parsed_table[:rows].map { |row| table_row_html(row, "td", parsed_table[:alignments]) }.join("\n")
@@ -520,7 +524,7 @@ module Unaltraweb
 
       attrs_raw = nil
       if source[index] == "{"
-        close_index = source.index("}", index)
+        close_index = attribute_block_end(source, index)
         return nil unless close_index
 
         attrs_raw = source[index..close_index].sub(/\A\{:\s*/, "{").strip
@@ -528,6 +532,28 @@ module Unaltraweb
       end
 
       { alt: alt, url_and_title: url_and_title, attrs: attrs_raw, end_idx: index }
+    end
+
+    def attribute_block_end(source, index)
+      quote = nil
+      index += 1
+      while index < source.length
+        char = source[index]
+        if char == "\\"
+          index += 2
+          next
+        elsif quote
+          quote = nil if char == quote
+        elsif char == '"' || char == "'"
+          quote = char
+        elsif char == "}"
+          return index
+        elsif char == "\n"
+          return nil
+        end
+        index += 1
+      end
+      nil
     end
 
     def read_balanced(source, index, open_char, close_char)
@@ -594,10 +620,10 @@ module Unaltraweb
 
     def kramdown_attr_value(raw, name)
       source = raw.to_s.strip.sub(/\A\{:\s*/, "").sub(/\A\{\s*/, "").sub(/\s*\}\z/, "")
-      match = source.match(/(?:\A|\s)#{Regexp.escape(name)}\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s}]+))/)
+      match = source.match(/(?:\A|\s)#{Regexp.escape(name)}\s*=\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|([^\s}]+))/)
       return nil unless match
 
-      match[1] || match[2] || match[3]
+      (match[1] || match[2] || match[3]).gsub(/\\(["'\\])/, '\1')
     end
 
     def split_url_and_title(value)
@@ -630,6 +656,7 @@ module Unaltraweb
         figure_html(
           img: img_tag,
           caption: render_inline_markdown(CGI.unescapeHTML(caption)),
+          source: render_inline_markdown(CGI.unescapeHTML(extract_attr(img_tag, "data-caption-source").to_s)),
           label: label,
           lang: lang,
           count: count,
@@ -639,10 +666,17 @@ module Unaltraweb
       end
     end
 
-    def figure_html(img:, caption:, label:, lang:, count:, classes: ["md-figure"], attrs: "")
+    def caption_content(caption, source = "")
+      parts = []
+      parts << %(<span class="md-caption-text">#{caption.to_s.strip}</span>) unless caption.to_s.strip.empty?
+      parts << %(<span class="md-caption-source">#{source.to_s.strip}</span>) unless source.to_s.strip.empty?
+      parts.join(" ")
+    end
+
+    def figure_html(img:, caption:, label:, lang:, count:, classes: ["md-figure"], attrs: "", source: "")
       classes = Array(classes)
       classes = ["md-figure"] if classes.empty?
-      clean_caption = caption.to_s.strip
+      clean_caption = caption_content(caption, source)
       figcaption = if clean_caption.empty?
         ""
       else
@@ -736,6 +770,9 @@ module Unaltraweb
       source = raw.to_s.strip.sub(/\A\{:\s*/, "").sub(/\A\{\s*/, "").sub(/\s*\}\z/, "")
       return "" if source.empty?
 
+      # Credits are visible caption content, not attributes that can acquire
+      # nested HTML quotes when Liquid citations are expanded later.
+      source = source.gsub(CAPTION_SOURCE_ATTRIBUTE, " ")
       source = source.tr("“”’‘", %q{""''})
       classes = []
       id = nil

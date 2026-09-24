@@ -102,6 +102,16 @@ For pages with figure captions enabled, use the Markdown image title as the capt
 ![Digitizing workflow]({{ site.baseurl }}/assets/img/workflow.svg "Main editing steps")
 ```
 
+Separate attribution from the description with `data-caption-source`:
+
+```markdown
+![Accessible description](assets/img/map.svg "Distribution by municipality"){: data-caption-source="Source: verified dataset. Credits: map creator."}
+```
+
+The label/number, description and credits have separate web elements. The source
+continues inline with differentiated styling; PDF lists include the description
+without its credits. See the [rendered caption and credit examples]({{ '/caption-credits/' | relative_url }}).
+
 To narrow the space assigned to one figure without changing its height, set a
 CSS width with `data-figure-width`. The figure remains centred and cannot exceed
 the available width. The PDF builder maps `rem` values against its 60-rem
@@ -136,6 +146,10 @@ Manual chapters can number teaching tables with localized labels:
 | 2 | Data setup | Working project folder |
 :::
 ```
+
+Tables accept the same field on the opening line:
+`::: table "Weekly work rhythm" {: data-caption-source="Source: course plan."}`.
+Existing captions remain valid and are not automatically split.
 
 Cells may contain inline code spans such as `` `=SUM(A2:A10)` ``. The manual renderer preserves these as inline `<code>` elements on the web; if a consumer project still shows literal backticks inside numbered tables, update its `unaltraweb` lock file or use explicit HTML `<code>` as a temporary compatibility fallback.
 

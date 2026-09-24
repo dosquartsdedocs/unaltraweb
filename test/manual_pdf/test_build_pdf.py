@@ -57,6 +57,45 @@ def write_vega_manifest(project: Path, visualizations: list[dict[str, object]]) 
 
 
 class ManualPdfBuilderTests(unittest.TestCase):
+    def test_nested_caption_sources_do_not_hide_image_dependencies(self) -> None:
+        markdown = '![Description [Font: [@verified] and [licence](https://example.org/).]{.uw-caption-source}](assets/map.svg){width=82%}'
+        self.assertEqual(manual_pdf.image_destinations(markdown), ["assets/map.svg"])
+        nested = '![Description [Source: ![Mark](assets/mark.png)]{.uw-caption-source}](assets/map.svg)'
+        self.assertEqual(manual_pdf.image_destinations(nested), ["assets/map.svg", "assets/mark.png"])
+
+    def test_caption_sources_become_semantic_spans_before_citeproc(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            source = project / "chapter.md"
+            keys = []
+            markdown = '''![Alt](assets/map.png "Descriptive caption"){: data-caption-source="Font: {% cite verified %}; autora." data-figure-width-pdf="82%"}
+
+::: table "Table description" {: data-caption-source="Font: synthetic values."}
+| A | B |
+| --- | --- |
+| 1 | 2 |
+:::
+'''
+            result = manual_pdf.transform_markdown(project, markdown, source, citation_keys=keys)
+            self.assertIn("Descriptive caption [Font: [@verified]; autora.]{.uw-caption-source}", result)
+            self.assertIn("{width=82%}", result)
+            self.assertIn("Table: Table description [Font: synthetic values.]{.uw-caption-source}", result)
+            self.assertNotIn("data-caption-source=", result)
+            self.assertEqual(keys, ["verified"])
+
+    def test_subfigure_sources_keep_descriptions_as_short_captions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            result = manual_pdf.transform_markdown(project, '''::: subfigures a+b "Comparison" {: data-caption-source="Shared source."}
+![A](a.png "Panel A"){: data-caption-source="Panel source."}
+![B](b.png "Panel B")
+:::
+''', project / "chapter.md")
+            self.assertIn("[Shared source.]{.uw-caption-source}", result)
+            self.assertIn("[Panel source.]{.uw-caption-source}", result)
+            self.assertIn(r"\caption[{", result)
+            self.assertNotIn("data-caption-source=", result)
+
     def test_template_distinguishes_captions_from_body_text(self) -> None:
         template = TEMPLATE_PATH.read_text(encoding="utf-8")
 

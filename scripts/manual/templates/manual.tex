@@ -85,7 +85,8 @@
   singlelinecheck=false
 }
 \captionsetup[figure]{position=top,margin=1em,aboveskip=0pt,belowskip=7pt}
-\captionsetup[table]{position=top,margin=1em,aboveskip=0pt,belowskip=7pt}
+% longtable uses the caption skip below a top caption; belowskip alone is ignored.
+\captionsetup[table]{position=top,margin=1em,skip=7pt}
 \captionsetup[lstlisting]{position=top,margin=0pt,aboveskip=0pt,belowskip=7pt}
 \captionsetup[subfigure]{
   font={manualsubcaption,color=ManualMuted},
