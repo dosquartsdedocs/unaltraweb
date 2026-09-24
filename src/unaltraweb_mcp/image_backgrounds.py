@@ -97,7 +97,9 @@ def _source_references(text: str) -> list[tuple[int, str]]:
             visible.append(re.sub(r"(`+)[^`\n]*?\1", lambda m: blank(m[0]), line))
     text = "".join(visible)
     references = []
-    for match in re.finditer(r"!\[(?:\\.|[^]\n])*\]\(\s*(?:<([^>\n]+)>|([^\s)]+))", text):
+    # Escaped and ordinary alt-text characters must be disjoint so malformed
+    # labels with many backslashes cannot trigger exponential backtracking.
+    for match in re.finditer(r"!\[(?:\\.|[^\\\]\n])*\]\(\s*(?:<([^>\n]+)>|([^\s)]+))", text):
         references.append((text[:match.start()].count("\n") + 1, match[1] or match[2]))
     parser = ImageReferences()
     parser.feed(text)

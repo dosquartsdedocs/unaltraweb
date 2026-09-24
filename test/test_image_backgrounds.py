@@ -4,6 +4,7 @@ import base64
 import importlib.util
 import io
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,7 @@ from unittest.mock import patch
 
 from unaltraweb_mcp import image_backgrounds as images
 from unaltraweb_mcp.image_probe import inspect_raster
+from unaltraweb_mcp.processes import run_process
 
 HAS_PIL = importlib.util.find_spec("PIL") is not None
 HAS_CAIRO = importlib.util.find_spec("cairosvg") is not None
@@ -95,6 +97,22 @@ class ImageBackgroundTests(unittest.TestCase):
             self.write("assets/capture.svg", f'<svg xmlns="http://www.w3.org/2000/svg" width="4" height="3"><image width="4" height="3" href="{reference}"/></svg>')
             result = images.image_background_check(self.project, "assets/capture.svg")["images"][0]
             self.assertEqual(result["state"], expected, result)
+
+    def test_escaped_image_labels_remain_bounded_and_preserve_references(self):
+        result = run_process(
+            [sys.executable, "-c", "from unaltraweb_mcp.image_backgrounds import _source_references; "
+             "assert _source_references('![' + chr(92) * 10000) == []"],
+            timeout_seconds=5,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        text = '\n'.join([
+            r'![Escaped \] label](assets/a.png)',
+            r'![Escaped \\ slash](assets/b.svg)',
+            r'![Escaped \[ opening](<assets/with space.png>)',
+        ])
+        self.assertEqual(images._source_references(text), [
+            (1, "assets/a.png"), (2, "assets/b.svg"), (3, "assets/with space.png"),
+        ])
 
     @unittest.skipUnless(HAS_PIL, "Pillow is a package dependency")
     def test_sources_ignore_code_examples_and_resolve_localised_edited_outputs(self):
