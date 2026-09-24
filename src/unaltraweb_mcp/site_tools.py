@@ -3212,10 +3212,20 @@ def _site_source_relative(raw_path: str) -> Path:
     return relative
 
 
-def _open_project_root(project: Path) -> int:
+def _open_project_root(project: Path, *, locked_root_fd: int | None = None) -> int:
     flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
     try:
-        return os.open(project, flags)
+        opened = os.open(project, flags)
+        if locked_root_fd is None:
+            return opened
+        try:
+            if _path_identity(os.fstat(opened)) != _path_identity(os.fstat(locked_root_fd)):
+                raise ValueError("The locked root descriptor does not match the selected project.")
+            # Internal compound operations (for example Calibre import) reuse
+            # their open-file description, retaining one lock across rollback.
+            return os.dup(locked_root_fd)
+        finally:
+            os.close(opened)
     except OSError as exc:
         raise RuntimeError(f"Could not open the project root safely: {project}: {exc}") from exc
 
@@ -3364,8 +3374,12 @@ def _atomic_site_source_write(
     backup_present = False
     installed_identity: tuple[int, int] | None = None
     committed = False
+    lock_parent = relative.parent != Path(".")
     try:
-        fcntl.flock(parent_fd, fcntl.LOCK_EX)
+        # Callers hold the root lock. For root-level files parent_fd is a dup
+        # of that descriptor; unlocking it would release a compound transaction.
+        if lock_parent:
+            fcntl.flock(parent_fd, fcntl.LOCK_EX)
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         temp_fd = os.open(temporary, flags, 0o644, dir_fd=parent_fd)
         _write_all(temp_fd, content)
@@ -3430,7 +3444,8 @@ def _atomic_site_source_write(
                 os.unlink(temporary, dir_fd=parent_fd)
             except FileNotFoundError:
                 pass
-        fcntl.flock(parent_fd, fcntl.LOCK_UN)
+        if lock_parent:
+            fcntl.flock(parent_fd, fcntl.LOCK_UN)
         os.close(parent_fd)
 
 
@@ -3442,16 +3457,21 @@ def site_source_write(
     expected_sha256: str = "",
     create_only: bool = False,
     dry_run: bool = True,
+    _locked_root_fd: int | None = None,
 ) -> dict[str, Any]:
     project = project_path(project)
     relative = _site_source_relative(path)
     proposed = content.encode("utf-8")
     proposed_text = _decode_site_source(relative, proposed)
 
-    root_fd = _open_project_root(project)
+    root_fd = _open_project_root(project, locked_root_fd=_locked_root_fd)
     current = b""
     exists = True
     try:
+        if not dry_run:
+            # Share the editorial snapshot/publication lock. Always take the
+            # project lock before the per-parent CAS lock in the atomic writer.
+            fcntl.flock(root_fd, fcntl.LOCK_EX)
         try:
             current, _ = _read_source_from_root(root_fd, relative)
         except RuntimeError as exc:
@@ -3508,15 +3528,18 @@ def site_source_delete(
     expected_sha256: str,
     dry_run: bool = True,
     confirm_delete: bool = False,
+    _locked_root_fd: int | None = None,
 ) -> dict[str, Any]:
     project = project_path(project)
     relative = _site_source_relative(path)
     if relative == Path("_config.yml"):
         raise ValueError("_config.yml can never be deleted through site_source_delete.")
     expected = _expected_source_hash(expected_sha256)
-    root_fd = _open_project_root(project)
+    root_fd = _open_project_root(project, locked_root_fd=_locked_root_fd)
     parent_fd: int | None = None
     try:
+        if not dry_run:
+            fcntl.flock(root_fd, fcntl.LOCK_EX)
         parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
         fcntl.flock(parent_fd, fcntl.LOCK_EX)
         current, metadata = _read_source_at(parent_fd, relative.name)

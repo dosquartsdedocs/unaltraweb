@@ -145,7 +145,11 @@ never changes `content_status`.
 
 `context/editorial-state.json` stores reports and dispositions. Writes require
 the current integer revision, verify source inputs again and use confined atomic
-compare-and-swap updates. Source, configuration, policy, writing-profile or
+compare-and-swap updates. Source writes/deletes and review mutations share a
+project-directory advisory lock, acquired before parent-directory locks and held
+through the final source recheck and record write. This serializes cooperating
+CLI/MCP writers; edits or renders outside that protocol are detected by subsequent
+freshness checks. Source, configuration, policy, writing-profile or
 relevant computation-ownership changes mark a report stale. Staleness does not
 erase decisions. A newer pass supersedes coverage for the same target and kind,
 but it cannot silently resolve earlier major findings.
@@ -212,7 +216,11 @@ The reusable site deployment workflow runs the gem-native checker before build
 and again against the selected output folder before upload. The latter also
 rejects leaked editorial context. Manual release candidates run the publication
 check for both `latest` and stable selectors; stable approval and PDF checks
-continue to apply. For a native gem installation, run:
+continue to apply. Manual release status, check and prepare results expose an
+`editorial` field with the diagnostic details and missing review requirements.
+If safe current build evidence is unavailable, this field reports `skipped: true`
+and a reason rather than implying a successful editorial check.
+For a native gem installation, run:
 
 ```bash
 python /path/to/installed/unaltraweb/scripts/editorial_check.py --project /path/to/site --output-folder _site
