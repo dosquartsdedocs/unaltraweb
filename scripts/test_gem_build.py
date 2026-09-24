@@ -23,7 +23,7 @@ CONTRACT = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read
 RUNTIME_IMAGE = str(CONTRACT["components"]["runtime"]["reference"])
 
 
-def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
+def run(command: list[str], *, cwd: Path = ROOT, expected: int = 0) -> subprocess.CompletedProcess[str]:
     completed = subprocess.run(
         command,
         cwd=cwd,
@@ -32,7 +32,7 @@ def run(command: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[
         stderr=subprocess.PIPE,
         check=False,
     )
-    if completed.returncode != 0:
+    if completed.returncode != expected:
         raise RuntimeError(f"Command failed: {' '.join(command)}\n{completed.stdout}\n{completed.stderr}")
     return completed
 
@@ -61,12 +61,14 @@ def build(output: Path, *, source: Path = ROOT) -> str:
 
 
 def inspect_gem(path: Path) -> None:
+    editorial_files = ["scripts/editorial_check.py", "src/unaltraweb_mcp/editorial.py", "src/unaltraweb_mcp/editorial_sources.py"]
     with tarfile.open(path, mode="r") as package:
         data_member = package.extractfile("data.tar.gz")
         if data_member is None:
             raise RuntimeError("Built gem has no data.tar.gz payload.")
         with tarfile.open(fileobj=io.BytesIO(data_member.read()), mode="r:gz") as payload:
             names = set(payload.getnames())
+            editorial_bytes = {name: payload.extractfile(name).read() for name in editorial_files}
     required = {
         "LICENSE",
         "README.md",
@@ -97,6 +99,7 @@ def inspect_gem(path: Path) -> None:
         "src/unaltraweb_mcp/component-contract.json",
         "src/unaltraweb_mcp/component-contract.schema.json",
         "src/unaltraweb_mcp/docker_mount.py",
+        *editorial_files,
     }
     missing = sorted(required - names)
     if missing:
@@ -104,6 +107,25 @@ def inspect_gem(path: Path) -> None:
     unexpected_data = sorted(name for name in names if name.startswith("_data/") and not name.startswith("_data/i18n/"))
     if unexpected_data:
         raise RuntimeError(f"Built gem contains non-runtime data files: {unexpected_data}")
+    # Exercise only the actual gem payload with isolated Python: no factory,
+    # wheel, inherited PYTHONPATH, source checkout or MCP dependency may help.
+    with tempfile.TemporaryDirectory(prefix="unaltraweb-gem-editorial-") as temporary:
+        core = Path(temporary) / "core"
+        for name, content in editorial_bytes.items():
+            target = core / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+        site = Path(temporary) / "site"
+        (site / "_pages/en").mkdir(parents=True)
+        (site / "_config.yml").write_text("unaltraweb:\n  site_profile: unaltreselfie\n", encoding="utf-8")
+        page = site / "_pages/en/about.md"
+        page.write_text("I study spatial data.\n", encoding="utf-8")
+        command = [sys.executable, "-I", str(core / editorial_files[0]), "--project", str(site)]
+        if not json.loads(run(command, cwd=site).stdout)["ok"]:
+            raise RuntimeError("Gem-native editorial check rejected publication copy.")
+        page.write_text("As requested, I have added the biography.\n", encoding="utf-8")
+        if json.loads(run(command, cwd=site, expected=1).stdout)["ok"]:
+            raise RuntimeError("Gem-native editorial gate accepted chat-dependent copy.")
 
 
 def main() -> int:

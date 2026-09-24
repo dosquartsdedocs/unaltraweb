@@ -75,6 +75,8 @@ def main() -> int:
             "unaltraweb_mcp/component-contract.schema.json",
             "unaltraweb_mcp/manual_pdf_preview.py",
             "unaltraweb_mcp/manual_release.py",
+            "unaltraweb_mcp/editorial.py",
+            "unaltraweb_mcp/editorial_sources.py",
             "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",
             "unaltraweb_mcp/scaffolds/common/README.md.tmpl",
@@ -266,6 +268,9 @@ def main() -> int:
             if set(manifest["files"]) != expected_managed:
                 raise RuntimeError(f"generated {profile} scaffold baseline is incomplete: {manifest['files']}")
             sites[profile] = profile_site
+            checked = json.loads(run([str(cli), "--project", str(profile_site), "mcp", "prose-check"], cwd=temp).stdout)
+            if not checked["ok"] or checked["profile"] != profile:
+                raise RuntimeError(f"Package-only editorial check failed for {profile}: {checked}")
 
         site = sites["unaltredocs"]
         if not (site / ".unaltraweb/scaffold.json").is_file():
@@ -315,6 +320,15 @@ def main() -> int:
         context = json.loads(run([str(cli), "--project", str(site), "mcp", "site-context"], cwd=temp).stdout)
         if context["update_status"]["state"] != "current" or context["update_status"]["can_apply"]:
             raise RuntimeError(f"wheel consumer update advisory failed: {context['update_status']}")
+        prepared = json.loads(run([str(cli), "--project", str(site), "mcp", "editorial-review-prepare"], cwd=temp).stdout)
+        report = {"id": "wheel-review", "source_digest": prepared["source_digest"], "reviewer": "Wheel smoke", "findings": []}
+        recorded = json.loads(run([
+            str(cli), "--project", str(site), "mcp", "editorial-review-record",
+            "--report-json", json.dumps(report), "--expected-revision", "0",
+        ], cwd=temp).stdout)
+        editorial = json.loads(run([str(cli), "--project", str(site), "mcp", "editorial-status"], cwd=temp).stdout)
+        if recorded["revision"] != 1 or editorial["reviews"]["wheel-review"]["stale"]:
+            raise RuntimeError("Factory-free wheel did not preserve a fresh editorial review.")
         confirmed = json.loads(run([
             str(cli), "--project", str(site), "mcp", "scaffold-sync", "--apply", "--confirm-sync",
             "--expected-plan-sha256", scaffold["plan_sha256"],

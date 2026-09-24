@@ -66,6 +66,28 @@ decision; the updater never recreates the site or overwrites editorial content.
 Updating the factory checkout alone does not replace a pinned MCP image; install
 the reviewed MCP release and reconnect the client first.
 
+## Editorial Review
+
+Write for the site's readers using the active profile's voice: personal for a
+personal introduction, project/team-oriented for a research site, and clear
+impersonal prose for teaching and technical reference. Reader-facing procedural
+instructions, attributed quotations and signed prefaces are legitimate. Keep
+instructions to editors and unresolved writing notes outside publication copy.
+
+The maintainer runs `prose_check` after substantial edits and before review,
+approval, translation or publication. It shares the source checks executed by
+`site_check` and the normal local build targets. An MCP-assisted review uses
+`editorial_review_prepare`, `editorial_review_record`, `editorial_review_resolve`
+and `editorial_status` to retain anchored feedback and decisions under `context/`.
+Reports become stale when their inputs change; a new report does not erase older
+decisions or approve content for its author. Style suggestions do not block previews.
+
+Local writing preferences and optional publication requirements belong in
+`context/writing-profile.md` and `context/editorial-policy.json`. Keep this
+directory out of public output. `editorial_publication_check` checks publication
+copy and any explicitly required fresh review passes. Human browser/PDF review
+and the maintainer's publication decision remain necessary.
+
 ## Upload Images Safely
 
 1. Reserve the destination filename with the rest of the task and upload on the task branch, never on `main`.

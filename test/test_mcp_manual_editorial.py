@@ -70,6 +70,17 @@ Una font oficial ha d'identificar l'organisme responsable, la data de referènci
         self.assertEqual(result["issues"], [])
         self.assertEqual(result["findings"], [])
 
+    def test_compatibility_wrapper_uses_contextual_common_rules(self) -> None:
+        (self.project / "_chapters/ca/chapter.md").write_text(
+            "En aquest manual s'explica el mètode. Selecciona la capa.\n"
+            "El tutorial mostra `content_status` i la citació «As requested».\n",
+            encoding="utf-8",
+        )
+        result = site_tools.manual_editorial_quality_check(self.project)
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["findings"], [])
+        self.assertEqual(result["policy"]["profile"], "unaltremanual")
+
     def test_custom_manual_collection_markdown_is_covered_even_when_pdf_excluded(self) -> None:
         (self.project / "_config.yml").write_text(
             "default_lang: en\n"

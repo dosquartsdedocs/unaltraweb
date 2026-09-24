@@ -841,7 +841,7 @@ def _atomic_cover_delete(project: Path, relative: Path, expected_sha256: str) ->
         os.close(root_fd)
 
 
-def _rollback_import(project: Path, markdown_plans: list[BookWrite], cover_writes: list[CoverWrite]) -> list[str]:
+def _rollback_import(project: Path, markdown_plans: list[BookWrite], cover_writes: list[CoverWrite], *, locked_root_fd: int) -> list[str]:
     errors: list[str] = []
     for cover in reversed(cover_writes):
         try:
@@ -893,6 +893,7 @@ def _rollback_import(project: Path, markdown_plans: list[BookWrite], cover_write
                     expected_sha256=installed_sha256,
                     dry_run=False,
                     confirm_delete=True,
+                    _locked_root_fd=locked_root_fd,
                 )
             else:
                 site_tools.site_source_write(
@@ -901,6 +902,7 @@ def _rollback_import(project: Path, markdown_plans: list[BookWrite], cover_write
                     plan.original_markdown,
                     expected_sha256=installed_sha256,
                     dry_run=False,
+                    _locked_root_fd=locked_root_fd,
                 )
         except (OSError, RuntimeError, ValueError) as exc:
             errors.append(f"Markdown {plan.markdown_relative}: {exc}")
@@ -910,6 +912,7 @@ def _rollback_import(project: Path, markdown_plans: list[BookWrite], cover_write
 def _import_calibre_locked(
     project: Path,
     *,
+    locked_root_fd: int,
     library: Path,
     source_key: str,
     collection_name: str,
@@ -925,7 +928,7 @@ def _import_calibre_locked(
     refresh_existing: bool = False,
 ) -> dict[str, object]:
     project = site_tools.project_path(project)
-    project_fd = site_tools._open_project_root(project)
+    project_fd = site_tools._open_project_root(project, locked_root_fd=locked_root_fd)
     os.close(project_fd)
     if not site_tools.detect_site(project)["is_unaltraweb_site"]:
         raise RuntimeError(f"Calibre imports require an unaltraweb consumer site: {project}")
@@ -1101,6 +1104,7 @@ def _import_calibre_locked(
                 expected_sha256=expected_sha256 or "",
                 create_only=expected_sha256 is None,
                 dry_run=True,
+                _locked_root_fd=locked_root_fd,
             )
         except (OSError, RuntimeError, ValueError) as exc:
             conflicts.append(f"{markdown_relative}: {exc}")
@@ -1134,13 +1138,14 @@ def _import_calibre_locked(
                     expected_sha256=plan.expected_sha256 or "",
                     create_only=plan.expected_sha256 is None,
                     dry_run=False,
+                    _locked_root_fd=locked_root_fd,
                 )
             for plan in plans:
                 if plan.cover_write is not None:
                     written_covers.append(plan.cover_write)
                     _atomic_cover_write(project, plan.cover_write)
         except BaseException as exc:
-            rollback_errors = _rollback_import(project, written_markdown, written_covers)
+            rollback_errors = _rollback_import(project, written_markdown, written_covers, locked_root_fd=locked_root_fd)
             suffix = f" Rollback failures: {'; '.join(rollback_errors)}" if rollback_errors else " All completed writes were rolled back."
             if isinstance(exc, (OSError, RuntimeError, ValueError)):
                 raise RuntimeError(f"Calibre import failed while committing outputs: {exc}.{suffix}") from exc
@@ -1198,6 +1203,7 @@ def import_calibre(
         fcntl.flock(project_fd, fcntl.LOCK_EX)
         return _import_calibre_locked(
             project,
+            locked_root_fd=project_fd,
             library=library,
             source_key=source_key,
             collection_name=collection_name,

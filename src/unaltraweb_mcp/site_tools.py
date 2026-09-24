@@ -18,6 +18,10 @@ from typing import Any
 
 from .distribution import component, component_reference, consumer_integration
 from .docker_mount import docker_bind_mount
+from .editorial import (
+    editorial_policy, editorial_publication_check, editorial_review_prepare,
+    editorial_review_record, editorial_review_resolve, editorial_status, prose_check,
+)
 from .processes import ProcessResult, run_process
 
 try:
@@ -196,59 +200,6 @@ FIGURE_DIMENSION_RE = re.compile(
 SVG_VIEWBOX_RE = re.compile(r'''\bviewBox=["']([^"']+)["']''', re.IGNORECASE)
 SVG_CSS_FONT_SIZE_RE = re.compile(r"font-size\s*:\s*([0-9]+(?:\.[0-9]+)?)(px|pt|rem)?", re.IGNORECASE)
 SVG_ATTRIBUTE_FONT_SIZE_RE = re.compile(r'''font-size=["']([0-9]+(?:\.[0-9]+)?)(px|pt|rem)?["']''', re.IGNORECASE)
-MANUAL_EDITORIAL_RULES = [
-    (
-        "workflow_status",
-        re.compile(r"\b(?:content_status|translation_status|needs_review|TODO|FIXME|TBD)\b", re.IGNORECASE),
-        "Remove internal workflow states and task markers from publishable prose.",
-    ),
-    (
-        "editorial_scaffolding",
-        re.compile(
-            r"\b(?:estat editorial|estado editorial|editorial status|nota d['’]edici[oó]|nota de edici[oó]n|editorial note|draft notes?|pendent (?:de|d['’]) (?:redacci[oó]|revisi[oó]|aprovaci[oó]|traducci[oó])|pending (?:writing|review|approval|translation))\b",
-            re.IGNORECASE,
-        ),
-        "Move editorial planning and approval notes out of the manual body.",
-    ),
-    (
-        "author_instruction_reference",
-        re.compile(
-            r"(?:\b(?:tal com|com)\s+(?:m['’]has|ens has|has)\s+(?:demanat|indicat|dit)\b|\b(?:segons|d['’]acord amb)\s+(?:les\s+)?teves instruccions\b|\b(?:l['’]usuari|la usuària|la persona usuària)\s+(?:ha|vol|demana|indica)\b|\b(?:como|tal como)\s+(?:me|nos)\s+has\s+(?:pedido|indicado|dicho)\b|\bseg[uú]n tus instrucciones\b|\bel usuario\s+(?:ha|quiere|pide|indica)\b|\b(?:as requested|per your instructions|the user\s+(?:asked|wants|requested))\b)",
-            re.IGNORECASE,
-        ),
-        "Rewrite references to the author, user, or their instructions as standalone publishable content.",
-    ),
-    (
-        "assistant_conversation",
-        re.compile(
-            r"\b(?:aqu[ií] tens|aqu[ií] tienes|here (?:is|are)|he afegit|hem afegit|he canviat|hem canviat|he añadido|hemos añadido|i have added|i['’]ve added|si vols|si quieres|if you want|puc afegir|puedo añadir|i can add)\b",
-            re.IGNORECASE,
-        ),
-        "Remove assistant-style conversational framing from the manual body.",
-    ),
-    (
-        "author_note",
-        re.compile(
-            r"\b(?:nota per a l['’]autor|nota para el autor|note to the author|instruccions? per a l['’](?:autor|agent)|instrucciones? para el (?:autor|agente)|instructions? for the (?:author|agent))\b",
-            re.IGNORECASE,
-        ),
-        "Keep author and agent instructions in context files, not publishable manual prose.",
-    ),
-    (
-        "placeholder",
-        re.compile(r"(?:\[\s*(?:pendent|todo|tbd)[^\]]*\]|<insert[^>]*>|\b(?:afegir|inserir) (?:aqu[ií]|ac[ií])\b)", re.IGNORECASE),
-        "Replace editorial placeholders with final prose or remove them.",
-    ),
-    (
-        "draft_process_language",
-        re.compile(
-            r"\b(?:en aquest esborrany|en este borrador|in this draft|aquesta versi[oó] provisional|esta versi[oó]n provisional|this provisional version|(?:la versi[oó] catalana|la versi[oó] castellana|the (?:Catalan|Spanish|English) version) (?:[ée]s la font de treball|es la fuente de trabajo|is the working source))\b",
-            re.IGNORECASE,
-        ),
-        "Remove drafting and localization-process language from reader-facing content.",
-    ),
-]
-
 PROFILE_CONTRACTS: dict[str, dict[str, Any]] = {
     "unaltreselfie": {
         "description": "Personal academic or professional site.",
@@ -2752,79 +2703,10 @@ def manual_source_quality_check(project: Path) -> dict[str, Any]:
 
 def manual_editorial_quality_check(project: Path) -> dict[str, Any]:
     project = project_path(project)
-    paths = _manual_markdown_paths(project)
-    findings: list[dict[str, Any]] = []
-
-    for path in paths:
-        try:
-            lines = path.read_text(encoding="utf-8").splitlines()
-        except OSError:
-            continue
-
-        in_front_matter = bool(lines and lines[0].strip() == "---")
-        in_fence = False
-        fence_marker = ""
-        in_html_comment = False
-        in_liquid_comment = False
-        for lineno, line in enumerate(lines, start=1):
-            stripped = line.strip()
-
-            if in_front_matter:
-                if lineno > 1 and stripped == "---":
-                    in_front_matter = False
-                continue
-            if in_html_comment:
-                if "-->" in line:
-                    in_html_comment = False
-                continue
-            if in_liquid_comment:
-                if "{% endcomment %}" in line:
-                    in_liquid_comment = False
-                continue
-            if "<!--" in line:
-                if "-->" not in line.split("<!--", 1)[1]:
-                    in_html_comment = True
-                line = line.split("<!--", 1)[0]
-                stripped = line.strip()
-            if "{% comment %}" in line:
-                in_liquid_comment = "{% endcomment %}" not in line.split("{% comment %}", 1)[1]
-                line = line.split("{% comment %}", 1)[0]
-                stripped = line.strip()
-            if in_fence:
-                if stripped.startswith(fence_marker):
-                    in_fence = False
-                    fence_marker = ""
-                continue
-            fence_match = FENCE_RE.match(line)
-            if fence_match:
-                in_fence = True
-                fence_marker = fence_match.group(1)
-                continue
-            if not stripped:
-                continue
-
-            for rule, pattern, message in MANUAL_EDITORIAL_RULES:
-                if pattern.search(line):
-                    findings.append(
-                        {
-                            "path": rel(project, path),
-                            "line": lineno,
-                            "rule": rule,
-                            "excerpt": stripped[:240],
-                            "message": message,
-                        }
-                    )
-
-    grouped: list[dict[str, Any]] = []
-    for rule, _, message in MANUAL_EDITORIAL_RULES:
-        matches = [item for item in findings if item["rule"] == rule]
-        if matches:
-            grouped.append({"severity": "error", "rule": rule, "message": message, "count": len(matches), "sample": matches[:20]})
-
-    writing_profile = project / "context" / "writing-profile.md"
-    warnings: list[dict[str, Any]] = []
-    if not writing_profile.is_file():
-        warnings.append(
+    result = prose_check(project, profile_override="unaltremanual", manual_only=True)
+    writing = result.get("policy", {}).get("writing_profile", {})
+    if not writing.get("text"):
+        result["warnings"].append(
             {
                 "severity": "warning",
                 "message": "Add context/writing-profile.md so drafting and review agents have project-specific voice and style rules.",
@@ -2832,16 +2714,11 @@ def manual_editorial_quality_check(project: Path) -> dict[str, Any]:
         )
 
     return {
-        "project": str(project),
-        "ok": not findings,
-        "files_checked": len(paths),
-        "writing_profile": rel(project, writing_profile) if writing_profile.is_file() else "",
-        "issues": grouped,
-        "warnings": warnings,
-        "findings": findings,
+        **result,
+        "writing_profile": writing.get("path", "") if writing.get("text") else "",
         "review_checklist": [
             "Every body paragraph must read as final material for the intended reader.",
-            "No passage may mention the user, author instructions, agent actions, chat history, drafting status, or approval workflow.",
+            "Separate internal author instructions and chat history from publication copy; attributed quotations and technical examples are legitimate.",
             "Give each paragraph one primary job and, when appropriate, develop topic, problem, arguments or examples, discussion or limits, and a concrete closure.",
             "Choose callouts, definition lists, figure layouts, tables, diagrams, citations, code, and math for a pedagogical purpose and check web/PDF compatibility.",
             "Check spelling, grammar, terminology, factual precision, pedagogical sequence, citations, captions, and cross-references before approval.",
@@ -3335,10 +3212,20 @@ def _site_source_relative(raw_path: str) -> Path:
     return relative
 
 
-def _open_project_root(project: Path) -> int:
+def _open_project_root(project: Path, *, locked_root_fd: int | None = None) -> int:
     flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
     try:
-        return os.open(project, flags)
+        opened = os.open(project, flags)
+        if locked_root_fd is None:
+            return opened
+        try:
+            if _path_identity(os.fstat(opened)) != _path_identity(os.fstat(locked_root_fd)):
+                raise ValueError("The locked root descriptor does not match the selected project.")
+            # Internal compound operations (for example Calibre import) reuse
+            # their open-file description, retaining one lock across rollback.
+            return os.dup(locked_root_fd)
+        finally:
+            os.close(opened)
     except OSError as exc:
         raise RuntimeError(f"Could not open the project root safely: {project}: {exc}") from exc
 
@@ -3487,8 +3374,12 @@ def _atomic_site_source_write(
     backup_present = False
     installed_identity: tuple[int, int] | None = None
     committed = False
+    lock_parent = relative.parent != Path(".")
     try:
-        fcntl.flock(parent_fd, fcntl.LOCK_EX)
+        # Callers hold the root lock. For root-level files parent_fd is a dup
+        # of that descriptor; unlocking it would release a compound transaction.
+        if lock_parent:
+            fcntl.flock(parent_fd, fcntl.LOCK_EX)
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         temp_fd = os.open(temporary, flags, 0o644, dir_fd=parent_fd)
         _write_all(temp_fd, content)
@@ -3553,7 +3444,8 @@ def _atomic_site_source_write(
                 os.unlink(temporary, dir_fd=parent_fd)
             except FileNotFoundError:
                 pass
-        fcntl.flock(parent_fd, fcntl.LOCK_UN)
+        if lock_parent:
+            fcntl.flock(parent_fd, fcntl.LOCK_UN)
         os.close(parent_fd)
 
 
@@ -3565,16 +3457,21 @@ def site_source_write(
     expected_sha256: str = "",
     create_only: bool = False,
     dry_run: bool = True,
+    _locked_root_fd: int | None = None,
 ) -> dict[str, Any]:
     project = project_path(project)
     relative = _site_source_relative(path)
     proposed = content.encode("utf-8")
     proposed_text = _decode_site_source(relative, proposed)
 
-    root_fd = _open_project_root(project)
+    root_fd = _open_project_root(project, locked_root_fd=_locked_root_fd)
     current = b""
     exists = True
     try:
+        if not dry_run:
+            # Share the editorial snapshot/publication lock. Always take the
+            # project lock before the per-parent CAS lock in the atomic writer.
+            fcntl.flock(root_fd, fcntl.LOCK_EX)
         try:
             current, _ = _read_source_from_root(root_fd, relative)
         except RuntimeError as exc:
@@ -3631,15 +3528,18 @@ def site_source_delete(
     expected_sha256: str,
     dry_run: bool = True,
     confirm_delete: bool = False,
+    _locked_root_fd: int | None = None,
 ) -> dict[str, Any]:
     project = project_path(project)
     relative = _site_source_relative(path)
     if relative == Path("_config.yml"):
         raise ValueError("_config.yml can never be deleted through site_source_delete.")
     expected = _expected_source_hash(expected_sha256)
-    root_fd = _open_project_root(project)
+    root_fd = _open_project_root(project, locked_root_fd=_locked_root_fd)
     parent_fd: int | None = None
     try:
+        if not dry_run:
+            fcntl.flock(root_fd, fcntl.LOCK_EX)
         parent_fd = _open_scaffold_directory(root_fd, relative.parent, create=False)
         fcntl.flock(parent_fd, fcntl.LOCK_EX)
         current, metadata = _read_source_at(parent_fd, relative.name)
@@ -5876,6 +5776,7 @@ def site_check(project: Path, factory: Path, max_bibliometrics_age_days: int = 1
     checks = {
         "detection": detect_site(project),
         "profile": profile_check(project),
+        "prose": prose_check(project),
         "language": language_policy(project),
         "approval": content_approval_inventory(project),
         "translation": translation_plan(project),
@@ -5895,6 +5796,10 @@ def site_check(project: Path, factory: Path, max_bibliometrics_age_days: int = 1
 def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
     project = project_path(project)
     config = site_config(project)
+    try:
+        editorial = editorial_status(project)
+    except (OSError, ValueError, RecursionError) as exc:
+        editorial = {"ok": False, "error": str(exc)}
     return {
         "project": str(project),
         "generated_at": utc_now(),
@@ -5902,6 +5807,7 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
         "title": str(config.get("title") or ""),
         "profile": site_profile(config),
         "update_status": consumer_update_status(project),
+        "editorial": editorial,
         "language_policy": language_policy(project),
         "languages": configured_languages(config),
         "features": feature_flags(config),
@@ -5917,9 +5823,9 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
 
 def list_tools() -> dict[str, Any]:
     return {
-        "resources": ["web://distribution", "web://site-context", "web://site-doctor", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
+        "resources": ["web://distribution", "web://site-context", "web://site-doctor", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://editorial-policy", "web://editorial-status", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": list(PROMPT_SPECS),
-        "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean", "manual_pdf_publish", "manual_release_status", "manual_release_check", "manual_release_prepare", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
+        "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "prose_check", "editorial_policy", "editorial_status", "editorial_review_prepare", "editorial_review_record", "editorial_review_resolve", "editorial_publication_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean", "manual_pdf_publish", "manual_release_status", "manual_release_check", "manual_release_prepare", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
 
 

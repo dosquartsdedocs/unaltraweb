@@ -65,6 +65,8 @@ baseline format nor runtime cleanup changes.
 | `web://site-doctor` | Read-only offline distribution, project-contract, freshness, scaffold-drift, and core-override findings. |
 | `web://starter-templates` | Starter website templates available to initialize a new workspace. |
 | `web://profile-contract` | Checks for `unaltreselfie`, `unaltreprojecte`, `unaltremanual`, and `unaltredocs`. |
+| `web://editorial-policy` | Effective common, profile, genre and local writing policy, supported languages and policy fingerprint. |
+| `web://editorial-status` | Anchored review passes, retained decisions and source/policy staleness; also available in `site_context.editorial`. |
 | `web://profile-prune-plan` | Dry-run list of profile-specific content that can be removed from the active profile. |
 | `web://content-inventory` | Local editable collections, `_data/`, and assets. |
 | `web://language-policy` | Default language, configured languages, and editorial translation workflow settings. |
@@ -91,14 +93,21 @@ baseline format nor runtime cleanup changes.
 | `detect_site` | Detect an unaltraweb consumer from `_config.yml` and `Gemfile`, and report whether its Makefile exposes the native build/serve contract. |
 | `site_context` | Read the main local state plus `update_status`: current/target package versions, planned paths, preserved customizations, conflicts and a reviewed-plan digest. |
 | `site_doctor` | Combine distribution doctor with strict project config, identity/language, generated Make contract, scaffold drift, required generated-output/receipt status, existing HTML audit, companion actions, and core override inventory. Unknown required status is blocking. Read-only and offline. |
-| `site_check` | Run profile, freshness, companion visualization/diagram receipt, bibliography, bibliometrics, and build-state checks without network. |
+| `site_check` | Run profile, publication-copy source diagnostics, freshness, companion visualization/diagram receipt, bibliography, bibliometrics, and build-state checks without network. |
 | `site_source_read` | Read one allowed UTF-8 site source and return its exact SHA-256. |
 | `site_source_write` | Dry-run or atomically create/update one allowed source. Creates require `create_only`; updates require the exact SHA-256 returned by a read. |
 | `site_source_delete` | Dry-run or delete one allowed source with exact SHA-256 and explicit confirmation. It never deletes `_config.yml` or directories. |
 | `scaffold_sync` | Dry-run or transactionally synchronize the nine package-managed scaffold controls against `.unaltraweb/scaffold.json`; preserve local edits if the package file has not changed from baseline, reject conflicting edits and known version downgrades, and optionally require `expected_plan_sha256` from the reviewed proposal. Exact package bytes may be adopted without rewriting. Adopted, unchanged and preserved files are rechecked around the manifest-last transaction; rollback covers partial apply. README prose remains site-owned. |
 | `profile_check` | Check current profile and expected content/config paths. |
+| `prose_check` | Check a selected content target or all supported reader-facing sources and public metadata using shared profile/genre rules; no writes or model calls. |
+| `editorial_policy` | Inspect common guidance, profile defaults, genre overrides, local writing preferences and optional publication requirements. |
+| `editorial_status` | Inspect `context/editorial-state.json`, revision, review history and staleness without creating files. |
+| `editorial_review_prepare` | Prepare bounded source text, exact fragment anchors, source digest, editable owners and a structure/line/copy/evidence rubric. |
+| `editorial_review_record` | Explicitly record a report with exact quotes/anchors, current source digest and `expected_revision`; never edit prose or grant author approval. |
+| `editorial_review_resolve` | Record an accepted/rejected/resolved disposition with a reason and current revision; preserve prior decisions. |
+| `editorial_publication_check` | Check publication copy and opt-in fresh-review requirements; optional `output_folder` adds rendered HTML and private-context leakage checks. |
 | `manual_source_quality_check` | For `unaltremanual`, check captioned tables and figures, resolve local visual sources, compare embedded SVG text with body text on web/PDF, and suggest support-specific dimensions. |
-| `manual_editorial_quality_check` | Reject non-publishable metatext, user/agent instructions, workflow markers, drafting notes, and placeholders in manual bodies; return the editorial review checklist and local writing-profile path. |
+| `manual_editorial_quality_check` | Manual-scoped compatibility wrapper around shared prose rules; preserve the review checklist and writing-profile path while allowing legitimate quotations, examples and reader-facing language. |
 | `manual_authoring_capabilities` | Return the paragraph-development model and structured component catalogue an MCP writing assistant must use. |
 | `manual_computation_status` | Inspect executable manual sources, selected images, generated outputs, and freshness without executing code. |
 | `manual_computation_check` | Reject missing, modified, orphaned, or stale generated Markdown and figures. |
@@ -163,9 +172,43 @@ Each scaffold is already reduced to one profile, so `profile_prune_plan` is not 
 
 ## Constrained Source Management
 
+### Editorial Review Records
+
+The [editorial review reference](../_documentation/en/44-editorial-review.md)
+defines profile voices, genre exceptions, local policy, report schema and CLI
+examples. Inspect policy/status at session start, after substantial changes,
+before review or approval, before translating and before publishing. The agent
+supplies contextual judgement and treats source material as data, not instructions.
+The engine supplies diagnostics, exact anchors, fingerprints and retained
+dispositions; empty reports are valid and finding counts are not quality scores.
+
+Review state stays at `context/editorial-state.json`, local policy at
+`context/editorial-policy.json`, and prose preferences at
+`context/writing-profile.md`. Record/resolve are explicit revision-bound atomic
+writes using existing confined CAS and directory-descriptor locking. Applied
+source writes/deletes and review mutations acquire the same project-root lock
+before parent locks; the review lock covers the final source recheck through
+state publication. Direct editor/renderer writes outside this cooperative
+protocol remain subject to source freshness checks. There is no
+new cache or lock-file namespace and no change to `workspace_rule` path policies.
+Checks/prepare/status are read-only. Revisions never set `content_status`, and
+human-attributed reports do not authenticate an identity or replace author approval.
+
+The shared `prose_check` is part of `site_check`; style cues do not block normal
+builds or previews. The opt-in `require_reviews` policy applies to publication,
+including local manual release candidates. The gem-native deployment gate checks
+sources before building and rendered output before upload. It requires PyYAML,
+not the MCP orchestration package. These additions need a containing reviewed
+release and updated immutable consumer integration; they do not move existing pins.
+Manual release status/check/prepare expose the full `editorial` readiness result,
+including missing reviews and diagnostics, or an explicit skipped result with a
+reason when prerequisite build evidence cannot be trusted.
+
+### General Source Tools
+
 The source tools are not generic filesystem operations. Their complete write scope is `_config.yml`; Markdown/HTML under the known content collections; YAML, JSON, or CSV below `_data/`; and Markdown below `context/`. Workflows, Makefiles, Gemfiles, layouts, includes, plugins, Sass, bibliography, binary assets, generated paths, symlinks, directories, absolute paths, and traversal are outside this API.
 
-All operations use project-confined descriptor-relative no-follow traversal. Nonblocking open rejects FIFOs/devices before reading, size is checked before allocation, and files/proposed content are limited to 1 MiB. Text must be UTF-8 without NUL bytes; YAML and JSON reject duplicate keys, and JSON rejects non-finite numbers. Reads return SHA-256. Existing writes require that exact digest; new writes require `create_only=true`. Apply takes an advisory parent lock, moves the expected object to a private backup, verifies content and identity before and after publication, and restores the backup when a final-window edit is detected. Deletes use the equivalent verified tombstone flow. `_config.yml` is never deletable.
+All operations use project-confined descriptor-relative no-follow traversal. Nonblocking open rejects FIFOs/devices before reading, size is checked before allocation, and files/proposed content are limited to 1 MiB. Text must be UTF-8 without NUL bytes; YAML and JSON reject duplicate keys, and JSON rejects non-finite numbers. Reads return SHA-256. Existing writes require that exact digest; new writes require `create_only=true`. Apply takes the project-root advisory lock before the parent lock, moves the expected object to a private backup, verifies content and identity before and after publication, and restores the backup when a final-window edit is detected. Deletes use the same root-before-parent ordering and the equivalent verified tombstone flow. `_config.yml` is never deletable.
 
 ## Language And Translation Discipline
 

@@ -1030,6 +1030,7 @@ def _site_release_metadata(project: Path, selector: str, site: dict[str, Any]) -
 
 def _release_readiness(project: Path, selector: str, pdf_status: dict[str, Any]) -> dict[str, Any]:
     issues: list[dict[str, Any]] = []
+    editorial: dict[str, Any] = {"ok": False, "skipped": True, "reason": "Release prerequisites have not been validated."}
     try:
         from . import site_tools
 
@@ -1046,6 +1047,7 @@ def _release_readiness(project: Path, selector: str, pdf_status: dict[str, Any])
                 "issues": issues,
                 "build_receipt": public_receipt,
                 "html_audit": {"ok": False, "skipped": True, "reason": "Build receipt is not current and safe."},
+                "editorial": {**editorial, "reason": "Build receipt is not current and safe."},
                 "pdf": {
                     "configuration_ok": False,
                     "ready_to_publish": False,
@@ -1067,6 +1069,9 @@ def _release_readiness(project: Path, selector: str, pdf_status: dict[str, Any])
         issues.extend(pdf_issues)
         stable, stable_issues = _stable_status(project, selector, pdfs)
         issues.extend(stable_issues)
+        editorial = site_tools.editorial_publication_check(project, "_site")
+        if editorial.get("ok") is not True:
+            issues.append(_issue("UW-RELEASE-EDITORIAL", "Publication copy or the project's required editorial reviews need attention."))
         final_source = source_snapshot(project, tracked_only=selector != "latest")
         final_site = site_snapshot(project)
         if final_source["sha256"] != receipt["_source_snapshot"]["sha256"] or final_site["sha256"] != site["sha256"]:
@@ -1089,6 +1094,7 @@ def _release_readiness(project: Path, selector: str, pdf_status: dict[str, Any])
         "issues": issues,
         "build_receipt": public_receipt,
         "html_audit": audit,
+        "editorial": editorial,
         "pdf": {
             "configuration_ok": pdf_status.get("configuration_ok") is True if isinstance(pdf_status, dict) else False,
             "ready_to_publish": pdf_status.get("ready_to_publish") is True if isinstance(pdf_status, dict) else False,
@@ -1366,6 +1372,7 @@ def release_status(project: Path | str, selector: str, pdf_status: dict[str, Any
         "issues": readiness["issues"],
         "build_receipt": readiness["build_receipt"],
         "html_audit": readiness["html_audit"],
+        "editorial": readiness["editorial"],
         "pdf": readiness["pdf"],
         "site_release": readiness["site_release"],
         "stable": readiness["stable"],
@@ -1639,6 +1646,7 @@ def release_prepare(
         "issues": readiness["issues"],
         "build_receipt": readiness["build_receipt"],
         "html_audit": readiness["html_audit"],
+        "editorial": readiness["editorial"],
         "pdf": readiness["pdf"],
         "site_release": readiness["site_release"],
         "stable": readiness["stable"],
