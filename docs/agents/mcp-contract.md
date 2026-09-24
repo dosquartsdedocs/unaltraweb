@@ -185,7 +185,11 @@ dispositions; empty reports are valid and finding counts are not quality scores.
 Review state stays at `context/editorial-state.json`, local policy at
 `context/editorial-policy.json`, and prose preferences at
 `context/writing-profile.md`. Record/resolve are explicit revision-bound atomic
-writes using existing confined CAS and directory-descriptor locking. There is no
+writes using existing confined CAS and directory-descriptor locking. Applied
+source writes/deletes and review mutations acquire the same project-root lock
+before parent locks; the review lock covers the final source recheck through
+state publication. Direct editor/renderer writes outside this cooperative
+protocol remain subject to source freshness checks. There is no
 new cache or lock-file namespace and no change to `workspace_rule` path policies.
 Checks/prepare/status are read-only. Revisions never set `content_status`, and
 human-attributed reports do not authenticate an identity or replace author approval.
@@ -196,12 +200,15 @@ including local manual release candidates. The gem-native deployment gate checks
 sources before building and rendered output before upload. It requires PyYAML,
 not the MCP orchestration package. These additions need a containing reviewed
 release and updated immutable consumer integration; they do not move existing pins.
+Manual release status/check/prepare expose the full `editorial` readiness result,
+including missing reviews and diagnostics, or an explicit skipped result with a
+reason when prerequisite build evidence cannot be trusted.
 
 ### General Source Tools
 
 The source tools are not generic filesystem operations. Their complete write scope is `_config.yml`; Markdown/HTML under the known content collections; YAML, JSON, or CSV below `_data/`; and Markdown below `context/`. Workflows, Makefiles, Gemfiles, layouts, includes, plugins, Sass, bibliography, binary assets, generated paths, symlinks, directories, absolute paths, and traversal are outside this API.
 
-All operations use project-confined descriptor-relative no-follow traversal. Nonblocking open rejects FIFOs/devices before reading, size is checked before allocation, and files/proposed content are limited to 1 MiB. Text must be UTF-8 without NUL bytes; YAML and JSON reject duplicate keys, and JSON rejects non-finite numbers. Reads return SHA-256. Existing writes require that exact digest; new writes require `create_only=true`. Apply takes an advisory parent lock, moves the expected object to a private backup, verifies content and identity before and after publication, and restores the backup when a final-window edit is detected. Deletes use the equivalent verified tombstone flow. `_config.yml` is never deletable.
+All operations use project-confined descriptor-relative no-follow traversal. Nonblocking open rejects FIFOs/devices before reading, size is checked before allocation, and files/proposed content are limited to 1 MiB. Text must be UTF-8 without NUL bytes; YAML and JSON reject duplicate keys, and JSON rejects non-finite numbers. Reads return SHA-256. Existing writes require that exact digest; new writes require `create_only=true`. Apply takes the project-root advisory lock before the parent lock, moves the expected object to a private backup, verifies content and identity before and after publication, and restores the backup when a final-window edit is detected. Deletes use the same root-before-parent ordering and the equivalent verified tombstone flow. `_config.yml` is never deletable.
 
 ## Language And Translation Discipline
 

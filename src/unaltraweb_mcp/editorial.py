@@ -319,6 +319,8 @@ def editorial_review_prepare(project: Path, target: str = "", kind: str = "line"
 def _write_state(reader: Reader, state: dict[str, Any], previous: bytes | None) -> None:
     # Reuse the existing no-clobber/CAS implementation. Native gem publication
     # checks only read; the wheel/MCP supplies this mutation dependency.
+    # Record/resolve hold the project-root lock, also used by source write/delete,
+    # through validation and this write. The atomic helper then locks the parent.
     from .site_tools import _atomic_site_source_write
     content = canonical(state)
     if len(content) > MAX_BYTES:

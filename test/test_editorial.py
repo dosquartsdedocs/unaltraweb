@@ -4,6 +4,7 @@ import json
 import io
 import os
 import tempfile
+import threading
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
@@ -218,6 +219,90 @@ Inline `data-caption-source="TODO example"` is code.
         with patch.object(ed, "_packet", side_effect=mutate), self.assertRaisesRegex(ValueError, "changed before"):
             ed.editorial_review_record(self.project, report, 0)
         self.assertFalse((self.project / ed.STATE).exists())
+
+    def test_source_mutations_wait_until_review_state_is_published(self):
+        cases = [("update", "_pages/en/about.md"), ("create", "_pages/en/new.md"),
+                 ("delete", "_pages/en/about.md"), ("update", "_config.yml"),
+                 ("update", ed.WRITING_PROFILE)]
+        original_write = ed._write_state
+        original_flock = ed.fcntl.flock
+        root = self.project.stat()
+        for operation, path in cases:
+            with self.subTest(operation=operation, path=path):
+                self.configure()
+                self.write(ed.WRITING_PROFILE, "Use concrete subjects.\n")
+                (self.project / ed.STATE).unlink(missing_ok=True)
+                (self.project / "_pages/en/new.md").unlink(missing_ok=True)
+                packet, report = self.prepare()
+                current = site_tools.site_source_read(self.project, path) if operation != "create" else None
+                root_attempted = threading.Event()
+                mutation_finished = threading.Event()
+                futures = []
+
+                def observed_flock(fd, mode):
+                    info = os.fstat(fd)
+                    if (threading.current_thread().name.startswith("editorial-source") and mode == ed.fcntl.LOCK_EX
+                            and (info.st_dev, info.st_ino) == (root.st_dev, root.st_ino)):
+                        root_attempted.set()
+                    return original_flock(fd, mode)
+
+                def mutate_source():
+                    if operation == "delete":
+                        result = site_tools.site_source_delete(self.project, path, expected_sha256=current["sha256"],
+                                                               dry_run=False, confirm_delete=True)
+                    else:
+                        content = current["content"] + "\n# A later edit\n" if current else "A newly created page.\n"
+                        result = site_tools.site_source_write(self.project, path, content,
+                                                              expected_sha256=current["sha256"] if current else "",
+                                                              create_only=operation == "create", dry_run=False)
+                    mutation_finished.set()
+                    return result
+
+                def publish_after_writer_attempt(reader, state, previous):
+                    # This callback is exactly after record's final _packet
+                    # recheck, the window identified in the review.
+                    futures.append(executor.submit(mutate_source))
+                    self.assertTrue(root_attempted.wait(5), "Source mutation did not join the project-root lock protocol.")
+                    self.assertFalse(mutation_finished.is_set(), "Source changed between the recheck and state publication.")
+                    with ed.Reader(self.project) as snapshot:
+                        self.assertEqual(ed._packet(snapshot, "", "line")["source_digest"], packet["source_digest"])
+                    original_write(reader, state, previous)
+
+                with ThreadPoolExecutor(max_workers=1, thread_name_prefix="editorial-source") as executor:
+                    with patch.object(ed.fcntl, "flock", side_effect=observed_flock), patch.object(ed, "_write_state", side_effect=publish_after_writer_attempt):
+                        recorded = ed.editorial_review_record(self.project, report, 0)
+                        self.assertTrue(futures[0].result(timeout=5)["ok"])
+                self.assertTrue(recorded["ok"])
+                saved = json.loads((self.project / ed.STATE).read_text(encoding="utf-8"))
+                self.assertEqual(saved["reviews"]["review-1"]["source_digest"], packet["source_digest"])
+                # A later, serialized source mutation makes the valid record
+                # stale; it did not alter the snapshot at publication time.
+                self.assertTrue(ed.editorial_status(self.project)["reviews"]["review-1"]["stale"])
+
+    def test_internal_source_writes_reuse_and_retain_the_verified_root_lock(self):
+        self.prepare()
+        with ed.Reader(self.project) as locked:
+            ed.fcntl.flock(locked.fd, ed.fcntl.LOCK_EX)
+            for path in ("_config.yml", "_pages/en/about.md"):
+                source = site_tools.site_source_read(self.project, path)
+                site_tools.site_source_write(self.project, path, source["content"] + "\n# Updated\n",
+                                             expected_sha256=source["sha256"], dry_run=False, _locked_root_fd=locked.fd)
+                with ed.Reader(self.project) as competing:
+                    with self.assertRaises(BlockingIOError):
+                        ed.fcntl.flock(competing.fd, ed.fcntl.LOCK_EX | ed.fcntl.LOCK_NB)
+            source = site_tools.site_source_read(self.project, "_pages/en/about.md")
+            site_tools.site_source_delete(self.project, source["path"], expected_sha256=source["sha256"],
+                                          dry_run=False, confirm_delete=True, _locked_root_fd=locked.fd)
+            with ed.Reader(self.project) as competing:
+                with self.assertRaises(BlockingIOError):
+                    ed.fcntl.flock(competing.fd, ed.fcntl.LOCK_EX | ed.fcntl.LOCK_NB)
+
+        source = site_tools.site_source_read(self.project, "_config.yml")
+        with tempfile.TemporaryDirectory() as outside, ed.Reader(Path(outside)) as wrong:
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                site_tools.site_source_write(self.project, "_config.yml", source["content"],
+                                             expected_sha256=source["sha256"], dry_run=False, _locked_root_fd=wrong.fd)
+            self.assertEqual(list(Path(outside).iterdir()), [])
 
     def test_simultaneous_records_do_not_clobber(self):
         _, report = self.prepare()

@@ -267,12 +267,41 @@ class ManualReleaseTests(unittest.TestCase):
         blocked = manual_release.release_status(self.project, "latest", self.pdf_status)
         self.assertFalse(blocked["ready"])
         self.assertIn("UW-RELEASE-EDITORIAL", {item["code"] for item in blocked["issues"]})
+        for operation in (manual_release.release_status, manual_release.release_check, manual_release.release_prepare):
+            with self.subTest(operation=operation.__name__):
+                detail = operation(self.project, "latest", self.pdf_status)["editorial"]
+                self.assertFalse(detail["ok"])
+                self.assertTrue(detail["reviews_required"])
+                self.assertIn({"path": "_chapters/en/chapter.md", "kind": "line"}, detail["missing_reviews"])
         prepared = editorial.editorial_review_prepare(self.project)
         editorial.editorial_review_record(self.project, {
             "id": "reviewed", "source_digest": prepared["source_digest"], "reviewer": "Test editor", "findings": [],
         }, 0)
         manual_release.write_site_build_receipt(self.project, "latest")
-        self.assertTrue(manual_release.release_status(self.project, "latest", self.pdf_status)["ready"])
+        ready = manual_release.release_status(self.project, "latest", self.pdf_status)
+        self.assertTrue(ready["ready"])
+        self.assertTrue(ready["editorial"]["ok"])
+        self.assertEqual(ready["editorial"]["missing_reviews"], [])
+
+    def test_public_editorial_status_explains_skipped_prerequisites(self) -> None:
+        for mode in ("stale", "missing", "unsafe"):
+            with self.subTest(mode=mode):
+                receipt = {"ok": False, "state": mode, "error": "Current safe build evidence is required."}
+                with patch.object(manual_release, "site_build_receipt_status", return_value=receipt), \
+                        patch.object(site_tools, "editorial_publication_check") as checker:
+                    for operation in (manual_release.release_status, manual_release.release_check, manual_release.release_prepare):
+                        result = operation(self.project, "latest", self.pdf_status)
+                        self.assertFalse(result["ready"])
+                        self.assertFalse(result["editorial"]["ok"])
+                        self.assertTrue(result["editorial"]["skipped"])
+                        self.assertIn("receipt", result["editorial"]["reason"].lower())
+                    checker.assert_not_called()
+
+        with patch.object(manual_release, "_load_config", side_effect=manual_release.ManualReleaseError("Invalid configuration")):
+            invalid = manual_release.release_status(self.project, "latest", self.pdf_status)
+        self.assertFalse(invalid["ready"])
+        self.assertTrue(invalid["editorial"]["skipped"])
+        self.assertTrue(invalid["editorial"]["reason"])
 
     def test_pdf_status_and_site_copy_must_be_current(self) -> None:
         stale = json.loads(json.dumps(self.pdf_status))
