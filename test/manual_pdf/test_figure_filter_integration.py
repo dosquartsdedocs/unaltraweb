@@ -16,6 +16,27 @@ FILTER = ROOT / "scripts" / "manual" / "filters" / "figure-captions.lua"
 
 @unittest.skipUnless(shutil.which("pandoc"), "Pandoc is supplied by the manual PDF image")
 class FigureFilterIntegrationTests(unittest.TestCase):
+    def test_subfigure_titles_keep_escaped_code_in_short_and_full_captions(self) -> None:
+        spec = importlib.util.spec_from_file_location("caption_credits_demo", Path(__file__).with_name("caption_credits_demo.py"))
+        demo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(demo)
+        title = "Coverage 50% & result `value_name`"
+        source = (f'::: subfigures a "{title}" {{: data-caption-source="Source: shared."}}\n'
+                  f'![Panel](a.png "{title}"){{: data-caption-source="Source: panel."}}\n:::\n')
+        transformed = demo.builder().transform_markdown(ROOT, source, ROOT / "chapter.md")
+        latex = subprocess.run(
+            ["pandoc", "--from=markdown+fenced_divs+pipe_tables+link_attributes", "--to=latex", f"--lua-filter={FILTER}"],
+            input=transformed, text=True, capture_output=True, check=True,
+        ).stdout
+        short = re.findall(r"\\caption\[(.*?)\]", latex, re.S)
+        self.assertEqual(len(short), 2, latex)
+        for caption in short:
+            self.assertIn(r"\texttt{value\_name}", caption)
+            self.assertIn(r"50\% \&", caption)
+            self.assertNotIn("Source:", caption)
+        self.assertEqual(latex.count(r"\texttt{value\_name}"), 4, latex)
+        self.assertNotIn("``", latex)
+
     def test_credit_citations_and_links_are_resolved_before_styling(self) -> None:
         source = '''---
 references:
