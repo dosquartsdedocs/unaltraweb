@@ -1058,7 +1058,9 @@ def transform_markdown(
         def credited_caption(caption: str, credit: str) -> str:
             # Leave credit-bearing captions as Pandoc inlines so citeproc and
             # links see them before the figure filter styles the credit span.
-            return (raw_latex_inline(r"\caption[{") + caption + raw_latex_inline("}]{")
+            # Separate an authored closing code fence from the generated raw
+            # fence; adjacent backticks would change the Markdown tokenisation.
+            return (raw_latex_inline(r"\caption[{") + caption + " " + raw_latex_inline("}]{")
                     + caption_with_source(caption, credit) + raw_latex_inline("}"))
 
         images = list(IMAGE_RE.finditer(match.group("body")))
