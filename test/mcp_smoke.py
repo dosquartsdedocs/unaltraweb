@@ -181,6 +181,12 @@ async def smoke() -> None:
                 assert context["update_status"]["can_apply"] is False
                 assert context["editorial"]["revision"] == 0, context
                 assert {"web://editorial-policy", "web://editorial-status"} <= resources
+                assert "web://image-backgrounds" in resources
+                (project / "assets/img/background-smoke.svg").write_text(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="2" fill="red"/></svg>', encoding="utf-8")
+                background = tool_payload(await session.call_tool("image_background_check", {"source": "assets/img/background-smoke.svg"}))
+                assert background["ok"] and background["images"][0]["state"] == "transparent", background
+                assert background["warnings"][0]["code"] == "UW-IMAGE-TRANSPARENT", background
                 prose = tool_payload(await session.call_tool("prose_check", {}))
                 assert prose["ok"], prose
                 prepared = tool_payload(await session.call_tool("editorial_review_prepare", {"target": "_pages/en/index.md"}))

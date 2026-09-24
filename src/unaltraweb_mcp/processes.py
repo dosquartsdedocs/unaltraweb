@@ -30,18 +30,21 @@ def run_process(
     env: dict[str, str] | None = None,
     timeout_seconds: float,
     output_limit: int = DEFAULT_OUTPUT_LIMIT,
+    input_data: bytes | None = None,
 ) -> ProcessResult:
     """Run a bounded child process and terminate its process group on timeout."""
     if timeout_seconds <= 0:
         raise ValueError("Process timeout must be positive.")
     if output_limit <= 0:
         raise ValueError("Process output limit must be positive.")
+    if input_data is not None and not isinstance(input_data, bytes):
+        raise ValueError("Process input must be bytes.")
 
     process = subprocess.Popen(
         command,
         cwd=str(cwd) if cwd is not None else None,
         env=env,
-        stdin=subprocess.DEVNULL,
+        stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         start_new_session=True,
@@ -52,6 +55,13 @@ def run_process(
     selector = selectors.DefaultSelector()
     selector.register(process.stdout, selectors.EVENT_READ, "stdout")
     selector.register(process.stderr, selectors.EVENT_READ, "stderr")
+    pending_input = memoryview(input_data or b"")
+    if process.stdin is not None:
+        if pending_input:
+            os.set_blocking(process.stdin.fileno(), False)
+            selector.register(process.stdin, selectors.EVENT_WRITE, "stdin")
+        else:
+            process.stdin.close()
     output = {"stdout": bytearray(), "stderr": bytearray()}
     truncated = {"stdout": False, "stderr": False}
     deadline = time.monotonic() + timeout_seconds
@@ -88,6 +98,18 @@ def run_process(
             events = selector.select(0.05)
             for key, _ in events:
                 stream = str(key.data)
+                if stream == "stdin":
+                    try:
+                        written = os.write(key.fd, pending_input[:65536])
+                        pending_input = pending_input[written:]
+                    except BlockingIOError:
+                        continue
+                    except BrokenPipeError:
+                        pending_input = memoryview(b"")
+                    if not pending_input:
+                        selector.unregister(key.fileobj)
+                        key.fileobj.close()
+                    continue
                 try:
                     chunk = os.read(key.fd, 65536)
                 except BlockingIOError:
@@ -110,6 +132,8 @@ def run_process(
         selector.close()
         process.stdout.close()
         process.stderr.close()
+        if process.stdin is not None and not process.stdin.closed:
+            process.stdin.close()
 
     return ProcessResult(
         args=list(command),

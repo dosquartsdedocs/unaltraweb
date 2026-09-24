@@ -62,13 +62,15 @@ def build(output: Path, *, source: Path = ROOT) -> str:
 
 def inspect_gem(path: Path) -> None:
     editorial_files = ["scripts/editorial_check.py", "src/unaltraweb_mcp/editorial.py", "src/unaltraweb_mcp/editorial_sources.py"]
+    inspection_files = editorial_files + ["scripts/image_background_check.py", "src/unaltraweb_mcp/image_backgrounds.py",
+                                          "src/unaltraweb_mcp/image_probe.py", "src/unaltraweb_mcp/processes.py"]
     with tarfile.open(path, mode="r") as package:
         data_member = package.extractfile("data.tar.gz")
         if data_member is None:
             raise RuntimeError("Built gem has no data.tar.gz payload.")
         with tarfile.open(fileobj=io.BytesIO(data_member.read()), mode="r:gz") as payload:
             names = set(payload.getnames())
-            editorial_bytes = {name: payload.extractfile(name).read() for name in editorial_files}
+            editorial_bytes = {name: payload.extractfile(name).read() for name in inspection_files}
     required = {
         "LICENSE",
         "README.md",
@@ -99,7 +101,7 @@ def inspect_gem(path: Path) -> None:
         "src/unaltraweb_mcp/component-contract.json",
         "src/unaltraweb_mcp/component-contract.schema.json",
         "src/unaltraweb_mcp/docker_mount.py",
-        *editorial_files,
+        *inspection_files,
     }
     missing = sorted(required - names)
     if missing:
@@ -126,6 +128,12 @@ def inspect_gem(path: Path) -> None:
         page.write_text("As requested, I have added the biography.\n", encoding="utf-8")
         if json.loads(run(command, cwd=site, expected=1).stdout)["ok"]:
             raise RuntimeError("Gem-native editorial gate accepted chat-dependent copy.")
+        (site / "assets").mkdir()
+        (site / "assets/test.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="2" fill="blue"/></svg>', encoding="utf-8")
+        image_command = [sys.executable, "-I", str(core / "scripts/image_background_check.py"), "--project", str(site), "--source", "assets/test.svg"]
+        inspection = json.loads(run(image_command, cwd=site).stdout)
+        if not inspection["ok"] or inspection["images"][0]["state"] != "transparent" or not inspection["warnings"]:
+            raise RuntimeError(f"Gem-native SVG background inspection failed: {inspection}")
 
 
 def main() -> int:

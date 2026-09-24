@@ -109,7 +109,11 @@ def relative_path(raw: str) -> str:
 
 class Reader:
     """Descriptor-relative reads; never follows an input symlink or creates files."""
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, *, max_bytes: int | None = None, max_total_bytes: int | None = None):
+        self.max_bytes = MAX_BYTES if max_bytes is None else max_bytes
+        self.max_total_bytes = MAX_TOTAL_BYTES if max_total_bytes is None else max_total_bytes
+        if self.max_bytes <= 0 or self.max_total_bytes <= 0:
+            raise EditorialError("Reader budgets must be positive.")
         self.root = Path(root).expanduser().resolve(strict=True)
         self.fd = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         self.cache: dict[str, bytes | None] = {}
@@ -148,18 +152,18 @@ class Reader:
                 fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent)
                 try:
                     before = os.fstat(fd)
-                    if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_BYTES:
+                    if not stat.S_ISREG(before.st_mode) or before.st_size > self.max_bytes:
                         raise EditorialError(f"Editorial input must be a bounded regular file: {relative}")
                     data = bytearray()
-                    while len(data) <= MAX_BYTES:
-                        chunk = os.read(fd, min(65536, MAX_BYTES + 1 - len(data)))
+                    while len(data) <= self.max_bytes:
+                        chunk = os.read(fd, min(65536, self.max_bytes + 1 - len(data)))
                         if not chunk:
                             break
                         data.extend(chunk)
                     after = os.fstat(fd)
                     current = os.stat(name, dir_fd=parent, follow_symlinks=False)
                     identity = lambda s: (s.st_dev, s.st_ino, s.st_mode, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
-                    if len(data) > MAX_BYTES or identity(before) != identity(after) or identity(after) != identity(current):
+                    if len(data) > self.max_bytes or identity(before) != identity(after) or identity(after) != identity(current):
                         raise EditorialError(f"Editorial input changed while being read: {relative}")
                     value = bytes(data)
                 finally:
@@ -171,7 +175,7 @@ class Reader:
         except OSError as exc:
             raise EditorialError(f"Unsafe or unreadable editorial input {relative}: {exc}") from exc
         self.total += len(value or b"")
-        if self.total > MAX_TOTAL_BYTES:
+        if self.total > self.max_total_bytes:
             raise EditorialError("Editorial input budget exceeded; select a smaller target.")
         self.cache[relative] = value
         return value

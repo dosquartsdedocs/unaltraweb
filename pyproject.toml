@@ -16,6 +16,8 @@ dependencies = [
   "bibtexparser>=1.4,<2",
   "PyYAML>=6,<7",
   "requests>=2.31,<3",
+  "Pillow>=10.4,<13",
+  "CairoSVG>=2.7,<3",
   "tomli>=2,<3; python_version < '3.11'",
 ]
 

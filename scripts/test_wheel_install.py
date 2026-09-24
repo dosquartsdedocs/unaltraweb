@@ -77,6 +77,8 @@ def main() -> int:
             "unaltraweb_mcp/manual_release.py",
             "unaltraweb_mcp/editorial.py",
             "unaltraweb_mcp/editorial_sources.py",
+            "unaltraweb_mcp/image_backgrounds.py",
+            "unaltraweb_mcp/image_probe.py",
             "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",
             "unaltraweb_mcp/scaffolds/common/README.md.tmpl",
@@ -300,6 +302,9 @@ def main() -> int:
         detected = json.loads(run([str(cli), "--project", str(site), "mcp", "detect-site"], cwd=temp).stdout)
         if not detected["is_unaltraweb_site"]:
             raise RuntimeError(f"package-only inspection failed from clean wheel: {detected}")
+        backgrounds = json.loads(run([str(cli), "--project", str(site), "mcp", "image-background-check"], cwd=temp).stdout)
+        if not backgrounds["ok"] or not backgrounds["read_only"]:
+            raise RuntimeError(f"Factory-free background inspection failed: {backgrounds}")
         project_doctor = json.loads(run([str(cli), "doctor", "--project", str(site)], cwd=temp).stdout)
         if not project_doctor["ok"] or project_doctor["project"]["profile"] != "unaltredocs":
             raise RuntimeError(f"project doctor failed from clean wheel: {project_doctor}")

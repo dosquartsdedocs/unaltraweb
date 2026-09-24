@@ -148,7 +148,7 @@ jobs:
           python-version: ${{ inputs.python-version }}
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y imagemagick
+        run: sudo apt-get update && sudo apt-get install -y imagemagick libcairo2
 
       - name: Install Python dependencies
         if: ${{ inputs.install-python-requirements }}
@@ -243,6 +243,12 @@ jobs:
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
           python "$core_dir/scripts/editorial_check.py" --project "$GITHUB_WORKSPACE"
 
+      - name: Inspect image backgrounds
+        run: |
+          python -m pip install 'Pillow>=10.4,<13' 'CairoSVG>=2.7,<3'
+          core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
+          python "$core_dir/scripts/image_background_check.py" --project "$GITHUB_WORKSPACE"
+
       - name: Build
         env:
           BUILD_COMMAND: ${{ inputs.build-command }}
@@ -260,6 +266,7 @@ jobs:
         run: |
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
           python "$core_dir/scripts/editorial_check.py" --project "$GITHUB_WORKSPACE" --output-folder "$OUTPUT_FOLDER"
+          python "$core_dir/scripts/image_background_check.py" --project "$GITHUB_WORKSPACE" --output-folder "$OUTPUT_FOLDER"
 
       - name: Setup Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5

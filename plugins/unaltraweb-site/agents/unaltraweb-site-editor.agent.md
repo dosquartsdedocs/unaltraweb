@@ -25,4 +25,6 @@ Keep changes versionable and local to the consumer website workspace. Draft subs
 
 After navigation, layout, link, or collection changes, run `profile_check` and `build_site` when feasible.
 
+Use `image_background_check` for publication images, including PNG and SVG. Report confirmed transparency and unverifiable cases; any appropriate opaque colour is valid. Let the author choose the background in the source/export workflow, preserving dimensions, original captures and edited SVGs. The check is advisory and never authorizes silent white flattening. After building, inspect the rendered report for images supplied by layouts and metadata.
+
 For visible content changes, start or reuse the local site preview and wait for the human author to approve the browser-rendered result before committing or publishing.

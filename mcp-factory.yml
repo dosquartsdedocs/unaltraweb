@@ -192,6 +192,7 @@ mcp:
     - web://profile-contract
     - web://editorial-policy
     - web://editorial-status
+    - web://image-backgrounds
     - web://manual-writing-guidance
     - web://manual-authoring-components
     - web://manual-computations
@@ -226,6 +227,7 @@ mcp:
     - editorial_review_record
     - editorial_review_resolve
     - editorial_publication_check
+    - image_background_check
     - manual_source_quality_check
     - manual_editorial_quality_check
     - manual_authoring_capabilities

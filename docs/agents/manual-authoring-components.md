@@ -69,6 +69,14 @@ Use an explicit Markdown title as the caption:
 
 Every teaching figure needs meaningful alt text and a caption. The manual numbers figures automatically on the web; the same image and caption are available to the PDF builder.
 
+Run `image_background_check` for referenced raster and SVG figures. They should
+have an opaque background of an appropriate colour; white is not mandatory.
+Report transparency or unverifiable inspection to the author and fix the
+authoritative source/export settings when requested. Never silently flatten or
+replace an original capture, generated artifact or author-edited SVG. The check
+is advisory, samples SVG at a bounded viewport, and does not replace freshness
+or web/PDF visual review.
+
 Keep the automatic number/label, descriptive caption and source/credits separate.
 Add an optional `data-caption-source` field instead of appending attribution to
 the image title:
