@@ -18,6 +18,7 @@ from typing import Any
 
 from .distribution import component, component_reference, consumer_integration
 from .docker_mount import docker_bind_mount
+from .image_backgrounds import image_background_check
 from .editorial import (
     editorial_policy, editorial_publication_check, editorial_review_prepare,
     editorial_review_record, editorial_review_resolve, editorial_status, prose_check,
@@ -2854,7 +2855,7 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
             },
         ],
         "web_only_or_pdf_review_required": ["tabs", "details", "interactive charts", "interactive maps", "galleries", "audio", "video", "arbitrary Liquid figure includes"],
-        "quality_tools": ["manual_source_quality_check", "manual_editorial_quality_check", "manual_computation_check", "web_capture_check", "visualization_check", "build_site", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean"],
+        "quality_tools": ["manual_source_quality_check", "image_background_check", "manual_editorial_quality_check", "manual_computation_check", "web_capture_check", "visualization_check", "build_site", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean"],
         "source_guides": [
             "docs/agents/manual-authoring-components.md",
             "plugins/unaltraweb-site/skills/manual-pedagogical-writing/SKILL.md",
@@ -3910,6 +3911,11 @@ def html_audit(project: Path) -> dict[str, Any]:
     by_code: dict[str, int] = {}
     for finding in findings:
         by_code[finding["code"]] = by_code.get(finding["code"], 0) + 1
+    backgrounds = image_background_check(project, output_folder="_site") if site_safe and html_files else {"ok": True, "warnings": [], "skipped": True}
+    background_warnings = list(backgrounds["warnings"])
+    if not backgrounds["ok"]:
+        background_warnings.append({"severity": "warning", "code": "UW-IMAGE-COVERAGE", "path": "_site",
+                                    "message": backgrounds.get("error", "Image inspection did not complete.")})
     return {
         "ok": not findings,
         "project": str(project),
@@ -3918,6 +3924,8 @@ def html_audit(project: Path) -> dict[str, Any]:
         "finding_count": len(findings),
         "findings_by_code": dict(sorted(by_code.items())),
         "findings": findings,
+        "image_backgrounds": backgrounds,
+        "warnings": background_warnings,
         "external_link_count": len(external),
         "external_links": [
             {"url": url, "sources": sorted(sources)} for url, sources in sorted(external.items())
@@ -4996,13 +5004,15 @@ def manual_pdf_status(project: Path, factory: Path, language: str = "", release_
 
 
 def manual_pdf_build(project: Path, factory: Path, language: str = "", release_selector: str = "latest") -> dict[str, Any]:
-    return run_factory_make(
+    result = run_factory_make(
         factory,
         project,
         "manual-pdf-build",
         extra_args=_manual_pdf_args(language),
         env=_manual_release_env(release_selector),
     )
+    result["image_backgrounds"] = image_background_check(project)
+    return result
 
 
 def manual_pdf_preview_prepare(project: Path, factory: Path) -> dict[str, Any]:
@@ -5778,6 +5788,7 @@ def site_check(project: Path, factory: Path, max_bibliometrics_age_days: int = 1
         "detection": detect_site(project),
         "profile": profile_check(project),
         "prose": prose_check(project),
+        "image_backgrounds": image_background_check(project),
         "language": language_policy(project),
         "approval": content_approval_inventory(project),
         "translation": translation_plan(project),
@@ -5824,9 +5835,9 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
 
 def list_tools() -> dict[str, Any]:
     return {
-        "resources": ["web://distribution", "web://site-context", "web://site-doctor", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://editorial-policy", "web://editorial-status", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
+        "resources": ["web://distribution", "web://site-context", "web://site-doctor", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://editorial-policy", "web://editorial-status", "web://image-backgrounds", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": list(PROMPT_SPECS),
-        "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "prose_check", "editorial_policy", "editorial_status", "editorial_review_prepare", "editorial_review_record", "editorial_review_resolve", "editorial_publication_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean", "manual_pdf_publish", "manual_release_status", "manual_release_check", "manual_release_prepare", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
+        "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "prose_check", "editorial_policy", "editorial_status", "editorial_review_prepare", "editorial_review_record", "editorial_review_resolve", "editorial_publication_check", "image_background_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean", "manual_pdf_publish", "manual_release_status", "manual_release_check", "manual_release_prepare", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
 
 

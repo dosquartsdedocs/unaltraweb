@@ -67,6 +67,7 @@ baseline format nor runtime cleanup changes.
 | `web://profile-contract` | Checks for `unaltreselfie`, `unaltreprojecte`, `unaltremanual`, and `unaltredocs`. |
 | `web://editorial-policy` | Effective common, profile, genre and local writing policy, supported languages and policy fingerprint. |
 | `web://editorial-status` | Anchored review passes, retained decisions and source/policy staleness; also available in `site_context.editorial`. |
+| `web://image-backgrounds` | Read-only source-image opacity advisories, generated-source ownership and explicit inspection limits. |
 | `web://profile-prune-plan` | Dry-run list of profile-specific content that can be removed from the active profile. |
 | `web://content-inventory` | Local editable collections, `_data/`, and assets. |
 | `web://language-policy` | Default language, configured languages, and editorial translation workflow settings. |
@@ -106,6 +107,7 @@ baseline format nor runtime cleanup changes.
 | `editorial_review_record` | Explicitly record a report with exact quotes/anchors, current source digest and `expected_revision`; never edit prose or grant author approval. |
 | `editorial_review_resolve` | Record an accepted/rejected/resolved disposition with a reason and current revision; preserve prior decisions. |
 | `editorial_publication_check` | Check publication copy and opt-in fresh-review requirements; optional `output_folder` adds rendered HTML and private-context leakage checks. |
+| `image_background_check` | Warn about transparent or unverifiable raster/SVG images in a source selection or rendered output folder. Any opaque colour is valid; the tool never modifies files or fetches remote images. |
 | `manual_source_quality_check` | For `unaltremanual`, check captioned tables and figures, resolve local visual sources, compare embedded SVG text with body text on web/PDF, and suggest support-specific dimensions. |
 | `manual_editorial_quality_check` | Manual-scoped compatibility wrapper around shared prose rules; preserve the review checklist and writing-profile path while allowing legitimate quotations, examples and reader-facing language. |
 | `manual_authoring_capabilities` | Return the paragraph-development model and structured component catalogue an MCP writing assistant must use. |
@@ -209,6 +211,25 @@ reason when prerequisite build evidence cannot be trusted.
 The source tools are not generic filesystem operations. Their complete write scope is `_config.yml`; Markdown/HTML under the known content collections; YAML, JSON, or CSV below `_data/`; and Markdown below `context/`. Workflows, Makefiles, Gemfiles, layouts, includes, plugins, Sass, bibliography, binary assets, generated paths, symlinks, directories, absolute paths, and traversal are outside this API.
 
 All operations use project-confined descriptor-relative no-follow traversal. Nonblocking open rejects FIFOs/devices before reading, size is checked before allocation, and files/proposed content are limited to 1 MiB. Text must be UTF-8 without NUL bytes; YAML and JSON reject duplicate keys, and JSON rejects non-finite numbers. Reads return SHA-256. Existing writes require that exact digest; new writes require `create_only=true`. Apply takes the project-root advisory lock before the parent lock, moves the expected object to a private backup, verifies content and identity before and after publication, and restores the backup when a final-window edit is detected. Deletes use the same root-before-parent ordering and the equivalent verified tombstone flow. `_config.yml` is never deletable.
+
+## Image Backgrounds And Companion Linking
+
+Image background checks are advisory and share one CLI/MCP/native implementation.
+`site_check` includes source references, `html_audit` includes rendered image
+references, and MCP PDF builds expose source-image advisories. Report warnings to
+the author; do not silently flatten assets onto white. The decoder runs in a
+bounded child process, disallows external SVG resources and reports unsupported
+cases as unverifiable. The [image background reference](../_documentation/en/26-image-backgrounds.md)
+documents supported formats, sampling limits and the native gem command.
+
+For companion linking, compare the selected BOM and dependency capabilities with
+each running provider's `factory_manifest`, `compatibility_status` and release
+evidence. A development checkout announcing a future version is not a published
+release or evidence that a long-lived MCP process has upgraded. The current
+published companion selections are `diavisuals v0.3.1` and `vegavisuals v0.3.1`.
+Advance them only after their immutable releases exist and their receipt/tool
+contracts have been verified; source-checkout version drift remains an explicit
+control-plane finding, not a reason to weaken receipt validation.
 
 ## Language And Translation Discipline
 

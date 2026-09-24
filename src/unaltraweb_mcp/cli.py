@@ -9,6 +9,7 @@ from . import __version__
 from . import calibre_import
 from .distribution import distribution_doctor
 from .editorial_sources import strict_json
+from .image_backgrounds import print_warnings as print_image_warnings
 from . import site_tools as tools
 
 
@@ -45,6 +46,7 @@ PACKAGE_ONLY_MCP_COMMANDS = {
     "content-freshness-check",
     "content-inventory",
     "detect-site",
+    "image-background-check",
     "prose-check",
     "editorial-policy",
     "editorial-status",
@@ -228,7 +230,9 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "site-doctor":
         return print_json(tools.site_doctor(project, factory), enforce_ok=True)
     if command == "site-check":
-        return print_json(tools.site_check(project, factory), enforce_ok=True)
+        result = tools.site_check(project, factory)
+        print_image_warnings(result.get("image_backgrounds", {}))
+        return print_json(result, enforce_ok=True)
     if command == "site-source-read":
         return print_json(tools.site_source_read(project, args.path))
     if command == "site-source-write":
@@ -261,6 +265,10 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return print_json(tools.profile_check(project), enforce_ok=True)
     if command == "manual-source-quality-check":
         return print_json(tools.manual_source_quality_check(project))
+    if command == "image-background-check":
+        result = tools.image_background_check(project, args.source, args.output_folder)
+        print_image_warnings(result)
+        return print_json(result, enforce_ok=True)
     if command == "manual-editorial-quality-check":
         return print_json(tools.manual_editorial_quality_check(project), enforce_ok=True)
     if command == "prose-check":
@@ -296,7 +304,9 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "manual-pdf-status":
         return print_json(tools.manual_pdf_status(project, factory, language=args.language, release_selector=args.release_selector))
     if command == "manual-pdf-build":
-        return print_json(tools.manual_pdf_build(project, factory, language=args.language, release_selector=args.release_selector))
+        result = tools.manual_pdf_build(project, factory, language=args.language, release_selector=args.release_selector)
+        print_image_warnings(result.get("image_backgrounds", {}))
+        return print_json(result)
     if command == "manual-pdf-preview-prepare":
         return print_json(tools.manual_pdf_preview_prepare(project, factory), enforce_ok=True)
     if command == "manual-pdf-preview-clean":
@@ -383,7 +393,9 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "build-health":
         return print_json(tools.build_health(project))
     if command == "html-audit":
-        return print_json(tools.html_audit(project), enforce_ok=True)
+        result = tools.html_audit(project)
+        print_image_warnings(result.get("image_backgrounds", {}))
+        return print_json(result, enforce_ok=True)
     if command == "preview-start":
         return print_json(tools.preview_start(project, port=args.port, site_profile=args.site_profile, timeout_seconds=args.timeout_seconds))
     if command == "preview-status":
@@ -447,6 +459,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     source_read = mcp_sub.add_parser("site-source-read")
     source_read.add_argument("--path", required=True)
+
+    backgrounds = mcp_sub.add_parser("image-background-check")
+    backgrounds.add_argument("--source", default="")
+    backgrounds.add_argument("--output-folder", default="")
 
     source_write = mcp_sub.add_parser("site-source-write")
     source_write.add_argument("--path", required=True)
