@@ -385,8 +385,9 @@ def editorial_review_record(project: Path, report: dict[str, Any], expected_revi
             if _packet(current, packet["target"], packet["kind"])["source_digest"] != packet["source_digest"]:
                 raise EditorialError("Review inputs changed before the record write.")
         _write_state(reader, state, previous)
-    status = editorial_status(project)
-    return {"ok": True, "id": key, "revision": expected_revision + 1, "stale": status["reviews"][key]["stale"], "approves_content": False}
+        # Protect the committed response snapshot from waiting source writers too.
+        status = editorial_status(project)
+        return {"ok": True, "id": key, "revision": expected_revision + 1, "stale": status["reviews"][key]["stale"], "approves_content": False}
 
 
 def editorial_review_resolve(project: Path, review_id: str, finding_id: str, status: str, reason: str, expected_revision: int) -> dict[str, Any]:
