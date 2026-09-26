@@ -35,6 +35,29 @@ from scripts.validate_distribution import (
 
 
 class DistributionTests(unittest.TestCase):
+    def test_released_worker_versions_are_preserved_without_relaxing_new_candidates(self) -> None:
+        contract = distribution_contract()
+        self.assertEqual(distribution_validator.component_version_errors(contract), [])
+        for name in ("compute_python", "compute_r", "web_capture"):
+            changed = copy.deepcopy(contract)
+            worker = changed["components"][name]
+            worker.update(version="0.1.0", release="v0.1.0", release_status="released")
+            self.assertEqual(distribution_validator.component_version_errors(changed), [])
+            self.assertEqual(component_contract_semantic_errors(changed), [])
+            for status in ("pending", "ready", "unavailable"):
+                worker["release_status"] = status
+                self.assertIn(
+                    f"{name} version does not match release {contract['release']['version']}",
+                    distribution_validator.component_version_errors(changed),
+                )
+            worker.update(release_status="released", reference=f"{worker['image_repository']}:0.1.0")
+            self.assertIn(f"{name} released container reference must use an immutable digest",
+                          component_contract_semantic_errors(changed))
+        changed = copy.deepcopy(contract)
+        changed["components"]["runtime"].update(version="0.1.0", release_status="released")
+        self.assertIn(f"runtime version does not match release {contract['release']['version']}",
+                      distribution_validator.component_version_errors(changed))
+
     def test_hashed_companion_wheels_are_bound_to_provider_release_and_version(self) -> None:
         contract = distribution_contract()
         self.assertEqual(component_contract_semantic_errors(contract), [])
