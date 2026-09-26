@@ -10,31 +10,37 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Current Shape
 
-Release [#69](https://github.com/dosquartsdedocs/unaltraweb/issues/69) prepares
-**0.5.0** for the integrated editorial/scaffold, caption/image and companion
-updates. The gem, wheel, Jekyll runtime, MCP runtime and manual PDF worker move
-together; unchanged published computation/capture workers keep their actual
-0.4.0 versions and immutable digests. Existing public 0.4.0 artifacts are immutable.
-The consumer core revision and tested manual PDF digest must be recorded before
-final package/image candidates; `MCP_RELEASE_IMAGE` advances only after release.
+Release [#69](https://github.com/dosquartsdedocs/unaltraweb/issues/69) is published
+as [**v0.5.0**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.5.0).
+It includes editorial/scaffold, caption/image and companion changes plus the
+editorial response-lock fix from PR 73. Unchanged published computation/capture
+workers keep their actual 0.4.0 versions and immutable digests.
+
+- Source: `79f91aa00a8c13b771f5f0e0e5e7b9501cf81eec`.
+- Receipt/tag commit: `3fa855378dcc61dc7b84b8b03812698042e02fed` (PR 74).
+- Signed image proof: run `36275100407`; tag promotion: `36276308265`.
+- Exact package build: `36275102188`; successful PyPI/RubyGems OIDC publication:
+  `36276431479`. Anonymous downloads and native installs matched recorded hashes.
+- Post-release `MCP_RELEASE_IMAGE` selects
+  `ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:36d17edbade77edb40a687f6a744203c6329acb33fbc2eb255e88d9ff1a42c98`.
+  Published artifacts/receipt remain immutable; consumer scaffold updates stay
+  explicit and reviewed in each consumer repository.
 
 Preparation PR 70 is integrated at `d857f8c9f5fea90cf450c0b30b4e77a37b541275`.
 The [verified image workflow](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/36272762057)
 passed all signed-source, Ruby, PDF, reproducibility, MCP and docs gates. The
 selected 0.5.0 PDF worker is now fixed to
 `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097`
-in both the BOM and consumer tuple. Final package/core-image candidates must be
-built after this binding is integrated; their receipt contains only components
-still marked `ready`. This prevents package bytes from referring to a future or
-mutable PDF worker and keeps the earlier published core release immutable.
+in both the BOM and consumer tuple. PR 71 integrated this binding before final
+package/core-image candidates; their receipt contains only components still
+marked `ready`. Earlier public releases remain immutable.
 
 Companion acceptance repair [#67](https://github.com/dosquartsdedocs/unaltraweb/issues/67)
-selects published Diavisuals/Vegavisuals 0.4.0 in the next-release source BOM and
+selects published Diavisuals/Vegavisuals 0.4.0 in the released 0.5.0 BOM and
 registration, with hashed wheels and the immutable Vega scaffold revision.
 Owner evidence and publication order are in
 [`docs/agents/visual-companions-0.4.0.md`](docs/agents/visual-companions-0.4.0.md).
-The registered `MCP_RELEASE_IMAGE` still selects the last completed core release;
-advance it only after a new reviewed coordinated release and receipt exist.
+The registered `MCP_RELEASE_IMAGE` now selects the verified 0.5.0 receipt digest.
 
 - Core repo: `/home/benizar/git/unaltraweb`.
 - Template repo: `/home/benizar/git/unaltraweb-template`.

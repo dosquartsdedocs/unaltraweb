@@ -34,7 +34,7 @@ The default distribution is Docker-first. Generated sites run their normal build
 
 ## Current Status
 
-- Public release `v0.4.0` provides the Docker images, Ruby gem and Python wheel as one receipt-bound distribution.
+- Public release [`v0.5.0`](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.5.0) provides the Docker images, Ruby gem and Python wheel as one receipt-bound distribution.
 - `ghcr.io/dosquartsdedocs/unaltraweb-mcp` is the canonical normal local runtime for generated sites; `ghcr.io/dosquartsdedocs/unaltraweb` is its lower-level Jekyll runtime base.
 - The Ruby gem supports native Bundler/Jekyll consumers. The modular MCP wheel supports native creation and inspection, and does not bundle the gem, factory checkout, worker images or companion renderers.
 - PDF, browser-capture and computation environments remain separate images so the normal site image does not carry every heavy toolchain.
@@ -74,11 +74,11 @@ Create a child site directly with the public Docker image:
 mkdir my-site && \
 docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp \
   --mount "type=bind,src=${PWD}/my-site,dst=/workspace" \
-  ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:389bc585cdb4fc89d3372f4896a55fe26e15df38b46bc114ce44fdb3f1c8deb9 \
+  ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:36d17edbade77edb40a687f6a744203c6329acb33fbc2eb255e88d9ff1a42c98 \
   --project /workspace new-web --site-profile unaltreselfie --title "My site" --default-lang en
 ```
 
-The chained `mkdir` requires a new destination, the digest binds creation to the reviewed `v0.4.0` receipt, and `--network none` keeps scaffold generation offline.
+The chained `mkdir` requires a new destination, the digest binds creation to the reviewed `v0.5.0` receipt, and `--network none` keeps scaffold generation offline.
 
 If Python package tooling is already available, the PyPI adapter exposes the equivalent native command:
 
@@ -129,7 +129,7 @@ make docs-serve DOCKER_IMAGE=unaltraweb:dev
 make docs-build DOCKER_IMAGE=unaltraweb:dev
 ```
 
-The public distribution contract selects `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.4.0` for normal generated-site commands. `MCP_RELEASE_IMAGE` pins the reviewed MCP digest from the same `v0.4.0` receipt for gContExt (formerly ContExt), the GNOME Shell extension. The mutable `:main` channel is reserved for explicit maintainer testing; locally built core images use the `:dev` name.
+The public distribution contract selects `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.5.0` for normal generated-site commands. `MCP_RELEASE_IMAGE` pins the reviewed MCP digest from the same `v0.5.0` receipt for gContExt (formerly ContExt), the GNOME Shell extension. The mutable `:main` channel is reserved for explicit maintainer testing; locally built core images use the `:dev` name.
 
 The lower-level `unaltraweb` image supplies Ruby, Jekyll and runtime dependencies. The MCP image layers the full reviewed factory and installed Python package on top; generated Make targets load the theme as a path gem from `/opt/unaltraweb`. Native Bundler consumers can instead resolve the independently published gem, and native Python users can install the wheel.
 

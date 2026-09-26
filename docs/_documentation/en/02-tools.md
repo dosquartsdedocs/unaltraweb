@@ -30,10 +30,10 @@ nav_title: Local Tools
 The current public core runtime image is:
 
 ```bash
-ghcr.io/dosquartsdedocs/unaltraweb:0.4.0
+ghcr.io/dosquartsdedocs/unaltraweb:0.5.0
 ```
 
-That image provides Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local commands. Package-generated `v0.4.0` sites select the matching public MCP image for normal local commands. The external integration fixture can advance from its older release pin independently.
+That image provides Ruby, Bundler, Jekyll system dependencies, ImageMagick, Node for ExecJS and Python tooling needed by local commands. Package-generated `v0.5.0` sites select the matching public MCP image for normal local commands. The external integration fixture can advance from its older release pin independently.
 
 ## Generated Site Commands
 
@@ -143,4 +143,4 @@ When the core docs and all template profiles are running together, use this conv
 - Keep deploy workflows as thin `workflow_dispatch` wrappers pinned to a reviewed full commit SHA of `dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml`.
 - The optional integration template may retain its local `gh-pages` publishing target for testing that separate workflow.
 - After the first Docker publish, make `ghcr.io/dosquartsdedocs/unaltraweb` public.
-- Confirm `docker pull ghcr.io/dosquartsdedocs/unaltraweb:0.4.0` works without `docker login`.
+- Confirm `docker pull ghcr.io/dosquartsdedocs/unaltraweb:0.5.0` works without `docker login`.

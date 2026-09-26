@@ -1,6 +1,11 @@
 # Published visual companions: native acceptance and release handoff
 
 Tracking: [issue 67](https://github.com/dosquartsdedocs/unaltraweb/issues/67).
+Publication update: the acceptance is included in
+[unaltraweb v0.5.0](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.5.0),
+receipt `3fa855378dcc61dc7b84b8b03812698042e02fed`, and the post-release launcher
+selects MCP digest `36d17edbade77edb40a687f6a744203c6329acb33fbc2eb255e88d9ff1a42c98`.
+The preparation notes and original 0.4.0 image below retain their historical context.
 Owner branch: `fix/67-published-visual-companions`, based on
 `bfabaa2738ddd24725f5e386d60b58a9a8294316` after an eligible primary-checkout
 preflight. This is next-release source, not a replacement for published core 0.4.0.
