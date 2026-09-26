@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from scripts import validate_distribution as distribution_validator
 from unaltraweb_mcp import __version__, cli, site_tools
 from unaltraweb_mcp.distribution import (
+    companion_dependency_requirements,
     component_contract_semantic_errors,
     component_reference,
     consumer_integration,
@@ -34,6 +35,34 @@ from scripts.validate_distribution import (
 
 
 class DistributionTests(unittest.TestCase):
+    def test_hashed_companion_wheels_are_bound_to_provider_release_and_version(self) -> None:
+        contract = distribution_contract()
+        self.assertEqual(component_contract_semantic_errors(contract), [])
+        for name in ("diavisuals", "vegavisuals"):
+            selected = contract["components"][name]
+            reference = selected["reference"]
+            self.assertFalse(is_mutable_reference(reference))
+            self.assertEqual(companion_dependency_requirements(name)["uv_spec"], f"{name}[mcp] @ {reference}")
+            invalid_references = [
+                reference.split("#")[0],
+                reference.replace("github.com", "example.invalid"),
+                reference.replace(f"/download/{selected['release']}/", "/download/v99.0.0/"),
+                reference.replace(f"/{name}-{selected['version']}-", f"/{name}-99.0.0-"),
+                reference.split("#")[0] + "#sha256=" + "0" * 64,
+                reference + "\n",
+            ]
+            for invalid in invalid_references:
+                with self.subTest(name=name, reference=invalid):
+                    changed = copy.deepcopy(contract)
+                    changed["components"][name]["reference"] = invalid
+                    self.assertIn(
+                        f"{name} companion reference does not match its repository and release",
+                        component_contract_semantic_errors(changed),
+                    )
+            legacy = {**selected, "reference": f"{selected['repository']}.git@{selected['release']}"}
+            with patch("unaltraweb_mcp.distribution.component", return_value=legacy):
+                self.assertEqual(companion_dependency_requirements(name)["uv_spec"], f"{name}[mcp] @ git+{legacy['reference']}")
+
     def test_component_contract_covers_the_modular_release(self) -> None:
         contract = distribution_contract()
 

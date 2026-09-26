@@ -277,9 +277,9 @@ mcp_dependencies:
     update: false
     remote: https://github.com/dosquartsdedocs/diavisuals.git
     package: diavisuals
-    uv_spec: "diavisuals[mcp] @ git+https://github.com/dosquartsdedocs/diavisuals.git@v0.3.1"
-    version: 0.3.1
-    release: v0.3.1
+    uv_spec: "diavisuals[mcp] @ https://github.com/dosquartsdedocs/diavisuals/releases/download/v0.4.0/diavisuals-0.4.0-py3-none-any.whl#sha256=bfedcc9e2554f25ce4a1c33e556f352210848fccb8da800d1c3900dd86c48c93"
+    version: 0.4.0
+    release: v0.4.0
     release_status: released
     extras:
       - mcp
@@ -306,9 +306,9 @@ mcp_dependencies:
     update: false
     remote: https://github.com/dosquartsdedocs/vegavisuals.git
     package: vegavisuals
-    uv_spec: "vegavisuals[mcp] @ git+https://github.com/dosquartsdedocs/vegavisuals.git@v0.3.1"
-    version: 0.3.1
-    release: v0.3.1
+    uv_spec: "vegavisuals[mcp] @ https://github.com/dosquartsdedocs/vegavisuals/releases/download/v0.4.0/vegavisuals-0.4.0-py3-none-linux_x86_64.whl#sha256=b52ffa743643dd6b5e0320e7a9aa0cd500ea06262b7d5098c0c3f94a379bc0ea"
+    version: 0.4.0
+    release: v0.4.0
     release_status: released
     extras:
       - mcp

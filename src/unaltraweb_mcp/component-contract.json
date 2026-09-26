@@ -11,7 +11,7 @@
     "core_sha": "f7ac29070167917dec6b314ba0a1ba9db089e7ec",
     "site_deploy_workflow": "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml",
     "manual_pdf_image": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:bb3e373f8a512495eeed684c23ad904d298c2e20a6dc3ade0d0a60c7ec9a9f11",
-    "vegavisuals_sha": "44a2753ffbb7c0694a459db9744342f69c6e78b9"
+    "vegavisuals_sha": "68c0b231402ae9485cc34ce530dc5239cb0ec194"
   },
   "receipt_contract": {
     "schema_version": 1,
@@ -130,10 +130,10 @@
     "diavisuals": {
       "kind": "companion",
       "name": "diavisuals",
-      "version": "0.3.1",
-      "release": "v0.3.1",
+      "version": "0.4.0",
+      "release": "v0.4.0",
       "release_status": "released",
-      "reference": "https://github.com/dosquartsdedocs/diavisuals.git@v0.3.1",
+      "reference": "https://github.com/dosquartsdedocs/diavisuals/releases/download/v0.4.0/diavisuals-0.4.0-py3-none-any.whl#sha256=bfedcc9e2554f25ce4a1c33e556f352210848fccb8da800d1c3900dd86c48c93",
       "repository": "https://github.com/dosquartsdedocs/diavisuals",
       "included_in_wheel": false,
       "features": ["mermaid", "plantuml"]
@@ -141,10 +141,10 @@
     "vegavisuals": {
       "kind": "companion",
       "name": "vegavisuals",
-      "version": "0.3.1",
-      "release": "v0.3.1",
+      "version": "0.4.0",
+      "release": "v0.4.0",
       "release_status": "released",
-      "reference": "https://github.com/dosquartsdedocs/vegavisuals.git@v0.3.1",
+      "reference": "https://github.com/dosquartsdedocs/vegavisuals/releases/download/v0.4.0/vegavisuals-0.4.0-py3-none-linux_x86_64.whl#sha256=b52ffa743643dd6b5e0320e7a9aa0cd500ea06262b7d5098c0c3f94a379bc0ea",
       "repository": "https://github.com/dosquartsdedocs/vegavisuals",
       "included_in_wheel": false,
       "features": ["vega", "vega-lite"]

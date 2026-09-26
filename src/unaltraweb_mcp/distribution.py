@@ -128,8 +128,17 @@ def component_contract_semantic_errors(value: dict[str, Any]) -> list[str]:
             errors.append(f"{component_id} container reference does not match its version")
         elif kind == "container" and component_id != "mcp" and selected["release_status"] == "released" and not digest_pinned:
             errors.append(f"{component_id} released container reference must use an immutable digest")
-        elif kind == "companion" and reference != f"{repository}.git@{component_release}":
-            errors.append(f"{component_id} companion reference does not match its repository and release")
+        elif kind == "companion":
+            wheel_reference = re.fullmatch(
+                rf"{re.escape(repository)}/releases/download/{re.escape(component_release)}/"
+                rf"{re.escape(str(selected['name']))}-{re.escape(version)}-"
+                r"[A-Za-z0-9_.]+-[A-Za-z0-9_]+-[A-Za-z0-9_.]+\.whl#sha256=([0-9a-f]{64})",
+                reference,
+            )
+            if reference != f"{repository}.git@{component_release}" and not (
+                wheel_reference and wheel_reference.group(1) != "0" * 64
+            ):
+                errors.append(f"{component_id} companion reference does not match its repository and release")
     included = {name for name, item in value["components"].items() if item["included_in_wheel"]}
     if included != {"wheel"}:
         errors.append("only the wheel component may be included in the wheel")
@@ -231,6 +240,8 @@ def companion_dependency_requirements(component_id: str) -> dict[str, Any]:
     if component_id not in capabilities:
         raise KeyError(f"Unknown unaltraweb companion: {component_id}")
     selected = component(component_id)
+    reference = str(selected["reference"])
+    install_reference = f"git+{reference}" if ".git@" in reference else reference
     return {
         "lifecycle": {
             "required": True,
@@ -241,7 +252,7 @@ def companion_dependency_requirements(component_id: str) -> dict[str, Any]:
             "smoke": True,
             "update": False,
         },
-        "uv_spec": f"{component_id}[mcp] @ git+{selected['reference']}",
+        "uv_spec": f"{component_id}[mcp] @ {install_reference}",
         **capabilities[component_id],
     }
 
@@ -251,6 +262,8 @@ def is_mutable_reference(reference: str) -> bool:
     if not value:
         return True
     if re.search(r"@sha256:[0-9a-f]{64}$", value):
+        return False
+    if re.fullmatch(r"https://[^\s#]+\.whl#sha256=[0-9a-f]{64}", value):
         return False
     if value.startswith("http") and ".git@" in value:
         selected = value.rsplit("@", 1)[-1]
