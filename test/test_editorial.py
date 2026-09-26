@@ -220,6 +220,23 @@ Inline `data-caption-source="TODO example"` is code.
             ed.editorial_review_record(self.project, report, 0)
         self.assertFalse((self.project / ed.STATE).exists())
 
+    def test_review_response_snapshot_is_protected_after_state_publication(self):
+        _, report = self.prepare()
+        original_status = ed.editorial_status
+
+        def inspect_response_window(project):
+            saved = json.loads((project / ed.STATE).read_text(encoding="utf-8"))
+            self.assertEqual(saved["revision"], 1)
+            with ed.Reader(project) as competing:
+                with self.assertRaises(BlockingIOError, msg="A source writer can enter during the committed response read"):
+                    ed.fcntl.flock(competing.fd, ed.fcntl.LOCK_EX | ed.fcntl.LOCK_NB)
+            return original_status(project)
+
+        with patch.object(ed, "editorial_status", side_effect=inspect_response_window):
+            recorded = ed.editorial_review_record(self.project, report, 0)
+        self.assertTrue(recorded["ok"])
+        self.assertFalse(recorded["stale"])
+
     def test_source_mutations_wait_until_review_state_is_published(self):
         cases = [("update", "_pages/en/about.md"), ("create", "_pages/en/new.md"),
                  ("delete", "_pages/en/about.md"), ("update", "_config.yml"),
@@ -273,6 +290,7 @@ Inline `data-caption-source="TODO example"` is code.
                         recorded = ed.editorial_review_record(self.project, report, 0)
                         self.assertTrue(futures[0].result(timeout=5)["ok"])
                 self.assertTrue(recorded["ok"])
+                self.assertFalse(recorded["stale"])
                 saved = json.loads((self.project / ed.STATE).read_text(encoding="utf-8"))
                 self.assertEqual(saved["reviews"]["review-1"]["source_digest"], packet["source_digest"])
                 # A later, serialized source mutation makes the valid record
