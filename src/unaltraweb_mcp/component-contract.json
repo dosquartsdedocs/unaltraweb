@@ -8,7 +8,7 @@
   "consumer_integration": {
     "schema_version": 1,
     "core_repository": "https://github.com/dosquartsdedocs/unaltraweb.git",
-    "core_sha": "f7ac29070167917dec6b314ba0a1ba9db089e7ec",
+    "core_sha": "2e5445c81b710bf0dd9738a1ef00ba8e6b923fae",
     "site_deploy_workflow": "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml",
     "manual_pdf_image": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:bb3e373f8a512495eeed684c23ad904d298c2e20a6dc3ade0d0a60c7ec9a9f11",
     "vegavisuals_sha": "68c0b231402ae9485cc34ce530dc5239cb0ec194"
