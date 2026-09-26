@@ -10,6 +10,14 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Current Shape
 
+Release [#69](https://github.com/dosquartsdedocs/unaltraweb/issues/69) prepares
+**0.5.0** for the integrated editorial/scaffold, caption/image and companion
+updates. The gem, wheel, Jekyll runtime, MCP runtime and manual PDF worker move
+together; unchanged published computation/capture workers keep their actual
+0.4.0 versions and immutable digests. Existing public 0.4.0 artifacts are immutable.
+The consumer core revision and tested manual PDF digest must be recorded before
+final package/image candidates; `MCP_RELEASE_IMAGE` advances only after release.
+
 Companion acceptance repair [#67](https://github.com/dosquartsdedocs/unaltraweb/issues/67)
 selects published Diavisuals/Vegavisuals 0.4.0 in the next-release source BOM and
 registration, with hashed wheels and the immutable Vega scaffold revision.

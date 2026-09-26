@@ -71,6 +71,23 @@ def make_value(path: Path, variable: str) -> str:
     return match.group(1).strip('"\'') if match else ""
 
 
+def component_version_errors(contract: dict[str, Any]) -> list[str]:
+    """Retain the real version of already-published, digest-pinned workers."""
+    version = str(contract["release"]["version"])
+    errors = []
+    reusable_workers = {"compute_python", "compute_r", "web_capture"}
+    for component_id in ["gem", "wheel", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf"]:
+        selected = contract["components"][component_id]
+        if (component_id in reusable_workers and selected["kind"] == "container"
+                and selected["release_status"] == "released"):
+            # Digest/repository/version-tag semantics remain independently checked
+            # by component_contract_semantic_errors; this is not a mutable fallback.
+            continue
+        if str(selected["version"]) != version:
+            errors.append(f"{component_id} version does not match release {version}")
+    return errors
+
+
 def validate(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     contract = distribution_contract()
@@ -87,9 +104,7 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("release-candidates.json must be excluded from Docker build contexts")
     if __version__ != version:
         errors.append(f"wheel version {__version__} != contract version {version}")
-    for component_id in ["gem", "wheel", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf"]:
-        if str(contract["components"][component_id]["version"]) != version:
-            errors.append(f"{component_id} version does not match release {version}")
+    errors.extend(component_version_errors(contract))
     included = {name for name, item in contract["components"].items() if item["included_in_wheel"]}
     if included != {"wheel"}:
         errors.append(f"wheel must not bundle external components: {sorted(included)}")
