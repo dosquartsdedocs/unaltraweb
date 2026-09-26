@@ -10,6 +10,14 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Current Shape
 
+Companion acceptance repair [#67](https://github.com/dosquartsdedocs/unaltraweb/issues/67)
+selects published Diavisuals/Vegavisuals 0.4.0 in the next-release source BOM and
+registration, with hashed wheels and the immutable Vega scaffold revision.
+Owner evidence and publication order are in
+[`docs/agents/visual-companions-0.4.0.md`](docs/agents/visual-companions-0.4.0.md).
+The registered `MCP_RELEASE_IMAGE` still selects the last completed core release;
+advance it only after a new reviewed coordinated release and receipt exist.
+
 - Core repo: `/home/benizar/git/unaltraweb`.
 - Template repo: `/home/benizar/git/unaltraweb-template`.
 - Legacy personal-site reference: `/home/benizar/git/benizar.github.io`.
@@ -124,8 +132,8 @@ mcp_dependencies:
     init: false
     remote: https://github.com/dosquartsdedocs/diavisuals.git
     package: diavisuals
-    version: 0.3.1
-    release: v0.3.1
+    version: 0.4.0
+    release: v0.4.0
     release_status: released
     extras:
       - mcp
