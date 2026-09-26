@@ -18,6 +18,16 @@ together; unchanged published computation/capture workers keep their actual
 The consumer core revision and tested manual PDF digest must be recorded before
 final package/image candidates; `MCP_RELEASE_IMAGE` advances only after release.
 
+Preparation PR 70 is integrated at `d857f8c9f5fea90cf450c0b30b4e77a37b541275`.
+The [verified image workflow](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/36272762057)
+passed all signed-source, Ruby, PDF, reproducibility, MCP and docs gates. The
+selected 0.5.0 PDF worker is now fixed to
+`ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097`
+in both the BOM and consumer tuple. Final package/core-image candidates must be
+built after this binding is integrated; their receipt contains only components
+still marked `ready`. This prevents package bytes from referring to a future or
+mutable PDF worker and keeps the earlier published core release immutable.
+
 Companion acceptance repair [#67](https://github.com/dosquartsdedocs/unaltraweb/issues/67)
 selects published Diavisuals/Vegavisuals 0.4.0 in the next-release source BOM and
 registration, with hashed wheels and the immutable Vega scaffold revision.
