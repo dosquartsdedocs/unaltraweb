@@ -35,6 +35,12 @@ Unchanged already-published computation and web-capture workers retain their own
 0.4.0 versions and digests. New/pending worker candidates must still match the
 coordinated release; an old mutable alias cannot qualify for reuse. The selected
 consumer tuple must use a reviewed 0.5.0 core revision and tested PDF worker.
+The PDF worker passed the
+[signed candidate workflow](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/36272762057)
+at source `d857f8c9f5fea90cf450c0b30b4e77a37b541275` and is selected by digest
+`sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097` in
+both the factory and the consumer tuple. It is already published and tested, so
+final candidate receipts cover the remaining ready package/core components.
 The factory launcher remains on its previous published image until the normal
 post-release pin update. Follow [issue 69](https://github.com/dosquartsdedocs/unaltraweb/issues/69)
 for the candidate, receipt, tag and package evidence.

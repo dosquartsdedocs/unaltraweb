@@ -740,9 +740,12 @@ class DistributionTests(unittest.TestCase):
                 "wheel": {"artifact": f"unaltraweb_mcp-{version}-py3-none-any.whl", "sha256": digest},
                 "runtime": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb@sha256:{digest}"},
                 "mcp": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:{digest}"},
-                "manual_pdf": {"reference": f"ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:{digest}"},
             },
         }
+        if contract["components"]["manual_pdf"]["release_status"] == "ready":
+            receipt["components"]["manual_pdf"] = {
+                "reference": f"ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:{digest}"
+            }
 
         self.assertEqual(release_candidate_receipt_errors(
             contract,

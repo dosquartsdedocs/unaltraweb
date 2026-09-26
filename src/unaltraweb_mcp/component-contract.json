@@ -10,7 +10,7 @@
     "core_repository": "https://github.com/dosquartsdedocs/unaltraweb.git",
     "core_sha": "2e5445c81b710bf0dd9738a1ef00ba8e6b923fae",
     "site_deploy_workflow": "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml",
-    "manual_pdf_image": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:bb3e373f8a512495eeed684c23ad904d298c2e20a6dc3ade0d0a60c7ec9a9f11",
+    "manual_pdf_image": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097",
     "vegavisuals_sha": "68c0b231402ae9485cc34ce530dc5239cb0ec194"
   },
   "receipt_contract": {
@@ -120,8 +120,8 @@
       "name": "unaltraweb manual PDF worker",
       "version": "0.5.0",
       "release": "v0.5.0",
-      "release_status": "ready",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.5.0",
+      "release_status": "released",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097",
       "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
