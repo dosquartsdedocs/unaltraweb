@@ -35,10 +35,23 @@ from scripts.validate_distribution import (
 
 
 class DistributionTests(unittest.TestCase):
+    def test_publish_preflight_reuses_only_digest_pinned_released_pdf(self) -> None:
+        contract = distribution_contract()
+        kwargs = {"ref_type": "branch", "ref_name": "main", "default_branch": "main", "component_ids": ["runtime", "mcp", "manual_pdf"]}
+        self.assertEqual(publish_ref_errors(contract, **kwargs), [])
+        for status, reference in (
+            ("ready", contract["components"]["manual_pdf"]["reference"]),
+            ("released", "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.5.0"),
+            ("released", "ghcr.io/dosquartsdedocs/elsewhere@sha256:" + "1" * 64),
+        ):
+            changed = copy.deepcopy(contract)
+            changed["components"]["manual_pdf"].update(release_status=status, reference=reference)
+            self.assertTrue(publish_ref_errors(changed, **kwargs))
+
     def test_released_worker_versions_are_preserved_without_relaxing_new_candidates(self) -> None:
         contract = distribution_contract()
         self.assertEqual(distribution_validator.component_version_errors(contract), [])
-        for name in ("compute_python", "compute_r", "web_capture"):
+        for name in ("compute_python", "compute_r", "web_capture", "manual_pdf"):
             changed = copy.deepcopy(contract)
             worker = changed["components"][name]
             worker.update(version="0.1.0", release="v0.1.0", release_status="released")

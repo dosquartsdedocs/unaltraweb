@@ -1,8 +1,8 @@
 PYTHON ?= python3
 override PROJECT := $${MCP_CONSUMER_WORKSPACE:?MCP_CONSUMER_WORKSPACE is required}
 override PROJECT_ROOT := $(PROJECT)
-MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.5.0
-MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.5.0
+MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.5.1
+MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.5.1
 MCP_RELEASE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:36d17edbade77edb40a687f6a744203c6329acb33fbc2eb255e88d9ff1a42c98
 MCP_DOCKER_BUILD_NETWORK ?= default
 INIT_SITE_PROFILE ?= unaltreselfie
@@ -40,10 +40,13 @@ WEB_CAPTURE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-web-capture@sha256:0bf1b
 WEB_CAPTURE_DEV_IMAGE ?= unaltraweb-web-capture:dev
 WEB_CAPTURE_DOCKER_BUILD_NETWORK ?= default
 VEGAVISUALS_CLI ?=
-DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.5.0
+DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.5.1
 MANUAL_PDF_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097
 MANUAL_PDF_DEV_IMAGE ?= unaltraweb-manual-pdf:dev
 MCP_SMOKE_MANUAL_PDF_IMAGE ?= $(MANUAL_PDF_IMAGE)
+MCP_SMOKE_PROJECT ?=
+override MCP_SMOKE_PROJECT := $(value MCP_SMOKE_PROJECT)
+export MCP_SMOKE_PROJECT
 MANUAL_PDF_LANG ?=
 MANUAL_PDF_PUBLISH_DRY_RUN ?= 1
 MANUAL_PDF_CONFIRM_PUBLISH ?= 0
@@ -142,14 +145,18 @@ mcp-smoke: mcp-image manual-pdf-image-dev ## Build and prove a real MCP stdio co
 
 mcp-smoke-prebuilt: ## Prove a real MCP stdio connection using the selected prebuilt MCP image
 	docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp --entrypoint python3 "$(MCP_IMAGE)" /opt/unaltraweb/test/mcp_smoke.py
-	@mkdir -p "$(CURDIR)/tmp/mcp-preview-smoke"
-	@docker_socket="$${UNALTRAWEB_DOCKER_SOCKET:-/var/run/docker.sock}"; socket_group=$$(stat -c '%g' "$$docker_socket"); \
+	@mkdir -p "$(CURDIR)/tmp"
+	@project="$${MCP_SMOKE_PROJECT:-}"; \
+	if test -n "$$project"; then mkdir -- "$$project" || exit $$?; \
+	else project=$$(mktemp -d "$(CURDIR)/tmp/mcp-preview-smoke.XXXXXX") || exit $$?; fi; \
+	project=$$(realpath -e -- "$$project") || exit $$?; \
+	docker_socket="$${UNALTRAWEB_DOCKER_SOCKET:-/var/run/docker.sock}"; socket_group=$$(stat -c '%g' "$$docker_socket"); \
 	image_id=$$(docker image inspect --format '{{.Id}}' "$(MCP_IMAGE)"); \
 	socket_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$$docker_socket" /var/run/docker.sock); \
-	project_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(CURDIR)/tmp/mcp-preview-smoke" /workspace); \
-	mirror_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(CURDIR)/tmp/mcp-preview-smoke" "$(CURDIR)/tmp/mcp-preview-smoke"); \
+	project_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$$project" /workspace); \
+	mirror_mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$$project" "$$project"); \
 	docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" --group-add "$$socket_group" \
-	  -e HOME=/tmp -e "UNALTRAWEB_DOCKER_ROOT=$(CURDIR)/tmp/mcp-preview-smoke" \
+	  -e HOME=/tmp -e "UNALTRAWEB_DOCKER_ROOT=$$project" \
 	  -e "UNALTRAWEB_PROJECT_USER=$(LOCAL_UID):$(LOCAL_GID)" -e "UNALTRAWEB_MCP_IMAGE=$$image_id" \
 	  -e "MANUAL_PDF_IMAGE=$(MCP_SMOKE_MANUAL_PDF_IMAGE)" \
 	  --mount "$$socket_mount" \

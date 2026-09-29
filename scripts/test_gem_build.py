@@ -62,7 +62,7 @@ def build(output: Path, *, source: Path = ROOT) -> str:
 
 def inspect_gem(path: Path) -> None:
     editorial_files = ["scripts/editorial_check.py", "src/unaltraweb_mcp/editorial.py", "src/unaltraweb_mcp/editorial_sources.py"]
-    inspection_files = editorial_files + ["scripts/image_background_check.py", "src/unaltraweb_mcp/image_backgrounds.py",
+    inspection_files = editorial_files + ["src/unaltraweb_mcp/bundler_runtime.py", "scripts/image_background_check.py", "src/unaltraweb_mcp/image_backgrounds.py",
                                           "src/unaltraweb_mcp/image_probe.py", "src/unaltraweb_mcp/processes.py"]
     with tarfile.open(path, mode="r") as package:
         data_member = package.extractfile("data.tar.gz")

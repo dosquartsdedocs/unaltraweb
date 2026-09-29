@@ -192,7 +192,7 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertNotIn("/var/run/docker.sock", serve_recipe)
                 self.assertIn("serve-native: site-check-native serve-capture-native", makefile)
                 self.assertIn("runtime-image", makefile)
-                self.assertIn("group :jekyll_plugins do", makefile)
+                self.assertIn("unaltraweb_mcp.bundler_runtime", makefile)
                 gemfile = (project / "Gemfile").read_text(encoding="utf-8")
                 lockfile = (project / "Gemfile.lock").read_text(encoding="utf-8")
                 self.assertIn("group :jekyll_plugins do", gemfile)

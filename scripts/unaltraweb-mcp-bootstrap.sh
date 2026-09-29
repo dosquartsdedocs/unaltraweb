@@ -3,15 +3,18 @@ set -eu
 
 usage() {
   cat <<'USAGE'
-Usage: unaltraweb-mcp-bootstrap [--project PATH] [--image IMAGE]
+Usage: unaltraweb-mcp-bootstrap [--project PATH] [--image IMAGE] [--prepare|--check|--smoke]
 
 Start one Dockerized unaltraweb MCP stdio server for the selected workspace.
 If --project is omitted, MCP_CONSUMER_WORKSPACE is used, then the current directory.
+--prepare inspects or pulls the selected image without mounting a consumer.
+--check and --smoke require that image locally; neither builds nor pulls.
 USAGE
 }
 
-image="${UNALTRAWEB_MCP_IMAGE:-ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.5.0}"
+image="${UNALTRAWEB_MCP_IMAGE:-ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:36d17edbade77edb40a687f6a744203c6329acb33fbc2eb255e88d9ff1a42c98}"
 project="${MCP_CONSUMER_WORKSPACE:-${UNALTRAWEB_PROJECT:-}}"
+operation=serve
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -25,6 +28,11 @@ while [ "$#" -gt 0 ]; do
       image="$2"
       shift 2
       ;;
+    --prepare|--check|--smoke)
+      [ "$operation" = serve ] || { printf '%s\n' 'Select only one operation.' >&2; exit 2; }
+      operation="${1#--}"
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -36,6 +44,28 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+resolve_image() {
+  if ! resolved_image="$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/null)"; then
+    case "$operation" in
+      check|smoke)
+        printf 'Image is not prepared: %s. Run --prepare first.\n' "$image" >&2
+        exit 1
+        ;;
+    esac
+    docker pull "$image" >&2
+    resolved_image="$(docker image inspect --format '{{.Id}}' "$image")"
+  fi
+}
+
+if [ "$operation" != serve ]; then
+  resolve_image
+  case "$operation" in
+    prepare) printf '%s\n' "$resolved_image"; exit 0 ;;
+    check) exec docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp --entrypoint unaltraweb-mcp "$resolved_image" version ;;
+    smoke) exec docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp --entrypoint python3 "$resolved_image" /opt/unaltraweb/test/mcp_smoke.py ;;
+  esac
+fi
 
 if [ -z "$project" ]; then
   project="$PWD"
@@ -80,10 +110,7 @@ if [ -S "$docker_socket" ]; then
   esac
 fi
 
-if ! resolved_image="$(docker image inspect --format '{{.Id}}' "$image" 2>/dev/null)"; then
-  docker pull "$image" >/dev/null
-  resolved_image="$(docker image inspect --format '{{.Id}}' "$image")"
-fi
+resolve_image
 image_reference="$image"
 case "$image_reference" in
   ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:*) ;;

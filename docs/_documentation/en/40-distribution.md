@@ -50,11 +50,25 @@ candidate, receipt, tag and package evidence.
 
 `src/unaltraweb_mcp/component-contract.json` is the canonical versioned bill of materials. Its `consumer_integration` object is the sole source for the reviewed core Git revision, reusable deploy workflow, manual PDF image digest, and Vega renderer revision. Scaffold templates render that tuple atomically into consumer `Gemfile`, `Gemfile.lock`, and deploy workflow files. `component-contract.schema.json` defines schema version 1. Runtime loading and `scripts/validate_distribution.py` validate the complete document against that schema, then enforce semantic parity between versions, release tags, repositories, references, wheel contents, CLI availability, and consumer integration pins.
 
-The BOM is an interoperability contract, not a bundle. The wheel contains only its Python control/inspection modules, schema/BOM, and clean package-owned scaffolds. In particular it does not contain Ruby theme assets, Docker image layers, factory Make/scripts/docs, TeX, Chromium, computation environments, `diavisuals`, or `vegavisuals`.
+The BOM is an interoperability contract, not a bundle. The wheel contains its Python control/inspection modules, schema/BOM, and clean package-owned scaffolds. Next-release source also packages a small host Docker launcher, described below. Neither includes Ruby theme assets, Docker image layers, the factory's build/worker implementations, TeX, Chromium, computation environments, `diavisuals`, or `vegavisuals`.
 
 The selected public core release is `0.5.0`; earlier distributions remain immutable. Its BOM reuses immutable compute and web-capture worker digests and selects published `diavisuals v0.4.0` and `vegavisuals v0.4.0` through SHA-256-pinned wheel URLs. Companion references can describe either a provider/release-matching Git reference or a provider/release/version-matching wheel with its content hash. The wheel boundary remains external. The scaffold's Vega revision is the published `68c0b231402ae9485cc34ce530dc5239cb0ec194` commit. `distribution-check` validates structural integrity for normal CI. `distribution-release-check` blocks coordinated publication while any component is `pending` or `unavailable`; reviewed source authorized to produce final same-commit candidates is `ready`, while an already-published component is `released`. Final receipt values remain immutable after publication.
 
 ## Docker-First Hybrid Policy
+
+### 0.5.1 preparation
+
+The next coordinated core identity is **0.5.1**: gem, wheel, base runtime and MCP
+image candidates change together. The installed host launcher and runtime-aware
+generated Bundler state are included. The unchanged PDF worker retains its
+published 0.5.0 digest, alongside the 0.4.0 computation/capture workers and visual
+companions. A released PDF can be reused only by full digest; new/pending workers
+still require the coordinated version. The historical 0.5.0 receipt remains
+unchanged. Final signed image/package receipts and promotion are later gates;
+the launcher continues selecting the last published MCP digest until its normal
+post-release update.
+
+### Local delivery
 
 GHCR is the canonical delivery channel for normal local use. The released package scaffold selects `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.5.0`; existing sites can remain on their immutable previous release until deliberately updated. Its `make build`, `make serve` and `make test` targets mount the thin child site and run inside that image. The image contains both the installed Python control plane and the reviewed factory source at `/opt/unaltraweb`, so those targets load the theme as a path gem without downloading PyPI or RubyGems packages.
 
@@ -69,6 +83,90 @@ The distribution keeps native channels for interoperability rather than making t
 - Dedicated GHCR workers keep Chromium, TeX and computation environments out of the normal site image.
 
 These remain real package boundaries: the MCP image installs the Python package and uses the core through Ruby's gem interface. The policy only makes their public registry installation optional for Docker users. It does not combine all toolchains into one image or duplicate worker layers in the wheel or gem.
+
+### Installed Docker launcher
+
+0.5.1 source adds **`unaltraweb-mcp-docker`** and a complete host launcher
+under the installation prefix's `share/unaltraweb-launcher/`. The published 0.5.0
+wheel predates this addition; its receipt and bytes remain unchanged. An installed
+wheel containing the launcher can use the already-published full GHCR runtime
+without a local core checkout:
+
+```bash
+unaltraweb-mcp-docker prepare
+unaltraweb-mcp-docker check
+unaltraweb-mcp-docker smoke
+unaltraweb-mcp-docker serve --project /absolute/consumer
+```
+
+The default image is the same complete 0.5.0 digest as `MCP_RELEASE_IMAGE` above.
+`--image` selects a different explicitly prepared image for a test or a reviewed
+adoption. `prepare` only inspects/pulls; `check` and `smoke` use the local image ID,
+without pulling, building, mounting a consumer or starting a preview. `serve`
+requires an explicit consumer or inherited `MCP_CONSUMER_WORKSPACE`; it starts one
+labelled stdio container and preserves the canonical host-path mirror for workers.
+`down --project /absolute/consumer` uses the same project-scoped cleanup helper.
+
+`unaltraweb-mcp-docker path` locates the installed profile from wheel metadata;
+`manifest` prints its discovery descriptor. The profile ships the unchanged native
+schema-v1 `mcp-factory.yml`, a small launcher-only Makefile, and the bootstrap,
+project-ID, Docker CSV mount and cleanup scripts. Its `${factoryRoot}` is this
+installed directory, and the declared `make -C` transport and lifecycle targets
+remain usable. That directory can also be relocated as a unit and run with Make,
+a POSIX shell, Linux core utilities and Docker, without host Python or Ruby.
+The console adapter itself requires the wheel's Python interpreter. Linux/amd64
+is the acceptance platform; other host/platform combinations remain unverified.
+
+This adapter launches the **full container runtime**. The native `unaltraweb-mcp`
+CLI keeps the exact wheel-only/factory-required boundary declared in the BOM.
+Installing the adapter does not install Jekyll, workers or companion servers on
+the host, register a client, update a consumer scaffold, or change an active MCP.
+
+### Separate selections and compatibility evidence
+
+The site Makefile's `MCP_IMAGE`, native Gem/core revision, PDF worker, global MCP
+registration and companion selections are separate parts of an effective tuple.
+TIG/TIGIT retain build defaults 0.4.0; Geodisseny retains 0.5.0. A global MCP
+selection of 0.5.0 does not rewrite those defaults. Tests use synthetic sites,
+image-specific test resources and dynamically allocated loopback preview ports.
+
+Compatibility evidence is a set of tested tuples, not a continuous version range.
+The [initial owner preparation report](https://github.com/dosquartsdedocs/unaltraweb/blob/main/docs/agents/owner-preparation-2026-09-29.md)
+records all four 0.5.0 profiles, manual PDF coverage, the 0.4.0 comparison and
+the reproduced retained-cache failure. The 0.5.1 correction is recorded in the
+[follow-up report](https://github.com/dosquartsdedocs/unaltraweb/blob/main/docs/agents/owner-followup-76.md).
+Range adoption belongs at
+the native dependency/version checks, companion receipt checks and atomic
+consumer-integration selection. Exact wheel hashes, image digests and published
+receipts remain identity evidence even if future compatibility rules accept a
+range. Central catalogue/range fields await the accepted hub integration.
+
+### Generated Bundler state
+
+0.5.1 keys generated dependencies by the effective Ruby/platform, Bundler,
+installed gem inventory, core inputs and Bundler configuration, rather than a
+mutable Docker tag. The offline resolver prepares a verified cache under
+`tmp/unaltraweb-bundle/<identity>/`. Returning to an identity reuses its cache;
+changing identities does not rewrite another runtime's lock. Credential-bearing
+Bundler environment/configuration values contribute only hashes to the receipt.
+
+New native build/preview targets execute with invocation-owned copies of that
+generated state. Bundler can complete local default-gem checksum metadata without
+rewriting the verified cache or disabling checksum validation. An
+explicit `LOCAL_GEMFILE` is author-managed: its existing lock is required and
+used frozen. Project `Gemfile`, `Gemfile.lock` and Bundler configuration are
+preserved. Edited or incomplete generated caches fail for inspection instead of
+being silently repaired. Failed preparation directories remain under `tmp/`.
+
+For unchanged historical package Makefiles, the updated MCP prepares the same
+runtime-specific cache and passes invocation-owned Gemfile/lock copies to the
+old recipes. The retained `tmp/Gemfile.local.lock` remains untouched, so a later
+0.4.0 build can use its original selection. This adapter requires the Makefile to
+match its recorded scaffold baseline; authored Makefile customizations retain
+their own dependency policy. Those consumers can deliberately adopt the updated
+native targets through the normal reviewed scaffold workflow. New native targets
+require a containing core/runtime; the already-published 0.4.0 and 0.5.0 images do
+not acquire the correction automatically.
 
 ## Optional Wheel And Doctor
 

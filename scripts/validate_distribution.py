@@ -75,7 +75,7 @@ def component_version_errors(contract: dict[str, Any]) -> list[str]:
     """Retain the real version of already-published, digest-pinned workers."""
     version = str(contract["release"]["version"])
     errors = []
-    reusable_workers = {"compute_python", "compute_r", "web_capture"}
+    reusable_workers = {"compute_python", "compute_r", "web_capture", "manual_pdf"}
     for component_id in ["gem", "wheel", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf"]:
         selected = contract["components"][component_id]
         if (component_id in reusable_workers and selected["kind"] == "container"
@@ -168,6 +168,20 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append("component contract schema does not select version 1")
 
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    launcher_files = {
+        "share/unaltraweb-launcher": ["packaging/launcher/Makefile", "mcp-factory.yml"],
+        "share/unaltraweb-launcher/scripts": [
+            "scripts/unaltraweb-mcp-bootstrap.sh", "scripts/unaltraweb-mcp-project-id.sh",
+            "scripts/unaltraweb-mcp-cleanup.sh", "scripts/unaltraweb-docker-mount.sh",
+        ],
+    }
+    if pyproject.get("tool", {}).get("setuptools", {}).get("data-files") != launcher_files:
+        errors.append("wheel must distribute exactly the native Docker launcher and its helper closure")
+    launcher_image = make_value(root / "Makefile", "MCP_RELEASE_IMAGE")
+    if not re.fullmatch(r"ghcr\.io/dosquartsdedocs/unaltraweb-mcp@sha256:[0-9a-f]{64}", launcher_image):
+        errors.append("MCP_RELEASE_IMAGE must select a full GHCR MCP digest")
+    if make_value(root / "packaging/launcher/Makefile", "MCP_RELEASE_IMAGE") != launcher_image:
+        errors.append("installed launcher must select the same reviewed digest as the source launcher")
     project = pyproject.get("project", {})
     if "version" in project or project.get("dynamic") != ["version"]:
         errors.append("pyproject version must be derived from the package component contract")
@@ -242,7 +256,7 @@ def validate(root: Path = ROOT) -> list[str]:
     pinned_text = {
         "scripts/computations/render.py": [component_reference("compute_python"), component_reference("compute_r")],
         "scripts/web_captures/render.py": [component_reference("web_capture")],
-        "scripts/unaltraweb-mcp-bootstrap.sh": [component_reference("mcp")],
+        "scripts/unaltraweb-mcp-bootstrap.sh": [launcher_image],
         "Dockerfile.mcp": [component_reference("runtime")],
     }
     for relative, references in pinned_text.items():
@@ -484,6 +498,11 @@ def publish_ref_errors(
         component = components.get(component_id)
         if not isinstance(component, dict):
             errors.append(f"unknown publish component: {component_id}")
+            continue
+        if (component_id == "manual_pdf" and component.get("release_status") == "released"
+                and re.fullmatch(r"ghcr\.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:[0-9a-f]{64}", str(component.get("reference", "")))):
+            # Already-published, unchanged worker. It is not a new candidate for
+            # this coordinated core release and receives no new semver identity.
             continue
         if str(component.get("version") or "") != version:
             errors.append(f"{component_id} publish version does not match distribution release {version}")
