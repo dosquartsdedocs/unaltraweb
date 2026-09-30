@@ -35,6 +35,9 @@ def main() -> int:
             source,
             ignore=shutil.ignore_patterns(
                 ".git",
+                ".venv",
+                ".cache",
+                ".jekyll-cache",
                 "build",
                 "dist",
                 "*.egg-info",
@@ -58,6 +61,21 @@ def main() -> int:
             raise RuntimeError(f"Expected one wheel, found: {wheels}")
         with zipfile.ZipFile(wheels[0]) as archive:
             names = archive.namelist()
+            launcher_prefix = f"{wheels[0].name.split('-')[0]}-{wheels[0].name.split('-')[1]}.data/data/share/unaltraweb-launcher/"
+            launcher_files = {
+                "Makefile": "packaging/launcher/Makefile",
+                "mcp-factory.yml": "mcp-factory.yml",
+                **{f"scripts/{name}.sh": f"scripts/{name}.sh" for name in (
+                    "unaltraweb-mcp-bootstrap", "unaltraweb-mcp-project-id",
+                    "unaltraweb-mcp-cleanup", "unaltraweb-docker-mount",
+                )},
+            }
+            actual_launcher = {name.removeprefix(launcher_prefix) for name in names if name.startswith(launcher_prefix)}
+            if actual_launcher != set(launcher_files):
+                raise RuntimeError(f"Wheel launcher closure mismatch: {actual_launcher}")
+            for installed_path, source_path in launcher_files.items():
+                if archive.read(launcher_prefix + installed_path) != (ROOT / source_path).read_bytes():
+                    raise RuntimeError(f"Wheel launcher asset differs from source: {installed_path}")
         forbidden_roots = {"docs", "scripts", "_layouts", "_includes", "_sass"}
         leaked = []
         for name in names:
@@ -71,6 +89,7 @@ def main() -> int:
             raise RuntimeError(f"Factory assets leaked into wheel: {leaked}")
         required = [
             "unaltraweb_mcp/calibre_import.py",
+            "unaltraweb_mcp/bundler_runtime.py",
             "unaltraweb_mcp/component-contract.json",
             "unaltraweb_mcp/component-contract.schema.json",
             "unaltraweb_mcp/manual_pdf_preview.py",
@@ -105,6 +124,33 @@ def main() -> int:
         python = environment / "bin/python"
         cli = environment / "bin/unaltraweb-mcp"
         run([str(python), "-m", "pip", "install", "--no-deps", str(wheels[0])], cwd=temp, env=env)
+        docker_cli = environment / "bin/unaltraweb-mcp-docker"
+        launcher = Path(run([str(docker_cli), "path"], cwd=temp).stdout.strip())
+        if launcher != environment / "share/unaltraweb-launcher":
+            raise RuntimeError(f"Launcher did not resolve its installed wheel data: {launcher}")
+        if run([str(docker_cli), "manifest"], cwd=temp).stdout != (ROOT / "mcp-factory.yml").read_text(encoding="utf-8"):
+            raise RuntimeError("Installed native manifest drifted from discovery contract")
+        no_consumer_env = {key: value for key, value in env.items() if key not in {"MCP_CONSUMER_WORKSPACE", "UNALTRAWEB_PROJECT"}}
+        refused = run([str(docker_cli), "serve"], cwd=temp, env=no_consumer_env, expected=2)
+        if "requires --project" not in refused.stderr:
+            raise RuntimeError("Installed launcher accepted an implicit consumer")
+        fake_bin = temp / "fake-bin"
+        fake_bin.mkdir()
+        fake_docker = fake_bin / "docker"
+        fake_docker.write_text("#!/bin/sh\n[ \"$1 $2\" = 'image inspect' ] || exit 99\n[ \"$5\" = \"$EXPECTED_IMAGE\" ] || exit 98\nprintf 'sha256:fixture\\n'\n", encoding="utf-8")
+        fake_docker.chmod(0o755)
+        expected_image = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text())["components"]["mcp"]["reference"]
+        launcher_env = {**no_consumer_env, "PATH": f"{fake_bin}:{env['PATH']}", "EXPECTED_IMAGE": expected_image}
+        launcher_env.pop("UNALTRAWEB_MCP_IMAGE", None)
+        launcher_env.pop("MCP_RELEASE_IMAGE", None)
+        prepared_image = run([str(docker_cli), "prepare"], cwd=temp, env=launcher_env).stdout.strip()
+        if prepared_image != "sha256:fixture":
+            raise RuntimeError("Installed preparation did not use the packaged bootstrap")
+        run(["make", "--silent", "--no-print-directory", "-C", str(launcher), "mcp-build"], cwd=temp, env=launcher_env)
+        run([str(docker_cli), "prepare", "--image", "explicit:override"], cwd=temp,
+            env={**launcher_env, "EXPECTED_IMAGE": "explicit:override", "UNALTRAWEB_MCP_IMAGE": "environment:override"})
+        run([str(docker_cli), "prepare"], cwd=temp,
+            env={**launcher_env, "EXPECTED_IMAGE": "environment:override", "UNALTRAWEB_MCP_IMAGE": "environment:override"})
         version = run([str(cli), "version"], cwd=temp).stdout.strip()
         doctor = json.loads(run([str(cli), "doctor"], cwd=temp).stdout)
         if not doctor["ok"] or doctor["mode"] != "wheel" or not doctor["limited"]:

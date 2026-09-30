@@ -26,6 +26,7 @@ mcp = ["mcp>=1.0.0,<2"]
 
 [project.scripts]
 unaltraweb-mcp = "unaltraweb_mcp.cli:main"
+unaltraweb-mcp-docker = "unaltraweb_mcp.docker_launcher:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -35,6 +36,15 @@ version = {attr = "unaltraweb_mcp.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.data-files]
+"share/unaltraweb-launcher" = ["packaging/launcher/Makefile", "mcp-factory.yml"]
+"share/unaltraweb-launcher/scripts" = [
+  "scripts/unaltraweb-mcp-bootstrap.sh",
+  "scripts/unaltraweb-mcp-project-id.sh",
+  "scripts/unaltraweb-mcp-cleanup.sh",
+  "scripts/unaltraweb-docker-mount.sh",
+]
 
 [tool.setuptools.package-data]
 unaltraweb_mcp = [

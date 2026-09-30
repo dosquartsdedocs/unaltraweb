@@ -16,13 +16,29 @@ MCP_CONSUMER_WORKSPACE="$PWD" make --silent --no-print-directory -C /path/to/una
 
 Replace `/path/to/unaltraweb` with the checkout's absolute path. The bootstrap canonicalizes the inherited environment value after process launch; neither Make nor generated shell source evaluates consumer path text. The declared launcher remains `make`, which gContExt permits for a container runtime without a `runtime.allowed_host_launchers` exception. Restart clients such as OpenCode after changing their MCP registration.
 
+Next-release wheels also install this native descriptor and its complete host
+helper closure under `share/unaltraweb-launcher`. For that installed profile,
+`${factoryRoot}` is the path returned by `unaltraweb-mcp-docker path`, rather than
+a core checkout. Its small Makefile implements `mcp-build`, `mcp-check`,
+`mcp-smoke`, `mcp-stdio` and `mcp-down` against the selected released image;
+it cannot build checkout images. `unaltraweb-mcp-docker serve --project PATH`
+is the direct installed entry point. Preparation may pull, whereas check/smoke
+require a locally prepared image and use no consumer or Docker socket mount.
+The copied schema-v1 descriptor retains the same server, workspace, inventory
+and dependency identities. The released 0.5.0 wheel lacks these host assets;
+the full 0.5.0 GHCR runtime already supports the operations they launch.
+The installed profile selects its own BOM release image by default and resolves
+it to an image ID before execution. The source checkout's digest pin is separate:
+it advances only after a new receipt exists. Explicit `--image` (or the console
+adapter's `UNALTRAWEB_MCP_IMAGE`) permits a reviewed immutable selection.
+
 gContExt dependency preparation ensures the selected MCP release image and prepares required companions but does not initialize consumer content. The transport passes `${workspaceFolder}` only through `MCP_CONSUMER_WORKSPACE`; it never sets `transport.cwd` or embeds the consumer path in a Make assignment. The factory command may therefore use `make -C` without changing or reparsing the selected consumer root. Companion-aware checks and smoke tests include both required providers, while provider updates remain explicit. The manifest does not advertise an `init` command, and both companion dependencies set `init: false`. Use `new_web` explicitly when a new consumer site should be created. Restart long-lived MCP clients after registration, release-pin changes, or provider upgrades so their stdio processes use the selected releases.
 
 Repository editing coordination remains a control-plane responsibility rather than an `unaltraweb` runtime feature. Request one top-level MCP and let the control plane select its declared dependency closure; unrelated user registrations remain configured until explicitly removed and clients reconnect. Before editing, the control plane runs its read-only checkout preflight against the one primary mutable checkout and, when required, holds a process-scoped cooperative lease through its `exec` wrapper. Only one editing session may be active per repository. The control plane must never create, switch to, move, prune, repair, or remove Git worktrees implicitly.
 
 For a new agent-driven workspace, create or select the empty Git repository first, open that directory in the IDE, register the factory, restart the client, and then call `new_web`. The tool remains confined to the configured project root and does not accept an arbitrary destination. Generated sites include user-owned `README.md` and `AGENTS.md`, profile-specific source directories, and a managed runtime baseline; `scaffold_sync` never rewrites those user-owned guidance or content files.
 
-The Python wheel remains modular. Without a factory checkout it supports `version`, `new-web`, top-level `doctor`, the host-only `import-calibre` command, and the exact package-only MCP inventory declared in `component-contract.json`. The complementary exact inventory fails clearly with `UNALTRAWEB_FACTORY_DIR` remediation. The BOM selects the published `diavisuals v0.3.1` and `vegavisuals v0.3.1` releases. Its `consumer_integration` object is also the single source for the immutable core, workflow, PDF worker, and Vega revisions rendered into consumer scaffolds. Neither companion is bundled in the wheel or MCP server namespace.
+The native Python CLI remains modular. Without a factory checkout it supports `version`, `new-web`, top-level `doctor`, the host-only `import-calibre` command, and the exact package-only MCP inventory declared in `component-contract.json`. The complementary exact inventory fails clearly with `UNALTRAWEB_FACTORY_DIR` remediation. The separate Docker adapter delegates to the full image and does not expand that native inventory. The BOM selects the published `diavisuals v0.4.0` and `vegavisuals v0.4.0` releases. Its `consumer_integration` object is also the single source for the immutable core, workflow, PDF worker, and Vega revisions rendered into consumer scaffolds. Neither companion is bundled in the wheel or MCP server namespace.
 
 Static Vega-Lite and Vega rendering remains owned by the required companion `vegavisuals` MCP dependency. Use its `visualization_status`, `visualization_check`, `render_visualizations`, and `vegavisuals://project/*` resources directly; `unaltraweb` exposes the authoring syntax but does not proxy those tools into the `web://` server.
 
@@ -226,7 +242,7 @@ For companion linking, compare the selected BOM and dependency capabilities with
 each running provider's `factory_manifest`, `compatibility_status` and release
 evidence. A development checkout announcing a future version is not a published
 release or evidence that a long-lived MCP process has upgraded. The current
-published companion selections are `diavisuals v0.3.1` and `vegavisuals v0.3.1`.
+published companion selections are `diavisuals v0.4.0` and `vegavisuals v0.4.0`.
 Advance them only after their immutable releases exist and their receipt/tool
 contracts have been verified; source-checkout version drift remains an explicit
 control-plane finding, not a reason to weaken receipt validation.
@@ -246,6 +262,17 @@ Translations are a pre-publication task. They should preserve `ref`, citations, 
 `make mcp-build` prepares only the immutable public image selected by `MCP_RELEASE_IMAGE`; it does not build source. `make mcp-image`, `make mcp-check` and `make mcp-smoke` build checkout source under local `unaltraweb:dev` and `unaltraweb-mcp:dev` names. The smoke target also builds `unaltraweb-manual-pdf:dev`, runs a real MCP client/server stdio exchange, builds a stale manual PDF through the short-lived socket-enabled controller, and verifies preview start/status/stop against a persistent container that has no Docker socket. `mcp-stdio` remains dormant until a client launches it; dependency preparation never invokes it.
 
 Run `site_doctor` and `site_check`, then resolve any blocking validation result before compiling. `build_site` reuses the active MCP container and the consumer's `build-native` target, and runs the local HTML audit after a successful Jekyll process. The generated `test-native` target also runs `html_audit`. This is intentionally different from the consumer's normal host-side `make build`, which starts a Jekyll container and would create a nested runtime when called from MCP.
+
+In 0.5.1, `bundler_runtime` prepares offline, identity-keyed generated locks under
+`tmp/unaltraweb-bundle`, verifying their receipts on reuse and retaining edited
+or incomplete caches. Identity includes the actual Ruby/Bundler/gem inventory,
+core inputs and hashed Bundler configuration. Updated native targets use private
+invocation copies; an explicit author `LOCAL_GEMFILE` requires its own existing frozen lock.
+For unchanged historical package Makefiles, `build_site` and the same-image
+preview pass invocation-owned copies through `LOCAL_GEMFILE`, preserving the old
+generated lock and all author sources. A modified Makefile is not overridden.
+The fix requires a containing runtime, and does not mutate released 0.5.0 images
+or real consumers. See [the populated-cache follow-up](owner-followup-76.md).
 
 Make delegation and feasible Docker control calls use one bounded subprocess runner. Status and control commands have short deadlines, builds/renders have target-specific longer deadlines, timeout terminates the process group and returns code `124`, and retained stdout/stderr is capped with explicit truncation fields. Factory commands that promise JSON fail closed when output is empty, malformed, non-object, non-finite, or truncated. Every bind source and target is encoded as a quoted Docker CSV field, so commas or quotes in host paths cannot introduce duplicate mount fields; carriage-return and newline path characters are rejected before canonicalization or mount construction. Computation, capture, and PDF containers carry factory, worker-role, project, and invocation-token labels plus cidfiles; after timeout cleanup selects all four labels and cannot remove unrelated containers.
 

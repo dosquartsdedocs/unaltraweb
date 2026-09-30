@@ -4507,6 +4507,9 @@ def build_site(
             "error": "Build blocked until companion outputs are fresh and provider receipts verify current sources, inputs, and outputs.",
         }
     args = [f"LOCAL_CORE={project_path(factory)}", *_site_profile_arg(site_profile)]
+    from .bundler_runtime import legacy_make_args
+
+    args.extend(legacy_make_args(project, project_path(factory)))
     environment = {"UNALTRAWEB_MCP_RUNTIME": "1"}
     if selected_profile == "unaltremanual":
         environment["UNALTRAWEB_MANUAL_RELEASE_SELECTOR"] = release_selector
@@ -4953,11 +4956,15 @@ def preview_start(project: Path, *, port: int = 0, site_profile: str = "", timeo
         "-w", "/workspace",
     ]
     command.extend(["--user", owner])
+    from .bundler_runtime import legacy_make_args
+
+    factory = Path(os.environ.get("UNALTRAWEB_FACTORY_DIR", "/opt/unaltraweb"))
+    bundle_args = legacy_make_args(project, factory) if factory.is_dir() else []
     command.extend([
         "--entrypoint", "make", image,
         "--no-print-directory", "serve-native", "LOCAL_CORE=/opt/unaltraweb",
         "HOST=0.0.0.0", f"PORT={container_port}", "LIVERELOAD=", "DEVELOPER_MODE=false",
-        "PROFILE_DEMO_TITLES=0", *profile_args,
+        "PROFILE_DEMO_TITLES=0", *profile_args, *bundle_args,
     ])
     started = _docker(command)
     if started.returncode != 0:
