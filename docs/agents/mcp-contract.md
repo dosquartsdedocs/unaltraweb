@@ -27,6 +27,10 @@ require a locally prepared image and use no consumer or Docker socket mount.
 The copied schema-v1 descriptor retains the same server, workspace, inventory
 and dependency identities. The released 0.5.0 wheel lacks these host assets;
 the full 0.5.0 GHCR runtime already supports the operations they launch.
+The installed profile selects its own BOM release image by default and resolves
+it to an image ID before execution. The source checkout's digest pin is separate:
+it advances only after a new receipt exists. Explicit `--image` (or the console
+adapter's `UNALTRAWEB_MCP_IMAGE`) permits a reviewed immutable selection.
 
 gContExt dependency preparation ensures the selected MCP release image and prepares required companions but does not initialize consumer content. The transport passes `${workspaceFolder}` only through `MCP_CONSUMER_WORKSPACE`; it never sets `transport.cwd` or embeds the consumer path in a Make assignment. The factory command may therefore use `make -C` without changing or reparsing the selected consumer root. Companion-aware checks and smoke tests include both required providers, while provider updates remain explicit. The manifest does not advertise an `init` command, and both companion dependencies set `init: false`. Use `new_web` explicitly when a new consumer site should be created. Restart long-lived MCP clients after registration, release-pin changes, or provider upgrades so their stdio processes use the selected releases.
 

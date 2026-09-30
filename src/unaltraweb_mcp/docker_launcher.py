@@ -7,6 +7,8 @@ from importlib.metadata import distribution
 import os
 from pathlib import Path
 
+from .distribution import component_reference
+
 
 def launcher_root() -> Path:
     """Resolve wheel data via RECORD, including venv and user installations."""
@@ -29,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", nargs="?", default="serve", choices=("serve", "prepare", "check", "smoke", "down", "path", "manifest"))
     parser.add_argument("--project", help="Explicit consumer directory (or MCP_CONSUMER_WORKSPACE).")
-    parser.add_argument("--image", help="Full MCP image selection; defaults to the reviewed release digest.")
+    parser.add_argument("--image", help="Full MCP image selection; defaults to this package's release image.")
     parser.add_argument("--project-id", help="Retained project identity for down only.")
     args = parser.parse_args(argv)
     if args.project_id and args.action != "down":
@@ -52,8 +54,9 @@ def main(argv: list[str] | None = None) -> int:
     command = ["/bin/sh", str(root / "scripts" / script)]
     if args.project:
         command.extend(["--project", args.project])
-    if args.image:
-        command.extend(["--image", args.image])
+    if args.action != "down":
+        image = args.image or os.environ.get("UNALTRAWEB_MCP_IMAGE") or component_reference("mcp")
+        command.extend(["--image", image])
     if args.project_id:
         command.extend(["--project-id", args.project_id])
     if args.action in {"prepare", "check", "smoke"}:

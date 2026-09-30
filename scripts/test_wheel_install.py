@@ -137,13 +137,20 @@ def main() -> int:
         fake_bin = temp / "fake-bin"
         fake_bin.mkdir()
         fake_docker = fake_bin / "docker"
-        fake_docker.write_text("#!/bin/sh\n[ \"$1 $2\" = 'image inspect' ] || exit 99\nprintf 'sha256:fixture\\n'\n", encoding="utf-8")
+        fake_docker.write_text("#!/bin/sh\n[ \"$1 $2\" = 'image inspect' ] || exit 99\n[ \"$5\" = \"$EXPECTED_IMAGE\" ] || exit 98\nprintf 'sha256:fixture\\n'\n", encoding="utf-8")
         fake_docker.chmod(0o755)
-        launcher_env = {**no_consumer_env, "PATH": f"{fake_bin}:{env['PATH']}"}
+        expected_image = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text())["components"]["mcp"]["reference"]
+        launcher_env = {**no_consumer_env, "PATH": f"{fake_bin}:{env['PATH']}", "EXPECTED_IMAGE": expected_image}
+        launcher_env.pop("UNALTRAWEB_MCP_IMAGE", None)
+        launcher_env.pop("MCP_RELEASE_IMAGE", None)
         prepared_image = run([str(docker_cli), "prepare"], cwd=temp, env=launcher_env).stdout.strip()
         if prepared_image != "sha256:fixture":
             raise RuntimeError("Installed preparation did not use the packaged bootstrap")
         run(["make", "--silent", "--no-print-directory", "-C", str(launcher), "mcp-build"], cwd=temp, env=launcher_env)
+        run([str(docker_cli), "prepare", "--image", "explicit:override"], cwd=temp,
+            env={**launcher_env, "EXPECTED_IMAGE": "explicit:override", "UNALTRAWEB_MCP_IMAGE": "environment:override"})
+        run([str(docker_cli), "prepare"], cwd=temp,
+            env={**launcher_env, "EXPECTED_IMAGE": "environment:override", "UNALTRAWEB_MCP_IMAGE": "environment:override"})
         version = run([str(cli), "version"], cwd=temp).stdout.strip()
         doctor = json.loads(run([str(cli), "doctor"], cwd=temp).stdout)
         if not doctor["ok"] or doctor["mode"] != "wheel" or not doctor["limited"]:

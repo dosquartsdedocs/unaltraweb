@@ -99,7 +99,12 @@ unaltraweb-mcp-docker smoke
 unaltraweb-mcp-docker serve --project /absolute/consumer
 ```
 
-The default image is the same complete 0.5.0 digest as `MCP_RELEASE_IMAGE` above.
+The installed default selects its package's full MCP release image, currently
+`ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.5.1`. It resolves that selection to the
+local immutable image ID before executing. The checkout's `MCP_RELEASE_IMAGE`
+is a separate digest pin advanced only after publication; it is not the installed
+wheel's default. This avoids sending a new package back to an older MCP while
+also avoiding an impossible self-digest in the candidate image/wheel.
 `--image` selects a different explicitly prepared image for a test or a reviewed
 adoption. `prepare` only inspects/pulls; `check` and `smoke` use the local image ID,
 without pulling, building, mounting a consumer or starting a preview. `serve`
@@ -108,7 +113,7 @@ labelled stdio container and preserves the canonical host-path mirror for worker
 `down --project /absolute/consumer` uses the same project-scoped cleanup helper.
 
 `unaltraweb-mcp-docker path` locates the installed profile from wheel metadata;
-`manifest` prints its discovery descriptor. The profile ships the unchanged native
+`manifest` prints its discovery descriptor. The profile ships the same native
 schema-v1 `mcp-factory.yml`, a small launcher-only Makefile, and the bootstrap,
 project-ID, Docker CSV mount and cleanup scripts. Its `${factoryRoot}` is this
 installed directory, and the declared `make -C` transport and lifecycle targets

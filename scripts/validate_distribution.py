@@ -180,8 +180,8 @@ def validate(root: Path = ROOT) -> list[str]:
     launcher_image = make_value(root / "Makefile", "MCP_RELEASE_IMAGE")
     if not re.fullmatch(r"ghcr\.io/dosquartsdedocs/unaltraweb-mcp@sha256:[0-9a-f]{64}", launcher_image):
         errors.append("MCP_RELEASE_IMAGE must select a full GHCR MCP digest")
-    if make_value(root / "packaging/launcher/Makefile", "MCP_RELEASE_IMAGE") != launcher_image:
-        errors.append("installed launcher must select the same reviewed digest as the source launcher")
+    if make_value(root / "packaging/launcher/Makefile", "MCP_RELEASE_IMAGE") != component_reference("mcp"):
+        errors.append("installed launcher must select its own package release image")
     project = pyproject.get("project", {})
     if "version" in project or project.get("dynamic") != ["version"]:
         errors.append("pyproject version must be derived from the package component contract")

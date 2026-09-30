@@ -1,5 +1,5 @@
 # Installed Docker profile. No core source, Python runtime or image build here.
-MCP_RELEASE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:36d17edbade77edb40a687f6a744203c6329acb33fbc2eb255e88d9ff1a42c98
+MCP_RELEASE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.5.1
 override MCP_RELEASE_IMAGE := $(value MCP_RELEASE_IMAGE)
 export MCP_RELEASE_IMAGE
 

@@ -9,6 +9,8 @@ import subprocess
 import tempfile
 import unittest
 
+from unaltraweb_mcp.distribution import component_reference
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -49,15 +51,11 @@ class DistributedLauncherTests(unittest.TestCase):
     def calls(self) -> list[list[str]]:
         return [json.loads(line) for line in self.log.read_text().splitlines()]
 
-    def test_native_preparation_matches_source_post_release_selection(self) -> None:
+    def test_installed_preparation_matches_its_package_release(self) -> None:
         result = self.run_make("mcp-build")
         self.assertEqual(result.returncode, 0, result.stderr)
-        # A newly recorded candidate receipt must not advance launchers before
-        # the explicit post-release selection change.
-        selected = next(line.split(" ?= ", 1)[1] for line in (ROOT / "Makefile").read_text().splitlines()
-                        if line.startswith("MCP_RELEASE_IMAGE ?= "))
+        selected = component_reference("mcp")
         self.assertEqual(self.calls(), [["image", "inspect", "--format", "{{.Id}}", selected]])
-        self.assertIn(selected, (ROOT / "scripts/unaltraweb-mcp-bootstrap.sh").read_text())
 
     def test_check_requires_preparation_without_build_or_pull(self) -> None:
         self.env["MISSING"] = "1"
