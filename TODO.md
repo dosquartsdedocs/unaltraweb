@@ -10,6 +10,25 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Current Shape
 
+Release [**v0.5.1**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.5.1)
+ships the installed launcher and populated-cache Bundler correction from issue
+[76](https://github.com/dosquartsdedocs/unaltraweb/issues/76).
+
+- Integration: PR 77, source `aab5a7b030cd711b40770a3f44ad3a356eab90da`.
+- Receipt: PR 78, tag commit `e842c733c8a274279dd5efdc3618e20669f29037`.
+- Signed candidates `36785858325`, packages `36785861424`, tag promotion
+  `36791298413`, Trusted Publishing `36791301396`: passed.
+- Public gem/wheel downloads and GHCR aliases match the receipt. All four
+  populated-cache roundtrips passed against the signed candidate.
+- Checkout MCP pin:
+  `ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:908b4ce54c7bdf355e14ed55b31ed4b9baae319e211af90004a680d1d1cb8692`.
+- PDF 0.5.0 and computation/capture/visual 0.4.0 selections remain unchanged.
+  Customized Makefiles and real manual adoption retain explicit owner review.
+
+Full delivery evidence: [`docs/agents/owner-closeout-76.md`](docs/agents/owner-closeout-76.md).
+
+### Previous 0.5.0 delivery
+
 Release [#69](https://github.com/dosquartsdedocs/unaltraweb/issues/69) is published
 as [**v0.5.0**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.5.0).
 It includes editorial/scaffold, caption/image and companion changes plus the
