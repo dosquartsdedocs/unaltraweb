@@ -16,7 +16,7 @@ MCP_CONSUMER_WORKSPACE="$PWD" make --silent --no-print-directory -C /path/to/una
 
 Replace `/path/to/unaltraweb` with the checkout's absolute path. The bootstrap canonicalizes the inherited environment value after process launch; neither Make nor generated shell source evaluates consumer path text. The declared launcher remains `make`, which gContExt permits for a container runtime without a `runtime.allowed_host_launchers` exception. Restart clients such as OpenCode after changing their MCP registration.
 
-Next-release wheels also install this native descriptor and its complete host
+Released 0.5.1 wheels also install this native descriptor and its complete host
 helper closure under `share/unaltraweb-launcher`. For that installed profile,
 `${factoryRoot}` is the path returned by `unaltraweb-mcp-docker path`, rather than
 a core checkout. Its small Makefile implements `mcp-build`, `mcp-check`,
@@ -31,6 +31,11 @@ The installed profile selects its own BOM release image by default and resolves
 it to an image ID before execution. The source checkout's digest pin is separate:
 it advances only after a new receipt exists. Explicit `--image` (or the console
 adapter's `UNALTRAWEB_MCP_IMAGE`) permits a reviewed immutable selection.
+
+The post-release checkout pin selects published 0.5.1 MCP digest
+`sha256:908b4ce54c7bdf355e14ed55b31ed4b9baae319e211af90004a680d1d1cb8692`.
+Existing processes keep their running image until clients reconnect. Site build
+defaults and customized Makefiles remain separate, explicitly reviewed selections.
 
 gContExt dependency preparation ensures the selected MCP release image and prepares required companions but does not initialize consumer content. The transport passes `${workspaceFolder}` only through `MCP_CONSUMER_WORKSPACE`; it never sets `transport.cwd` or embeds the consumer path in a Make assignment. The factory command may therefore use `make -C` without changing or reparsing the selected consumer root. Companion-aware checks and smoke tests include both required providers, while provider updates remain explicit. The manifest does not advertise an `init` command, and both companion dependencies set `init: false`. Use `new_web` explicitly when a new consumer site should be created. Restart long-lived MCP clients after registration, release-pin changes, or provider upgrades so their stdio processes use the selected releases.
 
