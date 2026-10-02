@@ -18,6 +18,8 @@ dependencies = [
   "requests>=2.31,<3",
   "Pillow>=10.4,<13",
   "CairoSVG>=2.7,<3",
+  "pypdf>=6,<7",
+  "markdown-it-py>=3,<5",
   "tomli>=2,<3; python_version < '3.11'",
 ]
 
@@ -50,6 +52,7 @@ where = ["src"]
 unaltraweb_mcp = [
   "component-contract.json",
   "component-contract.schema.json",
+  "artifact-handoff-v1.schema.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore.tmpl",
   "scaffolds/common/.unaltraweb/*.sh",

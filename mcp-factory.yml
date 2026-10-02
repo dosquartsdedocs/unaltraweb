@@ -1,7 +1,7 @@
 schema_version: 1
 name: unaltraweb
 kind: codex-mcp-factory
-version: 0.5.1
+version: 0.6.0
 description: Reusable Jekyll website factory with package-owned site creation and MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, build checks, and local manual release candidates.
 repository: https://github.com/dosquartsdedocs/unaltraweb
 install_scope: user
@@ -36,6 +36,7 @@ workspace_rule:
     - .github/workflows
     - .unaltraweb/scaffold.json
   source_paths:
+    - .unaltraweb/artifacts
     - AGENTS.md
     - README.md
     - _config.yml
@@ -72,6 +73,11 @@ workspace_rule:
     - .vegavisuals.lock.json and outputs declared by .vegavisuals.yml
   allowed_external_writes: []
   path_policies:
+    - path: .unaltraweb/artifacts
+      type: directory
+      role: retained-artifact-bundles-and-native-integrations
+      git: versioned
+      cleanup: never
     - path: _site
       type: directory
       role: jekyll-build-output
@@ -140,7 +146,7 @@ workspace_rule:
 runtime:
   kind: container
   package_manager: docker
-  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.5.1
+  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.6.0
   package: unaltraweb-mcp
   module: unaltraweb_mcp
 transport:
@@ -176,7 +182,7 @@ discovery:
     - Durable website state belongs in versioned site files, not in chat history.
     - Manual release tools prepare local candidates only; publication remains a human-controlled GitHub Actions operation.
 release:
-  default: v0.5.1
+  default: v0.6.0
 contracts:
   component_bom: 1
   distribution_doctor: 1
@@ -184,6 +190,7 @@ mcp:
   server_name: unaltraweb
   transport: stdio
   resources:
+    - web://artifact-imports
     - web://distribution
     - web://site-context
     - web://site-doctor
@@ -207,6 +214,8 @@ mcp:
     - web://build-health
     - web://prompts
   required_tools:
+    - import_artifact_bundle
+    - artifact_import_check
     - distribution_doctor
     - new_web
     - initialize_site

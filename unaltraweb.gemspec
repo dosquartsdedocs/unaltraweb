@@ -15,6 +15,7 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 3.2"
 
   repo_root = File.expand_path(__dir__)
+  artifact_files = %w[__init__.py distribution.py artifact_imports.py artifact_handoff_v1.py artifact-handoff-v1.schema.json letter_bundle.py pdf_probe.py].map { |name| "src/unaltraweb_mcp/#{name}" }
   tracked_files = if File.exist?(File.join(repo_root, ".git"))
                     `git -c safe.directory=#{repo_root.shellescape} ls-files -z`.split("\x0")
                   else
@@ -25,7 +26,7 @@ Gem::Specification.new do |spec|
       ["_config.yml", "LICENSE", "Makefile", "README.md", "requirements.txt", "src/unaltraweb_mcp/component-contract.json",
         "src/unaltraweb_mcp/component-contract.schema.json", "src/unaltraweb_mcp/docker_mount.py", "src/unaltraweb_mcp/bundler_runtime.py",
         "src/unaltraweb_mcp/editorial.py", "src/unaltraweb_mcp/editorial_sources.py",
-        "src/unaltraweb_mcp/image_backgrounds.py", "src/unaltraweb_mcp/image_probe.py", "src/unaltraweb_mcp/processes.py"]).reject do |file|
+        "src/unaltraweb_mcp/image_backgrounds.py", "src/unaltraweb_mcp/image_probe.py", "src/unaltraweb_mcp/processes.py"] + artifact_files).reject do |file|
       File.directory?(file)
     end
   end
@@ -33,6 +34,7 @@ Gem::Specification.new do |spec|
     !file.match?(%r{(^|/)__pycache__/|\.pyc\z}) &&
       (["_config.yml", "LICENSE", "Makefile", "README.md", "requirements.txt", "src/unaltraweb_mcp/component-contract.json", "src/unaltraweb_mcp/component-contract.schema.json", "src/unaltraweb_mcp/docker_mount.py", "src/unaltraweb_mcp/editorial.py", "src/unaltraweb_mcp/editorial_sources.py", "src/unaltraweb_mcp/image_backgrounds.py", "src/unaltraweb_mcp/image_probe.py", "src/unaltraweb_mcp/processes.py"].include?(file) ||
         file == "src/unaltraweb_mcp/bundler_runtime.py" ||
+        artifact_files.include?(file) ||
         file.match?(%r{\A(_data/i18n|_includes|_layouts|_sass|_plugins|_scripts|assets|lib|scripts)/}) ||
        file.match?(%r{\A(README|LICENSE|docs)/}))
   end

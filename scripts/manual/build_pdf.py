@@ -26,6 +26,10 @@ except ImportError as exc:  # pragma: no cover - supplied by the builder image
 
 
 SCRIPT_ROOT = Path(__file__).resolve().parent
+for _source_root in (SCRIPT_ROOT.parent.parent / "src", SCRIPT_ROOT.parent / "src"):
+    if (_source_root / "unaltraweb_mcp" / "artifact_imports.py").is_file():
+        sys.path.insert(0, str(_source_root))
+        break
 DEFAULT_DOCKERFILE = SCRIPT_ROOT / "Dockerfile"
 DEFAULT_TEMPLATE = SCRIPT_ROOT / "templates" / "manual.tex"
 DEFAULT_BIBLIOGRAPHY_FILTER = SCRIPT_ROOT / "filters" / "bibliography.lua"
@@ -36,6 +40,7 @@ BIB_CUSTOM_URL_RE = re.compile(r'(?im)^\s*(?:manual_url|website)\s*=\s*(?:\{([^}
 FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)^---[ \t]*(?:\r?\n|\Z)", re.MULTILINE | re.DOTALL)
 CITE_RE = re.compile(r"{%\s*cite\s+([^%]+?)\s*%}")
 INCLUDE_RE = re.compile(r"{%\s*include\s+([^%]+?)\s*%}")
+RETAINED_DOCUMENT_RE = re.compile(r"{%\s*retained_document\s+([a-z][a-z0-9-]{0,63})\s*%}")
 LIQUID_RE = re.compile(r"({[{%].*?[}%]})", re.DOTALL)
 INLINE_CODE_RE = re.compile(r"<code>(.*?)</code>", re.IGNORECASE | re.DOTALL)
 FENCED_CODE_BLOCK_RE = re.compile(r"^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$", re.MULTILINE | re.DOTALL)
@@ -947,6 +952,17 @@ def transform_markdown(
             citation_keys.extend(key for key in keys if key not in citation_keys)
         return "[" + "; ".join(f"@{key}" for key in keys) + "]"
 
+    def retained_document(match: re.Match[str]) -> str:
+        from unaltraweb_mcp.artifact_imports import check_imports
+
+        result = check_imports(project, match.group(1))
+        if result.get("ok") is not True:
+            raise ManualPdfError(f"Retained document verification failed: {result.get('error')}")
+        path = result["imports"][0]["pdf"]
+        # The native import layout uses an ASCII slug and fixed project-relative
+        # path; no bundle text is interpolated into TeX or executed.
+        return protect("```{=latex}\n\\includepdf[pages=-,pagecommand={}]" + "{" + path + "}\n```")
+
     def table(match: re.Match[str]) -> str:
         body = match.group("body").strip()
         credit, _ = caption_source_attribute(match.group("attrs") or "")
@@ -1137,6 +1153,7 @@ def transform_markdown(
     transformed = transformed.replace(r"\begin{equation\*}", r"\begin{equation*}")
     transformed = transformed.replace(r"\end{equation\*}", r"\end{equation*}")
     transformed = BASEURL_RE.sub("", transformed)
+    transformed = RETAINED_DOCUMENT_RE.sub(retained_document, transformed)
     transformed = transformed.replace("{% include manual-bibliography.liquid %}", "::: {#refs}\n:::")
     transformed = CITE_RE.sub(citations, transformed)
     transformed = CALLOUT_BLOCK_RE.sub(callout, transformed)
@@ -1481,6 +1498,17 @@ def build_dependencies(project: Path, metadata: dict[str, Any], source_paths: li
     ]
     for path in source_paths:
         dependencies.append((f"source:{path.relative_to(project)}", path))
+    if any(RETAINED_DOCUMENT_RE.search(path.read_text(encoding="utf-8")) for path in source_paths if path.suffix.lower() == ".md"):
+        from unaltraweb_mcp import artifact_imports
+
+        imports = artifact_imports.check_imports(project)
+        if imports.get("ok") is not True:
+            raise ManualPdfError(f"Retained document verification failed: {imports.get('error')}")
+        for item in imports["imports"]:
+            dependencies.extend((f"retained:{relative}", project / relative) for relative in item["inputs"])
+        checker_root = Path(artifact_imports.__file__).parent
+        for name in artifact_imports.CHECKER_FILES:
+            dependencies.append((f"import-check:{name}", checker_root / name))
     if csl:
         dependencies.append((f"csl:{csl.relative_to(project)}", csl))
     for key in ["cover-image", "cover-logo", "series-logo"]:

@@ -64,6 +64,9 @@ def inspect_gem(path: Path) -> None:
     editorial_files = ["scripts/editorial_check.py", "src/unaltraweb_mcp/editorial.py", "src/unaltraweb_mcp/editorial_sources.py"]
     inspection_files = editorial_files + ["src/unaltraweb_mcp/bundler_runtime.py", "scripts/image_background_check.py", "src/unaltraweb_mcp/image_backgrounds.py",
                                           "src/unaltraweb_mcp/image_probe.py", "src/unaltraweb_mcp/processes.py"]
+    inspection_files += [f"src/unaltraweb_mcp/{name}" for name in (
+        "__init__.py", "distribution.py", "component-contract.json", "component-contract.schema.json",
+        "artifact_imports.py", "artifact_handoff_v1.py", "artifact-handoff-v1.schema.json", "letter_bundle.py", "pdf_probe.py")]
     with tarfile.open(path, mode="r") as package:
         data_member = package.extractfile("data.tar.gz")
         if data_member is None:
@@ -83,6 +86,7 @@ def inspect_gem(path: Path) -> None:
         "_plugins/figure_captions.rb",
         "_plugins/manual_release_metadata.rb",
         "_plugins/reproducible_build_time.rb",
+        "_plugins/retained_documents.rb",
         "assets/js/content-search-match.js",
         "assets/js/content-search.js",
         "_config.yml",
@@ -134,6 +138,29 @@ def inspect_gem(path: Path) -> None:
         inspection = json.loads(run(image_command, cwd=site).stdout)
         if not inspection["ok"] or inspection["images"][0]["state"] != "transparent" or not inspection["warnings"]:
             raise RuntimeError(f"Gem-native SVG background inspection failed: {inspection}")
+        # This is the synthetic domain fixture, not published-Carta acceptance.
+        # Only its data crosses into the isolated extracted-gem subprocess.
+        sys.path.insert(0, str(ROOT / "test"))
+        from test_artifact_imports import fixture
+
+        bundle_sha, template_sha = fixture(site / "incoming/letter")
+        (site / ".gitignore").write_text("tmp/\n", encoding="utf-8")
+        run(["git", "init", "--quiet"], cwd=site)
+        isolated = """
+import json, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from unaltraweb_mcp import artifact_imports, letter_bundle, artifact_handoff_v1, distribution, processes
+for module in (artifact_imports, letter_bundle, artifact_handoff_v1, distribution, processes):
+    assert Path(module.__file__).is_relative_to(Path(sys.argv[1])), module.__file__
+letter_bundle.TEMPLATES['default-letter.latex'] = sys.argv[4]
+project = Path(sys.argv[2])
+result = artifact_imports.import_bundle(project, 'incoming/letter/bundle.json', sys.argv[3],
+    'letter', '_pages/en/letter.md', dry_run=False, confirm_import=True)
+print(json.dumps(result))
+raise SystemExit(0 if result['ok'] else 1)
+"""
+        run([sys.executable, "-I", "-c", isolated, str(core / "src"), str(site), bundle_sha, template_sha], cwd=site)
 
 
 def main() -> int:

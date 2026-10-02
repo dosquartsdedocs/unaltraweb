@@ -2747,6 +2747,13 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
         },
         "components": [
             {
+                "id": "retained_documents",
+                "syntax": ["{% retained_document import-id %}"],
+                "web": "verified PDF object with an accessible download link",
+                "pdf": "all pages of the byte-preserved mapped PDF; requires the containing PDF worker",
+                "guidance": "Use import_artifact_bundle for letter-pdf-v1, keep the complete private bundle and native receipts, and check references with artifact_import_check. Customized files are never overwritten; composite profiles are not supported.",
+            },
+            {
                 "id": "heading_levels",
                 "syntax": ["## numbered section", "### numbered subsection", "#### numbered fourth-level subsection"],
                 "web": "all three are numbered; h2 and h3 appear in the secondary TOC, h4 does not",
@@ -5601,6 +5608,11 @@ def site_doctor(project: Path, factory: Path | None = None) -> dict[str, Any]:
     distribution = distribution_doctor(project=project, factory=factory_root, check_docker=False)
     findings = list(distribution["findings"])
     checks: dict[str, Any] = {}
+    imports = artifact_import_check(project)
+    checks["artifact_imports"] = imports
+    if imports.get("ok") is not True:
+        findings.append(_site_doctor_finding("UW-SITE-ARTIFACT-IMPORT", "error", "verified native imports", imports,
+                                             "Inspect artifact_import_check; preserve edited files and retained bundles."))
 
     try:
         config = _strict_site_config(project)
@@ -5793,6 +5805,7 @@ def site_check(project: Path, factory: Path, max_bibliometrics_age_days: int = 1
     project = project_path(project)
     checks = {
         "detection": detect_site(project),
+        "artifact_imports": artifact_import_check(project),
         "profile": profile_check(project),
         "prose": prose_check(project),
         "image_backgrounds": image_background_check(project),
@@ -5840,12 +5853,27 @@ def site_context(project: Path, factory: Path | None = None) -> dict[str, Any]:
     }
 
 
+def import_artifact_bundle(project: Path, path: str, sha256: str, import_id: str, content_path: str, *, title: str = "Retained letter", dry_run: bool = True, confirm_import: bool = False) -> dict[str, Any]:
+    from .artifact_imports import import_bundle
+
+    return import_bundle(project, path, sha256, import_id, content_path, title, dry_run=dry_run, confirm_import=confirm_import)
+
+
+def artifact_import_check(project: Path, import_id: str = "", output_folder: str = "") -> dict[str, Any]:
+    from .artifact_imports import check_imports
+
+    return check_imports(project, import_id, output_folder)
+
+
 def list_tools() -> dict[str, Any]:
-    return {
+    inventory = {
         "resources": ["web://distribution", "web://site-context", "web://site-doctor", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://editorial-policy", "web://editorial-status", "web://image-backgrounds", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
         "prompts": list(PROMPT_SPECS),
         "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "prose_check", "editorial_policy", "editorial_status", "editorial_review_prepare", "editorial_review_record", "editorial_review_resolve", "editorial_publication_check", "image_background_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean", "manual_pdf_publish", "manual_release_status", "manual_release_check", "manual_release_prepare", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
+    inventory["resources"].append("web://artifact-imports")
+    inventory["tools"].extend(["import_artifact_bundle", "artifact_import_check"])
+    return inventory
 
 
 def dumps(payload: Any) -> str:

@@ -37,6 +37,7 @@ from scripts.validate_distribution import (
 class DistributionTests(unittest.TestCase):
     def test_publish_preflight_reuses_only_digest_pinned_released_pdf(self) -> None:
         contract = distribution_contract()
+        contract["components"]["manual_pdf"].update(version="0.5.0", release="v0.5.0", release_status="released", reference=consumer_integration()["manual_pdf_image"])
         kwargs = {"ref_type": "branch", "ref_name": "main", "default_branch": "main", "component_ids": ["runtime", "mcp", "manual_pdf"]}
         self.assertEqual(publish_ref_errors(contract, **kwargs), [])
         for status, reference in (
@@ -54,7 +55,7 @@ class DistributionTests(unittest.TestCase):
         for name in ("compute_python", "compute_r", "web_capture", "manual_pdf"):
             changed = copy.deepcopy(contract)
             worker = changed["components"][name]
-            worker.update(version="0.1.0", release="v0.1.0", release_status="released")
+            worker.update(version="0.1.0", release="v0.1.0", release_status="released", reference=worker["image_repository"] + "@sha256:" + "1" * 64)
             self.assertEqual(distribution_validator.component_version_errors(changed), [])
             self.assertEqual(component_contract_semantic_errors(changed), [])
             for status in ("pending", "ready", "unavailable"):

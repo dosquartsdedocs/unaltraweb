@@ -39,6 +39,8 @@ FACTORY_REQUIRED_MCP_COMMANDS = {
     "prompts",
 }
 PACKAGE_ONLY_MCP_COMMANDS = {
+    "import-artifact-bundle",
+    "artifact-import-check",
     "bibliography-add-entry",
     "bibliography-inventory",
     "build-health",
@@ -203,6 +205,11 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return 0
     if command == "list-tools":
         return print_json(tools.list_tools())
+    if command == "import-artifact-bundle":
+        return print_json(tools.import_artifact_bundle(project, args.path, args.sha256, args.import_id, args.content_path,
+                                                      title=args.title, dry_run=not args.apply, confirm_import=args.confirm_import), enforce_ok=True)
+    if command == "artifact-import-check":
+        return print_json(tools.artifact_import_check(project, args.import_id, args.output_folder), enforce_ok=True)
     if command == "starter-templates":
         return print_json(tools.starter_templates(factory))
     if command == "detect-site":
@@ -435,6 +442,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp = sub.add_parser("mcp", help="MCP server and JSON helper commands")
     mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
+    artifact = mcp_sub.add_parser("import-artifact-bundle")
+    artifact.add_argument("--path", required=True)
+    artifact.add_argument("--sha256", required=True)
+    artifact.add_argument("--import-id", required=True)
+    artifact.add_argument("--content-path", required=True)
+    artifact.add_argument("--title", default="Retained letter")
+    artifact.add_argument("--apply", action="store_true")
+    artifact.add_argument("--confirm-import", action="store_true")
+    artifact_check = mcp_sub.add_parser("artifact-import-check")
+    artifact_check.add_argument("--import-id", default="")
+    artifact_check.add_argument("--output-folder", default="")
     for name in ["serve", "list-tools", "starter-templates", "detect-site", "site-context", "site-doctor", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "html-audit", "preview-stop", "prompts"]:
         mcp_sub.add_parser(name)
 

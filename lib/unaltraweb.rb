@@ -21,6 +21,7 @@ require_relative "unaltraweb/version"
   content_search_index
   manual_release_metadata
   reproducible_build_time
+  retained_documents
   profile-pages
   remove-accents
   search-data

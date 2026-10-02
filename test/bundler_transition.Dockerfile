@@ -3,4 +3,4 @@ ARG BASE_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:36d17edbade77edb40a
 FROM ${BASE_IMAGE}
 COPY . /opt/unaltraweb
 COPY --from=wheel / /tmp/acceptance-wheel/
-RUN python3 -m pip install --no-deps --no-index --break-system-packages /tmp/acceptance-wheel/*.whl
+RUN python3 -m pip install --no-deps --no-index --force-reinstall --break-system-packages /tmp/acceptance-wheel/*.whl

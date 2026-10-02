@@ -102,7 +102,7 @@ jobs:
       - name: Install native inspection dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y libcairo2
-          python -m pip install PyYAML==6.0.2 'Pillow>=10.4,<13' 'CairoSVG>=2.7,<3'
+          python -m pip install PyYAML==6.0.2 'Pillow>=10.4,<13' 'CairoSVG>=2.7,<3' 'pypdf>=6,<7' 'markdown-it-py>=3,<5'
 
       - name: Build and inspect gem
         run: make gem-check
@@ -137,7 +137,7 @@ jobs:
       - name: Build manual PDF image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: scripts/manual
+          context: .
           file: scripts/manual/Dockerfile
           load: true
           push: false
