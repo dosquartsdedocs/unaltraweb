@@ -32,8 +32,8 @@ it to an image ID before execution. The source checkout's digest pin is separate
 it advances only after a new receipt exists. Explicit `--image` (or the console
 adapter's `UNALTRAWEB_MCP_IMAGE`) permits a reviewed immutable selection.
 
-The post-release checkout pin selects published 0.5.1 MCP digest
-`sha256:908b4ce54c7bdf355e14ed55b31ed4b9baae319e211af90004a680d1d1cb8692`.
+The post-release checkout pin selects published 0.6.0 MCP digest
+`sha256:736c4ddd0a543454e3edaeac2e9cfd97a1279ce472923ac54e326c1281b2ba05`.
 Existing processes keep their running image until clients reconnect. Site build
 defaults and customized Makefiles remain separate, explicitly reviewed selections.
 
@@ -182,7 +182,7 @@ Manual PDF publication is a local workspace operation: it copies reviewed artefa
 
 ### Retained Letter Integration
 
-The 0.6.0 development increment adds package-only import/check commands and the
+The published 0.6.0 release adds package-only import/check commands and the
 `web://artifact-imports` resource. Web rendering needs its containing Jekyll core;
 manual inclusion also needs the matching PDF worker. Published 0.5.1 components
 do not acquire this capability from a launcher-pin change.

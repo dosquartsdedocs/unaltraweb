@@ -10,6 +10,27 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Current Shape
 
+Release [**v0.6.0**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.6.0)
+delivers native Carta leaf `letter-pdf-v1` import, web/PDF integration and complete
+retention from issue [80](https://github.com/dosquartsdedocs/unaltraweb/issues/80).
+
+- Reviewed implementation/tuple: PRs 81 and 82; final artifact source
+  `de52db351490e94939aac20c6af264f22a6a1678`.
+- Receipt PR 83, tag target `ec6dcb28e890d32718aa173934527a7b4213a042`.
+- Signed candidates `37033593312`, packages `37033596931`, promotion
+  `37040420721` and Trusted Publishing `37040424945` passed.
+- Exact signed-byte Carta retirement/relocation and four-profile populated
+  Bundler roundtrips passed. Anonymous registry downloads match the receipt.
+- Checkout MCP pin:
+  `ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:736c4ddd0a543454e3edaeac2e9cfd97a1279ce472923ac54e326c1281b2ba05`.
+- PDF 0.6.0 is selected by its separately signed/tested immutable digest;
+  computation, capture and visual helpers retain 0.4.0. Diapora composition and
+  real-manual adoption remain separate owner work.
+
+Full delivery evidence: [`docs/agents/owner-closeout-80.md`](docs/agents/owner-closeout-80.md).
+
+### Previous 0.5.1 delivery
+
 Release [**v0.5.1**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.5.1)
 ships the installed launcher and populated-cache Bundler correction from issue
 [76](https://github.com/dosquartsdedocs/unaltraweb/issues/76).
