@@ -19,7 +19,7 @@ provenance needed to inspect its origin. The importer keeps that complete unit i
 the receiving repository and creates a native page or chapter referencing the PDF.
 The website displays the original; a manual PDF includes all its pages.
 
-This capability belongs to the **0.6.0 development increment**. It requires a
+This capability ships in **0.6.0**. It requires a
 containing Python package and Jekyll core, plus the matching PDF worker for manual
 output. The published 0.5.1 runtime predates it. Changing the global MCP selection
 does not update a site's Gemfile, Makefile or PDF-worker selection.

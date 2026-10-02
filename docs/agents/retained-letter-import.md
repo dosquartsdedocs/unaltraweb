@@ -1,5 +1,9 @@
 # Native retained-letter import — issue 80
 
+Delivery completed on 2026-10-02; see [the 0.6.0 closeout](owner-closeout-80.md)
+for final revisions, receipts, registry downloads and the post-release pin.
+The following sections retain the chronological preparation and review evidence.
+
 ## Scope and release state
 
 This is a separate 0.6.0 development increment after the administrative closeout
