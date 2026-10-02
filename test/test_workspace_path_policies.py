@@ -117,6 +117,9 @@ class WorkspacePolicyContractTests(unittest.TestCase):
             self.assertEqual(POLICIES[path.as_posix()]["git"], "ignored")
             self.assertEqual(POLICIES[path.as_posix()]["cleanup"], "explicit")
         self.assertEqual(POLICIES["tmp"]["cleanup"], "explicit")
+        self.assertEqual((POLICIES[".unaltraweb/artifacts"]["git"], POLICIES[".unaltraweb/artifacts"]["cleanup"]), ("versioned", "never"))
+        self.assertIn(".unaltraweb/artifacts", rule["source_paths"])
+        self.assertNotIn(".unaltraweb/artifacts", rule["init_creates"])
         self.assertEqual(POLICIES[".cache/scimago"]["cleanup"], "explicit")
         for path in ("assets", ".unaltraweb", ".cache", ".vegavisuals.yml", ".vegavisuals.lock.json",
                      ".unaltraweb/receipts/diavisuals.json", ".unaltraweb/receipts/vegavisuals.json"):

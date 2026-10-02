@@ -25,6 +25,23 @@ The template is the better place to validate gem consumption, centralized styles
 
 ## Component Contract
 
+### Pending 0.6.0 retained-letter increment
+
+The source branch prepares a separate 0.6.0 identity for native
+[retained-letter import]({{ '/retained-documents/' | relative_url }}).
+Gem, wheel, base runtime, MCP and manual PDF worker remain `pending` until their
+containing candidates and immutable consumer integration have been reviewed.
+The PDF worker changes to include complete retained documents and the same
+integrity checkers used by its controller. Computation, capture and visual
+companions retain their tested 0.4.0 selections.
+
+The checkout's active launcher remains pinned to the published 0.5.1 MCP digest.
+Its receipt and package bytes remain unchanged. Local development images and an
+installed wheel exercise the new import without claiming a public 0.6.0 release
+or changing real consumer sites. The
+[owner acceptance record](https://github.com/dosquartsdedocs/unaltraweb/blob/main/docs/agents/retained-letter-import.md)
+records the authenticated Carta packet, receiver mapping and relocation proof.
+
 ### Published 0.5.1 release
 
 [**0.5.1**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.5.1)

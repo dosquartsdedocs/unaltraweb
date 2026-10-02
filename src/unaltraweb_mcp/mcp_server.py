@@ -85,6 +85,21 @@ def run_server(project: Path, factory: Path) -> None:
         """Versioned component BOM and offline doctor findings for the current distribution and project."""
         return tools.dumps(inspect_distribution(project=project, factory=factory))
 
+    @mcp.resource("web://artifact-imports")
+    def artifact_imports_resource() -> str:
+        """Verified retained bundles, native mappings and source references."""
+        return tools.dumps(tools.artifact_import_check(project))
+
+    @mcp.tool()
+    def import_artifact_bundle(path: str, sha256: str, import_id: str, content_path: str, title: str = "Retained letter", dry_run: bool = True, confirm_import: bool = False) -> dict[str, Any]:
+        """Verify and retain a letter-pdf-v1 bundle with native web/PDF references; apply requires confirmation."""
+        return tools.import_artifact_bundle(project, path, sha256, import_id, content_path, title=title, dry_run=dry_run, confirm_import=confirm_import)
+
+    @mcp.tool()
+    def artifact_import_check(import_id: str = "", output_folder: str = "") -> dict[str, Any]:
+        """Read-only verification of retained seals, native mappings and source/rendered references."""
+        return tools.artifact_import_check(project, import_id, output_folder)
+
     @mcp.resource("web://site-context")
     def site_context_resource() -> str:
         """Current unaltraweb site profile, features, content, bibliography, bibliometrics, and build state."""

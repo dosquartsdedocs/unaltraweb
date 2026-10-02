@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MCP artifact handoff v1 (review candidate)",
+  "oneOf": [
+    {"$ref": "#/$defs/bundle"},
+    {"$ref": "#/$defs/integration"}
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{0,79}$"},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "revision": {"type": "string", "pattern": "^(git:([0-9a-f]{40}|[0-9a-f]{64})|sha256:[0-9a-f]{64})$"},
+    "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "runtime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "revision"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "revision": {"$ref": "#/$defs/revision"}
+      }
+    },
+    "actor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "version", "revision", "runtimes"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "version": {"type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Za-z0-9][A-Za-z0-9._+-]*$"},
+        "revision": {"$ref": "#/$defs/revision"},
+        "runtimes": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/runtime"}}
+      }
+    },
+    "dependency": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "sha256"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "upstream": {
+      "type": "object", "additionalProperties": false,
+      "required": ["dependency", "file"],
+      "properties": {
+        "dependency": {"$ref": "#/$defs/id"},
+        "file": {"$ref": "#/$defs/id"}
+      }
+    },
+    "file": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "path", "kind", "role", "ownership", "sha256", "bytes"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "path": {"$ref": "#/$defs/path"},
+        "kind": {"enum": ["input", "output", "evidence"]},
+        "role": {"$ref": "#/$defs/id"},
+        "ownership": {"enum": ["author", "producer"]},
+        "sha256": {"$ref": "#/$defs/hash"},
+        "bytes": {"type": "integer", "minimum": 0, "maximum": 536870912},
+        "variant_of": {"$ref": "#/$defs/id"},
+        "from": {"$ref": "#/$defs/upstream"}
+      }
+    },
+    "bundle": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "kind", "producer", "request", "files", "dependencies"],
+      "properties": {
+        "schema_version": {"type": "integer", "const": 1},
+        "kind": {"const": "mcp-artifact-bundle"},
+        "producer": {"$ref": "#/$defs/actor"},
+        "request": {"$ref": "#/$defs/id"},
+        "files": {"type": "array", "minItems": 2, "maxItems": 10000, "items": {"$ref": "#/$defs/file"}},
+        "dependencies": {"type": "array", "maxItems": 63, "items": {"$ref": "#/$defs/dependency"}}
+      }
+    },
+    "retained_bundle": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "mapping": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "destination"],
+      "properties": {
+        "source": {"$ref": "#/$defs/path"},
+        "destination": {"$ref": "#/$defs/path"}
+      }
+    },
+    "integration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "kind", "integrator", "bundle", "mappings"],
+      "properties": {
+        "schema_version": {"type": "integer", "const": 1},
+        "kind": {"const": "mcp-artifact-integration"},
+        "integrator": {"$ref": "#/$defs/actor"},
+        "bundle": {"$ref": "#/$defs/retained_bundle"},
+        "mappings": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {"$ref": "#/$defs/mapping"}}
+      }
+    }
+  }
+}

@@ -160,6 +160,9 @@ jobs:
       - name: Reject versioned manual publication outputs
         run: |
           python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
+          if test -d .unaltraweb/artifacts; then
+            python -m pip install 'pypdf>=6,<7' 'markdown-it-py>=3,<5'
+          fi
           core_dir="$(bundle exec ruby -e 'spec = Gem::Specification.find_by_name("unaltraweb"); print spec.full_gem_path')"
           python "$core_dir/scripts/manual/build_pdf.py" public-paths --project "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/manual-public-paths.json"
           python - "$RUNNER_TEMP/manual-public-paths.json" <<'PY'

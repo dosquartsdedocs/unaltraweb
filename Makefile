@@ -1,8 +1,8 @@
 PYTHON ?= python3
 override PROJECT := $${MCP_CONSUMER_WORKSPACE:?MCP_CONSUMER_WORKSPACE is required}
 override PROJECT_ROOT := $(PROJECT)
-MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.5.1
-MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.5.1
+MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.6.0
+MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.6.0
 MCP_RELEASE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:908b4ce54c7bdf355e14ed55b31ed4b9baae319e211af90004a680d1d1cb8692
 MCP_DOCKER_BUILD_NETWORK ?= default
 INIT_SITE_PROFILE ?= unaltreselfie
@@ -40,8 +40,8 @@ WEB_CAPTURE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-web-capture@sha256:0bf1b
 WEB_CAPTURE_DEV_IMAGE ?= unaltraweb-web-capture:dev
 WEB_CAPTURE_DOCKER_BUILD_NETWORK ?= default
 VEGAVISUALS_CLI ?=
-DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.5.1
-MANUAL_PDF_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097
+DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.6.0
+MANUAL_PDF_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf:0.6.0
 MANUAL_PDF_DEV_IMAGE ?= unaltraweb-manual-pdf:dev
 MCP_SMOKE_MANUAL_PDF_IMAGE ?= $(MANUAL_PDF_IMAGE)
 MCP_SMOKE_PROJECT ?=
@@ -375,7 +375,7 @@ manual-pdf-image: ## Ensure the selected versioned Pandoc/XeLaTeX image is prese
 	@docker image inspect "$(MANUAL_PDF_IMAGE)" >/dev/null 2>&1 || docker pull "$(MANUAL_PDF_IMAGE)"
 
 manual-pdf-image-dev: ## Build the explicitly named maintainer PDF development image
-	docker build -f scripts/manual/Dockerfile -t "$(MANUAL_PDF_DEV_IMAGE)" scripts/manual
+	docker build -f scripts/manual/Dockerfile -t "$(MANUAL_PDF_DEV_IMAGE)" .
 
 define run_manual_pdf_worker
 	@set -e; set --; cidfile=""; \

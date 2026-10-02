@@ -102,6 +102,7 @@ baseline format nor runtime cleanup changes.
 | `web://manual-authoring-components` | Supported prose structures and component syntax, including callouts, definition lists, figure layouts, tables, diagrams, citations, and web/PDF compatibility. |
 | `web://manual-computations` | Executable manual sources, selected runtime images, generated outputs, and freshness state. |
 | `web://web-captures` | Selector-based screenshot recipes, original PNGs, editable SVG layers, edited overrides, and freshness. |
+| `web://artifact-imports` | Native retained-letter bindings, complete seal/mapping integrity and source references; read-only. |
 | `web://new-web-scaffolds` | Package-owned scaffold availability and contract paths for every supported site profile. |
 
 ## Tools
@@ -116,6 +117,8 @@ baseline format nor runtime cleanup changes.
 | `site_context` | Read the main local state plus `update_status`: current/target package versions, planned paths, preserved customizations, conflicts and a reviewed-plan digest. |
 | `site_doctor` | Combine distribution doctor with strict project config, identity/language, generated Make contract, scaffold drift, required generated-output/receipt status, existing HTML audit, companion actions, and core override inventory. Unknown required status is blocking. Read-only and offline. |
 | `site_check` | Run profile, publication-copy source diagnostics, freshness, companion visualization/diagram receipt, bibliography, bibliometrics, and build-state checks without network. |
+| `import_artifact_bundle` | Plan or explicitly apply a create-only Carta 0.3.0rc1 `letter-pdf-v1` import with the sender SHA-256, complete retained seal, standard v1 integration record and native content binding. Defaults to dry-run; apply requires `confirm_import=true`. |
+| `artifact_import_check` | Verify retained domains, mappings and native source references; optional `output_folder` checks the bound rendered page and exact emitted PDF bytes. |
 | `site_source_read` | Read one allowed UTF-8 site source and return its exact SHA-256. |
 | `site_source_write` | Dry-run or atomically create/update one allowed source. Creates require `create_only`; updates require the exact SHA-256 returned by a read. |
 | `site_source_delete` | Dry-run or delete one allowed source with exact SHA-256 and explicit confirmation. It never deletes `_config.yml` or directories. |
@@ -176,6 +179,33 @@ Manual PDF preview staging is distinct from publication. `manual_pdf_preview_pre
 Manual PDF publication is a local workspace operation: it copies reviewed artefacts from `tmp/manual-pdf/` to configured paths such as `assets/pdf/` and `assets/img/`. It never commits, pushes, creates releases, or writes outside the consumer workspace. Use one selector consistently across `manual_pdf_build`, `manual_pdf_publish`, `build_site`, and `manual_release_prepare`. `latest` is the default; stable selectors use `vYYYY.MM(.N)` and require the consumer repository root to be an exact clean Git checkout without nested repositories, submodules, or clean/smudge filters. Stable Jekyll builds run in an MCP image selected by immutable digest, derive `SOURCE_DATE_EPOCH` from the consumer commit, and record both identities in their version-2 candidate manifest. Run `manual_source_quality_check`, `manual_editorial_quality_check`, `manual_pdf_status`, `manual_pdf_preview_prepare`, browser/PDF review, confirmed preview cleanup, and a `manual_pdf_publish` dry-run before calling `manual_pdf_publish(dry_run=false, confirm_publish=true)`. A stable caller additionally submits the SHA-256 of its checked local `tmp/manual-release/<selector>/release-manifest.json`; only the GitHub workflow has tag and release authority.
 
 ## New Site Initialization
+
+### Retained Letter Integration
+
+The 0.6.0 development increment adds package-only import/check commands and the
+`web://artifact-imports` resource. Web rendering needs its containing Jekyll core;
+manual inclusion also needs the matching PDF worker. Published 0.5.1 components
+do not acquire this capability from a launcher-pin change.
+
+The complete seal lives at `.unaltraweb/artifacts/<id>/bundle/`, alongside an
+unchanged-schema v1 integration record and a separate native `binding.json`.
+Only the byte-identical mapped PDF under `assets/documents/` is public. A new
+draft page/chapter binds it using the `retained_document` Liquid tag and a literal
+permalink. `site_check`, `site_doctor`, Jekyll and manual PDF preparation verify
+the corresponding domain, seal, mapping and native reference; the PDF fingerprint
+includes every retained dependency and checker. Producer sources are never run.
+
+Writes require the consumer Git root, ignored/untracked recovery staging and
+non-ignored durable paths. They are descriptor-relative and create-only, with
+preflight and final integrity checks. The project/import locks coordinate with
+native readers and the PDF controller. An interrupted operation retains its
+prepared tree and partial files, without destructive rollback. An explicit retry
+may adopt identical bytes; conflicts preserve existing content. Successful
+identical reimport preserves authored prose. See the
+[author reference](../_documentation/en/45-retained-documents.md) and
+[owner acceptance record](retained-letter-import.md) for bounds and evidence.
+
+### Package-Owned Initialization
 
 `new_web` is intended for empty or nearly-empty website repositories. It creates common runtime files, profile-specific configuration, localized home pages, the content paths required by the selected profile, and `.unaltraweb/scaffold.json`. All scaffold assets are shipped inside the `unaltraweb_mcp` Python package and MCP Docker image; environment variables, sibling checkouts, and arbitrary template paths are not consulted.
 

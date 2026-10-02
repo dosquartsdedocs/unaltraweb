@@ -3,3 +3,5 @@ scholarly
 requests
 bibtexparser
 rdata
+pypdf>=6,<7
+markdown-it-py>=3,<5

@@ -90,6 +90,11 @@ def main() -> int:
         required = [
             "unaltraweb_mcp/calibre_import.py",
             "unaltraweb_mcp/bundler_runtime.py",
+            "unaltraweb_mcp/artifact_imports.py",
+            "unaltraweb_mcp/artifact_handoff_v1.py",
+            "unaltraweb_mcp/artifact-handoff-v1.schema.json",
+            "unaltraweb_mcp/letter_bundle.py",
+            "unaltraweb_mcp/pdf_probe.py",
             "unaltraweb_mcp/component-contract.json",
             "unaltraweb_mcp/component-contract.schema.json",
             "unaltraweb_mcp/manual_pdf_preview.py",
