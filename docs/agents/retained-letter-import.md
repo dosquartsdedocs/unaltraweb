@@ -191,3 +191,41 @@ local evidence above remains retained; signed-candidate and public-download
 acceptance must record their own revisions and hashes. The consumer core/PDF
 tuple is closed only after the reviewed integrated core and signed PDF digest
 exist; no guessed source or self-digest is inserted into the BOM.
+
+## Reviewed immutable consumer tuple
+
+PR [81](https://github.com/dosquartsdedocs/unaltraweb/pull/81) integrated reviewed
+implementation `7af652fb83629e959af05c407a34a2f5a15f7936` as
+`5cf9817489c8dc47cee726bfe42fe3071cd32b85`. Protected PR CI
+[37027921742](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37027921742)
+and CodeQL [37027922332](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37027922332)
+passed, followed by integrated-source CI
+[37028677932](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37028677932)
+and CodeQL [37028678347](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37028678347).
+The PR contains an explicit agent review, not an attributed human approval.
+
+Signed image workflow
+[37029374441](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37029374441)
+then published, attested and tested the PDF from that exact source. Its read-only
+test job verified the signer workflow/source digest before executing the exact
+image, including 16 PDF integrations and real MCP preparation. The selected
+PDF 0.6.0 identity is
+`ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:0ba267cb87f53ebaca4e31805fe00610cd61fdf97a8d2c3692f4655700dceaed`.
+The BOM and Make contract now select that same digest and integrated core SHA.
+
+That public signed PDF is recorded as `released` and reused by digest. The four
+core/package components are `ready` for final same-commit candidates; their strict
+gate still requires a new receipt-only child of the final artifact source.
+Subsequent verification-only PDF builds are not substituted for this selected
+worker or promoted under an assumed identity. The earlier 0.5.1 receipt and
+active launcher pin remain intact until the authorized 0.6.0 closeout completes.
+
+The tuple was exercised before its pin PR using an installed wheel and a local
+MCP containing the new BOM with the actual signed PDF above. Evidence is retained
+at `/tmp/opencode/unaltraweb-closeout-060/tuple-letter-proof/evidence.json`:
+integration `ebe07ee10ad740a2bbbd36d532f336374cf4bb19ccb373b6590b2279f664a222`,
+composed PDF `416e96f66bb6608b1e20bf5e36b6b16133bd4018c17e6c079e8987b736fe9cae`
+both before and after the forced relocated rebuild. The PDF's inspected local
+image ID is `sha256:d7e7d3243616270fc9e6eed7f8238c412dbe3d9ffc18d2832d17d66ca630d139`,
+with the exact integrated source revision label. This preparation proof does not
+substitute for the final signed MCP and downloaded package acceptance.
