@@ -29,8 +29,11 @@ The template is the better place to validate gem consumption, centralized styles
 
 The source branch prepares a separate 0.6.0 identity for native
 [retained-letter import]({{ '/retained-documents/' | relative_url }}).
-Gem, wheel, base runtime, MCP and manual PDF worker remain `pending` until their
-containing candidates and immutable consumer integration have been reviewed.
+Gem, wheel, base runtime and MCP are authorized as `ready` for final same-source
+candidates. The consumer core selects reviewed integration
+`5cf9817489c8dc47cee726bfe42fe3071cd32b85`; the PDF 0.6.0 worker is already
+published, signed and tested at immutable digest
+`sha256:0ba267cb87f53ebaca4e31805fe00610cd61fdf97a8d2c3692f4655700dceaed`.
 The PDF worker changes to include complete retained documents and the same
 integrity checkers used by its controller. Computation, capture and visual
 companions retain their tested 0.4.0 selections.
