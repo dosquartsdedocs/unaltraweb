@@ -6,6 +6,11 @@ Requirements: gaContExt
 Owner issue: [85](https://github.com/dosquartsdedocs/unaltraweb/issues/85).
 Coordination: [gaContExt 15](https://github.com/dosquartsdedocs/gacontext/issues/15).
 
+Delivery: [0.7.0 is published](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.0).
+The [signed-byte delivery report](owner-closeout-85.md) supersedes the chronological
+development/candidate state below. It retains the full managed-closure blocker and
+the partial legacy identity gate; publication alone does not close them.
+
 ## Native API mapping
 
 The containing 0.7.0 increment adds `runtime_identity` and
@@ -96,7 +101,7 @@ release while a job continues.
 
 ## Accepted visual-helper points and remaining closure blocker
 
-The candidate selects the published Diavisuals 0.5.0 and Vega 0.5.1 packages:
+Release 0.7.0 selects the published Diavisuals 0.5.0 and Vega 0.5.1 packages:
 
 | Helper | Wheel SHA-256 | Renderer configuration ID |
 | --- | --- | --- |
