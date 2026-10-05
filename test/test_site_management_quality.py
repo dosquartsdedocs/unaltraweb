@@ -883,7 +883,17 @@ class SiteManagementQualityTests(unittest.TestCase):
             args=["docker"], returncode=0, stdout="", stderr="", timed_out=False,
             stdout_truncated=False, stderr_truncated=False,
         )
-        with patch("unaltraweb_mcp.site_tools.run_process", side_effect=[timed_out, listed, removed]) as run:
+        observed = []
+        def inspect_owned(cid):
+            if observed:
+                return None
+            observed.append(cid)
+            env = run.call_args_list[0].kwargs["env"]
+            return {"id": cid, "factory": "unaltraweb", "role": env["UNALTRAWEB_WORKER_ROLE"],
+                    "project_id": env["UNALTRAWEB_WORKER_PROJECT"], "worker_token": env["UNALTRAWEB_WORKER_TOKEN"]}
+        with patch("unaltraweb_mcp.site_tools.run_process", side_effect=[timed_out, listed, removed]) as run, patch(
+            "unaltraweb_mcp.runtime_lifecycle.inspect_container", side_effect=inspect_owned,
+        ):
             result = site_tools.run_factory_make(
                 self.root / "factory",
                 self.project,
@@ -893,6 +903,7 @@ class SiteManagementQualityTests(unittest.TestCase):
 
         self.assertFalse(result["ok"])
         self.assertEqual(result["worker_cleanup"]["removed"], ["a" * 64])
+        self.assertTrue(result["worker_cleanup"]["resources_released"])
         make_env = run.call_args_list[0].kwargs["env"]
         self.assertEqual(make_env["UNALTRAWEB_WORKER_ROLE"], "computation")
         list_command = run.call_args_list[1].args[0]

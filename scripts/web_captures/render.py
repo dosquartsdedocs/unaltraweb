@@ -588,6 +588,8 @@ def internal_network(network: str) -> bool:
 
 def build_image(image: str) -> None:
     available = inspect_image(image)["available"] == "true"
+    if not available and os.environ.get("UNALTRAWEB_MANAGED_RUNTIME") == "1":
+        raise WebCaptureError("Selected capture image is not prepared; managed execution never pulls")
     if available:
         return
     completed = subprocess.run(["docker", "pull", image], check=False)
@@ -722,6 +724,9 @@ def run_worker(project: Path, image: str, config_path: Path) -> None:
         "project": os.environ.get("UNALTRAWEB_WORKER_PROJECT", "").strip(),
         "token": os.environ.get("UNALTRAWEB_WORKER_TOKEN", "").strip(),
     }
+    session = os.environ.get("UNALTRAWEB_RUNTIME_SESSION", "")
+    if session and not re.fullmatch(r"[0-9a-f]{32}", session):
+        raise WebCaptureError("Invalid runtime session identity")
     worker_args: list[str] = []
     cidfile: Path | None = None
     if any(worker_values.values()):
@@ -739,7 +744,9 @@ def run_worker(project: Path, image: str, config_path: Path) -> None:
             "--label", f"io.context.mcp-worker-token={worker_values['token']}",
         ]
     command = [
-        "docker", "run", "--rm", *worker_args, "--user", f"{os.getuid()}:{os.getgid()}", "--network", network, "--ipc=host",
+        "docker", "run", "--rm", "--pull", "never", *worker_args,
+        *(["--label", f"io.context.mcp-session={session}"] if session else []),
+        "--user", f"{os.getuid()}:{os.getgid()}", "--network", network, "--ipc=host",
         "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--pids-limit", "256", "--cpus", "2", "--memory", "2g",
         "--tmpfs", "/tmp:rw,noexec,nosuid,size=512m", "-e", "HOME=/tmp",
         "--mount", docker_bind_mount(project, "/project"), "-w", "/project", image,

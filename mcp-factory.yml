@@ -1,7 +1,7 @@
 schema_version: 1
 name: unaltraweb
 kind: codex-mcp-factory
-version: 0.6.0
+version: 0.7.0
 description: Reusable Jekyll website factory with package-owned site creation and MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, build checks, and local manual release candidates.
 repository: https://github.com/dosquartsdedocs/unaltraweb
 install_scope: user
@@ -146,7 +146,7 @@ workspace_rule:
 runtime:
   kind: container
   package_manager: docker
-  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.6.0
+  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.0
   package: unaltraweb-mcp
   module: unaltraweb_mcp
 transport:
@@ -182,7 +182,7 @@ discovery:
     - Durable website state belongs in versioned site files, not in chat history.
     - Manual release tools prepare local candidates only; publication remains a human-controlled GitHub Actions operation.
 release:
-  default: v0.6.0
+  default: v0.7.0
 contracts:
   component_bom: 1
   distribution_doctor: 1
@@ -190,6 +190,7 @@ mcp:
   server_name: unaltraweb
   transport: stdio
   resources:
+    - web://runtime-identity
     - web://artifact-imports
     - web://distribution
     - web://site-context
@@ -214,6 +215,8 @@ mcp:
     - web://build-health
     - web://prompts
   required_tools:
+    - runtime_identity
+    - runtime_drain
     - import_artifact_bundle
     - artifact_import_check
     - distribution_doctor
@@ -286,9 +289,9 @@ mcp_dependencies:
     update: false
     remote: https://github.com/dosquartsdedocs/diavisuals.git
     package: diavisuals
-    uv_spec: "diavisuals[mcp] @ https://github.com/dosquartsdedocs/diavisuals/releases/download/v0.4.0/diavisuals-0.4.0-py3-none-any.whl#sha256=bfedcc9e2554f25ce4a1c33e556f352210848fccb8da800d1c3900dd86c48c93"
-    version: 0.4.0
-    release: v0.4.0
+    uv_spec: "diavisuals[mcp] @ https://github.com/dosquartsdedocs/diavisuals/releases/download/v0.5.0/diavisuals-0.5.0-py3-none-any.whl#sha256=f52e20f20f1fb3a2418f07adb8d6a68a5567d0c321fb7c0ccc0f4db04917b96b"
+    version: 0.5.0
+    release: v0.5.0
     release_status: released
     extras:
       - mcp
@@ -315,9 +318,9 @@ mcp_dependencies:
     update: false
     remote: https://github.com/dosquartsdedocs/vegavisuals.git
     package: vegavisuals
-    uv_spec: "vegavisuals[mcp] @ https://github.com/dosquartsdedocs/vegavisuals/releases/download/v0.4.0/vegavisuals-0.4.0-py3-none-linux_x86_64.whl#sha256=b52ffa743643dd6b5e0320e7a9aa0cd500ea06262b7d5098c0c3f94a379bc0ea"
-    version: 0.4.0
-    release: v0.4.0
+    uv_spec: "vegavisuals[mcp] @ https://github.com/dosquartsdedocs/vegavisuals/releases/download/v0.5.1/vegavisuals-0.5.1-py3-none-linux_x86_64.whl#sha256=5aba4f267a37179c520b3cd164e1cec62ac5561872aa33b069cce73442dc52b1"
+    version: 0.5.1
+    release: v0.5.1
     release_status: released
     extras:
       - mcp
