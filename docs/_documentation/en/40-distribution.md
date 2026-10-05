@@ -33,8 +33,11 @@ resource control]({{ '/live-runtime/' | relative_url }}). Preparation is explici
 launch is pull-never, and startup identity remains distinct from current disk
 metadata. The owner-tested rendering closure selects Diavisuals 0.5.0 and Vega
 0.5.1 with exact artifacts; old 0.4.0 static receipts remain integrity-checked.
-Diavisuals' separate live-process identity correction still gates the full
-managed coordinator closure.
+The selected Diavisuals 0.5.0 lacks full live-process identity. The provider's
+[0.6.0 correction](https://github.com/dosquartsdedocs/diavisuals/releases/tag/v0.6.0)
+is published, but remains outside this tested Web combination. Full managed
+coordinator acceptance requires composing-owner validation and a new reviewed
+helper selection.
 
 Gem, wheel, base runtime and MCP were produced from
 `b44818c67eecef159f7aa0f825b0416cd511bc43`; receipt integration and tag target

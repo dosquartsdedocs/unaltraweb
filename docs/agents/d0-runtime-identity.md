@@ -123,10 +123,14 @@ by this source change.
 
 The coordinator does not claim to observe another MCP's serving process. Its live
 identity returns the helper selections and requires their independent connection
-observations. **Diavisuals 0.5.0 still lacks the full live-instance identity**;
-[Diavisuals 14](https://github.com/dosquartsdedocs/diavisuals/issues/14) is therefore
-an external D0 managed-closure blocker. Rendering compatibility alone does not
-close that gate or make the whole coordinator dependency graph managed-ready.
+observations. **Selected Diavisuals 0.5.0 lacks the full live-instance identity**.
+[Diavisuals 14](https://github.com/dosquartsdedocs/diavisuals/issues/14#issuecomment-5987114002)
+already records the provider correction in published **0.6.0**; the issue remains
+open for intake. That newer provider is outside unaltraweb 0.7.0's tested helper
+point. The remaining gate is composing-owner compatibility acceptance and a new
+reviewed selection of the corrected helper, followed by independent live
+observations. It is not an unpublished provider implementation. Rendering
+compatibility alone does not make the coordinator dependency graph managed-ready.
 
 ## Acceptance and delivery state
 

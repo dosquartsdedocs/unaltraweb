@@ -24,6 +24,8 @@ Existing releases, authored state and unrelated client registrations were retain
 | Receipt-only child | `6dc13638c49bfb53a1c456e9e6b30aec7b3fd713` |
 | Receipt integration / tag target | `9fc84ac7fd01c78c6fe15fe862beb6a5d1633a9e`, [PR 89](https://github.com/dosquartsdedocs/unaltraweb/pull/89) |
 | Annotated tag object | `28a2a40b4b633be2fefb3f1c753cf95db1c7bdf6` |
+| Reviewed post-release pin / report | `7f9ce5b3bd844aed3a820c98f9712b7cfc8c23ea` |
+| Post-release integration | `833c5548ff01801097ddd56114d9039fd3914a43`, [PR 90](https://github.com/dosquartsdedocs/unaltraweb/pull/90) |
 
 Review records are explicitly agent-attributed, not human approval. The receipt
 integration's first parent is the artifact source; its first-parent diff contains
@@ -178,6 +180,8 @@ helper wheels and explicit renderer IDs above. The downloaded CI gem passed
 | Tag CI | [37376786630](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37376786630) |
 | Semver image promotion | [37377435437](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37377435437) |
 | PyPI/RubyGems Trusted Publishing | [37377438226](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37377438226) |
+| Post-release PR CI / CodeQL | [37379728022](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37379728022) / [37379728286](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37379728286) |
+| Post-release integration CI / CodeQL | [37380436187](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37380436187) / [37380436184](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37380436184) |
 
 Two first-attempt receipt PR jobs were not acquired by hosted runners and ran no
 steps. Their retry passed without source changes; original attempts remain in
@@ -208,8 +212,9 @@ dependency installation claim.
 
 The separate `chore/85-pin-published-mcp-0.7.0` source change selects the published
 digest in Make/bootstrap and updates its existing pin regression and current docs.
-It does not alter the published BOM, receipt, tag or artifact bytes. Its PR/merge
-and final protected-CI state are returned in issue 85.
+It does not alter the published BOM, receipt, tag or artifact bytes. PR 90 and its
+integration passed protected CI; the resulting main checkout was clean and
+synchronized. The later helper-intake clarification is documentation-only.
 
 The actual `MCP_CONSUMER_WORKSPACE=… make mcp-stdio` transport started a synthetic
 consumer with live instance `2ebdbd20c32649c48bf309dc469f2c8b`. Tool/resource
@@ -239,10 +244,20 @@ artifact acceptance and did not replace public semver images or retained caches.
 ## Remaining gates and scope
 
 **The complete coordinator dependency graph is not declared managed-ready.**
-Selected Diavisuals 0.5.0 lacks full serving-process identity;
-[Diavisuals 14](https://github.com/dosquartsdedocs/diavisuals/issues/14) remains the
-external owner correction. The hub must observe each independent helper process,
-prepare feature-specific workers and accept the native adapter before activation.
+Selected Diavisuals 0.5.0 lacks full serving-process identity. The
+[provider return in Diavisuals 14](https://github.com/dosquartsdedocs/diavisuals/issues/14#issuecomment-5987114002)
+records that **Diavisuals 0.6.0 already published the native correction on
+2026-10-05 at 02:25:02 UTC**, from `1c2dd8c8138e27bcdb1b0fee1fd51e1d057130e3`.
+Its live mapping is `server_identity` / `diavisuals://server/identity`, with its
+own lifecycle. The open issue tracks acceptance/intake, not missing publication.
+
+Unaltraweb 0.7.0 was tested and published with 0.5.0. The outstanding composition
+gate is therefore **owner acceptance of the corrected helper and a new reviewed
+selection**, not another claim that the provider correction has yet to ship.
+The hub cannot widen the published 0.7.0 helper pin from metadata alone. It must
+also observe each independent helper process, prepare feature-specific workers
+and accept the native adapter before activation. This clarification does not
+change the released BOM or count Diavisuals 0.6.0 as tested Web compatibility.
 
 The acceptance platform is Linux/amd64 and the claimed backend profile is Docker
 stdio, one connection per instance. Shared HTTP backend reattachment and a fully
