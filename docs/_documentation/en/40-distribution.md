@@ -25,18 +25,30 @@ The template is the better place to validate gem consumption, centralized styles
 
 ## Component Contract
 
-### 0.7.0 D0 runtime increment
+### Published 0.7.0 release
 
-The next containing runtime adds [live instance identity and session-scoped
+[**0.7.0**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.0)
+adds [live instance identity and session-scoped
 resource control]({{ '/live-runtime/' | relative_url }}). Preparation is explicit,
 launch is pull-never, and startup identity remains distinct from current disk
 metadata. The owner-tested rendering closure selects Diavisuals 0.5.0 and Vega
 0.5.1 with exact artifacts; old 0.4.0 static receipts remain integrity-checked.
 Diavisuals' separate live-process identity correction still gates the full
-managed coordinator closure. Publication and activation evidence belong to the
-[D0 owner record](https://github.com/dosquartsdedocs/unaltraweb/blob/main/docs/agents/d0-runtime-identity.md).
+managed coordinator closure.
 
-### Published 0.6.0 release
+Gem, wheel, base runtime and MCP were produced from
+`b44818c67eecef159f7aa0f825b0416cd511bc43`; receipt integration and tag target
+`9fc84ac7fd01c78c6fe15fe862beb6a5d1633a9e` bind the same-source candidates.
+The post-release checkout launcher selects
+`sha256:b84cdb404ba7bab5ff0b14fa8a7ee93d7293e829cf32e28ff0dacaa8afff4677`.
+Signed-byte D0 acceptance, the retained-letter relocation/rebuild and all four
+populated Bundler roundtrips passed. Public downloads match the receipt.
+The [delivery report](https://github.com/dosquartsdedocs/unaltraweb/blob/main/docs/agents/owner-closeout-85.md)
+records exact identities and the remaining gates; the
+[D0 owner contract](https://github.com/dosquartsdedocs/unaltraweb/blob/main/docs/agents/d0-runtime-identity.md)
+defines the native API and lifecycle scopes.
+
+### Previous 0.6.0 release
 
 [**0.6.0**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.6.0)
 delivers native [retained-letter import]({{ '/retained-documents/' | relative_url }}).
@@ -51,7 +63,7 @@ The PDF worker changes to include complete retained documents and the same
 integrity checkers used by its controller. Computation, capture and visual
 companions retain their tested 0.4.0 selections.
 
-The post-release checkout launcher selects published MCP digest
+That release's post-release checkout launcher selected MCP digest
 `sha256:736c4ddd0a543454e3edaeac2e9cfd97a1279ce472923ac54e326c1281b2ba05`.
 Signed candidates, protected CI, strict receipt/ancestry gates, registry promotion
 and Trusted Publishing passed. Anonymous downloads match the receipt. The
@@ -106,25 +118,25 @@ candidate, receipt, tag and package evidence.
 
 The BOM is an interoperability contract, not a bundle. The wheel contains its Python control/inspection modules, schema/BOM, clean package-owned scaffolds and a small host Docker launcher, described below. It does not include Ruby theme assets, Docker image layers, the factory's build/worker implementations, TeX, Chromium, computation environments, `diavisuals`, or `vegavisuals`.
 
-The selected public core release is `0.6.0`; earlier distributions remain immutable. Its BOM reuses immutable PDF, compute and web-capture worker digests and selects published `diavisuals v0.4.0` and `vegavisuals v0.4.0` through SHA-256-pinned wheel URLs. Companion references can describe either a provider/release-matching Git reference or a provider/release/version-matching wheel with its content hash. The wheel boundary remains external. The scaffold's Vega revision is the published `68c0b231402ae9485cc34ce530dc5239cb0ec194` commit. `distribution-check` validates structural integrity for normal CI. `distribution-release-check` blocks coordinated publication while any component is `pending` or `unavailable`; reviewed source authorized to produce final same-commit candidates is `ready`, while an already-published component is `released`. Final receipt values remain immutable after publication.
+The selected public core release is `0.7.0`; earlier distributions remain immutable. Its BOM reuses immutable PDF, compute and web-capture worker digests and selects published `diavisuals v0.5.0` and `vegavisuals v0.5.1` through SHA-256-pinned wheel URLs. Companion references can describe either a provider/release-matching Git reference or a provider/release/version-matching wheel with its content hash. The wheel boundary remains external. The scaffold's Vega revision is the published `a448cc50a5f511743a6fcfc213baeb9be80f4a27` commit. `distribution-check` validates structural integrity for normal CI. `distribution-release-check` blocks coordinated publication while any component is `pending` or `unavailable`; reviewed source authorized to produce final same-commit candidates is `ready`, while an already-published component is `released`. Final receipt values remain immutable after publication.
 
 ## Docker-First Hybrid Policy
 
-### 0.6.0 component selection
+### 0.7.0 component selection
 
-The coordinated core identity is **0.6.0**: gem, wheel, base runtime and MCP
+The coordinated core identity is **0.7.0**: gem, wheel, base runtime and MCP
 images were published together. The installed host launcher and runtime-aware
 generated Bundler state are included. The PDF worker uses its reviewed, signed
-0.6.0 digest, alongside the 0.4.0 computation/capture workers and visual
-companions. A released PDF can be reused only by full digest; new/pending workers
-still require the coordinated version. The historical 0.5.0 receipt remains
-unchanged. Signed image/package evidence is recorded in the 0.6.0 receipt;
+0.6.0 digest, alongside the 0.4.0 computation/capture workers and the accepted
+Diavisuals 0.5.0 / Vega 0.5.1 rendering combination. A released PDF can be reused
+only by full digest; new/pending workers still require the coordinated version.
+Earlier receipts remain unchanged. Signed image/package evidence is recorded in the 0.7.0 receipt;
 promotion and anonymous-download checks passed before the post-release launcher
 pin was advanced.
 
 ### Local delivery
 
-GHCR is the canonical delivery channel for normal local use. The released package scaffold selects `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.6.0`; existing sites can remain on their immutable previous release until deliberately updated. Its `make build`, `make serve` and `make test` targets mount the thin child site and run inside that image. The image contains both the installed Python control plane and the reviewed factory source at `/opt/unaltraweb`, so those targets load the theme as a path gem without downloading PyPI or RubyGems packages.
+GHCR is the canonical delivery channel for normal local use. The released package scaffold selects `ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.0`; existing sites can remain on their immutable previous release until deliberately updated. Its `make build`, `make serve` and `make test` targets mount the thin child site and run inside that image. The image contains both the installed Python control plane and the reviewed factory source at `/opt/unaltraweb`, so those targets load the theme as a path gem without downloading PyPI or RubyGems packages.
 
 Factory registration uses a stricter pin. gContExt runs `mcp-build`, which inspects or pulls the full `MCP_RELEASE_IMAGE` digest, and `mcp-stdio` launches that exact image. Checkout builds use local `:dev` names by default through `mcp-image`, `mcp-check` and `mcp-smoke`, so they do not shadow public semver references unless a maintainer explicitly overrides them. The digest is advanced in a separate post-release change after each new receipt exists; candidate source continues to select the last completed release instead of attempting to embed an unknown self-digest.
 
@@ -154,7 +166,7 @@ unaltraweb-mcp-docker serve --project /absolute/consumer
 ```
 
 The installed default selects its package's full MCP release image, currently
-`ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.6.0`. It resolves that selection to the
+`ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.0`. It resolves that selection to the
 local immutable image ID before executing. The checkout's `MCP_RELEASE_IMAGE`
 is a separate digest pin advanced only after publication; it is not the installed
 wheel's default. This avoids sending a new package back to an older MCP while
@@ -299,7 +311,7 @@ For that reason:
 
 ## Docker Runtime
 
-Release `0.6.0` publishes the selected base/MCP runtime and packages while pinning the verified PDF worker and reusing unchanged specialized workers. Local maintainers continue to use explicit development names such as `unaltraweb:dev`; generated sites select the reviewed semver MCP image rather than `main` or `latest`.
+Release `0.7.0` publishes the selected base/MCP runtime and packages while pinning the verified PDF worker and reusing unchanged specialized workers. Local maintainers continue to use explicit development names such as `unaltraweb:dev`; generated sites select the reviewed semver MCP image rather than `main` or `latest`.
 
 The base runtime owns Ruby, Jekyll and system dependencies. The MCP image builds on its exact candidate digest and adds the full reviewed factory plus the Python package. Specialized workers remain separate. This keeps each layer focused without adding Chromium, TeX or computation stacks to every site; the coordinated core-image workflow still rebuilds and verifies runtime, MCP and manual PDF candidates together.
 

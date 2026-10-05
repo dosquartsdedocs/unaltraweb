@@ -14,7 +14,8 @@ permalink: /live-runtime/
 nav_title: Live Runtime
 ---
 
-The 0.7.0 runtime increment distinguishes the process serving a connection from
+The [published 0.7.0 runtime](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.0)
+distinguishes the process serving a connection from
 the installed package, source checkout and rendering workers. Call
 `runtime_identity` or read `web://runtime-identity` through that live MCP
 connection. Both report the same backend instance and startup information.

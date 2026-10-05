@@ -10,6 +10,31 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Current Shape
 
+Release [**v0.7.0**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.0)
+delivers live MCP identity, exact prepared execution and session-scoped lifecycle
+from issue [85](https://github.com/dosquartsdedocs/unaltraweb/issues/85), against
+gaContExt requirements `5634ea2e3e42122bb365992dfca9f248feb89dec`.
+
+- Implementation/core PR 87; final artifact source PR 88,
+  `b44818c67eecef159f7aa0f825b0416cd511bc43`.
+- Receipt PR 89; tag target `9fc84ac7fd01c78c6fe15fe862beb6a5d1633a9e`.
+- Signed candidates `37273192732`, packages `37273195884`, image promotion
+  `37377435437` and Trusted Publishing `37377438226` passed.
+- Signed-byte D0/crash/offline/A-B-A, Carta relocation/PDF and four-profile
+  populated Bundler acceptance passed. Public downloads match the receipt.
+- Checkout MCP pin:
+  `ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:b84cdb404ba7bab5ff0b14fa8a7ee93d7293e829cf32e28ff0dacaa8afff4677`.
+- PDF 0.6.0 and computation/capture 0.4.0 workers retain immutable selections.
+  Diavisuals 0.5.0 / Vega 0.5.1 rendering is accepted; exact 0.4.0 static receipts
+  retain integrity-checked compatibility.
+- Full managed coordinator closure still requires Diavisuals #14. Historical
+  0.6.0 live identity remains partial; arbitrary direct controller mappings (#31),
+  shared-HTTP profiles and real consumer adoption retain separate gates.
+
+Full delivery evidence: [`docs/agents/owner-closeout-85.md`](docs/agents/owner-closeout-85.md).
+
+### Previous 0.6.0 delivery
+
 Release [**v0.6.0**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.6.0)
 delivers native Carta leaf `letter-pdf-v1` import, web/PDF integration and complete
 retention from issue [80](https://github.com/dosquartsdedocs/unaltraweb/issues/80).

@@ -1,9 +1,10 @@
 # MCP Contract
 
-The D0 additions require a containing 0.7.0 runtime. Their pinned requirements,
+The D0 additions ship in the published 0.7.0 runtime. Their pinned requirements,
 exact API mapping, lifecycle scopes and external helper-identity blocker are
 documented in [the owner contract](d0-runtime-identity.md). A source descriptor
-does not upgrade an already-running 0.6.0 connection.
+does not upgrade an already-running 0.6.0 connection. Exact public identities and
+installed acceptance are recorded in [the delivery report](owner-closeout-85.md).
 
 `unaltraweb` exposes one global, on-demand stdio MCP server for website workspaces. Every client session starts an independently named Dockerized MCP process and mounts its current consumer project at `/workspace` and at its canonical host path. Stable factory, role, and project labels preserve project-scoped lifecycle control without forcing concurrent sessions to share a deterministic container name. The image includes both FastMCP and the Jekyll runtime, so the host does not need Python, the optional `mcp` package, Ruby, or Bundler.
 
@@ -37,8 +38,8 @@ it to an image ID before execution. The source checkout's digest pin is separate
 it advances only after a new receipt exists. Explicit `--image` (or the console
 adapter's `UNALTRAWEB_MCP_IMAGE`) permits a reviewed immutable selection.
 
-The post-release checkout pin selects published 0.6.0 MCP digest
-`sha256:736c4ddd0a543454e3edaeac2e9cfd97a1279ce472923ac54e326c1281b2ba05`.
+The post-release checkout pin selects published 0.7.0 MCP digest
+`sha256:b84cdb404ba7bab5ff0b14fa8a7ee93d7293e829cf32e28ff0dacaa8afff4677`.
 Existing processes keep their running image until clients reconnect. Site build
 defaults and customized Makefiles remain separate, explicitly reviewed selections.
 
