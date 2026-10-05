@@ -27,9 +27,11 @@ gaContExt requirements `5634ea2e3e42122bb365992dfca9f248feb89dec`.
 - PDF 0.6.0 and computation/capture 0.4.0 workers retain immutable selections.
   Diavisuals 0.5.0 / Vega 0.5.1 rendering is accepted; exact 0.4.0 static receipts
   retain integrity-checked compatibility.
-- Full managed coordinator closure still requires Diavisuals #14. Historical
-  0.6.0 live identity remains partial; arbitrary direct controller mappings (#31),
-  shared-HTTP profiles and real consumer adoption retain separate gates.
+- Full managed coordinator closure needs owner acceptance of the already-published
+  Diavisuals 0.6.0 correction (provider #14) and a new reviewed helper selection;
+  Web 0.7.0's tested point remains 0.5.0. Historical Web 0.6.0 live identity is
+  partial; arbitrary direct controller mappings (#31), shared-HTTP profiles and
+  real consumer adoption retain separate gates.
 
 Full delivery evidence: [`docs/agents/owner-closeout-85.md`](docs/agents/owner-closeout-85.md).
 

@@ -84,7 +84,9 @@ observations without running a renderer.
 Visual helpers are separate MCP processes. Their versions and immutable package
 selections describe the accepted rendering closure, not their current live
 instances. The composing controller must obtain each helper's own live identity.
-The selected Diavisuals 0.5.0 still requires its separately tracked D0 identity
-correction before the entire coordinator closure can be marked managed-ready.
+The selected Diavisuals 0.5.0 lacks full live-process identity. Diavisuals 0.6.0
+publishes the provider correction, but is outside unaltraweb 0.7.0's tested helper
+combination. Composing-owner compatibility validation and a new reviewed selection
+are required before accepting that corrected helper in the managed closure.
 Existing 0.4.0 static provider receipts remain subject to full integrity checks
 and do not force regeneration of authored figures during an upgrade.
