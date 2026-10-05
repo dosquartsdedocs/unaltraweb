@@ -181,3 +181,20 @@ workflow, fresh-wheel and extracted-gem gates pass, as do the real MCP smoke,
 manual preparation, docs build, prose checks and whitespace checks. These checks
 do not override the separate signed-candidate/publication gates or the external
 helper-process blocker.
+
+## Reviewed core selection
+
+Implementation `0c87e8c276e58ac9c747833df69cdb439aa6132b` was reviewed and
+integrated through [PR 87](https://github.com/dosquartsdedocs/unaltraweb/pull/87)
+as `216ab2e8b6b8b45a5bb7da0a54bffd10edee895d`. Protected PR CI
+[37271200816](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37271200816)
+and CodeQL [37271200817](https://github.com/dosquartsdedocs/unaltraweb/actions/runs/37271200817)
+passed. The recorded review is agent-attributed.
+
+The next candidate source pins that integrated core and authorizes gem, wheel,
+runtime and MCP as `ready` for same-source candidate preparation. The selected
+signed PDF 0.6.0 and computation/capture 0.4.0 workers remain unchanged: the new
+selection/lifecycle behavior is controller-owned. Strict receipt, ancestry,
+candidate, installed-byte and publication gates still apply. This readiness is
+for the containing owner release, not approval of the full managed coordinator
+closure while the external Diavisuals identity gap remains.
