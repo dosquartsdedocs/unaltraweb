@@ -25,6 +25,17 @@ The template is the better place to validate gem consumption, centralized styles
 
 ## Component Contract
 
+### 0.7.0 D0 runtime increment
+
+The next containing runtime adds [live instance identity and session-scoped
+resource control]({{ '/live-runtime/' | relative_url }}). Preparation is explicit,
+launch is pull-never, and startup identity remains distinct from current disk
+metadata. The owner-tested rendering closure selects Diavisuals 0.5.0 and Vega
+0.5.1 with exact artifacts; old 0.4.0 static receipts remain integrity-checked.
+Diavisuals' separate live-process identity correction still gates the full
+managed coordinator closure. Publication and activation evidence belong to the
+[D0 owner record](https://github.com/dosquartsdedocs/unaltraweb/blob/main/docs/agents/d0-runtime-identity.md).
+
 ### Published 0.6.0 release
 
 [**0.6.0**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.6.0)

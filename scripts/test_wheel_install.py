@@ -142,14 +142,14 @@ def main() -> int:
         fake_bin = temp / "fake-bin"
         fake_bin.mkdir()
         fake_docker = fake_bin / "docker"
-        fake_docker.write_text("#!/bin/sh\n[ \"$1 $2\" = 'image inspect' ] || exit 99\n[ \"$5\" = \"$EXPECTED_IMAGE\" ] || exit 98\nprintf 'sha256:fixture\\n'\n", encoding="utf-8")
+        fake_docker.write_text("#!/bin/sh\n[ \"$1 $2\" = 'image inspect' ] || exit 99\n[ \"$5\" = \"$EXPECTED_IMAGE\" ] || exit 98\nprintf 'sha256:1111111111111111111111111111111111111111111111111111111111111111\\n'\n", encoding="utf-8")
         fake_docker.chmod(0o755)
         expected_image = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text())["components"]["mcp"]["reference"]
         launcher_env = {**no_consumer_env, "PATH": f"{fake_bin}:{env['PATH']}", "EXPECTED_IMAGE": expected_image}
         launcher_env.pop("UNALTRAWEB_MCP_IMAGE", None)
         launcher_env.pop("MCP_RELEASE_IMAGE", None)
         prepared_image = run([str(docker_cli), "prepare"], cwd=temp, env=launcher_env).stdout.strip()
-        if prepared_image != "sha256:fixture":
+        if prepared_image != "sha256:" + "1" * 64:
             raise RuntimeError("Installed preparation did not use the packaged bootstrap")
         run(["make", "--silent", "--no-print-directory", "-C", str(launcher), "mcp-build"], cwd=temp, env=launcher_env)
         run([str(docker_cli), "prepare", "--image", "explicit:override"], cwd=temp,

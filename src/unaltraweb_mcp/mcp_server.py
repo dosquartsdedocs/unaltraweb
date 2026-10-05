@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import inspect
+from contextlib import asynccontextmanager
+from functools import partial, wraps
 from pathlib import Path
 from typing import Any
 
@@ -33,8 +35,47 @@ def run_server(project: Path, factory: Path) -> None:
     except ImportError as exc:  # pragma: no cover - optional dependency
         raise SystemExit("The unaltraweb MCP server requires the optional dependency. Install with: uv tool install 'unaltraweb-mcp[mcp]' or install mcp in this environment.") from exc
 
-    mcp = FastMCP(
+    import anyio
+    from .runtime_identity import RuntimeIdentity, install_runtime
+
+    runtime = RuntimeIdentity(project, factory)
+    operation_lane = {}
+
+    @asynccontextmanager
+    async def lifetime(server):
+        operation_lane["lock"] = anyio.Lock()
+        try:
+            yield
+        finally:
+            # EOF stops admission but lets bounded operations finish. Cancelling
+            # the connection must not abandon a thread/worker that owns outputs.
+            with anyio.CancelScope(shield=True):
+                runtime.drain(True)
+                while runtime.operation is not None:
+                    await anyio.sleep(0.05)
+                await anyio.to_thread.run_sync(runtime.close)
+
+    class ObservedMCP(FastMCP):
+        def tool(self, *args, **kwargs):
+            register = super().tool(*args, **kwargs)
+
+            def decorator(function):
+                if function.__name__ in {"runtime_identity", "runtime_drain"}:
+                    return register(function)
+
+                @wraps(function)
+                async def operation(*arguments, **keywords):
+                    with runtime.admit():
+                        async with operation_lane["lock"]:
+                            with runtime.job(function.__name__):
+                                return await anyio.to_thread.run_sync(partial(function, *arguments, **keywords))
+
+                return register(operation)
+            return decorator
+
+    mcp = ObservedMCP(
         "unaltraweb",
+        lifespan=lifetime,
         instructions=(
             "At the start of each site session, inspect site_context.update_status. It compares this active MCP package with the consumer offline, not with the latest release online. "
             "If an update is available, show the current and target versions, planned paths, preserved customizations and conflicts, and ask the user whether to update. "
@@ -60,6 +101,21 @@ def run_server(project: Path, factory: Path) -> None:
             " Manual release tools only inspect or prepare local candidates under tmp/manual-release; publication remains a human-controlled GitHub Actions operation."
         ),
     )
+
+    @mcp.tool()
+    def runtime_identity() -> dict[str, Any]:
+        """Observe this serving process, startup/code drift, binding and selected/observed runtimes; never prepare or read site content."""
+        return runtime.observe()
+
+    @mcp.resource("web://runtime-identity")
+    def runtime_identity_resource() -> str:
+        """The same live instance observation as runtime_identity; not a fresh helper process."""
+        return tools.dumps(runtime.observe())
+
+    @mcp.tool()
+    def runtime_drain(confirm: bool = False) -> dict[str, Any]:
+        """Stop admitting work on this connection; then close stdio and verify exact container termination. Other sessions remain active."""
+        return runtime.drain(confirm)
 
     def registered_prompt(function):
         spec = tools.PROMPT_SPECS[function.__name__]
@@ -576,4 +632,8 @@ def run_server(project: Path, factory: Path) -> None:
         """Probe bounded local paths on this project's owned labelled preview without accepting an arbitrary origin or redirects."""
         return tools.http_check(project, paths=paths, timeout_seconds=timeout_seconds)
 
-    mcp.run()
+    install_runtime(runtime)
+    try:
+        mcp.run()
+    finally:
+        install_runtime(None)

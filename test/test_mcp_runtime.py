@@ -997,7 +997,7 @@ class McpRuntimeTests(unittest.TestCase):
         docker = fake_bin / "docker"
         docker.write_text(
             "#!/bin/sh\n"
-            "if [ \"$1\" = image ]; then printf '%s\\n' 'sha256:controller'; exit 0; fi\n"
+            "if [ \"$1\" = image ]; then printf '%s\\n' 'sha256:1111111111111111111111111111111111111111111111111111111111111111'; exit 0; fi\n"
             "printf '%s\\n' \"$@\" > \"$CAPTURE\"\n"
             "if [ -n \"${READY_CAPTURE:-}\" ]; then\n"
             "  : > \"$READY_CAPTURE\"\n"
@@ -1053,11 +1053,13 @@ class McpRuntimeTests(unittest.TestCase):
 
         project_ids = [hashlib.sha256(str(project.resolve()).encode("utf-8")).hexdigest()[:16] for project in projects]
         self.assertNotEqual(project_ids[0], project_ids[1])
+        self.assertNotEqual(launches[0][launches[0].index("--name") + 1], launches[1][launches[1].index("--name") + 1])
         for args, project, project_id in zip(launches, projects, project_ids):
-            self.assertNotIn("--name", args)
+            self.assertRegex(args[args.index("--name") + 1], r"^unaltraweb-stdio-[0-9a-f]{32}$")
+            self.assertEqual(args[args.index("--pull") + 1], "never")
             self.assertIn("io.context.mcp-role=stdio", args)
             self.assertIn(f"io.context.mcp-project={project_id}", args)
-            self.assertIn("sha256:controller", args)
+            self.assertIn("sha256:" + "1" * 64, args)
             self.assertNotIn(str(root), args)
             mounts = [next(csv.reader([args[index + 1]])) for index, value in enumerate(args[:-1]) if value == "--mount"]
             self.assertIn(["type=bind", f"source={project.resolve()}", "target=/workspace"], mounts)
@@ -1195,11 +1197,11 @@ class McpRuntimeTests(unittest.TestCase):
             run_target("mcp-down", self.project),
             [
                 [
-                    "ps", "-aq", "--filter", "label=io.context.mcp-factory=unaltraweb",
+                    "ps", "-aq", "--no-trunc", "--filter", "label=io.context.mcp-factory=unaltraweb",
                     "--filter", f"label=io.context.mcp-project={project_id}",
                 ],
                 [
-                    "network", "ls", "-q", "--filter", "label=io.context.mcp-factory=unaltraweb",
+                    "network", "ls", "-q", "--no-trunc", "--filter", "label=io.context.mcp-factory=unaltraweb",
                     "--filter", f"label=io.context.mcp-project={project_id}",
                 ],
             ],

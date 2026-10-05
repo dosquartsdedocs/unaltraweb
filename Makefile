@@ -1,8 +1,8 @@
 PYTHON ?= python3
 override PROJECT := $${MCP_CONSUMER_WORKSPACE:?MCP_CONSUMER_WORKSPACE is required}
 override PROJECT_ROOT := $(PROJECT)
-MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.6.0
-MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.6.0
+MCP_RUNTIME_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.7.0
+MCP_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.0
 MCP_RELEASE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:736c4ddd0a543454e3edaeac2e9cfd97a1279ce472923ac54e326c1281b2ba05
 MCP_DOCKER_BUILD_NETWORK ?= default
 INIT_SITE_PROFILE ?= unaltreselfie
@@ -40,7 +40,7 @@ WEB_CAPTURE_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-web-capture@sha256:0bf1b
 WEB_CAPTURE_DEV_IMAGE ?= unaltraweb-web-capture:dev
 WEB_CAPTURE_DOCKER_BUILD_NETWORK ?= default
 VEGAVISUALS_CLI ?=
-DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.6.0
+DOCKER_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb:0.7.0
 MANUAL_PDF_IMAGE ?= ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:0ba267cb87f53ebaca4e31805fe00610cd61fdf97a8d2c3692f4655700dceaed
 MANUAL_PDF_DEV_IMAGE ?= unaltraweb-manual-pdf:dev
 MCP_SMOKE_MANUAL_PDF_IMAGE ?= $(MANUAL_PDF_IMAGE)
@@ -71,7 +71,7 @@ export MANUAL_RELEASE_SELECTOR MANUAL_PDF_LANG MANUAL_PDF_PUBLISH_DRY_RUN MANUAL
 UNALTRAWEB_WORKER_ROLE ?=
 UNALTRAWEB_WORKER_PROJECT ?=
 UNALTRAWEB_WORKER_TOKEN ?=
-WORKER_LABEL_ARGS = $(if $(strip $(UNALTRAWEB_WORKER_TOKEN)),--label "io.context.mcp-factory=unaltraweb" --label "io.context.mcp-role=$(UNALTRAWEB_WORKER_ROLE)" --label "io.context.mcp-project=$(UNALTRAWEB_WORKER_PROJECT)" --label "io.context.mcp-worker-token=$(UNALTRAWEB_WORKER_TOKEN)",)
+WORKER_LABEL_ARGS = $(if $(strip $(UNALTRAWEB_WORKER_TOKEN)),--label "io.context.mcp-factory=unaltraweb" --label "io.context.mcp-role=$(UNALTRAWEB_WORKER_ROLE)" --label "io.context.mcp-project=$(UNALTRAWEB_WORKER_PROJECT)" --label "io.context.mcp-worker-token=$(UNALTRAWEB_WORKER_TOKEN)",) $(if $(strip $(UNALTRAWEB_RUNTIME_SESSION)),--label "io.context.mcp-session=$(UNALTRAWEB_RUNTIME_SESSION)",)
 DOCS_CONTAINER ?= unaltraweb-docs-local
 DOCS_HOST ?= 0.0.0.0
 DOCS_PORT ?= 4000
@@ -295,17 +295,18 @@ manual-compute-render: ## Execute sources and atomically publish Markdown and fi
 	  python_image="$(COMPUTE_PYTHON_IMAGE)"; r_image="$(COMPUTE_R_IMAGE)"; \
 	  if test "$$engine" = "r"; then r_image="$$image"; else python_image="$$image"; fi; \
 	  if ! docker image inspect "$$image" >/dev/null 2>&1; then \
+	    if test "$${UNALTRAWEB_MANAGED_RUNTIME:-0}" = 1; then printf '%s\n' 'Selected computation image is not prepared; managed execution never builds or pulls' >&2; exit 1; fi; \
 	    COMPUTE_PYTHON_IMAGE="$(COMPUTE_PYTHON_IMAGE)" COMPUTE_R_IMAGE="$(COMPUTE_R_IMAGE)" COMPUTE_DOCKER_BUILD_NETWORK="$(COMPUTE_DOCKER_BUILD_NETWORK)" $(PYTHON) "$(COMPUTE_SCRIPT)" image --project "$(PROJECT_ROOT)" --engine "$$engine" >/dev/null; \
 	  fi; \
 	  identity=$$(docker image inspect "$$image" --format '{{.Id}}'); \
 	  digest=$$(docker image inspect "$$image" --format '{{join .RepoDigests ","}}'); \
 	  set --; if test -n "$(UNALTRAWEB_WORKER_TOKEN)"; then cidfile="$$runtime_dir/worker-$(UNALTRAWEB_WORKER_TOKEN)-$$engine.cid"; rm -f "$$cidfile"; cidfiles="$$cidfiles $$cidfile"; set -- --cidfile "$$cidfile"; fi; \
-	  docker run --rm "$$@" $(WORKER_LABEL_ARGS) --user "$(LOCAL_UID):$(LOCAL_GID)" --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit "$(COMPUTE_PIDS_LIMIT)" --cpus "$(COMPUTE_CPUS)" --memory "$(COMPUTE_MEMORY)" --tmpfs /tmp:rw,noexec,nosuid,size=1g \
+	  docker run --rm --pull never "$$@" $(WORKER_LABEL_ARGS) --user "$(LOCAL_UID):$(LOCAL_GID)" --network none --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit "$(COMPUTE_PIDS_LIMIT)" --cpus "$(COMPUTE_CPUS)" --memory "$(COMPUTE_MEMORY)" --tmpfs /tmp:rw,noexec,nosuid,size=1g \
 	    -e HOME=/tmp -e COMPUTE_PYTHON_IMAGE="$$python_image" -e COMPUTE_R_IMAGE="$$r_image" \
 	    -e UNALTRAWEB_COMPUTE_IMAGE_ID="$$identity" -e UNALTRAWEB_COMPUTE_IMAGE_DIGEST="$$digest" \
 	    --mount "$$project_mount" \
 	    --mount "$$runtime_mount" \
-	    -w /project --entrypoint python3 "$$image" \
+	    -w /project --entrypoint python3 "$$identity" \
 	    /opt/unaltraweb/computations/render.py render --project /project --engine "$$engine" $(if $(strip $(COMPUTE_SOURCE)),--source "$(COMPUTE_SOURCE)",) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_CONFIRM_OVERWRITE)),--confirm-overwrite,) $(if $(filter 1 true TRUE yes YES y Y,$(COMPUTE_STALE_ONLY)),--stale-only,) $(if $(strip $(COMPUTE_MODE)),--mode "$(COMPUTE_MODE)",) >> "$$results"; \
 	done; \
 	if test -z "$(strip $(COMPUTE_SOURCE))"; then $(PYTHON) "$(COMPUTE_SCRIPT)" prune --project "$(PROJECT_ROOT)" >/dev/null; fi; \
@@ -382,13 +383,14 @@ define run_manual_pdf_worker
 	if test -n "$(UNALTRAWEB_WORKER_TOKEN)"; then runtime_dir="$(PROJECT_ROOT)/tmp/.unaltraweb/manual-pdf"; mkdir -p "$$runtime_dir"; cidfile="$$runtime_dir/worker-$(UNALTRAWEB_WORKER_TOKEN).cid"; rm -f "$$cidfile"; set -- --cidfile "$$cidfile"; fi; \
 	mount=$$(/bin/sh "$(DOCKER_MOUNT_SCRIPT)" "$(PROJECT_ROOT)" /project); \
 	trap 'test -z "$$cidfile" || rm -f "$$cidfile"' EXIT; \
-	docker run --rm "$$@" $(WORKER_LABEL_ARGS) --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e "UNALTRAWEB_MANUAL_RELEASE_SELECTOR=$${MANUAL_RELEASE_SELECTOR}" --mount "$$mount" -w /project "$(MANUAL_PDF_IMAGE)" $(1) --project /project $(if $(strip $(MANUAL_PDF_LANG)),--language "$(MANUAL_PDF_LANG)",) $(2)
+	identity=$$(docker image inspect "$(MANUAL_PDF_IMAGE)" --format '{{.Id}}'); \
+	docker run --rm --pull never --network none --cpus 2 --memory 2g --pids-limit 256 "$$@" $(WORKER_LABEL_ARGS) --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e "UNALTRAWEB_MANUAL_RELEASE_SELECTOR=$${MANUAL_RELEASE_SELECTOR}" --mount "$$mount" -w /project "$$identity" $(1) --project /project $(if $(strip $(MANUAL_PDF_LANG)),--language "$(MANUAL_PDF_LANG)",) $(2)
 endef
 
 manual-pdf-preflight: ## Run required PDF gates without contaminating the worker JSON stream
 	@$(MAKE) --silent --no-print-directory manual-compute-check >/dev/null
 	@$(MAKE) --silent --no-print-directory web-capture-check >/dev/null
-	@docker image inspect "$(MANUAL_PDF_IMAGE)" >/dev/null 2>&1 || docker pull "$(MANUAL_PDF_IMAGE)" >/dev/null
+	@docker image inspect "$(MANUAL_PDF_IMAGE)" >/dev/null 2>&1 || { if test "$${UNALTRAWEB_MANAGED_RUNTIME:-0}" = 1; then printf '%s\n' 'Selected PDF image is not prepared; managed execution never pulls' >&2; exit 1; fi; docker pull "$(MANUAL_PDF_IMAGE)" >/dev/null; }
 
 manual-pdf-status: ## Inspect manual PDF configuration and artefacts without Docker, network, or writes
 	@UNALTRAWEB_MANUAL_RELEASE_SELECTOR="$${MANUAL_RELEASE_SELECTOR}" $(PYTHON) "$(CURDIR)/scripts/manual/build_pdf.py" status --project "$(PROJECT_ROOT)" $(if $(strip $(MANUAL_PDF_LANG)),--language "$(MANUAL_PDF_LANG)",)

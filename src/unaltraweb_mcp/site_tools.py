@@ -3975,6 +3975,12 @@ def run_make(
 
 
 def _docker_host_project(project: Path, env: dict[str, str] | None = None) -> str:
+    from .runtime_identity import active_runtime
+    runtime = active_runtime()
+    if runtime is not None:
+        if project_path(project) != runtime.project:
+            raise RuntimeError("Operation does not match the startup-fixed consumer")
+        return runtime.host_project
     values = env if env is not None else os.environ
     raw = values.get("UNALTRAWEB_DOCKER_ROOT")
     host_project = raw if raw is not None and raw != "" else str(project)
@@ -4001,6 +4007,31 @@ def run_factory_make(
     if env:
         merged_env.update(env)
     merged_env["MCP_CONSUMER_WORKSPACE"] = str(project_root)
+    from .runtime_identity import active_runtime
+    runtime = active_runtime()
+    if runtime is not None and runtime.session_id:
+        merged_env["UNALTRAWEB_RUNTIME_SESSION"] = runtime.session_id
+        merged_env["UNALTRAWEB_MANAGED_RUNTIME"] = "1" if runtime.managed else "0"
+    if runtime is not None and runtime.managed:
+        for key in ("MAKEFLAGS", "MFLAGS", "MAKEOVERRIDES"):
+            merged_env.pop(key, None)
+        if target in {"manual-pdf-build", "manual-pdf-publish", "manual-pdf-publish-worker"}:
+            merged_env["MANUAL_PDF_IMAGE"] = runtime.worker("manual_pdf")
+        elif target == "web-capture-render":
+            merged_env["WEB_CAPTURE_IMAGE"] = runtime.worker("web_capture")
+        elif target in {"manual-compute-render", "manual-compute-render-figures"}:
+            merged_env.update(COMPUTE_CPUS="4", COMPUTE_MEMORY="8g", COMPUTE_PIDS_LIMIT="512")
+            status = run_factory_make(factory, project, "manual-compute-status", env=env)
+            if not status.get("ok"):
+                raise RuntimeError("Cannot verify the selected computation workers")
+            from .runtime_lifecycle import inspect_image
+            for item in status.get("sources", []):
+                engine = item["engine"]
+                approved = runtime.worker("compute_" + engine)
+                requested = inspect_image(item["image"]["image"])
+                if requested.get("observed_image_id") != approved:
+                    raise RuntimeError("Computation image differs from the startup-approved selection; provide an explicit worker mapping")
+                merged_env["COMPUTE_" + engine.upper() + "_IMAGE"] = approved
     worker_role = WORKER_TARGET_ROLES.get(target, "")
     worker_context: dict[str, str] = {}
     if worker_role:
@@ -4053,13 +4084,18 @@ def run_factory_make(
 
 
 def _cleanup_timed_out_workers(*, role: str, project_id: str, token: str) -> dict[str, Any]:
+    from .runtime_identity import active_runtime
+    from .runtime_lifecycle import inspect_container
+    runtime = active_runtime()
     filters = [
         f"label={WORKER_FACTORY_LABEL}=unaltraweb",
         f"label={WORKER_ROLE_LABEL}={role}",
         f"label={WORKER_PROJECT_LABEL}={project_id}",
         f"label={WORKER_TOKEN_LABEL}={token}",
     ]
-    command = ["docker", "ps", "-aq"]
+    if runtime is not None and runtime.session_id:
+        filters.append(f"label=io.context.mcp-session={runtime.session_id}")
+    command = ["docker", "ps", "-aq", "--no-trunc"]
     for value in filters:
         command.extend(["--filter", value])
     try:
@@ -4074,16 +4110,29 @@ def _cleanup_timed_out_workers(*, role: str, project_id: str, token: str) -> dic
             "error": listed.stderr.strip() or "Docker worker inventory failed or was truncated.",
         }
     container_ids = [line.strip() for line in listed.stdout.splitlines() if line.strip()]
-    if any(not re.fullmatch(r"[0-9a-f]{12,64}", container_id) for container_id in container_ids):
+    if len(container_ids) > 32 or any(not re.fullmatch(r"[0-9a-f]{64}", container_id) for container_id in container_ids):
         return {"ok": False, "filters": filters, "removed": [], "error": "Docker returned an invalid worker container id."}
     if not container_ids:
         return {"ok": True, "filters": filters, "removed": []}
-    removed = run_process(["docker", "rm", "-f", *container_ids], timeout_seconds=30)
+    try:
+        for cid in container_ids:
+            info = inspect_container(cid)
+            if info is None:
+                continue
+            if (info["id"] != cid or info.get("factory") != "unaltraweb" or info.get("role") != role
+                    or info.get("project_id") != project_id or info.get("worker_token") != token
+                    or (runtime is not None and runtime.session_id and info.get("session_id") != runtime.session_id)):
+                raise RuntimeError("Worker ownership changed before cleanup")
+        removed = run_process(["docker", "rm", "-f", *container_ids], timeout_seconds=30)
+        confirmed = removed.returncode == 0 and all(inspect_container(cid) is None for cid in container_ids)
+    except (OSError, ValueError, RuntimeError, KeyError) as exc:
+        return {"ok": False, "filters": filters, "removed": [], "resources_released": False, "error": str(exc)}
     return {
-        "ok": removed.returncode == 0,
+        "ok": confirmed,
         "filters": filters,
-        "removed": container_ids if removed.returncode == 0 else [],
-        "error": "" if removed.returncode == 0 else (removed.stderr.strip() or "Docker worker cleanup failed."),
+        "removed": container_ids if confirmed else [],
+        "resources_released": confirmed,
+        "error": "" if confirmed else (removed.stderr.strip() or "Docker worker termination could not be confirmed."),
     }
 
 
@@ -4342,11 +4391,15 @@ def _companion_receipt_status(project: Path, owner: str, inputs: list[Path] | No
     except (OSError, UnicodeDecodeError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
         return {**base, "ok": False, "state": "invalid", "error": str(exc)}
     selected = component(owner)
+    from .companion_compatibility import accepts_receipt
+    version = value.get("provider_version") if isinstance(value, dict) else None
+    release = value.get("release") if isinstance(value, dict) else None
+    accepted_version = accepts_receipt(owner, version, release, selected)
     expected_metadata = {
         "schema_version": 1,
         "provider": owner,
-        "provider_version": selected["version"],
-        "release": selected["release"],
+        "provider_version": version if accepted_version else selected["version"],
+        "release": release if accepted_version else selected["release"],
         "request_sha256": base["request_sha256"],
         "ok": True,
     }
@@ -4397,7 +4450,8 @@ def _companion_receipt_status(project: Path, owner: str, inputs: list[Path] | No
                     raise ValueError(f"Provider receipt {label} hash mismatch: {name}")
     except (OSError, ValueError, RuntimeError) as exc:
         return {**base, "ok": False, "state": "invalid", "error": str(exc)}
-    return {**base, "ok": True, "state": "verified", "inputs": verified_inputs, "artifacts": received}
+    return {**base, "ok": True, "state": "verified", "inputs": verified_inputs, "artifacts": received,
+            "accepted_provider_version": version, "selected_provider_version": selected["version"], "legacy_receipt": version != selected["version"]}
 
 
 def visualization_status(project: Path, factory: Path) -> dict[str, Any]:
@@ -4700,22 +4754,32 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
     if not re.fullmatch(r"\d+:\d+", owner):
         raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
 
+    from .runtime_identity import active_runtime
+    from .runtime_lifecycle import remove_idle_container, remove_idle_network
+    runtime = active_runtime()
+    session_labels = ["--label", f"io.context.mcp-session={runtime.session_id}"] if runtime is not None and runtime.session_id else []
     created = _docker([
         "network", "create", "--internal",
         "--label", f"{PREVIEW_FACTORY_LABEL}=unaltraweb",
         "--label", f"{PREVIEW_ROLE_LABEL}=web-capture",
         "--label", f"{PREVIEW_PROJECT_LABEL}={project_id}",
-        network,
+        *session_labels, network,
     ])
     if created.returncode != 0:
         raise RuntimeError(created.stderr or created.stdout or "Could not create the isolated web capture network.")
+    network_id = created.stdout.strip()
+    container_id = ""
+    if session_labels:
+        runtime.register_network(network_id)
 
     try:
         started = _docker([
-            "run", "-d", "--name", service,
+            "run", "--pull", "never", "-d", "--name", service,
             "--label", f"{PREVIEW_FACTORY_LABEL}=unaltraweb",
             "--label", f"{PREVIEW_ROLE_LABEL}=web-capture-site",
             "--label", f"{PREVIEW_PROJECT_LABEL}={project_id}",
+            *session_labels,
+            "--cpus", "2", "--memory", "2g", "--pids-limit", "256",
             "--user", owner,
             "--network", network,
             "--network-alias", service,
@@ -4729,6 +4793,9 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
         ])
         if started.returncode != 0:
             raise RuntimeError(started.stderr or started.stdout or "Could not start the isolated web capture site.")
+        container_id = started.stdout.strip()
+        if session_labels:
+            runtime.register_resource(container_id)
 
         ready = False
         ready_route = _preview_configured_route(project, site_config(project))
@@ -4754,15 +4821,23 @@ def _web_capture_render_isolated(project: Path, factory: Path, env: dict[str, st
         }
         return run_factory_make(factory, project, "web-capture-render", env=capture_env)
     finally:
-        _docker(["rm", "-f", service])
-        _docker(["network", "rm", network])
+        if session_labels:
+            if container_id:
+                remove_idle_container(container_id, project_id, runtime.session_id)
+            remove_idle_network(network_id, project_id, runtime.session_id)
+        else:
+            _docker(["rm", "-f", service])
+            _docker(["network", "rm", network])
 
 
 def _preview_identity(project: Path) -> tuple[str, str, str]:
     project = project_path(project)
     host_project = _docker_host_project(project)
     project_id = hashlib.sha256(host_project.encode("utf-8")).hexdigest()[:16]
-    return host_project, project_id, f"unaltraweb-preview-{project_id}"
+    from .runtime_identity import active_runtime
+    runtime = active_runtime()
+    suffix = f"-{runtime.session_id}" if runtime is not None and runtime.session_id else ""
+    return host_project, project_id, f"unaltraweb-preview-{project_id}{suffix}"
 
 
 def _preview_inspect(name: str) -> dict[str, Any] | None:
@@ -4782,11 +4857,14 @@ def _preview_inspect(name: str) -> dict[str, Any] | None:
 
 
 def _preview_owned(info: dict[str, Any], project_id: str) -> bool:
+    from .runtime_identity import active_runtime
+    runtime = active_runtime()
     labels = info.get("Config", {}).get("Labels", {}) or {}
     return (
         labels.get(PREVIEW_FACTORY_LABEL) == "unaltraweb"
         and labels.get(PREVIEW_ROLE_LABEL) == "preview"
         and labels.get(PREVIEW_PROJECT_LABEL) == project_id
+        and (runtime is None or not runtime.session_id or labels.get("io.context.mcp-session") == runtime.session_id)
     )
 
 
@@ -4820,6 +4898,8 @@ def _preview_payload(project: Path, info: dict[str, Any], *, include_logs: bool 
         "project_id": project_id,
         "container": name,
         "owned": _preview_owned(info, project_id),
+        "session_id": labels.get("io.context.mcp-session"),
+        "scope": "session" if labels.get("io.context.mcp-session") else "workspace",
         "running": bool(state.get("Running")),
         "status": str(state.get("Status") or ""),
         "exit_code": state.get("ExitCode"),
@@ -4947,7 +5027,7 @@ def preview_start(project: Path, *, port: int = 0, site_profile: str = "", timeo
         raise RuntimeError("UNALTRAWEB_PROJECT_USER must use the uid:gid format.")
 
     command = [
-        "run", "-d", "--name", name,
+        "run", "--pull", "never", "-d", "--name", name,
         "--label", f"{PREVIEW_FACTORY_LABEL}=unaltraweb",
         "--label", f"{PREVIEW_ROLE_LABEL}=preview",
         "--label", f"{PREVIEW_PROJECT_LABEL}={project_id}",
@@ -4963,6 +5043,10 @@ def preview_start(project: Path, *, port: int = 0, site_profile: str = "", timeo
         "-w", "/workspace",
     ]
     command.extend(["--user", owner])
+    from .runtime_identity import active_runtime
+    runtime = active_runtime()
+    if runtime is not None and runtime.session_id:
+        command.extend(["--label", f"io.context.mcp-session={runtime.session_id}", "--cpus", "2", "--memory", "2g", "--pids-limit", "256"])
     from .bundler_runtime import legacy_make_args
 
     factory = Path(os.environ.get("UNALTRAWEB_FACTORY_DIR", "/opt/unaltraweb"))
@@ -4977,6 +5061,8 @@ def preview_start(project: Path, *, port: int = 0, site_profile: str = "", timeo
     if started.returncode != 0:
         raise RuntimeError(started.stderr or started.stdout)
 
+    if runtime is not None and runtime.session_id:
+        runtime.register_resource(started.stdout.strip())
     ready, latest = _wait_for_preview(project, name, timeout_seconds)
     return {"ok": ready, "already_running": False, "ready": ready, "site": detection, **latest}
 
@@ -4989,6 +5075,12 @@ def preview_stop(project: Path) -> dict[str, Any]:
         return {"ok": True, "project": str(project), "host_project": host_project, "container": name, "stopped": False}
     if not _preview_owned(info, project_id):
         raise RuntimeError(f"Refusing to remove unowned Docker container: {name}")
+    from .runtime_identity import active_runtime
+    from .runtime_lifecycle import remove_idle_container
+    runtime = active_runtime()
+    if runtime is not None and runtime.session_id:
+        remove_idle_container(info["Id"], project_id, runtime.session_id)
+        return {"ok": True, "project": str(project), "host_project": host_project, "container": info["Id"], "stopped": True, "scope": "session"}
     removed = _docker(["rm", "-f", name])
     if removed.returncode != 0:
         raise RuntimeError(removed.stderr or removed.stdout)
@@ -5872,7 +5964,9 @@ def list_tools() -> dict[str, Any]:
         "tools": ["distribution_doctor", "new_web", "initialize_site", "starter_templates", "detect_site", "site_context", "site_doctor", "site_check", "site_source_read", "site_source_write", "site_source_delete", "scaffold_sync", "profile_check", "prose_check", "editorial_policy", "editorial_status", "editorial_review_prepare", "editorial_review_record", "editorial_review_resolve", "editorial_publication_check", "image_background_check", "manual_source_quality_check", "manual_editorial_quality_check", "manual_authoring_capabilities", "manual_computation_status", "manual_computation_check", "manual_computation_render", "manual_computation_render_figures", "web_capture_status", "web_capture_check", "web_capture_render", "manual_pdf_status", "manual_pdf_build", "manual_pdf_preview_prepare", "manual_pdf_preview_clean", "manual_pdf_publish", "manual_release_status", "manual_release_check", "manual_release_prepare", "profile_prune_plan", "profile_prune", "content_inventory", "language_policy", "content_approval_inventory", "translation_plan", "content_freshness_check", "bibliography_inventory", "bibliography_add_entry", "bibliometrics_check", "bibliometrics_update", "bibliometrics_fetch_scimago", "build_site", "build_health", "html_audit", "preview_start", "preview_status", "preview_stop", "http_check"],
     }
     inventory["resources"].append("web://artifact-imports")
+    inventory["resources"].append("web://runtime-identity")
     inventory["tools"].extend(["import_artifact_bundle", "artifact_import_check"])
+    inventory["tools"].extend(["runtime_identity", "runtime_drain"])
     return inventory
 
 

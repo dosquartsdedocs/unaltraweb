@@ -1,5 +1,10 @@
 # MCP Contract
 
+The D0 additions require a containing 0.7.0 runtime. Their pinned requirements,
+exact API mapping, lifecycle scopes and external helper-identity blocker are
+documented in [the owner contract](d0-runtime-identity.md). A source descriptor
+does not upgrade an already-running 0.6.0 connection.
+
 `unaltraweb` exposes one global, on-demand stdio MCP server for website workspaces. Every client session starts an independently named Dockerized MCP process and mounts its current consumer project at `/workspace` and at its canonical host path. Stable factory, role, and project labels preserve project-scoped lifecycle control without forcing concurrent sessions to share a deterministic container name. The image includes both FastMCP and the Jekyll runtime, so the host does not need Python, the optional `mcp` package, Ruby, or Bundler.
 
 The client registration should launch:
@@ -43,7 +48,7 @@ Repository editing coordination remains a control-plane responsibility rather th
 
 For a new agent-driven workspace, create or select the empty Git repository first, open that directory in the IDE, register the factory, restart the client, and then call `new_web`. The tool remains confined to the configured project root and does not accept an arbitrary destination. Generated sites include user-owned `README.md` and `AGENTS.md`, profile-specific source directories, and a managed runtime baseline; `scaffold_sync` never rewrites those user-owned guidance or content files.
 
-The native Python CLI remains modular. Without a factory checkout it supports `version`, `new-web`, top-level `doctor`, the host-only `import-calibre` command, and the exact package-only MCP inventory declared in `component-contract.json`. The complementary exact inventory fails clearly with `UNALTRAWEB_FACTORY_DIR` remediation. The separate Docker adapter delegates to the full image and does not expand that native inventory. The BOM selects the published `diavisuals v0.4.0` and `vegavisuals v0.4.0` releases. Its `consumer_integration` object is also the single source for the immutable core, workflow, PDF worker, and Vega revisions rendered into consumer scaffolds. Neither companion is bundled in the wheel or MCP server namespace.
+The native Python CLI remains modular. Without a factory checkout it supports `version`, `new-web`, top-level `doctor`, the host-only `import-calibre` command, and the exact package-only MCP inventory declared in `component-contract.json`. The complementary exact inventory fails clearly with `UNALTRAWEB_FACTORY_DIR` remediation. The separate Docker adapter delegates to the full image and does not expand that native inventory. The 0.7.0 BOM selects owner-tested `diavisuals v0.5.0` and `vegavisuals v0.5.1`; existing 0.4.0 static receipts retain their exact integrity-checked compatibility point. Its `consumer_integration` object is also the single source for the immutable core, workflow, PDF worker, and Vega revisions rendered into consumer scaffolds. Neither companion is bundled in the wheel or MCP server namespace.
 
 Static Vega-Lite and Vega rendering remains owned by the required companion `vegavisuals` MCP dependency. Use its `visualization_status`, `visualization_check`, `render_visualizations`, and `vegavisuals://project/*` resources directly; `unaltraweb` exposes the authoring syntax but does not proxy those tools into the `web://` server.
 
@@ -81,6 +86,7 @@ baseline format nor runtime cleanup changes.
 
 | Resource | Description |
 | --- | --- |
+| `web://runtime-identity` | Bounded identity of this serving process: startup/current code, instance/PID namespaces, binding, runtime selections and cooperative lifecycle. |
 | `web://distribution` | Package-owned component BOM plus offline, feature-aware doctor findings for the current factory and project. |
 | `web://site-context` | Site profile, feature flags, content inventory, bibliography, bibliometrics, build state, and offline consumer-update advisory. |
 | `web://site-doctor` | Read-only offline distribution, project-contract, freshness, scaffold-drift, and core-override findings. |
@@ -109,6 +115,8 @@ baseline format nor runtime cleanup changes.
 
 | Tool | Notes |
 | --- | --- |
+| `runtime_identity` | Observe the actual serving instance, startup/current package evidence and selected/observed images; never prepare a runtime or inspect site content. |
+| `runtime_drain` | With `confirm=true`, stop admission on this connection; then close stdio and verify exact container/session resource termination. It is not workspace-wide down. |
 | `distribution_doctor` | Return offline component/factory/project findings with stable codes and optional local Docker image inspection that never pulls. |
 | `new_web` | Create a profile-specific site from package-owned assets after a complete collision, path, and symlink preflight. |
 | `starter_templates` | List package-owned profile scaffolds under the legacy inventory name. |

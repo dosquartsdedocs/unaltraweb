@@ -58,16 +58,48 @@ case "$project_id" in
     ;;
 esac
 
-containers=$(docker ps -aq \
+# Explicit workspace-wide shutdown. Managed per-client detach uses live drain,
+# stdio EOF and the separate session-status/reap-session native adapter instead.
+containers=$(docker ps -aq --no-trunc \
   --filter "label=io.context.mcp-factory=unaltraweb" \
   --filter "label=io.context.mcp-project=$project_id")
-if [ -n "$containers" ]; then
-  docker rm -f $containers >/dev/null
-fi
+networks=$(docker network ls -q --no-trunc \
+  --filter "label=io.context.mcp-factory=unaltraweb" \
+  --filter "label=io.context.mcp-project=$project_id")
 
-networks=$(docker network ls -q \
-  --filter "label=io.context.mcp-factory=unaltraweb" \
-  --filter "label=io.context.mcp-project=$project_id")
-if [ -n "$networks" ]; then
-  docker network rm $networks >/dev/null
-fi
+valid_id() {
+  [ "${#1}" -eq 64 ] || return 1
+  case "$1" in *[!0-9a-f]*) return 1 ;; esac
+}
+count=0
+for cid in $containers; do
+  count=$((count + 1))
+  [ "$count" -le 64 ] && valid_id "$cid" || { printf '%s\n' 'Container inventory is invalid or exceeds bounds' >&2; exit 2; }
+  labels=$(docker container inspect --format '{{index .Config.Labels "io.context.mcp-factory"}}|{{index .Config.Labels "io.context.mcp-role"}}|{{index .Config.Labels "io.context.mcp-project"}}' "$cid")
+  case "$labels" in
+    "unaltraweb|stdio|$project_id"|"unaltraweb|preview|$project_id"|"unaltraweb|computation|$project_id"|"unaltraweb|manual-pdf|$project_id"|"unaltraweb|web-capture|$project_id"|"unaltraweb|web-capture-site|$project_id") ;;
+    *) printf '%s\n' 'Refusing unknown container ownership' >&2; exit 2 ;;
+  esac
+done
+for nid in $networks; do
+  count=$((count + 1))
+  [ "$count" -le 64 ] && valid_id "$nid" || { printf '%s\n' 'Network inventory is invalid or exceeds bounds' >&2; exit 2; }
+  labels=$(docker network inspect --format '{{index .Labels "io.context.mcp-factory"}}|{{index .Labels "io.context.mcp-role"}}|{{index .Labels "io.context.mcp-project"}}' "$nid")
+  [ "$labels" = "unaltraweb|web-capture|$project_id" ] || { printf '%s\n' 'Refusing unknown network ownership' >&2; exit 2; }
+done
+if [ -n "$containers" ]; then docker rm -f $containers >/dev/null; fi
+if [ -n "$networks" ]; then docker network rm $networks >/dev/null; fi
+for cid in $containers; do
+  if observed=$(docker container inspect --format '{{.Id}}' "$cid" 2>&1); then
+    printf '%s\n' 'Container termination is not confirmed' >&2; exit 1
+  else
+    case "$observed" in *"No such container"*|*"no such container"*|*"No such object"*) ;; *) printf '%s\n' 'Container absence is unknown' >&2; exit 1 ;; esac
+  fi
+done
+for nid in $networks; do
+  if observed=$(docker network inspect --format '{{.Id}}' "$nid" 2>&1); then
+    printf '%s\n' 'Network removal is not confirmed' >&2; exit 1
+  else
+    case "$observed" in *"No such network"*|*"no such network"*|*"No such object"*) ;; *) printf '%s\n' 'Network absence is unknown' >&2; exit 1 ;; esac
+  fi
+done

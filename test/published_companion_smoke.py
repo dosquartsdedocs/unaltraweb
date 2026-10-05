@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -12,10 +14,10 @@ import tempfile
 from unaltraweb_mcp import site_tools
 
 
-def invoke(cli: str, project: Path, *arguments: str) -> dict:
+def invoke(cli: str, project: Path, *arguments: str, runtime_args=()) -> dict:
     environment = {key: value for key, value in os.environ.items()
                    if key not in {"PYTHONPATH", "MCP_CONSUMER_WORKSPACE", "MCP_CLIENT_WORKSPACE"}}
-    result = subprocess.run([cli, "--project", str(project), *arguments], env=environment,
+    result = subprocess.run([cli, *runtime_args, "--project", str(project), *arguments], env=environment,
                             cwd=project, capture_output=True, text=True, timeout=300)
     if result.returncode:
         raise AssertionError(f"{arguments}: {result.stdout}\n{result.stderr}")
@@ -28,9 +30,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--diavisuals", required=True)
     parser.add_argument("--vegavisuals", required=True)
+    parser.add_argument("--diavisuals-image-id")
+    parser.add_argument("--vegavisuals-image-id")
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     factory = Path(__file__).resolve().parents[1]
-    with tempfile.TemporaryDirectory(prefix="web-published-companions-") as temporary:
+    if args.output:
+        args.output.mkdir(parents=True, exist_ok=False)
+    context = nullcontext(str(args.output)) if args.output else tempfile.TemporaryDirectory(prefix="web-published-companions-")
+    dia_runtime = ["--runtime-image", args.diavisuals_image_id, "--runtime-expected-id", args.diavisuals_image_id] if args.diavisuals_image_id else []
+    vega_runtime = ["--renderer-image-id", args.vegavisuals_image_id] if args.vegavisuals_image_id else []
+    aliases = {image: subprocess.check_output(["docker", "image", "inspect", "--format", "{{json .RepoTags}}", image], text=True).strip()
+               for image in (args.diavisuals_image_id, args.vegavisuals_image_id) if image}
+    with context as temporary:
         project = Path(temporary) / "consumer with spaces"
         assert site_tools.new_web(project, site_profile_value="unaltredocs")["ok"]
         diagrams = project / "assets/diagrams"
@@ -41,10 +53,10 @@ def main() -> None:
         }.items():
             (diagrams / name).write_text(source)
             invoke(args.diavisuals, project, "render-diagram", f"assets/diagrams/{name}",
-                   f"assets/diagrams/{name}.svg")
-        invoke(args.diavisuals, project, "project-check")
+                   f"assets/diagrams/{name}.svg", runtime_args=dia_runtime)
+        invoke(args.diavisuals, project, "project-check", runtime_args=dia_runtime)
 
-        invoke(args.vegavisuals, project, "init")
+        invoke(args.vegavisuals, project, "init", runtime_args=vega_runtime)
         charts = project / "assets/charts"
         charts.mkdir(parents=True)
         data = charts / "data.csv"
@@ -66,13 +78,13 @@ def main() -> None:
             "  - name: point\n    source: assets/charts/point.vg.json\n    output: assets/charts/point.svg\n"
             "    engine: vega\n    format: svg\n"
         )
-        invoke(args.vegavisuals, project, "render-all")
-        invoke(args.vegavisuals, project, "check")
+        invoke(args.vegavisuals, project, "render-all", runtime_args=vega_runtime)
+        invoke(args.vegavisuals, project, "check", runtime_args=vega_runtime)
         checked = site_tools.site_check(project, factory)
         assert checked["ok"], checked
         for provider in ("diavisuals", "vegavisuals"):
             receipt = json.loads((project / f".unaltraweb/receipts/{provider}.json").read_text())
-            assert receipt["provider_version"] == "0.4.0", receipt
+            assert receipt["provider_version"] == site_tools.component(provider)["version"], receipt
             assert len(receipt["artifacts"]) == 2, receipt
         original_data = data.read_bytes()
         data.write_text("label,value\nA,999\n")
@@ -85,9 +97,16 @@ def main() -> None:
         output.write_bytes(original_output)
         relocated = project.rename(Path(temporary) / "relocated")
         assert site_tools.site_check(relocated, factory)["ok"]
-        print(json.dumps({"ok": True, "providers": ["diavisuals 0.4.0", "vegavisuals 0.4.0"],
-                          "rendered": 4, "native_receipts": "accepted", "tampering": "rejected",
-                          "relocation": "passed"}, indent=2))
+        for image, before in aliases.items():
+            assert subprocess.check_output(["docker", "image", "inspect", "--format", "{{json .RepoTags}}", image], text=True).strip() == before
+        evidence = {"ok": True, "providers": [name + " " + site_tools.component(name)["version"] for name in ("diavisuals", "vegavisuals")],
+                           "rendered": 4, "native_receipts": "accepted", "tampering": "rejected",
+                           "relocation": "passed", "renderer_aliases_unchanged": aliases,
+                           "receipts": {name: hashlib.sha256((relocated / f".unaltraweb/receipts/{name}.json").read_bytes()).hexdigest()
+                                        for name in ("diavisuals", "vegavisuals")}}
+        if args.output:
+            (args.output / "evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
+        print(json.dumps(evidence, indent=2))
 
 
 if __name__ == "__main__":
