@@ -52,6 +52,9 @@ PYPI_PUBLISH_IMAGE = (
 )
 # Canonical JSON digest of the complete unprivileged verification job.
 PACKAGE_PUBLISH_VERIFY_POLICY_SHA256 = "e8d99c35040770a2b00d3c62497da637739e794310b253d1893078d048d51c48"
+# Canonical JSON of the complete provider-owned PDF digest/producer gate.
+# Extending its reviewed release records also requires published-worker tests.
+DEPLOY_PDF_PROVENANCE_POLICY_SHA256 = "1114724843935f70ba331aa71f625dfe0ffedcb6414945207be171e163cad6c0"
 IMAGE_WORKFLOWS = {
     "compute-images.yml",
     "docker-image.yml",
@@ -1047,6 +1050,13 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         if marker not in ci_text:
             errors.append(f"ci.yml: missing required check {marker}")
     ci_docker = ci.get("jobs", {}).get("docker", {})
+    published_pdf_gate = _named_step(ci.get("jobs", {}).get("distribution", {}), "Test published PDF deployment provenance")
+    if published_pdf_gate != {
+        "name": "Test published PDF deployment provenance",
+        "env": {"UNALTRAWEB_DEPLOY_PROVENANCE_DOCKER": "1"},
+        "run": "PYTHONPATH=test python -m unittest test_deploy_provenance.PublishedDeployProvenanceTests",
+    }:
+        errors.append("ci.yml: published PDF deployment provenance must run unconditionally with real Docker")
     ruby_tests = str(_named_step(ci_docker, "Test all Ruby files").get("run") or "")
     if not all(
         marker in ruby_tests
@@ -1362,8 +1372,15 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         for marker in ["MANUAL_PDF_IMAGE", "WORKFLOW_REPOSITORY", "WORKFLOW_SHA", "docker pull", "docker image inspect", "org.opencontainers.image.revision"]:
             if marker not in provenance_text:
                 errors.append(f"site-deploy.yml: PDF worker provenance check missing {marker}")
-        if '[[ "$image_revision" != "$WORKFLOW_SHA" ]]' not in provenance_text:
-            errors.append("site-deploy.yml: PDF worker revision label must be compared with the defining workflow SHA")
+        if '[[ "$image_revision" != "$expected_pdf_revision" ]]' not in provenance_text:
+            errors.append("site-deploy.yml: PDF worker revision label must be compared with its recorded producer SHA")
+        provenance_sha256 = hashlib.sha256(
+            json.dumps(provenance_step, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        if provenance_sha256 != DEPLOY_PDF_PROVENANCE_POLICY_SHA256:
+            errors.append("site-deploy.yml: PDF digest/producer gate differs from the exact reviewed structure")
+        if f"{integration['manual_pdf_image']})" not in provenance_text:
+            errors.append("site-deploy.yml: selected PDF worker has no reviewed digest/producer record")
         if "docker pull" in provenance_text and "docker image inspect" in provenance_text and provenance_text.index("docker pull") > provenance_text.index("docker image inspect"):
             errors.append("site-deploy.yml: PDF worker digest must be pulled before its revision label is inspected")
         if "${{ github.workflow_sha }}" in deploy_text or "${{ github.workflow_repository }}" in deploy_text:

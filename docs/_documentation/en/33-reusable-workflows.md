@@ -47,7 +47,20 @@ Clean package scaffolds include a manual GitHub Pages wrapper pinned to a review
 
 The `consumer_integration` object in `src/unaltraweb_mcp/component-contract.json` is the single source for the reviewed core revision, workflow path, attested manual PDF image digest, and Vega renderer revision. The scaffold renders that tuple atomically into `Gemfile`, `Gemfile.lock`, and the packaged caller. The caller passes the existing `reviewed_sha` input through to the provider, so the reviewed `main` source is checked independently at both caller and provider boundaries.
 
-This pin-only integration follows the required M -> D -> B order: D was built from M's permanent identity before the caller recorded either value. Repeat that order for future provider updates; never use `@main` or substitute a mutable/version-tagged image for D.
+The deployment workflow records the exact accepted PDF digest and its producer
+commit. It checks the pulled image's revision label against that record, rather
+than assuming the worker and a later workflow revision share a commit. Unknown
+digests fail before Docker access. The reviewed records cover PDF workers 0.5.0
+and 0.6.0; extending them requires a provider review and published-worker tests.
+
+A reviewed deployment-only workflow fix can therefore be pinned independently
+of the site's Gem/core revision while retaining an already-accepted PDF worker.
+Update the caller's `uses:` to the immutable corrected workflow commit, review
+that consumer change, and dispatch with the resulting reviewed `main` SHA. The
+existing Gem, PDF and Vega selections need not change for this workflow repair.
+Such a local caller override remains subject to normal scaffold-update conflict
+review. A later package release can incorporate its own reviewed integration tuple.
+Never use `@main` or a mutable/version-tagged image as a substitute for these pins.
 
 ## Stable manual releases
 
