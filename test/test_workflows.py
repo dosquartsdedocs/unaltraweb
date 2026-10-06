@@ -95,7 +95,7 @@ class WorkflowTests(unittest.TestCase):
             workflows = self.copied_repository(root)
             caller = root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml.tmpl"
             text = caller.read_text(encoding="utf-8")
-            text = text.replace("@__CORE_SHA__", "@main")
+            text = text.replace("@__SITE_DEPLOY_WORKFLOW_SHA__", "@main")
             text = text.replace("      sync-manual-pdf: true\n", "")
             caller.write_text(text, encoding="utf-8")
             with patch("scripts.validate_workflows.ROOT", root):
@@ -111,6 +111,7 @@ class WorkflowTests(unittest.TestCase):
             contract_path = root / "src/unaltraweb_mcp/component-contract.json"
             contract = json.loads(contract_path.read_text(encoding="utf-8"))
             contract["consumer_integration"]["core_sha"] = "main"
+            contract["consumer_integration"]["site_deploy_workflow_sha"] = "main"
             contract_path.write_text(json.dumps(contract), encoding="utf-8")
             with patch("scripts.validate_workflows.ROOT", root):
                 errors = validate_workflows(workflows)
@@ -551,7 +552,7 @@ class WorkflowTests(unittest.TestCase):
         for old, new in (
             ("      - name: Verify manual PDF image provenance\n", "      - name: Verify manual PDF image provenance\n        if: false\n"),
             ("      - name: Verify manual PDF image provenance\n", "      - name: Verify manual PDF image provenance\n        continue-on-error: true\n"),
-            ("expected_pdf_revision=d857f8c9f5fea90cf450c0b30b4e77a37b541275", "expected_pdf_revision=$WORKFLOW_SHA"),
+            ('print(selected[sys.argv[1]])', 'print("0" * 40)'),
         ):
             with self.subTest(new=new), tempfile.TemporaryDirectory() as raw:
                 root = Path(raw)

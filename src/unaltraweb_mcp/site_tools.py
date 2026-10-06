@@ -742,6 +742,7 @@ def _common_scaffold_replacements() -> dict[str, str]:
         "CORE_REPOSITORY": str(integration["core_repository"]),
         "CORE_SHA": str(integration["core_sha"]),
         "SITE_DEPLOY_WORKFLOW": str(integration["site_deploy_workflow"]),
+        "SITE_DEPLOY_WORKFLOW_SHA": str(integration["site_deploy_workflow_sha"]),
         "MANUAL_PDF_IMAGE": str(integration["manual_pdf_image"]),
         "VEGAVISUALS_SHA": str(integration["vegavisuals_sha"]),
     }
@@ -1267,6 +1268,9 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
         unchanged: list[str] = []
         adopted: list[str] = []
         preserved: list[str] = []
+        migrations: list[dict[str, str]] = []
+        from .distribution import deployment_contract
+        reviewed_migrations = deployment_contract()["caller_migrations"]
         conflicts: list[dict[str, str]] = []
         observed: dict[str, str] = {}
         version_contents: dict[str, bytes | None] = {}
@@ -1298,7 +1302,14 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
                     # package baseline, so a later upstream edit still conflicts.
                     preserved.append(path)
                 else:
-                    conflicts.append({"path": path, "reason": "local file differs from its recorded baseline"})
+                    known = next((row for row in reviewed_migrations if row["path"] == path
+                                  and row["baseline_sha256"] == baseline_hash and row["current_sha256"] == current_hash), None)
+                    if known:
+                        migrations.append({"path": path, "id": known["id"], "baseline_sha256": baseline_hash,
+                                           "expected_sha256": current_hash, "sha256": package_hash})
+                        updates.append({"path": path, "expected_sha256": current_hash, "sha256": package_hash})
+                    else:
+                        conflicts.append({"path": path, "reason": "local file differs from its recorded baseline"})
             elif current is None:
                 creates.append({"path": path, "sha256": package_hash})
             elif current == payloads[relative]:
@@ -1332,6 +1343,7 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
             "schema_version": 1, "project": str(project), "target": target,
             "config_sha256": _source_hash(config_content), "baseline_sha256": _source_hash(manifest_content),
             "observed": observed,
+            "migrations": migrations,
             "package": {path.as_posix(): _source_hash(content) for path, content in payloads.items()},
         }, sort_keys=True, separators=(",", ":")).encode("utf-8"))
         return {
@@ -1345,6 +1357,7 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
             "unchanged": unchanged,
             "adopted": adopted,
             "preserved": preserved,
+            "migrations": migrations,
             "retired": retired,
             "conflicts": conflicts,
             "manifest_update": next_manifest != manifest_content,

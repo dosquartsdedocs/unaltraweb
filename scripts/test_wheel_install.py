@@ -290,7 +290,7 @@ def main() -> int:
                 raise RuntimeError(f"generated {profile} Gemfile does not use the reviewed core revision")
             if f'revision: {integration["core_sha"]}' not in lockfile:
                 raise RuntimeError(f"generated {profile} lockfile does not use the reviewed core revision")
-            if f'uses: {integration["site_deploy_workflow"]}@{integration["core_sha"]}' not in deploy:
+            if f'uses: {integration["site_deploy_workflow"]}@{integration["site_deploy_workflow_sha"]}' not in deploy:
                 raise RuntimeError(f"generated {profile} deploy caller does not use the reviewed core revision")
             if f'manual-pdf-image: "{integration["manual_pdf_image"]}"' not in deploy:
                 raise RuntimeError(f"generated {profile} deploy caller does not use the reviewed PDF image")

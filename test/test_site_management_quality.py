@@ -333,6 +333,57 @@ class SiteManagementQualityTests(unittest.TestCase):
         self.assertEqual((conflict_site / "Makefile").read_text(encoding="utf-8"), "locally edited\n")
         self.assertEqual((conflict_site / "Gemfile").read_bytes(), gemfile_before)
 
+    def prepare_reviewed_workflow_hotfix(self):
+        replacements = site_tools._common_scaffold_replacements()
+        replacements.update(
+            CORE_SHA="02af70001bf8085af860fd57f8d7e75ec96a89c7",
+            SITE_DEPLOY_WORKFLOW_SHA="02af70001bf8085af860fd57f8d7e75ec96a89c7",
+            MANUAL_PDF_IMAGE="ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097",
+            VEGAVISUALS_SHA="68c0b231402ae9485cc34ce530dc5239cb0ec194",
+        )
+        old = site_tools._render_scaffold_template(site_tools._scaffold_root() / "common/.github/workflows/deploy.yml.tmpl", replacements)
+        self.assertEqual(hashlib.sha256(old).hexdigest(), "a789870542614d5817d30ea4328c7d1ad38d27443c009c68a48ad5aaa3106b8e")
+        changed = old.replace(b"02af70001bf8085af860fd57f8d7e75ec96a89c7", b"0845277b9ddd7c7b5bdcf5d6459846a1958970f3")
+        self.assertEqual(hashlib.sha256(changed).hexdigest(), "c632a548d0782867be20a2a52fe03469cf63066b7364bace77fd54a226cb3b18")
+        target = self.project / ".github/workflows/deploy.yml"
+        target.write_bytes(changed)
+        manifest_path = self.project / site_tools.SCAFFOLD_MANIFEST_PATH
+        manifest = json.loads(manifest_path.read_text())
+        manifest["files"][".github/workflows/deploy.yml"] = hashlib.sha256(old).hexdigest()
+        manifest_path.write_text(json.dumps(manifest))
+        return target
+
+    def test_scaffold_sync_migrates_only_the_exact_reviewed_hotfix(self) -> None:
+        target = self.prepare_reviewed_workflow_hotfix()
+        author = self.project / "author-note.md"
+        author.write_text("Retain this authored text.\n")
+        plan = site_tools.scaffold_sync(self.project)
+        self.assertTrue(plan["ok"], plan["conflicts"])
+        self.assertEqual([row["id"] for row in plan["migrations"]], ["deploy-provenance-86"])
+        self.assertEqual([row["path"] for row in plan["updates"]], [".github/workflows/deploy.yml"])
+        result = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True, expected_plan_sha256=plan["plan_sha256"])
+        self.assertTrue(result["applied"])
+        self.assertEqual(target.read_bytes(), site_tools._managed_scaffold_payloads(self.project)[Path(".github/workflows/deploy.yml")])
+        self.assertEqual(author.read_text(), "Retain this authored text.\n")
+
+    def test_workflow_hotfix_with_additional_edits_remains_a_conflict(self) -> None:
+        target = self.prepare_reviewed_workflow_hotfix()
+        target.write_bytes(target.read_bytes() + b"\n# author customization\n")
+        before = target.read_bytes()
+        result = site_tools.scaffold_sync(self.project, dry_run=False, confirm_sync=True)
+        self.assertFalse(result["ok"])
+        self.assertFalse(result["applied"])
+        self.assertEqual(result["migrations"], [])
+        self.assertEqual(target.read_bytes(), before)
+
+    def test_migration_authority_is_bound_to_the_reviewed_plan(self) -> None:
+        self.prepare_reviewed_workflow_hotfix()
+        reviewed = site_tools.scaffold_sync(self.project)
+        with patch("unaltraweb_mcp.distribution.deployment_contract", return_value={"caller_migrations": []}):
+            withdrawn = site_tools.scaffold_sync(self.project)
+        self.assertNotEqual(reviewed["plan_sha256"], withdrawn["plan_sha256"])
+        self.assertFalse(withdrawn["ok"])
+
     def test_scaffold_sync_rejects_manual_output_config_races_before_any_managed_write(self) -> None:
         replacements = [
             ("output: assets/pdf/manual-{lang}.pdf", "output: downloads/raced-{lang}.pdf"),

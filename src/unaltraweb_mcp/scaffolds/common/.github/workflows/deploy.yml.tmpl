@@ -40,7 +40,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
-    uses: __SITE_DEPLOY_WORKFLOW__@__CORE_SHA__
+    uses: __SITE_DEPLOY_WORKFLOW__@__SITE_DEPLOY_WORKFLOW_SHA__
     with:
       reviewed_sha: ${{ inputs.reviewed_sha }}
       manual-pdf-image: "__MANUAL_PDF_IMAGE__"

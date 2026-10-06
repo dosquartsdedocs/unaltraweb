@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -39,7 +40,7 @@ from unaltraweb_mcp.distribution import (  # noqa: E402
     is_mutable_reference,
     validate_component_contract,
 )
-from scripts.validate_workflows import load_workflow_text, reusable_deploy_input_errors  # noqa: E402
+from scripts.validate_workflows import DEPLOY_PDF_PROVENANCE_POLICY_SHA256, load_workflow_text, reusable_deploy_input_errors  # noqa: E402
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -88,6 +89,21 @@ def component_version_errors(contract: dict[str, Any]) -> list[str]:
     return errors
 
 
+def selected_deployment_errors(contract: dict[str, Any], workflow: dict[str, Any], provider_contract: dict[str, Any]) -> list[str]:
+    """Release readiness binds the called workflow's code and data, not local YAML."""
+    errors = []
+    steps = workflow.get("jobs", {}).get("build", {}).get("steps", [])
+    step = next((row for row in steps if row.get("name") == "Verify manual PDF image provenance"), {})
+    if hashlib.sha256(json.dumps(step, sort_keys=True, separators=(",", ":")).encode()).hexdigest() != DEPLOY_PDF_PROVENANCE_POLICY_SHA256:
+        errors.append("selected deployment workflow does not contain the reviewed contract-driven provenance gate")
+    reference = contract["consumer_integration"]["manual_pdf_image"]
+    expected = [row for row in contract.get("deployment_contract", {}).get("manual_pdf_workers", []) if row.get("reference") == reference]
+    actual = [row for row in provider_contract.get("deployment_contract", {}).get("manual_pdf_workers", []) if row.get("reference") == reference]
+    if len(expected) != 1 or actual != expected:
+        errors.append("selected deployment workflow's producer record differs from the package's PDF identity")
+    return errors
+
+
 def validate(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     contract = distribution_contract()
@@ -125,6 +141,11 @@ def validate(root: Path = ROOT) -> list[str]:
         errors.append(f"component contract schema validation failed: {exc}")
     errors.extend(f"component contract semantic validation failed: {error}" for error in component_contract_semantic_errors(contract))
     core_sha = str(contract["consumer_integration"]["core_sha"])
+    workflow_sha = str(contract["consumer_integration"].get("site_deploy_workflow_sha", core_sha))
+    workflow_ancestor = subprocess.run(["git", "merge-base", "--is-ancestor", workflow_sha, "HEAD"], cwd=root,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if workflow_ancestor.returncode != 0:
+        errors.append("consumer integration workflow SHA must be an ancestor of the current source")
     core_object = subprocess.run(
         ["git", "cat-file", "-e", f"{core_sha}^{{commit}}"],
         cwd=root,
@@ -145,7 +166,7 @@ def validate(root: Path = ROOT) -> list[str]:
         if core_ancestor.returncode != 0:
             errors.append("consumer integration core SHA must be an ancestor of the current source")
         pinned_workflow = subprocess.run(
-            ["git", "show", f"{core_sha}:.github/workflows/site-deploy.yml"],
+            ["git", "show", f"{workflow_sha}:.github/workflows/site-deploy.yml"],
             cwd=root,
             text=True,
             stdout=subprocess.PIPE,
@@ -153,7 +174,7 @@ def validate(root: Path = ROOT) -> list[str]:
             check=False,
         )
         if pinned_workflow.returncode != 0:
-            errors.append("consumer integration core SHA does not contain the reusable deploy workflow")
+            errors.append("consumer integration workflow SHA does not contain the reusable deploy workflow")
         else:
             try:
                 pinned_deploy = load_workflow_text(pinned_workflow.stdout)
@@ -164,6 +185,14 @@ def validate(root: Path = ROOT) -> list[str]:
                     f"consumer integration workflow: {error}"
                     for error in reusable_deploy_input_errors(pinned_deploy)
                 )
+                if "deployment_contract" in contract and contract["components"]["mcp"]["release_status"] == "ready":
+                    recorded = subprocess.run(["git", "show", f"{workflow_sha}:src/unaltraweb_mcp/component-contract.json"],
+                                              cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+                    try:
+                        provider_contract = json.loads(recorded.stdout) if recorded.returncode == 0 else {}
+                        errors.extend(selected_deployment_errors(contract, pinned_deploy, provider_contract))
+                    except (ValueError, KeyError, TypeError):
+                        errors.append("selected deployment workflow has no valid provider-owned component contract")
     if schema.get("properties", {}).get("schema_version", {}).get("const") != 1:
         errors.append("component contract schema does not select version 1")
 
@@ -273,7 +302,7 @@ def validate(root: Path = ROOT) -> list[str]:
         "Makefile.tmpl": ["__MCP_IMAGE__", "__MANUAL_PDF_IMAGE__"],
         ".github/workflows/deploy.yml.tmpl": [
             "__SITE_DEPLOY_WORKFLOW__",
-            "__CORE_SHA__",
+            "__SITE_DEPLOY_WORKFLOW_SHA__",
             "__MANUAL_PDF_IMAGE__",
             "__VEGAVISUALS_SHA__",
         ],

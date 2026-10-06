@@ -35,6 +35,67 @@ from scripts.validate_distribution import (
 
 
 class DistributionTests(unittest.TestCase):
+    def test_provider_contract_rejects_duplicate_authority_and_boolean_schema(self) -> None:
+        from unaltraweb_mcp.distribution import _strict_json
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "contract.json"
+            path.write_text('{"deployment_contract":{},"deployment_contract":{}}')
+            with self.assertRaisesRegex(ValueError, "duplicate component contract key"):
+                _strict_json(path)
+        schema = json.loads((Path(__file__).resolve().parents[1] / "src/unaltraweb_mcp/component-contract.schema.json").read_text())
+        contract = distribution_contract()
+        contract["schema_version"] = True
+        with self.assertRaises(RuntimeError):
+            validate_component_contract(contract, schema)
+
+    def test_generated_workflow_has_an_independent_reviewed_pin(self) -> None:
+        integration = consumer_integration()
+        integration.update(core_sha="1" * 40, site_deploy_workflow_sha="2" * 40)
+        with tempfile.TemporaryDirectory() as raw, patch("unaltraweb_mcp.site_tools.consumer_integration", return_value=integration):
+            project = Path(raw) / "manual"
+            site_tools.new_web(project, site_profile_value="unaltremanual")
+            self.assertIn('ref: "' + "1" * 40 + '"', (project / "Gemfile").read_text())
+            self.assertIn("@" + "2" * 40, (project / ".github/workflows/deploy.yml").read_text())
+            self.assertNotIn("@" + "1" * 40, (project / ".github/workflows/deploy.yml").read_text())
+
+    def test_legacy_integration_defaults_workflow_pin_to_core(self) -> None:
+        contract = distribution_contract()
+        del contract["consumer_integration"]["site_deploy_workflow_sha"]
+        contract.pop("deployment_contract")
+        self.assertEqual(component_contract_semantic_errors(contract), [])
+        with patch("unaltraweb_mcp.distribution._contract", return_value=contract):
+            self.assertEqual(consumer_integration()["site_deploy_workflow_sha"], contract["consumer_integration"]["core_sha"])
+
+    def test_deployment_records_bind_the_selected_worker_and_exact_migration(self) -> None:
+        for mutation in ("missing-worker", "duplicate-worker", "zero-producer", "ambiguous-migration"):
+            with self.subTest(mutation=mutation):
+                contract = distribution_contract()
+                deployment = contract["deployment_contract"]
+                if mutation == "missing-worker":
+                    deployment["manual_pdf_workers"] = []
+                elif mutation == "duplicate-worker":
+                    deployment["manual_pdf_workers"].append(deployment["manual_pdf_workers"][0])
+                elif mutation == "zero-producer":
+                    deployment["manual_pdf_workers"][0]["producer_sha"] = "0" * 40
+                else:
+                    deployment["caller_migrations"].append(deployment["caller_migrations"][0])
+                self.assertTrue(component_contract_semantic_errors(contract))
+
+    def test_ready_tuple_checks_the_selected_workflow_and_its_own_records(self) -> None:
+        from scripts.validate_workflows import load_workflow
+        root = Path(__file__).resolve().parents[1]
+        workflow = load_workflow(root / ".github/workflows/site-deploy.yml")
+        contract = distribution_contract()
+        self.assertEqual(distribution_validator.selected_deployment_errors(contract, workflow, contract), [])
+        older = copy.deepcopy(workflow)
+        step = next(row for row in older["jobs"]["build"]["steps"] if row.get("name") == "Verify manual PDF image provenance")
+        step["run"] = 'test "$image_revision" = "$WORKFLOW_SHA"\n'
+        self.assertTrue(distribution_validator.selected_deployment_errors(contract, older, contract))
+        wrong_source = copy.deepcopy(contract)
+        for record in wrong_source["deployment_contract"]["manual_pdf_workers"]:
+            record["producer_sha"] = "1" * 40
+        self.assertTrue(distribution_validator.selected_deployment_errors(contract, workflow, wrong_source))
+
     def test_publish_preflight_reuses_only_digest_pinned_released_pdf(self) -> None:
         contract = distribution_contract()
         contract["components"]["manual_pdf"].update(version="0.5.0", release="v0.5.0", release_status="released", reference=consumer_integration()["manual_pdf_image"])
@@ -56,6 +117,9 @@ class DistributionTests(unittest.TestCase):
             changed = copy.deepcopy(contract)
             worker = changed["components"][name]
             worker.update(version="0.1.0", release="v0.1.0", release_status="released", reference=worker["image_repository"] + "@sha256:" + "1" * 64)
+            if name == "manual_pdf":
+                changed["consumer_integration"]["manual_pdf_image"] = worker["reference"]
+                changed["deployment_contract"]["manual_pdf_workers"].append({"reference": worker["reference"], "producer_sha": "1" * 40})
             self.assertEqual(distribution_validator.component_version_errors(changed), [])
             self.assertEqual(component_contract_semantic_errors(changed), [])
             for status in ("pending", "ready", "unavailable"):
