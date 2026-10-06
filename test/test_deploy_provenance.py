@@ -215,6 +215,29 @@ class PublishedDeployProvenanceTests(unittest.TestCase):
                 self.assertEqual(checked.returncode, 0, checked.stderr)
             generated = {"workflow_sha": workflow_sha, "workflow_file_sha256": hashlib.sha256(pinned_bytes).hexdigest(),
                          "manual_pdf_image": selected["MANUAL_PDF_IMAGE"], "ok": True}
+            from unaltraweb_mcp.distribution import distribution_contract
+            contract = distribution_contract()
+            if contract["components"]["mcp"]["release_status"] == "ready":
+                # Retained-document freshness hashes the actual verifier closure.
+                # A provenance-valid older image may still contain incompatible
+                # checker bytes; the generated release tuple must agree end to end.
+                from unaltraweb_mcp.artifact_imports import CHECKER_FILES
+                expected = {name: hashlib.sha256((ROOT / "src/unaltraweb_mcp" / name).read_bytes()).hexdigest() for name in CHECKER_FILES}
+                core_sha = contract["consumer_integration"]["core_sha"]
+                core = {name: hashlib.sha256(subprocess.check_output(["git", "show", f"{core_sha}:src/unaltraweb_mcp/{name}"], cwd=ROOT)).hexdigest()
+                        for name in CHECKER_FILES}
+                self.assertEqual(core, expected, "Selected core and controller retained-document checkers differ")
+                code = "import hashlib,json,sys; from pathlib import Path; root=Path('/opt/unaltraweb/src/unaltraweb_mcp'); print(json.dumps({name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in json.loads(sys.argv[1])}))"
+                actual = json.loads(subprocess.check_output([
+                    "docker", "run", "--rm", "--pull", "never", "--network", "none", "--read-only",
+                    "--user", "65534:65534", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+                    "--cpus", "1", "--memory", "256m", "--pids-limit", "64", "--entrypoint", "python3",
+                    selected["MANUAL_PDF_IMAGE"], "-c", code, json.dumps(list(CHECKER_FILES)),
+                ], text=True, timeout=60))
+                self.assertEqual(actual, expected, "Selected PDF worker and controller retained-document checkers differ")
+                generated["retained_checker_hashes"] = actual
+            else:
+                generated["retained_checker_closure"] = "pending final release selection"
         evidence = {"ok": True, "scope": "real published worker and actual generated-caller gates, no consumer deployment", "workers": results,
                     "generated_caller": generated}
         output = os.environ.get("UNALTRAWEB_DEPLOY_PROVENANCE_EVIDENCE")

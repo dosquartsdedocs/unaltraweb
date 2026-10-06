@@ -24,6 +24,10 @@
       {
         "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:0ba267cb87f53ebaca4e31805fe00610cd61fdf97a8d2c3692f4655700dceaed",
         "producer_sha": "5cf9817489c8dc47cee726bfe42fe3071cd32b85"
+      },
+      {
+        "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:1bb3f2dafd741e96c28639ec1cc8ccaeb81cbaa73e649f787c0b4ef59997bd4b",
+        "producer_sha": "b7ec1d7a139c65b3b0b88699cdbeb19080f13be1"
       }
     ],
     "caller_migrations": [
@@ -60,7 +64,7 @@
       "name": "unaltraweb",
       "version": "0.7.1",
       "release": "v0.7.1",
-      "release_status": "ready",
+      "release_status": "pending",
       "reference": "unaltraweb (= 0.7.1)",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
@@ -71,7 +75,7 @@
       "name": "unaltraweb-mcp",
       "version": "0.7.1",
       "release": "v0.7.1",
-      "release_status": "ready",
+      "release_status": "pending",
       "reference": "unaltraweb-mcp==0.7.1",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": true,
@@ -82,7 +86,7 @@
       "name": "unaltraweb runtime",
       "version": "0.7.1",
       "release": "v0.7.1",
-      "release_status": "ready",
+      "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb:0.7.1",
       "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
@@ -94,7 +98,7 @@
       "name": "unaltraweb MCP runtime",
       "version": "0.7.1",
       "release": "v0.7.1",
-      "release_status": "ready",
+      "release_status": "pending",
       "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.1",
       "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-mcp",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
