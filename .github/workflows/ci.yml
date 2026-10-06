@@ -79,6 +79,11 @@ jobs:
       - name: Build and test wheel
         run: make wheel-check
 
+      - name: Test published PDF deployment provenance
+        env:
+          UNALTRAWEB_DEPLOY_PROVENANCE_DOCKER: "1"
+        run: PYTHONPATH=test python -m unittest test_deploy_provenance.PublishedDeployProvenanceTests
+
   gem:
     name: Gem package
     runs-on: ubuntu-latest

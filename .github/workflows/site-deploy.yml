@@ -117,14 +117,28 @@ jobs:
           WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
           WORKFLOW_SHA: ${{ job.workflow_sha }}
         run: |
+          set -euo pipefail
           if [[ "$WORKFLOW_REPOSITORY" != "dosquartsdedocs/unaltraweb" ]] || [[ ! "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "The manual PDF worker must be bound to the immutable canonical provider workflow." >&2
             exit 1
           fi
+          # Provider-reviewed release records; the worker may predate this workflow.
+          case "$MANUAL_PDF_IMAGE" in
+            ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097)
+              expected_pdf_revision=d857f8c9f5fea90cf450c0b30b4e77a37b541275
+              ;;
+            ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:0ba267cb87f53ebaca4e31805fe00610cd61fdf97a8d2c3692f4655700dceaed)
+              expected_pdf_revision=5cf9817489c8dc47cee726bfe42fe3071cd32b85
+              ;;
+            *)
+              echo "The manual PDF digest has no reviewed producer record in this workflow." >&2
+              exit 1
+              ;;
+          esac
           docker pull "$MANUAL_PDF_IMAGE" >/dev/null
           image_revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$MANUAL_PDF_IMAGE")"
-          if [[ "$image_revision" != "$WORKFLOW_SHA" ]]; then
-            echo "The manual PDF worker revision label does not match the reusable workflow SHA." >&2
+          if [[ "$image_revision" != "$expected_pdf_revision" ]]; then
+            echo "The manual PDF worker revision label does not match its recorded producer SHA." >&2
             exit 1
           fi
 

@@ -529,7 +529,7 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertTrue(any("vegavisuals-sha input differs from the reviewed caller interface" in error for error in errors), errors)
 
-    def test_latest_policy_binds_pdf_worker_revision_to_defining_workflow(self) -> None:
+    def test_latest_policy_binds_pdf_worker_to_the_defining_providers_record(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
             workflows = self.copied_repository(root)
@@ -537,15 +537,54 @@ class WorkflowTests(unittest.TestCase):
             text = deploy.read_text(encoding="utf-8")
             text = text.replace("WORKFLOW_SHA: ${{ job.workflow_sha }}", "WORKFLOW_SHA: ${{ github.workflow_sha }}", 1)
             text = text.replace("org.opencontainers.image.revision", "org.opencontainers.image.version", 1)
-            text = text.replace('[[ "$image_revision" != "$WORKFLOW_SHA" ]]', '[[ "$image_revision" != "$CURRENT_SHA" ]]', 1)
+            text = text.replace('[[ "$image_revision" != "$expected_pdf_revision" ]]', '[[ "$image_revision" != "$CURRENT_SHA" ]]', 1)
             deploy.write_text(text, encoding="utf-8")
             with patch("scripts.validate_workflows.ROOT", root):
                 errors = validate_workflows(workflows)
 
         self.assertTrue(any("defining job workflow identity" in error for error in errors))
         self.assertTrue(any("provenance check missing org.opencontainers.image.revision" in error for error in errors))
-        self.assertTrue(any("revision label must be compared with the defining workflow SHA" in error for error in errors))
+        self.assertTrue(any("revision label must be compared with its recorded producer SHA" in error for error in errors))
         self.assertTrue(any("must not come from the caller" in error for error in errors))
+
+    def test_latest_policy_rejects_disabled_or_unreviewed_pdf_gate(self) -> None:
+        for old, new in (
+            ("      - name: Verify manual PDF image provenance\n", "      - name: Verify manual PDF image provenance\n        if: false\n"),
+            ("      - name: Verify manual PDF image provenance\n", "      - name: Verify manual PDF image provenance\n        continue-on-error: true\n"),
+            ("expected_pdf_revision=d857f8c9f5fea90cf450c0b30b4e77a37b541275", "expected_pdf_revision=$WORKFLOW_SHA"),
+        ):
+            with self.subTest(new=new), tempfile.TemporaryDirectory() as raw:
+                root = Path(raw)
+                workflows = self.copied_repository(root)
+                path = workflows / "site-deploy.yml"
+                original = path.read_text(encoding="utf-8")
+                self.assertIn(old, original)
+                path.write_text(original.replace(old, new, 1), encoding="utf-8")
+                with patch("scripts.validate_workflows.ROOT", root):
+                    errors = validate_workflows(workflows)
+                self.assertTrue(any("PDF digest/producer gate differs" in error for error in errors), errors)
+
+    def test_latest_policy_requires_the_bom_worker_to_have_a_reviewed_record(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workflows = self.copied_repository(root)
+            path = root / "src/unaltraweb_mcp/component-contract.json"
+            contract = json.loads(path.read_text())
+            contract["consumer_integration"]["manual_pdf_image"] = "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:" + "1" * 64
+            path.write_text(json.dumps(contract))
+            with patch("scripts.validate_workflows.ROOT", root):
+                errors = validate_workflows(workflows)
+        self.assertTrue(any("selected PDF worker has no reviewed digest/producer record" in error for error in errors), errors)
+
+    def test_ci_cannot_disable_the_actual_published_worker_regression(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workflows = self.copied_repository(root)
+            path = workflows / "ci.yml"
+            path.write_text(path.read_text().replace('UNALTRAWEB_DEPLOY_PROVENANCE_DOCKER: "1"', 'UNALTRAWEB_DEPLOY_PROVENANCE_DOCKER: "0"'))
+            with patch("scripts.validate_workflows.ROOT", root):
+                errors = validate_workflows(workflows)
+        self.assertTrue(any("unconditionally with real Docker" in error for error in errors), errors)
 
     def test_project_compute_uses_provider_identity_and_channel_specific_gates(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
