@@ -20,7 +20,15 @@ def _strict_json(path: Path) -> Any:
     def reject(value: str) -> None:
         raise ValueError(f"non-finite JSON number is not allowed: {value}")
 
-    return json.loads(path.read_text(encoding="utf-8"), parse_constant=reject)
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate component contract key: {key}")
+            result[key] = value
+        return result
+
+    return json.loads(path.read_text(encoding="utf-8"), parse_constant=reject, object_pairs_hook=unique)
 
 
 def _schema_type_matches(value: Any, expected: str) -> bool:
@@ -155,6 +163,9 @@ def component_contract_semantic_errors(value: dict[str, Any]) -> list[str]:
     expected_workflow = f"{expected_core_repository.removeprefix('https://github.com/').removesuffix('.git')}/.github/workflows/site-deploy.yml"
     if integration["site_deploy_workflow"] != expected_workflow:
         errors.append("consumer integration deploy workflow must belong to the core provider")
+    workflow_sha = str(integration.get("site_deploy_workflow_sha", core_sha))
+    if re.fullmatch(r"[0-9a-f]{40}", workflow_sha) is None or workflow_sha == "0" * 40:
+        errors.append("consumer integration workflow SHA must be a nonzero full lowercase commit SHA")
     expected_pdf_prefix = f"{value['components']['manual_pdf']['image_repository']}@sha256:"
     manual_pdf_image = str(integration["manual_pdf_image"])
     if re.fullmatch(rf"{re.escape(expected_pdf_prefix)}[0-9a-f]{{64}}", manual_pdf_image) is None or manual_pdf_image.endswith("0" * 64):
@@ -162,6 +173,26 @@ def component_contract_semantic_errors(value: dict[str, Any]) -> list[str]:
     vegavisuals_sha = str(integration["vegavisuals_sha"])
     if re.fullmatch(r"[0-9a-f]{40}", vegavisuals_sha) is None or vegavisuals_sha == "0" * 40:
         errors.append("consumer integration Vega revision must be a nonzero full lowercase commit SHA")
+    deployment = value.get("deployment_contract")
+    if deployment is not None:
+        references = [row["reference"] for row in deployment["manual_pdf_workers"]]
+        if not 1 <= len(references) <= 64:
+            errors.append("deployment worker inventory must contain between 1 and 64 records")
+        if len(set(references)) != len(references):
+            errors.append("deployment worker references must be unique")
+        if manual_pdf_image not in references or value["components"]["manual_pdf"]["reference"] != manual_pdf_image:
+            errors.append("selected PDF worker must match a reviewed deployment record and the component reference")
+        for row in deployment["manual_pdf_workers"]:
+            if row["producer_sha"] == "0" * 40 or row["reference"].endswith("0" * 64):
+                errors.append("deployment worker identities must be nonzero")
+        migrations = deployment["caller_migrations"]
+        if len(migrations) > 32:
+            errors.append("deployment caller migration inventory exceeds 32 records")
+        if len({row["id"] for row in migrations}) != len(migrations) or len({(row["path"], row["baseline_sha256"], row["current_sha256"]) for row in migrations}) != len(migrations):
+            errors.append("deployment caller migrations must be unique")
+        for row in migrations:
+            if row["baseline_sha256"] == row["current_sha256"] or "0" * 64 in (row["baseline_sha256"], row["current_sha256"]):
+                errors.append("deployment caller migration requires distinct nonzero baseline and current hashes")
     return errors
 
 
@@ -194,7 +225,16 @@ def distribution_version() -> str:
 
 def consumer_integration() -> dict[str, Any]:
     """Return an isolated copy of the reviewed consumer runtime tuple."""
-    return dict(_contract()["consumer_integration"])
+    result = dict(_contract()["consumer_integration"])
+    result.setdefault("site_deploy_workflow_sha", result["core_sha"])
+    return result
+
+
+def deployment_contract() -> dict[str, Any]:
+    """Provider-owned identities and exact reviewed caller migrations."""
+    return json.loads(json.dumps(_contract().get("deployment_contract", {
+        "schema_version": 1, "manual_pdf_workers": [], "caller_migrations": [],
+    })))
 
 
 def component(component_id: str) -> dict[str, Any]:

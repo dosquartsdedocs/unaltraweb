@@ -54,7 +54,7 @@ PYPI_PUBLISH_IMAGE = (
 PACKAGE_PUBLISH_VERIFY_POLICY_SHA256 = "e8d99c35040770a2b00d3c62497da637739e794310b253d1893078d048d51c48"
 # Canonical JSON of the complete provider-owned PDF digest/producer gate.
 # Extending its reviewed release records also requires published-worker tests.
-DEPLOY_PDF_PROVENANCE_POLICY_SHA256 = "1114724843935f70ba331aa71f625dfe0ffedcb6414945207be171e163cad6c0"
+DEPLOY_PDF_PROVENANCE_POLICY_SHA256 = "da18b92db4069655e9979308dd90279ea8bfce4b77e47158efd5ac4421e06417"
 IMAGE_WORKFLOWS = {
     "compute-images.yml",
     "docker-image.yml",
@@ -122,14 +122,17 @@ def load_consumer_integration(root: Path) -> dict[str, Any]:
         "manual_pdf_image",
         "vegavisuals_sha",
     }
-    if not isinstance(integration, dict) or set(integration) != required:
+    if not isinstance(integration, dict) or not required <= set(integration) or set(integration) - required - {"site_deploy_workflow_sha"}:
         raise ValueError("component contract has no exact consumer_integration object")
+    integration = dict(integration)
+    integration.setdefault("site_deploy_workflow_sha", integration["core_sha"])
     return integration
 
 
 def load_scaffold_deploy(path: Path, integration: dict[str, Any]) -> dict[str, Any]:
     replacements = {
         "CORE_SHA": str(integration["core_sha"]),
+        "SITE_DEPLOY_WORKFLOW_SHA": str(integration["site_deploy_workflow_sha"]),
         "SITE_DEPLOY_WORKFLOW": str(integration["site_deploy_workflow"]),
         "MANUAL_PDF_IMAGE": str(integration["manual_pdf_image"]),
         "VEGAVISUALS_SHA": str(integration["vegavisuals_sha"]),
@@ -216,6 +219,7 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         integration = {
             "core_sha": "invalid",
             "site_deploy_workflow": "invalid",
+            "site_deploy_workflow_sha": "invalid",
             "manual_pdf_image": "invalid",
             "vegavisuals_sha": "invalid",
         }
@@ -1053,7 +1057,10 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
     published_pdf_gate = _named_step(ci.get("jobs", {}).get("distribution", {}), "Test published PDF deployment provenance")
     if published_pdf_gate != {
         "name": "Test published PDF deployment provenance",
-        "env": {"UNALTRAWEB_DEPLOY_PROVENANCE_DOCKER": "1"},
+        "env": {
+            "UNALTRAWEB_DEPLOY_PROVENANCE_DOCKER": "1",
+            "UNALTRAWEB_DEPLOY_PROVENANCE_SOURCE_SHA": "${{ github.event.pull_request.head.sha || github.sha }}",
+        },
         "run": "PYTHONPATH=test python -m unittest test_deploy_provenance.PublishedDeployProvenanceTests",
     }:
         errors.append("ci.yml: published PDF deployment provenance must run unconditionally with real Docker")
@@ -1379,8 +1386,13 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         ).hexdigest()
         if provenance_sha256 != DEPLOY_PDF_PROVENANCE_POLICY_SHA256:
             errors.append("site-deploy.yml: PDF digest/producer gate differs from the exact reviewed structure")
-        if f"{integration['manual_pdf_image']})" not in provenance_text:
-            errors.append("site-deploy.yml: selected PDF worker has no reviewed digest/producer record")
+        try:
+            contract = json.loads((ROOT / "src/unaltraweb_mcp/component-contract.json").read_text())
+            records = contract["deployment_contract"]["manual_pdf_workers"]
+            if sum(row.get("reference") == integration["manual_pdf_image"] for row in records) != 1:
+                errors.append("site-deploy.yml: selected PDF worker has no reviewed digest/producer record")
+        except (OSError, ValueError, KeyError, TypeError):
+            errors.append("site-deploy.yml: missing or invalid provider deployment records")
         if "docker pull" in provenance_text and "docker image inspect" in provenance_text and provenance_text.index("docker pull") > provenance_text.index("docker image inspect"):
             errors.append("site-deploy.yml: PDF worker digest must be pulled before its revision label is inspected")
         if "${{ github.workflow_sha }}" in deploy_text or "${{ github.workflow_repository }}" in deploy_text:
@@ -1559,7 +1571,7 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             action, separator, revision = uses.rpartition("@")
             if not separator or action != integration["site_deploy_workflow"] or not FULL_SHA.fullmatch(revision):
                 errors.append(f"scaffold deploy.yml:{job_name}: reusable workflow must use an immutable unaltraweb SHA")
-            elif revision != integration["core_sha"]:
+            elif revision != integration["site_deploy_workflow_sha"]:
                 errors.append(f"scaffold deploy.yml:{job_name}: reusable workflow SHA has not been reviewed")
             reusable_job = scaffold.get("jobs", {}).get(job_name, {})
             if reusable_job.get("needs") != "validate":

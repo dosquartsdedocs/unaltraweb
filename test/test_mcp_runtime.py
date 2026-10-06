@@ -158,7 +158,7 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertEqual(deploy_job["needs"], "validate")
                 self.assertEqual(
                     deploy_job["uses"],
-                    f"{integration['site_deploy_workflow']}@{integration['core_sha']}",
+                    f"{integration['site_deploy_workflow']}@{integration['site_deploy_workflow_sha']}",
                 )
                 self.assertEqual(
                     deploy_job["with"],

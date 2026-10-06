@@ -82,6 +82,7 @@ jobs:
       - name: Test published PDF deployment provenance
         env:
           UNALTRAWEB_DEPLOY_PROVENANCE_DOCKER: "1"
+          UNALTRAWEB_DEPLOY_PROVENANCE_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: PYTHONPATH=test python -m unittest test_deploy_provenance.PublishedDeployProvenanceTests
 
   gem:

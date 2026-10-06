@@ -122,19 +122,56 @@ jobs:
             echo "The manual PDF worker must be bound to the immutable canonical provider workflow." >&2
             exit 1
           fi
-          # Provider-reviewed release records; the worker may predate this workflow.
-          case "$MANUAL_PDF_IMAGE" in
-            ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097)
-              expected_pdf_revision=d857f8c9f5fea90cf450c0b30b4e77a37b541275
-              ;;
-            ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:0ba267cb87f53ebaca4e31805fe00610cd61fdf97a8d2c3692f4655700dceaed)
-              expected_pdf_revision=5cf9817489c8dc47cee726bfe42fe3071cd32b85
-              ;;
-            *)
-              echo "The manual PDF digest has no reviewed producer record in this workflow." >&2
-              exit 1
-              ;;
-          esac
+          # Read data from the defining provider revision, never the consumer checkout.
+          workflow_contract_file="$(mktemp "${RUNNER_TEMP:?}/unaltraweb-deploy-contract.XXXXXX")"
+          trap 'rm -f -- "$workflow_contract_file"' EXIT
+          curl --fail --silent --show-error --proto '=https' --max-filesize 262144 \
+            --connect-timeout 10 --max-time 60 \
+            "https://raw.githubusercontent.com/dosquartsdedocs/unaltraweb/$WORKFLOW_SHA/src/unaltraweb_mcp/component-contract.json" > "$workflow_contract_file"
+          expected_pdf_revision="$(python3 -I - "$MANUAL_PDF_IMAGE" "$workflow_contract_file" <<'PY'
+          import json, re, sys
+          from pathlib import Path
+
+          def unique(pairs):
+              result = {}
+              for key, value in pairs:
+                  if key in result:
+                      raise ValueError("Duplicate provider contract key")
+                  result[key] = value
+              return result
+
+          def invalid_constant(value):
+              raise ValueError("Non-finite provider contract value")
+
+          raw = Path(sys.argv[2]).read_bytes()
+          if len(raw) > 262144:
+              raise ValueError("Provider contract exceeds the byte limit")
+          contract = json.loads(raw, object_pairs_hook=unique, parse_constant=invalid_constant)
+          if type(contract.get("schema_version")) is not int or contract["schema_version"] != 1:
+              raise ValueError("Unsupported provider component contract")
+          deployment = contract["deployment_contract"]
+          if type(deployment["schema_version"]) is not int or deployment["schema_version"] != 1:
+              raise ValueError("Unsupported provider deployment contract")
+          records = deployment["manual_pdf_workers"]
+          if not isinstance(records, list) or not 1 <= len(records) <= 64:
+              raise ValueError("Invalid provider worker inventory")
+          selected = {}
+          for record in records:
+              if not isinstance(record, dict) or set(record) != {"reference", "producer_sha"}:
+                  raise ValueError("Invalid provider worker record")
+              reference, producer = record["reference"], record["producer_sha"]
+              if not isinstance(reference, str) or not re.fullmatch(r"ghcr\.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:[0-9a-f]{64}", reference) or reference.endswith("0" * 64):
+                  raise ValueError("Invalid provider worker digest")
+              if not isinstance(producer, str) or not re.fullmatch(r"[0-9a-f]{40}", producer) or producer == "0" * 40:
+                  raise ValueError("Invalid provider worker source")
+              if reference in selected:
+                  raise ValueError("Duplicate provider worker digest")
+              selected[reference] = producer
+          if sys.argv[1] not in selected:
+              raise ValueError("The manual PDF digest has no reviewed producer record")
+          print(selected[sys.argv[1]])
+          PY
+          )"
           docker pull "$MANUAL_PDF_IMAGE" >/dev/null
           image_revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$MANUAL_PDF_IMAGE")"
           if [[ "$image_revision" != "$expected_pdf_revision" ]]; then

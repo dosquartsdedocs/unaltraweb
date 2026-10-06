@@ -45,13 +45,18 @@ For `unaltremanual`, the `latest` channel is a manual-only deployment from the r
 
 Clean package scaffolds include a manual GitHub Pages wrapper pinned to a reviewed workflow revision. It has no push deployment trigger: a maintainer runs it only after local checks/renders and human review. The optional integration template retains additional local publishing experiments, but generated sites do not publish from local validation targets.
 
-The `consumer_integration` object in `src/unaltraweb_mcp/component-contract.json` is the single source for the reviewed core revision, workflow path, attested manual PDF image digest, and Vega renderer revision. The scaffold renders that tuple atomically into `Gemfile`, `Gemfile.lock`, and the packaged caller. The caller passes the existing `reviewed_sha` input through to the provider, so the reviewed `main` source is checked independently at both caller and provider boundaries.
+The `consumer_integration` object in `src/unaltraweb_mcp/component-contract.json` is the single source for the reviewed core revision, workflow path and revision, attested manual PDF image digest, and Vega renderer revision. The scaffold renders that tuple atomically into `Gemfile`, `Gemfile.lock`, and the packaged caller. From 0.7.1, `site_deploy_workflow_sha` is independent of `core_sha`; older records default to their core pin. The caller passes the existing `reviewed_sha` input through to the provider, so the reviewed `main` source is checked independently at both caller and provider boundaries.
 
-The deployment workflow records the exact accepted PDF digest and its producer
-commit. It checks the pulled image's revision label against that record, rather
+The 0.7.1 deployment workflow reads the exact accepted PDF digest and its producer
+commit from the defining provider revision's `deployment_contract` in the BOM.
+It fetches bounded JSON from that immutable provider commit, independently of
+the consumer checkout. It checks the pulled image's revision label against that record, rather
 than assuming the worker and a later workflow revision share a commit. Unknown
 digests fail before Docker access. The reviewed records cover PDF workers 0.5.0
 and 0.6.0; extending them requires a provider review and published-worker tests.
+The records are data in the contract, rather than a release list embedded in the
+workflow program. Release readiness checks the selected workflow's code and own
+records; CI generates a caller and executes the workflow it actually references.
 
 A reviewed deployment-only workflow fix can therefore be pinned independently
 of the site's Gem/core revision while retaining an already-accepted PDF worker.
@@ -61,6 +66,13 @@ existing Gem, PDF and Vega selections need not change for this workflow repair.
 Such a local caller override remains subject to normal scaffold-update conflict
 review. A later package release can incorporate its own reviewed integration tuple.
 Never use `@main` or a mutable/version-tagged image as a substitute for these pins.
+
+The 0.7.1 update plan recognizes the exact reviewed one-line issue-86 caller fix
+by both its original baseline hash and current content hash. It lists this as a
+`migrations` entry and requires the normal reviewed plan/atomic apply. Additional
+local edits still produce a conflict; authored content and unrelated files are
+preserved. This lets a known provider repair converge to the next managed tuple
+without treating arbitrary custom workflow code as package-owned.
 
 ## Stable manual releases
 

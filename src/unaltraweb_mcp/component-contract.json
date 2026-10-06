@@ -2,16 +2,38 @@
   "$schema": "component-contract.schema.json",
   "schema_version": 1,
   "release": {
-    "version": "0.7.0",
-    "tag": "v0.7.0"
+    "version": "0.7.1",
+    "tag": "v0.7.1"
   },
   "consumer_integration": {
     "schema_version": 1,
     "core_repository": "https://github.com/dosquartsdedocs/unaltraweb.git",
     "core_sha": "216ab2e8b6b8b45a5bb7da0a54bffd10edee895d",
     "site_deploy_workflow": "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml",
+    "site_deploy_workflow_sha": "0845277b9ddd7c7b5bdcf5d6459846a1958970f3",
     "manual_pdf_image": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:0ba267cb87f53ebaca4e31805fe00610cd61fdf97a8d2c3692f4655700dceaed",
     "vegavisuals_sha": "a448cc50a5f511743a6fcfc213baeb9be80f4a27"
+  },
+  "deployment_contract": {
+    "schema_version": 1,
+    "manual_pdf_workers": [
+      {
+        "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:9e0b3a45753c170b795e9a9d6df61580085c113436beac5bf6c8de69b6562097",
+        "producer_sha": "d857f8c9f5fea90cf450c0b30b4e77a37b541275"
+      },
+      {
+        "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:0ba267cb87f53ebaca4e31805fe00610cd61fdf97a8d2c3692f4655700dceaed",
+        "producer_sha": "5cf9817489c8dc47cee726bfe42fe3071cd32b85"
+      }
+    ],
+    "caller_migrations": [
+      {
+        "id": "deploy-provenance-86",
+        "path": ".github/workflows/deploy.yml",
+        "baseline_sha256": "a789870542614d5817d30ea4328c7d1ad38d27443c009c68a48ad5aaa3106b8e",
+        "current_sha256": "c632a548d0782867be20a2a52fe03469cf63066b7364bace77fd54a226cb3b18"
+      }
+    ]
   },
   "receipt_contract": {
     "schema_version": 1,
@@ -36,10 +58,10 @@
     "gem": {
       "kind": "gem",
       "name": "unaltraweb",
-      "version": "0.7.0",
-      "release": "v0.7.0",
-      "release_status": "ready",
-      "reference": "unaltraweb (= 0.7.0)",
+      "version": "0.7.1",
+      "release": "v0.7.1",
+      "release_status": "pending",
+      "reference": "unaltraweb (= 0.7.1)",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["jekyll-core", "site-build"]
@@ -47,10 +69,10 @@
     "wheel": {
       "kind": "python-wheel",
       "name": "unaltraweb-mcp",
-      "version": "0.7.0",
-      "release": "v0.7.0",
-      "release_status": "ready",
-      "reference": "unaltraweb-mcp==0.7.0",
+      "version": "0.7.1",
+      "release": "v0.7.1",
+      "release_status": "pending",
+      "reference": "unaltraweb-mcp==0.7.1",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": true,
       "features": ["calibre-import", "doctor", "new-web", "offline-inspection", "mcp-control-plane"]
@@ -58,10 +80,10 @@
     "runtime": {
       "kind": "container",
       "name": "unaltraweb runtime",
-      "version": "0.7.0",
-      "release": "v0.7.0",
-      "release_status": "ready",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb:0.7.0",
+      "version": "0.7.1",
+      "release": "v0.7.1",
+      "release_status": "pending",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb:0.7.1",
       "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
@@ -70,10 +92,10 @@
     "mcp": {
       "kind": "container",
       "name": "unaltraweb MCP runtime",
-      "version": "0.7.0",
-      "release": "v0.7.0",
-      "release_status": "ready",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.0",
+      "version": "0.7.1",
+      "release": "v0.7.1",
+      "release_status": "pending",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.1",
       "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-mcp",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
