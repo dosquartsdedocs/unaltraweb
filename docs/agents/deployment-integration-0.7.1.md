@@ -73,3 +73,24 @@ The implementation is integrated before the containing source selects its final
 reviewed core/workflow revisions. Candidate components remain pending until that
 selection; release readiness and publication keep their existing strict receipt,
 ancestry, signing and immutable-byte gates.
+
+## Reviewed source selection
+
+Implementation `2133b8fa2f668e14d603a36d15584eed63e4386a` is integrated through
+[PR 94](https://github.com/dosquartsdedocs/unaltraweb/pull/94) at
+`2ff27f27c274eb09b2c53ef8bd374f333702d8ee`. PR CI `37526811887` and CodeQL
+`37526811747` passed, including actual provider-record acquisition and generated
+caller provenance checks. The review is agent-attributed.
+
+The containing candidate now selects this integration for both independent
+core/workflow fields and marks gem, wheel, runtime and MCP ready for same-source
+candidate preparation. The selected workflow's own contract records the reused
+PDF 0.6.0 producer correctly; no worker version change is needed.
+
+Local source validation passed 629 cases with 31 optional/environment skips,
+fresh-wheel and owned-image MCP checks/smoke, docs and prose checks. The installed
+development new/upgrade/hotfix manual proof is retained at
+`/tmp/opencode/unaltraweb-071-93/local-integration/evidence.json`, SHA-256
+`d98c0fb56d2b74839a7132cc9dc7ab3f65a9802087837af1a13070a51316a14a`.
+That development proof still used the earlier reviewed workflow pin; final
+signed-candidate acceptance must exercise the now-selected integration above.
