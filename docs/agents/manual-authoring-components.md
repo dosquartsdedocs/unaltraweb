@@ -2,6 +2,29 @@
 
 This is the component contract for MCP agents drafting or reviewing `unaltremanual` content. Read it together with the consumer site's `context/writing-profile.md`.
 
+## Private practice readings
+
+Standalone practice readings live in `practiques/<slug>/<lang>/<alumnat|docent>/`,
+using `LLEGIU-ME.md` (ca), `LEEME.md` (es) or `README.md` (en). Use
+`manual_practice_pdf_build` with an explicit practice version to produce a
+private A4-landscape PDF under an ignored, retained `sandbox/practiques/` job.
+The source requires front-matter `title`; `lang` must agree with the path.
+Use `#` for body sections and `##` for subsections. Keep a table's `Table:`
+caption and each standalone image's descriptive caption with its source.
+
+The practice wrapper reuses site metadata and manual typography. Course codes
+appear in parentheses beside the subject; the practice version is shown without
+the academic year. Logos occur only on the first page. Figures are centred and
+automatically fit the usable page after reserving the caption and its spacing.
+
+The initial reading API accepts ordinary Pandoc Markdown, local PNG/JPEG/PDF
+images, links, maths, fenced code and captioned tables. Use provider-rendered
+printable images rather than executable or remote visual sources. Liquid,
+manual-only component wrappers and automatic bibliography assembly are outside
+this reading syntax. Its private source paths are not added to the public
+editorial/translation inventories. Review the returned PDF explicitly; a layout
+approval does not change source `content_status` or authorize publication.
+
 ## Paragraph development
 
 Diagnose paragraph function before polishing sentences. A paragraph should normally have one primary job and, when the material warrants it, develop this sequence:

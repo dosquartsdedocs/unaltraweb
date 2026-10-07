@@ -43,6 +43,9 @@ which is not evidence that a future Git repository is compliant.
 | --- | --- | --- | --- | --- |
 | `_site` | directory | jekyll-build-output | ignored | disposable |
 | `tmp` | directory | build-staging-and-local-release-evidence | ignored | explicit |
+| `practiques` | directory | private-practice-sources | versioned | never |
+| `sandbox/practiques` | directory | retained-private-practice-jobs | ignored | explicit |
+| `dist/practiques` | directory | private-practice-deliveries | ignored | explicit |
 | `.cache/scimago` | directory | external-bibliometrics-input-cache | ignored | explicit |
 | `.cache/unaltraweb/manual-pdf-publication-intent.json` | file | pdf-publication-recovery-intent | ignored | explicit |
 | `.cache/unaltraweb/manual-pdf-publication.json` | file | pdf-publication-provenance | ignored | explicit |
@@ -83,6 +86,16 @@ worker extensions. Its lock records output hashes, source fingerprints and image
 identity; it is generated metadata, not a disposable execution lock. Consumers
 usually version it with generated Markdown/figures, but this rollout does not
 force that choice.
+
+Practice source control and web exclusion are separate checks. A manual using
+`practiques/` must exclude `practiques/`, `sandbox/` and `dist/` from Jekyll;
+`profile_check` rejects missing exclusions and conflicting explicit includes.
+New manual scaffolds provide these exclusions. Existing sites retain their
+configuration during scaffold synchronization, so review this small configuration
+addition in the consumer workspace. The shared ignore template covers
+`sandbox/` and `dist/practiques/`; local conflicts still stop synchronization.
+Retained practice jobs and deliveries require explicit preservation decisions,
+even when they can be regenerated.
 
 ## PDF Recovery Is Not Disposable Cache
 

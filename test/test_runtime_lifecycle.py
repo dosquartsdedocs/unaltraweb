@@ -9,6 +9,17 @@ from unaltraweb_mcp import runtime_lifecycle as lifecycle
 
 
 class SessionLifecycleTests(unittest.TestCase):
+    def test_unlabelled_local_image_retains_exact_identity_without_claiming_provenance(self):
+        image_id = "sha256:" + "a" * 64
+        observed = {"id": image_id, "repo_digests": [], "source_revision": None,
+                    "os": "linux", "architecture": "amd64"}
+        with patch.object(lifecycle, "_inspect", return_value=observed):
+            result = lifecycle.inspect_image("unaltraweb-manual-pdf:dev", image_id)
+            self.assertEqual("matched", result["state"])
+            self.assertEqual(image_id, result["observed_image_id"])
+            self.assertIsNone(result["source_revision"])
+            self.assertEqual("mismatch", lifecycle.inspect_image("unaltraweb-manual-pdf:dev", "sha256:" + "b" * 64)["state"])
+
     def test_missing_daemon_socket_is_not_container_absence(self):
         result = SimpleNamespace(returncode=1, stdout="", stderr="dial unix /missing/docker.sock: no such file or directory",
                                  timed_out=False, stdout_truncated=False, stderr_truncated=False)

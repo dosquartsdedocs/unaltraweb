@@ -1,0 +1,95 @@
+% Article wrapper appended to the factory-owned manual typographic preamble.
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\sffamily\color{ManualMuted}$course-short-title$}
+\fancyhead[R]{\small\sffamily\color{ManualMuted}$short-title$}
+\fancyfoot[L]{\footnotesize\sffamily\color{ManualMuted}v$practice-version$ · $lang$}
+\fancyfoot[C]{\footnotesize\sffamily\color{ManualMuted}$if(draft)$$draft-label$$endif$}
+\fancyfoot[R]{\footnotesize\sffamily\color{ManualMuted}\thepage/\pageref*{LastPage}}
+\renewcommand{\headrulewidth}{0.2pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{practicefirst}{\fancyhead{}\renewcommand{\headrulewidth}{0pt}}
+\titleformat{\section}{\normalfont\sffamily\Large\bfseries\color{ManualSecondary}}{\thesection}{0.55em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{ManualSecondary}}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.1em}{0.45em}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.35em}
+\setcounter{secnumdepth}{2}
+\setlength{\emergencystretch}{3em}
+\setlist[enumerate]{before=\raggedright}
+\setlength{\LTleft}{\fill}
+\setlength{\LTright}{\fill}
+\setlength{\LTcapwidth}{\textwidth}
+\captionsetup[figure]{format=plain,justification=centering,singlelinecheck=false,margin=0pt,aboveskip=0pt,belowskip=0pt}
+\captionsetup[table]{format=plain,justification=centering,singlelinecheck=false,margin=0pt,skip=14pt}
+
+% Measure the caption once, then fit the image to the remaining text rectangle.
+% The complete unit moves to the next page instead of shrinking into a page tail.
+\newsavebox{\PracticeCaptionBox}
+\newsavebox{\PracticeImageBox}
+\newsavebox{\PracticeFigureBox}
+\newlength{\PracticeImageHeight}
+\newlength{\PracticeFigureHeight}
+\newlength{\PracticeCaptionGap}
+\setlength{\PracticeCaptionGap}{14pt}
+\newcommand{\PracticeFigure}[2]{%
+  \par\begingroup
+  \setlength{\parskip}{0pt}%
+  \setbox\PracticeCaptionBox=\vbox{\hsize=\linewidth\captionsetup{type=figure}#1\par}%
+  \setlength{\PracticeImageHeight}{\dimexpr\textheight-\ht\PracticeCaptionBox-\dp\PracticeCaptionBox-\PracticeCaptionGap-2pt\relax}%
+  \ifdim\PracticeImageHeight<\baselineskip
+    \PackageError{unaltraweb-practice}{Figure caption exceeds the usable page height}{Shorten the caption or split the figure.}%
+  \fi
+  \setkeys{Gin}{width=\linewidth,height=\PracticeImageHeight,keepaspectratio}%
+  \sbox{\PracticeImageBox}{#2}%
+  \setbox\PracticeFigureBox=\vbox{%
+    \hsize=\linewidth\offinterlineskip
+    \hbox to\linewidth{\hfil\usebox{\PracticeCaptionBox}\hfil}%
+    \vskip\PracticeCaptionGap
+    \hbox to\linewidth{\hfil\usebox{\PracticeImageBox}\hfil}%
+  }%
+  \setlength{\PracticeFigureHeight}{\dimexpr\ht\PracticeFigureBox+\dp\PracticeFigureBox+2pt\relax}%
+  \Needspace{\PracticeFigureHeight}%
+  \nointerlineskip\usebox{\PracticeFigureBox}\par
+  \endgroup\addvspace{1em}%
+}
+
+\begin{document}
+\thispagestyle{practicefirst}
+{\setlength{\parskip}{0pt}%
+\noindent
+\begin{minipage}[c]{0.65\linewidth}
+  $if(series-logo)$
+  \begin{minipage}[c]{17mm}
+    \setlength{\fboxsep}{2mm}%
+    \colorbox{ManualBand}{\includegraphics[width=13mm,height=10.4mm,keepaspectratio]{$series-logo$}}%
+  \end{minipage}%
+  \hspace{3mm}%
+  $endif$
+  \begin{minipage}[c]{0.76\linewidth}
+    {\sffamily\bfseries\color{ManualPrimary}$series$}\par
+    {\small\sffamily\color{ManualMuted}$audience-label$}\par
+  \end{minipage}
+\end{minipage}%
+\hfill
+\begin{minipage}[c]{0.32\linewidth}
+  $if(cover-logo)$\raggedleft\includegraphics[width=58mm,height=26mm,keepaspectratio]{$cover-logo$}$endif$
+\end{minipage}\par
+\vspace{4mm}
+{\small\sffamily\bfseries\color{ManualSecondary}$subject$$if(subject-codes)$ ($subject-codes$)$endif$}\par
+\vspace{1mm}
+{\sffamily\fontsize{9.2}{11.6}\selectfont\color{ManualMuted}%
+$for(teaching-guides)$
+$teaching-guides.degree$\par
+$endfor$
+$if(institution-line)$$institution-line$\par$endif$
+$if(author)$$author$ · $endif$$practice-version-label$ $practice-version$\par
+}
+\vspace{2mm}{\color{ManualSecondary!40}\hrule}
+}
+\vspace{4mm}
+{\LARGE\sffamily\bfseries\color{ManualSecondary}$title$}\par
+\vspace{1mm}
+$body$
+\end{document}

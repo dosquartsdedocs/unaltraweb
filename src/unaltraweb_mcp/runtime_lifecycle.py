@@ -32,7 +32,7 @@ CONTAINER_FORMAT = ('{"id":{{json .Id}},"image_id":{{json .Image}},'
     '"mounts":{{json .Mounts}}}')
 IMAGE_FORMAT = ('{"id":{{json .Id}},"repo_digests":{{json .RepoDigests}},'
     '"os":{{json .Os}},"architecture":{{json .Architecture}},'
-    '"source_revision":{{json (index .Config.Labels "org.opencontainers.image.revision")}}}')
+    '"source_revision":{{if .Config.Labels}}{{json (index .Config.Labels "org.opencontainers.image.revision")}}{{else}}null{{end}}}')
 NETWORK_FORMAT = ('{"id":{{json .Id}},"containers":{{json .Containers}},'
     '"factory":{{json (index .Labels "io.context.mcp-factory")}},'
     '"role":{{json (index .Labels "io.context.mcp-role")}},'

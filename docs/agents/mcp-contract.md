@@ -155,6 +155,7 @@ baseline format nor runtime cleanup changes.
 | `web_capture_render` | Start Jekyll and Chromium on an ephemeral internal Docker network, then publish original PNG plus editable annotated SVG from declared CSS selectors. |
 | `manual_pdf_status` | Inspect PDF configuration, sources, generated artefacts, published paths, selector, and freshness without Docker, network, or writes. |
 | `manual_pdf_build` | Build one or all configured language PDFs and first-page cover previews under `tmp/`; `release_selector` defaults to `latest` and is part of the PDF fingerprint. |
+| `manual_practice_pdf_build` | Build one private A4-landscape reading from `practiques/<slug>/<lang>/<audience>/` into an ignored, retained sandbox job. Reuse manual metadata/logos; require a prepared PDF toolchain; never publish or package course data. `dry_run` plans without writes and `run` names an explicit retained attempt. |
 | `manual_pdf_preview_prepare` | Build only stale `latest` PDF languages, then atomically stage ignored, untracked PDF and cover copies for local Jekyll review under a cleanup receipt. Always reports `publishes: false`; disabled PDF configuration is a no-op unless receipt-owned preview files still require cleanup. |
 | `manual_pdf_preview_clean` | Dry-run or remove only preview files whose path, Git state, content hash, and file identity still match the staging receipt. Real cleanup requires explicit confirmation plus the dry-run's exact `receipt_sha256` as `expected_receipt_sha256`, and never publishes. |
 | `manual_pdf_publish` | Copy built PDFs and covers to configured public assets. Defaults to dry-run; real publication requires explicit confirmation, and the selector must match the build. |
@@ -190,6 +191,36 @@ Manual PDF preview staging is distinct from publication. `manual_pdf_preview_pre
 Manual PDF publication is a local workspace operation: it copies reviewed artefacts from `tmp/manual-pdf/` to configured paths such as `assets/pdf/` and `assets/img/`. It never commits, pushes, creates releases, or writes outside the consumer workspace. Use one selector consistently across `manual_pdf_build`, `manual_pdf_publish`, `build_site`, and `manual_release_prepare`. `latest` is the default; stable selectors use `vYYYY.MM(.N)` and require the consumer repository root to be an exact clean Git checkout without nested repositories, submodules, or clean/smudge filters. Stable Jekyll builds run in an MCP image selected by immutable digest, derive `SOURCE_DATE_EPOCH` from the consumer commit, and record both identities in their version-2 candidate manifest. Run `manual_source_quality_check`, `manual_editorial_quality_check`, `manual_pdf_status`, `manual_pdf_preview_prepare`, browser/PDF review, confirmed preview cleanup, and a `manual_pdf_publish` dry-run before calling `manual_pdf_publish(dry_run=false, confirm_publish=true)`. A stable caller additionally submits the SHA-256 of its checked local `tmp/manual-release/<selector>/release-manifest.json`; only the GitHub workflow has tag and release authority.
 
 ## New Site Initialization
+
+### Private Practice Readings
+
+`manual_practice_pdf_build(source, version, run="", dry_run=false)` delegates to
+the factory target `manual-practice-pdf-build`. Source paths are
+`practiques/<slug>/<ca|es|en>/<alumnat|docent>/<localized-name>.md`, using
+`LLEGIU-ME`, `LEEME` and `README`. The consumer must exclude `practiques/`,
+`sandbox/` and `dist/` from Jekyll and ignore `sandbox/practiques/` in Git.
+`profile_check` blocks a manual with practice sources and missing exclusions.
+
+The controller reuses manual metadata normalization and its authoritative
+typographic preamble, with a factory-owned A4-landscape article wrapper. It
+snapshots only the selected Markdown, local PNG/JPEG/PDF images, logos, template
+and filters. Its network-disabled, read-only worker receives that snapshot and
+one writable output directory; it receives neither checkout nor Docker socket.
+The already-prepared PDF toolchain is resolved to an exact image ID and never
+pulled implicitly. Session/project/token worker labels retain the existing D0
+ownership and timeout-cleanup contract.
+
+Jobs under `sandbox/practiques/` are create-only and sealed last. Repeat calls
+verify and reuse the exact job when its effective inputs match. Changed source,
+assets, rendering controls or image identity select another job; a nominal MCP
+version change alone does not. Edited, incomplete or conflicting jobs are
+retained. The optional `run` name provides an explicit retry/review identity.
+Every result reports `publishes: false`.
+
+This API compiles a reading, not a GIS job, public chapter or Moodle ZIP. The
+larger producer-handoff and package contract remains under issue #98. See
+[private practice PDFs](../_documentation/en/47-private-practice-pdfs.md) for
+supported syntax and adoption in an existing manual.
 
 ### Retained Letter Integration
 
