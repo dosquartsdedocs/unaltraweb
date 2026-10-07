@@ -128,3 +128,11 @@ Ready-source CI now requires the exact selected core, controller and PDF worker
 to agree on every retained-document checker file. This catches this class of
 incompatibility before final publication; the final signed core candidates must
 still repeat the complete composed acceptance.
+
+The producer record and checker-closure regression were integrated through
+[PR 96](https://github.com/dosquartsdedocs/unaltraweb/pull/96) at
+`3332e0b93933f12317e05f1ce8d38ce80046feab`. This is the final reviewed core/workflow
+selection. The tuple selects the verified PDF specialization above as 0.7.1,
+published by its immutable digest, and the four core components return to ready.
+Their new same-source candidates replace the rejected first core tuple in the
+eventual release receipt. No earlier release or worker is overwritten.
