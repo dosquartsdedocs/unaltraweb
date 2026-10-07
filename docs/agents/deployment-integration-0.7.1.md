@@ -94,3 +94,37 @@ development new/upgrade/hotfix manual proof is retained at
 `d98c0fb56d2b74839a7132cc9dc7ab3f65a9802087837af1a13070a51316a14a`.
 That development proof still used the earlier reviewed workflow pin; final
 signed-candidate acceptance must exercise the now-selected integration above.
+
+## Final-byte gate: retained-document worker closure
+
+The first candidates from `b7ec1d7a139c65b3b0b88699cdbeb19080f13be1` passed normal
+manual upgrades but failed retained-Carta freshness with the reused PDF 0.6.0.
+The manifest fingerprints `artifact_imports.CHECKER_FILES`, including the changed
+distribution module and component schema. Successful PDF generation alone was
+not sufficient: the old worker and new controller calculated different identities.
+Those first core candidates are retained diagnostic evidence and are not promoted
+as the 0.7.1 release.
+
+The signed PDF specialization already built/tested by run `37530306398` contains
+the matching 0.7.1 checker closure:
+`ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:1bb3f2dafd741e96c28639ec1cc8ccaeb81cbaa73e649f787c0b4ef59997bd4b`.
+Its configuration ID is
+`sha256:618163d3f924439792b2306617bd9612f566c5881166102fa544b4e782d569fa`,
+its producer revision is the first candidate source above and its native package
+reports 0.7.1. The changed checker files match the controller byte for byte.
+
+A local controller overlay selecting only that exact worker passed the complete
+Carta import, copied-producer retirement, receiver relocation and forced PDF
+rebuild. Both 11-page PDFs have hash
+`eb693ced023efafe36a926dd38a1bf1c85399a1b114551cc0ff32e652144c496`; original Carta
+bytes remain unchanged. Diagnostic evidence:
+`/tmp/opencode/unaltraweb-071-93/pdf071-carta-probe/evidence.json`, SHA-256
+`c076f988e43ddb474132e58f5027931085bd734242757b84fb50289ef68cde25`.
+The overlay is not a signed final MCP identity.
+
+The worker record is integrated before a follow-up selection pins its containing
+workflow and PDF. Core components return to pending during this preparation.
+Ready-source CI now requires the exact selected core, controller and PDF worker
+to agree on every retained-document checker file. This catches this class of
+incompatibility before final publication; the final signed core candidates must
+still repeat the complete composed acceptance.
