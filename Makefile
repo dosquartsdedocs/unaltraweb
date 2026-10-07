@@ -48,6 +48,15 @@ MCP_SMOKE_PROJECT ?=
 override MCP_SMOKE_PROJECT := $(value MCP_SMOKE_PROJECT)
 export MCP_SMOKE_PROJECT
 MANUAL_PDF_LANG ?=
+PRACTICE_SOURCE ?=
+PRACTICE_VERSION ?=
+PRACTICE_RUN ?=
+PRACTICE_DRY_RUN ?= 0
+override PRACTICE_SOURCE := $(value PRACTICE_SOURCE)
+override PRACTICE_VERSION := $(value PRACTICE_VERSION)
+override PRACTICE_RUN := $(value PRACTICE_RUN)
+override PRACTICE_DRY_RUN := $(value PRACTICE_DRY_RUN)
+export PRACTICE_SOURCE PRACTICE_VERSION PRACTICE_RUN PRACTICE_DRY_RUN
 MANUAL_PDF_PUBLISH_DRY_RUN ?= 1
 MANUAL_PDF_CONFIRM_PUBLISH ?= 0
 MANUAL_PDF_PUBLICATION_INTENT_SHA256 ?=
@@ -97,6 +106,7 @@ SCIMAGO_ARGS += --input "$(SCIMAGO_INPUT)"
 endif
 
 .PHONY: distribution-check distribution-release-check distribution-doctor workflow-check wheel-check gem-check reproducible-site-check docs-build docs-serve docs-publish docs-down metrics-scimago-fetch metrics-update metrics-update-all metrics-check manual-pdf-image manual-pdf-image-dev manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-publish-worker manual-pdf-sync manual-release-status manual-release-check manual-release-prepare manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio compute-base-image-python compute-base-image-r web-capture-status web-capture-check web-capture-render web-capture-image visualization-status visualization-check visualization-render
+.PHONY: manual-practice-pdf-build
 .PHONY: mcp-runtime-image mcp-image mcp-build mcp-check mcp-smoke mcp-smoke-prebuilt mcp-stdio mcp-down mcp-down-all mcp-list-tools mcp-starter-templates mcp-new-web mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-preview-prepare mcp-manual-pdf-preview-clean mcp-manual-pdf-publish mcp-manual-release-status mcp-manual-release-check mcp-manual-release-prepare mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
 
 REPOSITORY_CONTEXT_TARGETS := distribution-doctor manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio web-capture-status web-capture-check web-capture-render visualization-status visualization-check visualization-render manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-release-status manual-release-check manual-release-prepare metrics-scimago-fetch metrics-update metrics-update-all metrics-check
@@ -229,6 +239,10 @@ mcp-manual-pdf-status: ## Inspect manual PDF state for PROJECT
 
 mcp-manual-pdf-build: ## Build the manual PDF for PROJECT
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-pdf-build --language "$(MANUAL_PDF_LANG)"
+
+manual-practice-pdf-build: export MANUAL_PDF_IMAGE := $(value MANUAL_PDF_IMAGE)
+manual-practice-pdf-build: ## Build one private practice reading in a retained sandbox job
+	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) "$(CURDIR)/scripts/manual/practice_pdf.py" --project "$(PROJECT)"
 
 mcp-manual-pdf-preview-prepare: ## Stage ignored PDF and cover copies for local Jekyll review
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.cli --project "$(PROJECT)" mcp manual-pdf-preview-prepare

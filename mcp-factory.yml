@@ -36,6 +36,7 @@ workspace_rule:
     - .github/workflows
     - .unaltraweb/scaffold.json
   source_paths:
+    - practiques
     - .unaltraweb/artifacts
     - AGENTS.md
     - README.md
@@ -56,6 +57,8 @@ workspace_rule:
     - assets
     - context
   generated_paths:
+    - sandbox/practiques
+    - dist/practiques
     - _site
     - tmp
     - .cache/scimago
@@ -73,6 +76,21 @@ workspace_rule:
     - .vegavisuals.lock.json and outputs declared by .vegavisuals.yml
   allowed_external_writes: []
   path_policies:
+    - path: practiques
+      type: directory
+      role: private-practice-sources
+      git: versioned
+      cleanup: never
+    - path: sandbox/practiques
+      type: directory
+      role: retained-private-practice-jobs
+      git: ignored
+      cleanup: explicit
+    - path: dist/practiques
+      type: directory
+      role: private-practice-deliveries
+      git: ignored
+      cleanup: explicit
     - path: .unaltraweb/artifacts
       type: directory
       role: retained-artifact-bundles-and-native-integrations
@@ -252,6 +270,7 @@ mcp:
     - web_capture_render
     - manual_pdf_status
     - manual_pdf_build
+    - manual_practice_pdf_build
     - manual_pdf_preview_prepare
     - manual_pdf_preview_clean
     - manual_pdf_publish

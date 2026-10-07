@@ -481,6 +481,11 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.manual_pdf_build(project, factory, language=language, release_selector=release_selector)
 
     @mcp.tool()
+    def manual_practice_pdf_build(source: str, version: str, run: str = "", dry_run: bool = False) -> dict[str, Any]:
+        """Build one private landscape practice reading in a retained sandbox job, reusing site metadata and logos. Never publishes or packages course data."""
+        return tools.manual_practice_pdf_build(project, factory, source, version, run=run, dry_run=dry_run)
+
+    @mcp.tool()
     def manual_pdf_preview_prepare() -> dict[str, Any]:
         """Build stale latest PDFs and stage ignored receipt-owned copies for local Jekyll review without publishing."""
         return tools.manual_pdf_preview_prepare(project, factory)

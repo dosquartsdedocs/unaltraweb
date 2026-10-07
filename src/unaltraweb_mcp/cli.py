@@ -27,6 +27,7 @@ FACTORY_REQUIRED_MCP_COMMANDS = {
     "web-capture-render",
     "manual-pdf-status",
     "manual-pdf-build",
+    "manual-practice-pdf-build",
     "manual-pdf-preview-prepare",
     "manual-pdf-publish",
     "manual-release-status",
@@ -314,6 +315,9 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         result = tools.manual_pdf_build(project, factory, language=args.language, release_selector=args.release_selector)
         print_image_warnings(result.get("image_backgrounds", {}))
         return print_json(result)
+    if command == "manual-practice-pdf-build":
+        return print_json(tools.manual_practice_pdf_build(project, factory, args.source, args.version,
+                                                         run=args.run, dry_run=args.dry_run), enforce_ok=True)
     if command == "manual-pdf-preview-prepare":
         return print_json(tools.manual_pdf_preview_prepare(project, factory), enforce_ok=True)
     if command == "manual-pdf-preview-clean":
@@ -526,6 +530,12 @@ def build_parser() -> argparse.ArgumentParser:
         manual_pdf = mcp_sub.add_parser(name)
         manual_pdf.add_argument("--language", default="")
         manual_pdf.add_argument("--release-selector", default="latest")
+
+    practice_pdf = mcp_sub.add_parser("manual-practice-pdf-build")
+    practice_pdf.add_argument("--source", required=True)
+    practice_pdf.add_argument("--version", required=True)
+    practice_pdf.add_argument("--run", default="")
+    practice_pdf.add_argument("--dry-run", action="store_true")
 
     mcp_sub.add_parser("manual-pdf-preview-prepare")
 

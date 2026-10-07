@@ -65,6 +65,7 @@ MAKE_TIMEOUTS = {
     "web-capture-status": 60.0,
     "web-capture-check": 120.0,
     "manual-pdf-build": 1800.0,
+    "manual-practice-pdf-build": 1200.0,
     "manual-pdf-status": 60.0,
     "manual-pdf-publish": 300.0,
     "manual-pdf-publish-worker": 300.0,
@@ -88,6 +89,7 @@ WORKER_TARGET_ROLES = {
     "web-capture-render": "web-capture",
     "manual-pdf-status": "manual-pdf",
     "manual-pdf-build": "manual-pdf",
+    "manual-practice-pdf-build": "manual-pdf",
     "manual-pdf-publish": "manual-pdf",
     "manual-pdf-publish-worker": "manual-pdf",
 }
@@ -2760,6 +2762,13 @@ def manual_authoring_capabilities(project: Path) -> dict[str, Any]:
         },
         "components": [
             {
+                "id": "private_practice_readings",
+                "syntax": ["practiques/<slug>/ca/alumnat/LLEGIU-ME.md", "practiques/<slug>/en/docent/README.md", "Table: Descriptive caption"],
+                "web": "private sources excluded from Jekyll and public editorial inventories",
+                "pdf": "A4 landscape; shared manual typography and metadata; automatic centred figures; first-page logos",
+                "guidance": "Use manual_practice_pdf_build with source and an independent practice version. Exclude practiques/, sandbox/ and dist/ from Jekyll and ignore generated jobs. Standalone Markdown with local PNG/JPEG/PDF images is supported; render other visual sources through their owner first. Review the returned sandbox PDF; building does not publish, assemble a Moodle ZIP or approve content.",
+            },
+            {
                 "id": "retained_documents",
                 "syntax": ["{% retained_document import-id %}"],
                 "web": "verified PDF object with an accessible download link",
@@ -2934,6 +2943,10 @@ def profile_check(project: Path) -> dict[str, Any]:
     manual_source_quality: dict[str, Any] = {}
     manual_editorial_quality: dict[str, Any] = {}
     if profile == "unaltremanual":
+        if (project / "practiques").exists() or (project / "practiques").is_symlink():
+            from .practice_pdf import private_path_issues
+            issues.extend({"severity": "error", "code": "private-practice-exclusion", "message": message}
+                          for message in private_path_issues(config))
         manual_source_quality = manual_source_quality_check(project)
         issues.extend(manual_source_quality.get("issues", []))
         warnings.extend(manual_source_quality.get("warnings", []))
@@ -4028,7 +4041,7 @@ def run_factory_make(
     if runtime is not None and runtime.managed:
         for key in ("MAKEFLAGS", "MFLAGS", "MAKEOVERRIDES"):
             merged_env.pop(key, None)
-        if target in {"manual-pdf-build", "manual-pdf-publish", "manual-pdf-publish-worker"}:
+        if target in {"manual-pdf-build", "manual-practice-pdf-build", "manual-pdf-publish", "manual-pdf-publish-worker"}:
             merged_env["MANUAL_PDF_IMAGE"] = runtime.worker("manual_pdf")
         elif target == "web-capture-render":
             merged_env["WEB_CAPTURE_IMAGE"] = runtime.worker("web_capture")
@@ -5134,6 +5147,17 @@ def manual_pdf_build(project: Path, factory: Path, language: str = "", release_s
     return result
 
 
+def manual_practice_pdf_build(project: Path, factory: Path, source: str, version: str,
+                              run: str = "", dry_run: bool = False) -> dict[str, Any]:
+    from .practice_pdf import validate_request
+
+    validate_request(source, version, run)
+    return run_factory_make(factory, project, "manual-practice-pdf-build", env={
+        "PRACTICE_SOURCE": source, "PRACTICE_VERSION": version, "PRACTICE_RUN": run,
+        "PRACTICE_DRY_RUN": "1" if dry_run else "0",
+    })
+
+
 def manual_pdf_preview_prepare(project: Path, factory: Path) -> dict[str, Any]:
     from . import manual_pdf_preview
 
@@ -5980,6 +6004,7 @@ def list_tools() -> dict[str, Any]:
     inventory["resources"].append("web://runtime-identity")
     inventory["tools"].extend(["import_artifact_bundle", "artifact_import_check"])
     inventory["tools"].extend(["runtime_identity", "runtime_drain"])
+    inventory["tools"].append("manual_practice_pdf_build")
     return inventory
 
 

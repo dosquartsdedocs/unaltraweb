@@ -38,6 +38,13 @@ def create_site(project: Path) -> None:
         "Docker-backed stale PDF preview smoke.\n",
         encoding="utf-8",
     )
+    practice = project / "practiques/smoke/en/alumnat/README.md"
+    practice.parent.mkdir(parents=True)
+    practice.write_text("---\ntitle: Private practice smoke\nlang: en\ncontent_status: draft\n---\n\n# Begin\n\nPrivate practice sentinel.\n")
+    for relative in ("sandbox/practiques/smoke/input-private.txt", "dist/practiques/smoke/private.zip"):
+        target = project / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"Private practice sentinel")
     subprocess.run(["git", "init", "--quiet"], cwd=project, check=True)
     subprocess.run(["git", "config", "user.email", "preview-smoke@example.test"], cwd=project, check=True)
     subprocess.run(["git", "config", "user.name", "Preview Smoke"], cwd=project, check=True)
@@ -63,6 +70,16 @@ def main() -> None:
     language = prepared["status"]["languages"][0]
     for key in ["generated_pdf", "generated_cover", "published_pdf", "published_cover"]:
         assert (project / language[key]).is_file(), language[key]
+
+    practice = site_tools.manual_practice_pdf_build(
+        project, Path("/opt/unaltraweb"), "practiques/smoke/en/alumnat/README.md", "smoke-v1")
+    assert practice["ok"] is True and practice["publishes"] is False, practice
+    assert practice["state"] == "built", practice
+    assert (project / practice["pdf"]).is_file()
+    repeated = site_tools.manual_practice_pdf_build(
+        project, Path("/opt/unaltraweb"), "practiques/smoke/en/alumnat/README.md", "smoke-v1")
+    assert repeated["state"] == "current", repeated
+    assert site_tools.manual_pdf_status(project, Path("/opt/unaltraweb"))["languages"][0]["fresh"] is True
 
     try:
         started = site_tools.preview_start(project, site_profile="unaltremanual", timeout_seconds=180)
@@ -98,6 +115,8 @@ def main() -> None:
         assert 'class="manual-download"' in manual_home
         assert "assets/img/manual-cover-en.png" in manual_home
         assert (project / "_site/en/chapters/chapter-0/index.html").is_file()
+        for private in ("practiques", "sandbox", "dist"):
+            assert not (project / "_site" / private).exists(), private
     finally:
         stopped = site_tools.preview_stop(project)
         assert stopped["ok"] is True
@@ -114,6 +133,9 @@ def main() -> None:
     assert not (project / language["published_cover"]).exists()
     assert not (project / manual_pdf_preview.PUBLICATION_INTENT_PATH).exists()
     assert not (project / manual_pdf_preview.PUBLICATION_RECEIPT_PATH).exists()
+    assert (project / practice["pdf"]).is_file()
+    assert (project / "sandbox/practiques/smoke/input-private.txt").read_bytes() == b"Private practice sentinel"
+    assert (project / "dist/practiques/smoke/private.zip").read_bytes() == b"Private practice sentinel"
     assert subprocess.run(
         ["git", "status", "--porcelain=v1", "--untracked-files=all"],
         cwd=project,
