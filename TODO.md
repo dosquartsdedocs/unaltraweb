@@ -10,6 +10,30 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Current Shape
 
+Release [**v0.7.1**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.1)
+consolidates the reviewed deployment/update tuple from
+[issue 93](https://github.com/dosquartsdedocs/unaltraweb/issues/93).
+
+- Independent core/workflow pins and provider-owned PDF producer records.
+- Generated-caller acceptance, exact reviewed #86 hotfix migration, preserved local
+  edits and explicit CAS/atomic update plans.
+- Matching PDF 0.7.1 verifier closure; the initially reused 0.6.0 worker was rejected
+  before release by retained-Carta acceptance and replaced in the final tuple.
+- Final artifact source `ae5dab1d99804e7f73da82930199c1e2f3c08f61`; receipt PR 99,
+  tag target `1ff25c6956458c3a99436312466e9cc588ed34b9`.
+- Signed final images `37614367552`, packages `37614371507`, promotion
+  `37621482487` and Trusted Publishing `37621486444` passed.
+- Final installed integration/Carta/D0/four-profile Bundler/helper tests passed;
+  public package bytes and OCI semver aliases match the receipt.
+- Checkout MCP pin:
+  `ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:6aa20cff86c3891a876e37ba0548fa36f3c5633c9f22ba672e9f50123d677cf6`.
+- TIG independently published its approved 311-page manual using the earlier
+  one-line hotfix; #86 is closed. This release does not migrate real manuals.
+
+Full delivery evidence: [`docs/agents/owner-closeout-93.md`](docs/agents/owner-closeout-93.md).
+
+### Previous 0.7.0 delivery
+
 Release [**v0.7.0**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.0)
 delivers live MCP identity, exact prepared execution and session-scoped lifecycle
 from issue [85](https://github.com/dosquartsdedocs/unaltraweb/issues/85), against

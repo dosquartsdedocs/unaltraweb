@@ -38,8 +38,10 @@ it to an image ID before execution. The source checkout's digest pin is separate
 it advances only after a new receipt exists. Explicit `--image` (or the console
 adapter's `UNALTRAWEB_MCP_IMAGE`) permits a reviewed immutable selection.
 
-The post-release checkout pin selects published 0.7.0 MCP digest
-`sha256:b84cdb404ba7bab5ff0b14fa8a7ee93d7293e829cf32e28ff0dacaa8afff4677`.
+The post-release checkout pin selects published 0.7.1 MCP digest
+`sha256:6aa20cff86c3891a876e37ba0548fa36f3c5633c9f22ba672e9f50123d677cf6`.
+The [0.7.1 delivery report](owner-closeout-93.md) records the consolidated deployment
+contract, exact hotfix migration and matching PDF verifier closure.
 Existing processes keep their running image until clients reconnect. Site build
 defaults and customized Makefiles remain separate, explicitly reviewed selections.
 

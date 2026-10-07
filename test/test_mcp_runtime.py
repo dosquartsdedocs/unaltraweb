@@ -1329,7 +1329,7 @@ class McpRuntimeTests(unittest.TestCase):
         self.assertEqual(
             release_image,
             "ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:"
-            "b84cdb404ba7bab5ff0b14fa8a7ee93d7293e829cf32e28ff0dacaa8afff4677",
+            "6aa20cff86c3891a876e37ba0548fa36f3c5633c9f22ba672e9f50123d677cf6",
         )
         self.assertTrue(release_image.startswith(release_prefix))
         self.assertEqual(len(release_digest), 64)

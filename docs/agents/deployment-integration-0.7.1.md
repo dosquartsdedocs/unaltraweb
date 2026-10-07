@@ -1,5 +1,9 @@
 # Consolidated deployment integration — 0.7.1
 
+Published [v0.7.1](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.1)
+on 2026-10-07. The [final delivery report](owner-closeout-93.md) supersedes the
+chronological preparation states below and binds the accepted published bytes.
+
 Owner: [issue 93](https://github.com/dosquartsdedocs/unaltraweb/issues/93), following
 the workflow-only [issue 86 correction](deploy-provenance-86.md). The owner
 authorized implementation, review/integration and gated 0.7.1 publication.
