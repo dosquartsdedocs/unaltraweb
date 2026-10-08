@@ -72,6 +72,14 @@ private native manager, not to a caller-provided state or acknowledgement.
 See [the W1 owner implementation](w1-job-storage.md) for current acceptance and
 remaining pipeline/release gates. Volume names are not Git workspace paths.
 
+With the persistent W1 registry selected, `manual_practice_pdf_build` snapshots
+its original inputs and effective rendering controls to volumes and returns its
+job/product plus optional policy-selected durable paths. Private practice
+destinations must remain outside Jekyll publication. A missing or unsuitable
+delivery policy leaves the sealed product pending in retained storage; it does
+not authorize copying the handout into public assets. Legacy calls without W1
+selection retain their sandbox contract.
+
 `mcp-factory.yml` declares schema-v1 `workspace_rule.path_policies` against the
 consumer root `.`. The central manager owns `workspace-check`; it is not an
 unaltraweb MCP tool and does not invoke `site_check`, `down`, rendering or any

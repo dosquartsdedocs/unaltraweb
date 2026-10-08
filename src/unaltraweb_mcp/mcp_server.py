@@ -502,7 +502,7 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def manual_practice_pdf_build(source: str, version: str, run: str = "", dry_run: bool = False) -> dict[str, Any]:
-        """Build one private landscape practice reading in a retained sandbox job, reusing site metadata and logos. Never publishes or packages course data."""
+        """Build a private landscape practice PDF using selected job storage, site metadata and logos. W1 retention stays private; building never publishes a site."""
         return tools.manual_practice_pdf_build(project, factory, source, version, run=run, dry_run=dry_run)
 
     @mcp.tool()

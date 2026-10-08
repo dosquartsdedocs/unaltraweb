@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import copy
 import json
 import multiprocessing
 import os
@@ -304,12 +305,53 @@ def accept_faults(root, registry, image):
     return evidence
 
 
+def accept_practice(root, registry, image, pdf_image):
+    from unittest.mock import patch
+    from PIL import Image
+    from pypdf import PdfReader
+    import yaml
+    from test_practice_pdf import CONFIG, SOURCE
+    from unaltraweb_mcp import site_tools
+
+    project = root / "practice"
+    project.mkdir()
+    subprocess.run(["git", "init", "--quiet", str(project)], check=True)
+    config = copy.deepcopy(CONFIG)
+    config["unaltraweb"]["product_retention"] = {"enabled": True, "root": "practiques/retained", "format": "directory",
+        "profiles": ["unaltraweb-job-v1"], "assets": {"root": "assets/received", "roles": []}}
+    (project / "_config.yml").write_text(yaml.safe_dump(config))
+    source = project / SOURCE
+    source.parent.mkdir(parents=True)
+    (project / "assets").mkdir()
+    Image.new("RGB", (800, 320), "#406882").save(project / "assets/figure.png")
+    source.write_text("---\ntitle: Native volume practice\nlang: ca\ncontent_status: draft\n---\n# Observe the result\n\n"
+                      "A synthetic input remains independent of the execution workspace.\n\n![An opaque local image.](assets/figure.png)\n\n"
+                      "| Input | Result |\n| --- | --- |\n| Source snapshot | Retained PDF |\n\nTable: Verified native paths.\n")
+    originals = {name: (project / name).read_bytes() for name in ["_config.yml", SOURCE, "assets/figure.png"]}
+    with patch.dict(os.environ, {"UNALTRAWEB_JOB_STORAGE_STATE": str(registry), "UNALTRAWEB_JOB_STORAGE_IMAGE": image,
+                                  "MANUAL_PDF_IMAGE": pdf_image}):
+        result = site_tools.manual_practice_pdf_build(project, Path(__file__).resolve().parents[1], SOURCE, "native-1")
+    (project / "evidence.json").write_bytes(contract.canonical(result))
+    assert result["ok"] and result["storage"]["phase"] == "released", result
+    assert result["retention"]["state"] == "acknowledged" and not result["publishes"], result
+    for name, raw in originals.items():
+        assert (project / name).read_bytes() == raw, name
+    assert not any((project / name).exists() for name in ["sandbox", "tmp", "_site", "assets/received"])
+    pdf = PdfReader(project / result["pdf"])
+    assert pdf.pages and all(float(page.mediabox.width) > float(page.mediabox.height) for page in pdf.pages)
+    text = " ".join(page.extract_text() or "" for page in pdf.pages)
+    assert "12345, 67890" in text and "2026/2027" not in text
+    print(json.dumps({"practice": "passed", "job_id": result["job_id"], "pages": len(pdf.pages), "phase": "released"}), flush=True)
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--image", required=True)
     parser.add_argument("--controller-image", help="Exact prepared W1 MCP image ID for native Docker stdio acceptance")
     parser.add_argument("--faults", action="store_true", help="Also exercise two clients, controller crash, monitored pressure and admission refusal")
+    parser.add_argument("--practice-image", help="Also compile and privately retain a real practice PDF using this prepared image")
     parser.add_argument("--formats", nargs="+", choices=("directory", "zip", "tar-gzip"), default=["directory", "zip", "tar-gzip"])
     args = parser.parse_args()
     output = args.output.resolve()
@@ -321,7 +363,8 @@ def main():
         print(json.dumps(result), flush=True)
     faults = accept_faults(output, output / "registry", args.image) if args.faults else None
     eof = accept_pending_eof(output, output / "registry", args.image, args.controller_image) if args.controller_image else None
-    (output / "evidence.json").write_bytes(contract.canonical({"ok": True, "results": results, "faults": faults, "eof": eof}))
+    practice = accept_practice(output, output / "registry", args.image, args.practice_image) if args.practice_image else None
+    (output / "evidence.json").write_bytes(contract.canonical({"ok": True, "results": results, "faults": faults, "eof": eof, "practice": practice}))
 
 
 if __name__ == "__main__":

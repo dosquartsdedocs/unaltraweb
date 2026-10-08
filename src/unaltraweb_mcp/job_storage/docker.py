@@ -179,7 +179,9 @@ class Docker:
         worker_source = Path(__file__).with_name("worker.py").read_text(encoding="utf-8")
         bundle_source = Path(__file__).with_name("bundles.py").read_text(encoding="utf-8")
         from .contract import sha256
-        code = ("_bundle_scope={'__name__':'unaltraweb_w1_bundle_checker','_SOURCE_SHA256':" + repr(sha256(bundle_source.encode())) + "};"
+        code = ("import importlib.util,sys;"
+                "sys.path.extend(['/opt/unaltraweb/src'] if importlib.util.find_spec('unaltraweb_mcp') is None else []);"
+                "_bundle_scope={'__name__':'unaltraweb_w1_bundle_checker','_SOURCE_SHA256':" + repr(sha256(bundle_source.encode())) + "};"
                 "exec(" + repr(bundle_source) + ",_bundle_scope);domain_check=_bundle_scope['check'];exec(" + repr(worker_source) + ")")
         require(len(code.encode()) < 96*1024 and len(canonical(request)) < 64*1024, "Worker control exceeds its argument bound")
         command = ["create", "--name", name, "--interactive", "--pull", "never", "--network", network,

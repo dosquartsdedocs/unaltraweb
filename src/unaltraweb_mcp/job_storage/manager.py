@@ -164,7 +164,7 @@ class Manager:
         """Short manager-owned operation under the registry admission lock."""
         operation_id = uuid.uuid4().hex
         guard = registry.acquire_guard(operation_id)
-        record = {"id": operation_id, "role": role, "kind": "reader" if request["operation"] in {"observe", "capacity"} else "writer",
+        record = {"id": operation_id, "role": role, "kind": "reader" if request["operation"] in {"observe", "capacity", "read-files"} else "writer",
                   "client": self.origin.evidence(), "container_id": None,
                   "container_name": "unaltraweb-w1-" + operation_id, "phase": "creating", "job_id": job["job_id"] if job else None}
         if job is not None:
@@ -175,8 +175,9 @@ class Manager:
         labels = self._worker_labels(registry.record["id"], job=job, lease_id=operation_id)
         try:
             image = self.docker.prepared_image(self.utility_reference)["id"]
-            if job is not None and request["operation"] == "seal":
-                request = {**request, "binding": self._mount_binding(job, operation_id)}
+            if job is not None and request["operation"] in {"seal", "read-files"}:
+                access = "read-only" if request["operation"] == "read-files" else "read-write"
+                request = {**request, "binding": self._mount_binding(job, operation_id, access)}
                 c.check_binding(request["binding"], self._state(registry, job))
             identifier = self.docker.create_worker(name=record["container_name"], image_id=image,
                                                    request=request, mounts=mounts, labels=labels, guard_fds=(guard,))
@@ -325,6 +326,18 @@ class Manager:
         with self.registry.locked() as registry:
             return self._state(registry, self._job(registry, job_id, registry_id))
 
+    def read_diagnostics(self, registry_id, job_id, paths):
+        with self.registry.locked(write=True) as registry:
+            job = self._job(registry, job_id, registry_id)
+            c.require(job["phase"] in {"open", "draining", "closed"}, "No diagnostic attachment is admitted during retirement", "storage-admission-closed")
+            c.require(isinstance(paths, list) and len(paths) <= 4 and all(isinstance(path, str) for path in paths), "Invalid diagnostic selection")
+            for path in paths:
+                c.relative_path(path)
+            retained = job["volumes"]["retained"]
+            return self._control_worker(registry, {"operation": "read-files", "paths": paths,
+                                        "markers": {"retained": retained["marker"]}, "limits": job["limits"]},
+                                        [(retained["name"], "/work", True)], job=job, role="diagnostic-read")
+
     def _mount_binding(self, job, lease_id, access="read-write"):
         roles = {"retained", "scratch"} if access == "read-write" else {"retained"}
         binding = {"kind": "gacontext.job-storage-binding", "schema_version": 1,
@@ -402,7 +415,7 @@ class Manager:
             if guard is not None:
                 os.close(guard)
 
-    def stage(self, registry_id, job_id, expected_revision, expected_epoch, paths, *, parameters=None):
+    def stage(self, registry_id, job_id, expected_revision, expected_epoch, paths, *, parameters=None, prepared_files=None):
         c.require(isinstance(paths, list) and len(paths) <= 10000 and all(isinstance(path, str) for path in paths), "Invalid selected input inventory")
         handoff.unique_paths(paths)
         entries = []
@@ -413,6 +426,15 @@ class Manager:
                 entries.append({"path": "project/" + relative, "source": relative, "sha256": hashed, "bytes": size})
         finally:
             workspace.close()
+        prepared_files = prepared_files or {}
+        c.require(isinstance(prepared_files, dict) and len(paths) + len(prepared_files) <= 10000,
+                  "Prepared input inventory exceeds its bound")
+        for relative, raw in sorted(prepared_files.items()):
+            c.relative_path(relative)
+            c.require(isinstance(raw, bytes) and len(raw) <= handoff.MAX_FILE_BYTES, "Invalid prepared input bytes")
+            entries.append({"path": "prepared/" + relative, "prepared": relative, "sha256": c.sha256(raw), "bytes": len(raw)})
+        handoff.unique_paths([entry["path"] for entry in entries])
+        c.require(sum(entry["bytes"] for entry in entries) <= handoff.MAX_TOTAL_BYTES, "Selected inputs exceed the artifact profile")
         manifest = c.canonical({"kind": "unaltraweb.job-request", "schema_version": 1,
                                 "parameters": parameters or {}, "inputs": entries})
         c.require(len(manifest) <= c.MAX_DOCUMENT, "Selected input manifest exceeds its bound")
@@ -427,6 +449,16 @@ class Manager:
             workspace = handoff.Workspace(str(self.origin.project))
             try:
                 for entry in entries:
+                    if "prepared" in entry:
+                        raw = prepared_files[entry["prepared"]]
+                        c.require(c.sha256(raw) == entry["sha256"], "Prepared input changed before streaming", "storage-input-changed")
+                        info = tarfile.TarInfo(entry["path"])
+                        info.size, info.mode = entry["bytes"], 0o444
+                        yield info.tobuf(format=tarfile.PAX_FORMAT)
+                        for offset in range(0, len(raw), 65536):
+                            yield raw[offset:offset+65536]
+                        yield b"\0" * (-entry["bytes"] % 512)
+                        continue
                     parent, _, name = entry["source"].rpartition("/")
                     with workspace.directory(parent) as parent_fd:
                         fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent_fd)

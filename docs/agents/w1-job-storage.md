@@ -192,7 +192,7 @@ fixtures. Failed runs and unresolved jobs remain available for inspection.
 
 ### Remaining W1 gates
 
-The existing site/PDF/practice/preview/capture/computation APIs still use their
+The existing site/manual-PDF/preview/capture/computation APIs still use their
 previous execution paths. Their migration to the native jobs, complete real
 web/PDF figure acceptance and new component/release tuple remain work in this PR.
 The increment does not yet accept other producers' domain bundles, implement
@@ -202,3 +202,45 @@ upstream read-only planner remains an independent conformance gate to exercise.
 Diavisuals 0.6.0 composition and historical receipt acceptance remain tracked in
 #85. No complete W1 adoption, hub activation, real-manual migration or new public
 release is claimed by these storage-layer results.
+
+## First domain migration: private practice PDF
+
+When the native registry is selected, `manual_practice_pdf_build` now uses the W1
+pipeline directly. Calls without that selection retain the existing sandbox
+interface and its no-clobber/reuse checks. The native pipeline retains the original
+Markdown/configuration/images, original factory controls, effective normalized
+metadata, derived template, bounded diagnostics and resulting PDF/preview.
+The PDF toolchain receives only the registered volumes; no consumer or factory
+checkout is mounted into it. A failed render closes with protected obligations
+and a bounded read-only diagnostic operation can inspect its retained log.
+
+Successful work is sealed, drained and scratch-reclaimed before optional durable
+delivery. Automatic private-practice delivery additionally requires destinations
+excluded from Jekyll (or unexposed hidden retention); a general public-assets
+policy cannot silently publish a private handout. Directory-only retention can
+return the PDF/preview paths within the private complete bundle without exposing
+separate assets. Legacy repository jobs remain unclaimed.
+
+`tmp/w1-102/practice-acceptance-14/evidence.json` records a real two-page landscape
+practice PDF through the native API implementation, private directory retention
+and observed removal of both job volumes. Job
+`27d9b7fdc85f4935b2f39a3e982c4591` is released. Original config, Markdown and image
+bytes are unchanged; the synthetic consumer has no `sandbox`, `tmp`, `_site` or
+exposed `assets/received` directory. The worker is the explicitly prepared
+development PDF image
+`sha256:2db925ec3c757cc833faca57268d78cc2c3b2a603895e43228ad25740dd568fb`.
+This test exercises the source controller and actual Docker toolchain, not a new
+published MCP release. The full local suite is now **693 cases, 666 passed / 27
+optional skips**; the explicitly enabled legacy PDF integration also passes all
+26 practice tests, preserving the accepted landscape layout.
+
+### Published-provenance CI gate
+
+The first implementation commit is
+`fabd0876ff437e405ba7cd9621ae7f473597721a`. Its Python 3.10/3.13, gem, wheel and
+CodeQL jobs passed, but CI runs `37728515514` and `37728510689` correctly failed
+the published PDF deployment-provenance check. The shared `processes.py` belongs
+to the retained-document checker closure; its new bytes differ from the selected
+published core/PDF tuple. A reviewed new coherent core/controller/PDF selection
+and normal component/release flow must resolve this gate before W1 integration.
+The check and the published 0.7.1 components remain unchanged.

@@ -5150,8 +5150,11 @@ def manual_pdf_build(project: Path, factory: Path, language: str = "", release_s
 def manual_practice_pdf_build(project: Path, factory: Path, source: str, version: str,
                               run: str = "", dry_run: bool = False) -> dict[str, Any]:
     from .practice_pdf import validate_request
+    from .job_storage import pipelines
 
     validate_request(source, version, run)
+    if pipelines.selected():
+        return pipelines.build_practice(project_path(project), project_path(factory), source, version, run=run, dry_run=dry_run)
     return run_factory_make(factory, project, "manual-practice-pdf-build", env={
         "PRACTICE_SOURCE": source, "PRACTICE_VERSION": version, "PRACTICE_RUN": run,
         "PRACTICE_DRY_RUN": "1" if dry_run else "0",

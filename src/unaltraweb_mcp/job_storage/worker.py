@@ -307,6 +307,10 @@ def seal_product(request):
     require(all(item["type"] == "file" for item in members), "unverifiable source/result remains protected")
     require(any(item["path"] == "inputs/request.json" for item in members), "effective request is not retained")
     require(any(item["path"].startswith("results/") for item in members), "no result is available to seal")
+    _, _, request_raw = read_regular(path("inputs/request.json"), MAX_CONTROL, collect=True)
+    output_roles = json.loads(request_raw).get("parameters", {}).get("output_roles")
+    require(output_roles is None or (isinstance(output_roles, dict) and all(isinstance(name, str) and isinstance(role, str)
+            for name, role in output_roles.items())), "invalid pipeline output selection")
     require(len(members) <= 10000 and sum(item["bytes"] for item in members) <= 2*1024*1024*1024,
             "product exceeds artifact handoff v1 bounds")
     handoff.unique_paths([item["path"] for item in members])
@@ -329,12 +333,14 @@ def seal_product(request):
         kind = "input" if item["path"].startswith("inputs/") else "evidence" if item["path"].startswith("recovery/") else "output"
         is_request = item["path"] == "inputs/request.json"
         role = "request" if is_request else "source" if kind == "input" else "native-evidence" if kind == "evidence" else "result"
-        if kind == "output" and source.suffix.lower() in {".svg", ".png", ".jpg", ".jpeg"}:
+        if kind == "output" and output_roles is not None:
+            role = output_roles.get(item["path"], "result")
+        elif kind == "output" and source.suffix.lower() in {".svg", ".png", ".jpg", ".jpeg"}:
             role = "rendered-visual"
         elif kind == "output" and source.suffix.lower() == ".pdf":
             role = "document"
         entries.append({"id": "request" if is_request else f"file-{index:06d}", "path": relative_name,
-                        "kind": kind, "role": role, "ownership": "author" if kind == "input" else "producer",
+                        "kind": kind, "role": role, "ownership": "author" if is_request or item["path"].startswith("inputs/project/") else "producer",
                         "sha256": actual, "bytes": length})
     by_path = {item["path"]: item for item in entries}
     for item in entries:
@@ -391,7 +397,23 @@ def export_product(request):
                 wrapper.close()
     domain_check(ROOT, manifest, request["bundle_sha256"])
     print(json.dumps({"kind": "unaltraweb.product-export-check", "bundle_sha256": request["bundle_sha256"],
-                      "domain_profile": report["domain_profile"], "domain_check_sha256": report["evidence_sha256"]}), file=sys.stderr)
+                       "domain_profile": report["domain_profile"], "domain_check_sha256": report["evidence_sha256"]}), file=sys.stderr)
+
+
+def read_files(request):
+    require(request.get("binding", {}).get("access") == "read-only", "diagnostics require a read-only lease")
+    names = request["paths"]
+    require(isinstance(names, list) and len(names) <= 4, "diagnostic selection exceeds its bound")
+    files = []
+    for name in names:
+        require(name.startswith(("recovery/.manager/", "results/")) and name.endswith((".log", ".json")), "unsupported diagnostic path")
+        source = path(name)
+        if not source.exists():
+            files.append({"path": name, "missing": True})
+            continue
+        hashed, size, raw = read_regular(source, 128*1024, collect=True)
+        files.append({"path": name, "sha256": hashed, "bytes": size, "text": raw.decode("utf-8", errors="replace")})
+    return {"files": files}
 
 
 def verify_archive(request):
@@ -583,6 +605,8 @@ def main():
             return
         elif operation == "verify-archive":
             result = verify_archive(request)
+        elif operation == "read-files":
+            result = read_files(request)
         else:
             raise ValueError("unsupported internal storage operation")
     print(json.dumps(result, sort_keys=True), flush=True)
