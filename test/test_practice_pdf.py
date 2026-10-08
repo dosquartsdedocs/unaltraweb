@@ -72,6 +72,36 @@ class PracticePdfFixture(unittest.TestCase):
 
 
 class PracticePdfTests(PracticePdfFixture):
+    def test_native_preparation_uses_fixed_volume_assets_without_creating_staging(self):
+        (self.project / "assets").mkdir()
+        (self.project / "assets/figure.png").write_bytes(b"selected-image")
+        self.source.write_text(self.source.read_text() + "\n![Caption](assets/figure.png)\n")
+        plan = self.plan(source_root="/work/inputs/prepared")
+        self.assertTrue(all(value.startswith("/work/inputs/prepared/assets/") for value in plan["metadata"]["practice-assets"].values()))
+        self.assertFalse((self.project / "sandbox").exists())
+        with self.assertRaises(ValueError):
+            self.plan(source_root="/outside")
+
+    def test_selected_native_runtime_dispatches_practice_without_repository_make_staging(self):
+        with patch("unaltraweb_mcp.job_storage.pipelines.selected", return_value=True), \
+                patch("unaltraweb_mcp.job_storage.pipelines.build_practice", return_value={"ok": True}) as native, \
+                patch.object(site_tools, "run_factory_make") as legacy:
+            result = site_tools.manual_practice_pdf_build(self.project, ROOT, SOURCE, "v2", run="review", dry_run=True)
+        self.assertTrue(result["ok"])
+        native.assert_called_once_with(self.project, ROOT, SOURCE, "v2", run="review", dry_run=True)
+        legacy.assert_not_called()
+
+    def test_private_practice_policy_does_not_expose_a_public_asset_implicitly(self):
+        from unaltraweb_mcp.job_storage.pipelines import receive_by_policy
+        self.config["unaltraweb"]["product_retention"] = {"enabled": True, "root": ".unaltraweb/products", "format": "directory",
+            "profiles": ["unaltraweb-job-v1"], "assets": {"root": "assets/received", "roles": ["document"]}}
+        self.write_config()
+        manager = SimpleNamespace(origin=SimpleNamespace(project=self.project))
+        result = receive_by_policy(manager, "1"*32, "2"*32, "3"*32, private=True)
+        self.assertEqual(result["state"], "pending")
+        self.assertIn("excluded", result["reason"])
+        self.assertFalse((self.project / "assets").exists())
+
     def test_metadata_and_layout_use_course_codes_and_practice_version(self):
         plan = self.plan()
         metadata = plan["metadata"]

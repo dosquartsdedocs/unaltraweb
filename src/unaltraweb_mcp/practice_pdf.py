@@ -153,7 +153,9 @@ def _image_references(markdown: str) -> list[str]:
     return unique
 
 
-def prepare(project: Path, factory: Path, source: str, version: str, image_id: str, run: str = "") -> dict[str, Any]:
+def prepare(project: Path, factory: Path, source: str, version: str, image_id: str, run: str = "", *, source_root: str = "/source") -> dict[str, Any]:
+    if source_root not in {"/source", "/work/inputs/prepared"}:
+        raise ValueError("Unsupported practice execution root")
     slug, language, audience, basename = validate_request(source, version, run)
     manual = _manual_builder(factory)
     files: dict[str, bytes] = {}
@@ -190,7 +192,7 @@ def prepare(project: Path, factory: Path, source: str, version: str, image_id: s
             assert content is not None
             target = f"assets/{digest(content)}{Path(raw).suffix.lower()}"
             files[target] = content
-            return "/source/" + target
+            return source_root + "/" + target
 
         cover = manual.nested(config, "unaltraweb", "manual", "pdf", "cover")
         for key, original in (("series-logo", "series_logo"), ("cover-logo", "institution_logo")):

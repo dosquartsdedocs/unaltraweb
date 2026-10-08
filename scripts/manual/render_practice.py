@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """Run only inside the bounded PDF toolchain with /source readonly and /out writable."""
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 
-SOURCE = Path("/source")
-OUTPUT = Path("/out")
+NATIVE_JOB = os.environ.get("MCP_JOB_STORAGE_BINDING") == "/run/gacontext/job-storage.json"
+SOURCE = Path("/work/inputs/prepared" if NATIVE_JOB else "/source")
+OUTPUT = Path("/work/results/practice" if NATIVE_JOB else "/out")
 
 
 def run(command, log):
@@ -14,18 +16,23 @@ def run(command, log):
 
 
 def main():
+    if NATIVE_JOB:
+        binding = json.loads(Path(os.environ["MCP_JOB_STORAGE_BINDING"]).read_bytes())
+        if binding.get("access") != "read-write" or binding.get("job_root") != "/work":
+            raise ValueError("Practice renderer needs its admitted native writer binding")
+        OUTPUT.mkdir(exist_ok=False)
     request = json.loads((SOURCE / "request.json").read_text())
     basename = request["basename"]
     assert basename in {"LLEGIU-ME", "LEEME", "README"}
     filters = request["filters"]
     assert filters == ["practice-layout.lua", "code-blocks.lua", "figure-captions.lua", "practice-finish.lua"]
     with (OUTPUT / "render.log").open("x") as log:
-        command = ["pandoc", "/source/source.md", "--standalone",
+        command = ["pandoc", str(SOURCE / "source.md"), "--standalone",
                    "--from=markdown+fenced_divs+pipe_tables+link_attributes-raw_tex-raw_html",
-                   "--number-sections", "--top-level-division=section", "--metadata-file=/source/metadata.yml",
-                   "--template=/source/practice.tex", "--resource-path=/source", "-t", "latex", "-o", "practice.tex"]
+                   "--number-sections", "--top-level-division=section", "--metadata-file=" + str(SOURCE / "metadata.yml"),
+                   "--template=" + str(SOURCE / "practice.tex"), "--resource-path=" + str(SOURCE), "-t", "latex", "-o", "practice.tex"]
         for name in filters:
-            command.append("--lua-filter=/source/" + name)
+            command.append("--lua-filter=" + str(SOURCE / name))
         run(command, log)
         for _ in range(3):
             run(["xelatex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", "practice.tex"], log)

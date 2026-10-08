@@ -16,7 +16,7 @@ def launcher_root() -> Path:
     for entry in installed.files or ():
         if entry.as_posix().endswith("share/unaltraweb-launcher/mcp-factory.yml"):
             root = Path(installed.locate_file(entry)).resolve().parent
-            required = ["Makefile", "mcp-factory.yml"] + [
+            required = ["Makefile", "mcp-factory.yml", "mcp-job-storage.json"] + [
                 f"scripts/{name}.sh" for name in (
                     "unaltraweb-mcp-bootstrap", "unaltraweb-mcp-project-id",
                     "unaltraweb-mcp-cleanup", "unaltraweb-docker-mount",
@@ -40,11 +40,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--session-id", help="32-hex connection identity, distinct from the serving backend instance.")
     parser.add_argument("--container-id", help="Exact retained backend container ID for session inspection/recovery.")
     parser.add_argument("--worker-images", help="Startup-fixed JSON mapping of worker references and expected image IDs.")
+    parser.add_argument("--storage-state", help="Private persistent host registry directory outside the consumer.")
+    parser.add_argument("--host-storage-state", help="Explicit daemon-host registry mapping for a containerized launcher.")
     args = parser.parse_args(argv)
     if args.container_id and args.action not in {"session-status", "reap-session"}:
         parser.error("--container-id is only supported by session lifecycle commands")
-    if (args.host_project or args.worker_images or args.offline) and args.action != "serve":
+    if (args.host_project or args.worker_images or args.offline or args.host_storage_state) and args.action != "serve":
         parser.error("Host mapping, worker selections and offline networking apply to serve only")
+    if args.storage_state and args.action not in {"serve", "reap-session"}:
+        parser.error("Private storage selection applies to serve or exact session recovery")
     if args.project_id and args.action != "down":
         parser.error("--project-id is only supported by down")
     if args.image and args.action in {"down", "path", "manifest"}:
@@ -64,7 +68,18 @@ def main(argv: list[str] | None = None) -> int:
         import json
         if not (args.project and args.session_id and args.container_id):
             parser.error("Session lifecycle needs --project, --session-id and --container-id")
+        storage = None
+        if args.action == "reap-session":
+            from .job_storage.contract import StorageError
+            from .job_storage.manager import Manager
+            try:
+                storage = Manager(args.project, state_root=args.storage_state, utility_image=args.image).reap_session(args.session_id, args.container_id)
+            except (StorageError, OSError) as exc:
+                storage = {"ok": False, "code": getattr(exc, "code", "storage-observation-unknown"), "error": str(exc)}
         result = session_status(args.project, args.session_id, args.container_id, reap=args.action == "reap-session")
+        if storage is not None:
+            result["storage"] = storage
+            result["ok"] = result["ok"] and storage["ok"]
         print(json.dumps(result, indent=2))
         return 0 if result["ok"] else 1
     if args.action == "serve" and not (args.project or os.environ.get("MCP_CONSUMER_WORKSPACE")):
@@ -76,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.action != "down":
         image = args.image or os.environ.get("UNALTRAWEB_MCP_IMAGE") or component_reference("mcp")
         command.extend(["--image", image])
-        for name in ("expected_image_id", "host_project", "session_id", "worker_images"):
+        for name in ("expected_image_id", "host_project", "session_id", "worker_images", "storage_state", "host_storage_state"):
             if getattr(args, name):
                 command.extend(["--" + name.replace("_", "-"), getattr(args, name)])
         if args.managed:

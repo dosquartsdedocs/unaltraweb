@@ -51,7 +51,7 @@ def run_server(project: Path, factory: Path) -> None:
             # the connection must not abandon a thread/worker that owns outputs.
             with anyio.CancelScope(shield=True):
                 runtime.drain(True)
-                while runtime.operation is not None:
+                while runtime.operation is not None or runtime.admitted:
                     await anyio.sleep(0.05)
                 await anyio.to_thread.run_sync(runtime.close)
 
@@ -62,6 +62,15 @@ def run_server(project: Path, factory: Path) -> None:
             def decorator(function):
                 if function.__name__ in {"runtime_identity", "runtime_drain"}:
                     return register(function)
+                if function.__name__ == "job_storage":
+                    @wraps(function)
+                    async def storage_operation(request):
+                        # Status/quiesce must remain available while the ordinary
+                        # lane is busy or draining. The private ledger fences each
+                        # actual mutation; seal additionally needs live admission.
+                        with runtime.admit(allow_draining=request.get("operation") in {"status", "quiesce"}):
+                            return await anyio.to_thread.run_sync(partial(function, request))
+                    return register(storage_operation)
 
                 @wraps(function)
                 async def operation(*arguments, **keywords):
@@ -116,6 +125,17 @@ def run_server(project: Path, factory: Path) -> None:
     def runtime_drain(confirm: bool = False) -> dict[str, Any]:
         """Stop admitting work on this connection; then close stdio and verify exact container termination. Other sessions remain active."""
         return runtime.drain(confirm)
+
+    @mcp.tool()
+    def job_storage(request: dict[str, Any]) -> dict[str, Any]:
+        """Observe, quiesce or seal an origin-bound W1 job using its exact native request and CAS revision/epoch."""
+        return tools.job_storage(project, request)
+
+    @mcp.resource("web://job-storage-provider")
+    def job_storage_provider_resource() -> str:
+        """Installed W1 provider declaration; reading never allocates storage."""
+        from .job_storage.manager import provider
+        return provider()[2].decode("utf-8")
 
     def registered_prompt(function):
         spec = tools.PROMPT_SPECS[function.__name__]
@@ -482,7 +502,7 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def manual_practice_pdf_build(source: str, version: str, run: str = "", dry_run: bool = False) -> dict[str, Any]:
-        """Build one private landscape practice reading in a retained sandbox job, reusing site metadata and logos. Never publishes or packages course data."""
+        """Build a private landscape practice PDF using selected job storage, site metadata and logos. W1 retention stays private; building never publishes a site."""
         return tools.manual_practice_pdf_build(project, factory, source, version, run=run, dry_run=dry_run)
 
     @mcp.tool()

@@ -63,6 +63,18 @@ class SessionLifecycleTests(unittest.TestCase):
         self.assertFalse(value["resources_released"])
 
     @patch.object(lifecycle, "session_networks", return_value=[])
+    @patch.object(lifecycle, "session_containers")
+    @patch.object(lifecycle, "inspect_container", return_value=None)
+    def test_storage_workers_require_their_private_manager_even_when_stopped(self, inspect, resources, networks):
+        for running in (True, False):
+            resources.return_value = [self.resource("job-storage", running=running)]
+            with patch.object(lifecycle, "docker", side_effect=AssertionError("W1 journal must own recovery")):
+                value = self.status(reap=True)
+            self.assertTrue(value["ok"], value)
+            self.assertEqual(value["state"], "busy" if running else "orphaned")
+            self.assertFalse(value["resources_released"])
+
+    @patch.object(lifecycle, "session_networks", return_value=[])
     @patch.object(lifecycle, "session_containers", return_value=[])
     @patch.object(lifecycle, "inspect_container", return_value=None)
     def test_absence_is_required_for_release(self, inspect, resources, networks):

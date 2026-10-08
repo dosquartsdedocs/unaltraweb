@@ -63,6 +63,23 @@ The request digest is SHA-256 over `unaltraweb-companion-receipt-v1\0OWNER\0`, f
 
 ## Discovery Workspace Policies
 
+The separate `mcp-job-storage.json` declares W1 `docker-job-volumes-v1`.
+`job_storage(request)` accepts only the pinned status/quiesce/seal envelopes;
+mutations carry the exact revision and fencing epoch. The installed declaration
+is also available at `web://job-storage-provider`. Reading it does not create a
+registry, prepare images or allocate volumes. Storage authority belongs to the
+private native manager, not to a caller-provided state or acknowledgement.
+See [the W1 owner implementation](w1-job-storage.md) for current acceptance and
+remaining pipeline/release gates. Volume names are not Git workspace paths.
+
+With the persistent W1 registry selected, `manual_practice_pdf_build` snapshots
+its original inputs and effective rendering controls to volumes and returns its
+job/product plus optional policy-selected durable paths. Private practice
+destinations must remain outside Jekyll publication. A missing or unsuitable
+delivery policy leaves the sealed product pending in retained storage; it does
+not authorize copying the handout into public assets. Legacy calls without W1
+selection retain their sandbox contract.
+
 `mcp-factory.yml` declares schema-v1 `workspace_rule.path_policies` against the
 consumer root `.`. The central manager owns `workspace-check`; it is not an
 unaltraweb MCP tool and does not invoke `site_check`, `down`, rendering or any
@@ -90,6 +107,7 @@ baseline format nor runtime cleanup changes.
 | Resource | Description |
 | --- | --- |
 | `web://runtime-identity` | Bounded identity of this serving process: startup/current code, instance/PID namespaces, binding, runtime selections and cooperative lifecycle. |
+| `web://job-storage-provider` | Installed W1 declaration, byte-equivalent to the packaged companion; no allocation or image preparation. |
 | `web://distribution` | Package-owned component BOM plus offline, feature-aware doctor findings for the current factory and project. |
 | `web://site-context` | Site profile, feature flags, content inventory, bibliography, bibliometrics, build state, and offline consumer-update advisory. |
 | `web://site-doctor` | Read-only offline distribution, project-contract, freshness, scaffold-drift, and core-override findings. |
@@ -120,6 +138,7 @@ baseline format nor runtime cleanup changes.
 | --- | --- |
 | `runtime_identity` | Observe the actual serving instance, startup/current package evidence and selected/observed images; never prepare a runtime or inspect site content. |
 | `runtime_drain` | With `confirm=true`, stop admission on this connection; then close stdio and verify exact container/session resource termination. It is not workspace-wide down. |
+| `job_storage` | Native W1 status/quiesce/seal control for a job authorized by the startup-selected consumer and private registry. Status/quiesce remain callable while ordinary work is busy; seal requires live admission and CAS. CLI: `unaltraweb-mcp --project PATH mcp job-storage --request-json JSON`. |
 | `distribution_doctor` | Return offline component/factory/project findings with stable codes and optional local Docker image inspection that never pulls. |
 | `new_web` | Create a profile-specific site from package-owned assets after a complete collision, path, and symlink preflight. |
 | `starter_templates` | List package-owned profile scaffolds under the legacy inventory name. |

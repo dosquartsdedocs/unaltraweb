@@ -41,7 +41,9 @@ elif args[:2] == ["ps", "-aq"] and os.environ.get("FOREIGN") == "1":
 ''')
         script.chmod(0o755)
         self.env = {**os.environ, "PATH": str(self.bin) + ":" + os.environ["PATH"],
-                    "CALLS": str(self.log), "PREPARED": str(self.root / "prepared")}
+                    "CALLS": str(self.log), "PREPARED": str(self.root / "prepared"),
+                    "UNALTRAWEB_JOB_STORAGE_STATE": str(self.root / "registry"),
+                    "UNALTRAWEB_JOB_STORAGE_HOST_STATE": str(self.root / "registry")}
         for key in ("UNALTRAWEB_EXPECTED_IMAGE_ID", "UNALTRAWEB_DOCKER_ROOT", "UNALTRAWEB_MANAGED_RUNTIME", "MCP_CONSUMER_WORKSPACE", "MCP_PROJECT_ID"):
             self.env.pop(key, None)
 
@@ -88,6 +90,16 @@ elif args[:2] == ["ps", "-aq"] and os.environ.get("FOREIGN") == "1":
         self.assertIn("io.context.mcp-session=" + "a" * 32, launch)
         self.assertIn("UNALTRAWEB_MANAGED_RUNTIME=1", launch)
         self.assertIn("sha256:" + "1" * 64, launch)
+        self.assertIn("UNALTRAWEB_JOB_STORAGE_STATE=/var/lib/unaltraweb-job-storage", launch)
+        self.assertEqual((self.root / "registry").stat().st_mode & 0o777, 0o700)
+
+    def test_storage_registry_inside_consumer_or_symlink_is_refused(self):
+        for path in (self.project / "registry", self.root / "linked-registry"):
+            if path.name == "linked-registry":
+                path.symlink_to(self.project, target_is_directory=True)
+            result = self.run_launcher("--image", "sha256:" + "1"*64, "--storage-state", str(path))
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertFalse(any(call[0] == "run" for call in self.calls()))
 
     def test_workspace_cleanup_refuses_foreign_inspected_ownership(self):
         result = subprocess.run(["/bin/sh", str(ROOT / "scripts/unaltraweb-mcp-cleanup.sh"), "--project", str(self.project)],

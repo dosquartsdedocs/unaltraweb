@@ -40,7 +40,7 @@ version = {attr = "unaltraweb_mcp.__version__"}
 where = ["src"]
 
 [tool.setuptools.data-files]
-"share/unaltraweb-launcher" = ["packaging/launcher/Makefile", "mcp-factory.yml"]
+"share/unaltraweb-launcher" = ["packaging/launcher/Makefile", "mcp-factory.yml", "mcp-job-storage.json"]
 "share/unaltraweb-launcher/scripts" = [
   "scripts/unaltraweb-mcp-bootstrap.sh",
   "scripts/unaltraweb-mcp-project-id.sh",
@@ -53,6 +53,8 @@ unaltraweb_mcp = [
   "component-contract.json",
   "component-contract.schema.json",
   "artifact-handoff-v1.schema.json",
+  "job-storage-v1.schema.json",
+  "job_storage/provider.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore.tmpl",
   "scaffolds/common/.unaltraweb/*.sh",

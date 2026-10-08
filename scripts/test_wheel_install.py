@@ -65,6 +65,7 @@ def main() -> int:
             launcher_files = {
                 "Makefile": "packaging/launcher/Makefile",
                 "mcp-factory.yml": "mcp-factory.yml",
+                "mcp-job-storage.json": "mcp-job-storage.json",
                 **{f"scripts/{name}.sh": f"scripts/{name}.sh" for name in (
                     "unaltraweb-mcp-bootstrap", "unaltraweb-mcp-project-id",
                     "unaltraweb-mcp-cleanup", "unaltraweb-docker-mount",
@@ -76,6 +77,10 @@ def main() -> int:
             for installed_path, source_path in launcher_files.items():
                 if archive.read(launcher_prefix + installed_path) != (ROOT / source_path).read_bytes():
                     raise RuntimeError(f"Wheel launcher asset differs from source: {installed_path}")
+            if archive.read("unaltraweb_mcp/job_storage/provider.json") != archive.read(launcher_prefix + "mcp-job-storage.json"):
+                raise RuntimeError("Installed W1 descriptor differs from the launcher companion")
+            if archive.read("unaltraweb_mcp/job-storage-v1.schema.json") != (ROOT / "src/unaltraweb_mcp/job-storage-v1.schema.json").read_bytes():
+                raise RuntimeError("Installed W1 schema differs from the pinned source")
         forbidden_roots = {"docs", "scripts", "_layouts", "_includes", "_sass"}
         leaked = []
         for name in names:
@@ -93,6 +98,11 @@ def main() -> int:
             "unaltraweb_mcp/artifact_imports.py",
             "unaltraweb_mcp/artifact_handoff_v1.py",
             "unaltraweb_mcp/artifact-handoff-v1.schema.json",
+            "unaltraweb_mcp/job-storage-v1.schema.json",
+            "unaltraweb_mcp/job_storage/provider.json",
+            "unaltraweb_mcp/job_storage/manager.py",
+            "unaltraweb_mcp/job_storage/reception.py",
+            "unaltraweb_mcp/job_storage/worker.py",
             "unaltraweb_mcp/letter_bundle.py",
             "unaltraweb_mcp/pdf_probe.py",
             "unaltraweb_mcp/component-contract.json",
