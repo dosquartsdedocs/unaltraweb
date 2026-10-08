@@ -5,6 +5,7 @@ usage() {
   cat <<'USAGE'
 Usage: unaltraweb-mcp-bootstrap [--project PATH] [--host-project PATH] [--image IMAGE]
        [--expected-image-id ID] [--managed] [--offline] [--session-id ID] [--worker-images JSON]
+       [--storage-state PATH] [--host-storage-state PATH]
        [--prepare|--check|--smoke]
 
 Start one Dockerized unaltraweb MCP stdio server for the selected workspace.
@@ -24,6 +25,8 @@ session_id=""
 host_project=""
 network=bridge
 worker_images="${UNALTRAWEB_WORKER_IMAGES:-}"
+storage_state="${UNALTRAWEB_JOB_STORAGE_STATE:-}"
+host_storage_state="${UNALTRAWEB_JOB_STORAGE_HOST_STATE:-}"
 [ -n "$worker_images" ] || worker_images='{}'
 
 while [ "$#" -gt 0 ]; do
@@ -38,13 +41,15 @@ while [ "$#" -gt 0 ]; do
       image="$2"
       shift 2
       ;;
-    --host-project|--expected-image-id|--session-id|--worker-images)
+    --host-project|--expected-image-id|--session-id|--worker-images|--storage-state|--host-storage-state)
       [ "$#" -ge 2 ] || { printf 'Missing value for %s\n' "$1" >&2; exit 2; }
       case "$1" in
         --host-project) host_project=$2 ;;
         --expected-image-id) expected_image=$2 ;;
         --session-id) session_id=$2 ;;
         --worker-images) worker_images=$2 ;;
+        --storage-state) storage_state=$2 ;;
+        --host-storage-state) host_storage_state=$2 ;;
       esac
       shift 2
       ;;
@@ -194,6 +199,31 @@ case "$image_reference" in
     ;;
 esac
 
+# Persistent control metadata is separate from both the consumer and job volumes.
+# Containerized launchers need an explicit daemon mapping; do not guess one from
+# HOME or a factory checkout. Old/non-storage operations can still connect.
+storage_mount=""
+storage_identity=""
+if [ ! -f /.dockerenv ] || [ -n "$host_storage_state" ] || [ -n "$storage_state" ]; then
+  storage_state="${storage_state:-${XDG_STATE_HOME:-$HOME/.local/state}/unaltraweb/job-storage-v1}"
+  case "$storage_state" in /*) ;; *) printf '%s\n' 'Storage state path must be absolute' >&2; exit 2 ;; esac
+  case "$storage_state" in *"$newline"*|*"$carriage_return"*) exit 2 ;; esac
+  [ "$storage_state" != / ] && [ "$(realpath -m -- "$storage_state")" = "$storage_state" ] || { printf '%s\n' 'Storage state path must be normalized and contain no symlinks' >&2; exit 2; }
+  case "$storage_state" in "$launcher_project"|"$launcher_project"/*) printf '%s\n' 'Storage registry must be outside the consumer' >&2; exit 2 ;; esac
+  if [ -f /.dockerenv ] && [ -z "$host_storage_state" ]; then
+    printf '%s\n' 'A containerized storage launcher needs --host-storage-state' >&2; exit 2
+  fi
+  host_storage_state="${host_storage_state:-$storage_state}"
+  case "$host_storage_state" in /*) ;; *) exit 2 ;; esac
+  case "$host_storage_state" in *"$newline"*|*"$carriage_return"*|"$project"|"$project"/*) exit 2 ;; esac
+  [ "$host_storage_state" != / ] && [ "$(realpath -ms -- "$host_storage_state")" = "$host_storage_state" ] || exit 2
+  (umask 077; mkdir -p -- "$storage_state")
+  [ ! -L "$storage_state" ] && [ "$(realpath -e -- "$storage_state")" = "$storage_state" ] || exit 2
+  [ "$(stat -c '%u:%a' -- "$storage_state")" = "${owner%%:*}:700" ] || { printf '%s\n' 'Storage registry must be private (0700) and owned by the controller user' >&2; exit 2; }
+  storage_identity="$(stat -c '%d:%i' -- "$storage_state")"
+  storage_mount="$(/bin/sh "$script_dir/unaltraweb-docker-mount.sh" "$host_storage_state" /var/lib/unaltraweb-job-storage)"
+fi
+
 set -- docker run --rm --pull never --init -i \
   --network "$network" \
   --name "unaltraweb-stdio-$session_id" --cpus 2 --memory 4g --pids-limit 512 \
@@ -221,6 +251,13 @@ set -- docker run --rm --pull never --init -i \
   --mount "$workspace_mount" \
   --mount "$mirror_mount" \
   -w "$project"
+
+if [ -n "$storage_mount" ]; then
+  set -- "$@" --mount "$storage_mount" \
+    -e UNALTRAWEB_JOB_STORAGE_STATE=/var/lib/unaltraweb-job-storage \
+    -e "UNALTRAWEB_JOB_STORAGE_HOST_STATE=$host_storage_state" \
+    -e "UNALTRAWEB_JOB_STORAGE_ROOT_IDENTITY=$storage_identity"
+fi
 
 if [ -S "$docker_socket" ]; then
   socket_group="$(stat -c '%g' "$docker_socket")"

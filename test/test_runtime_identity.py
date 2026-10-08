@@ -88,6 +88,42 @@ class LiveIdentityTests(unittest.TestCase):
         self.assertIsNone(value["package"]["current_version"])
         self.assertNotIn("private identity", json.dumps(value))
 
+    def test_storage_subpackage_drift_is_part_of_the_serving_identity(self):
+        storage = self.package / "job_storage"
+        storage.mkdir()
+        (storage / "manager.py").write_text("# startup storage code\n")
+        runtime = self.runtime()
+        before = runtime.observe()
+        self.assertIn("job_storage/manager.py", before["package"]["startup"]["files"])
+        (storage / "manager.py").write_text("# changed storage code\n")
+        self.assertTrue(runtime.observe()["package"]["drift"])
+        (storage / "manager.py").unlink()
+        storage.rmdir()
+        storage.symlink_to(self.project, target_is_directory=True)
+        self.assertFalse(runtime.observe()["package"]["current"]["available"])
+
+    def test_draining_control_requests_still_prevent_premature_close(self):
+        runtime = self.runtime()
+        runtime.drain(True)
+        with runtime.admit(allow_draining=True):
+            with self.assertRaisesRegex(RuntimeError, "active"):
+                runtime.close()
+        runtime.close()
+        with self.assertRaisesRegex(RuntimeError, "draining"):
+            with runtime.admit(allow_draining=True):
+                pass
+
+    def test_close_drops_only_the_connection_tracked_storage_interests(self):
+        runtime = self.runtime()
+        runtime.register_storage("1"*32, "2"*32)
+        result = {"ok": True, "jobs": [{"kept": "other-or-unknown-client-interest"}]}
+        with patch("unaltraweb_mcp.job_storage.manager.Manager") as manager:
+            manager.return_value.toggle_off.return_value = result
+            runtime.close()
+            manager.assert_called_once_with(self.project)
+            manager.return_value.toggle_off.assert_called_once_with([("1"*32, "2"*32)])
+        self.assertEqual(runtime.storage_release, result)
+
     def test_startup_worker_and_consumer_mapping_are_fixed(self):
         env = {"MANUAL_PDF_IMAGE": "sha256:" + "1" * 64}
         runtime = self.runtime(**env)

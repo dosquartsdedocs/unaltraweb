@@ -198,7 +198,7 @@ def validate(root: Path = ROOT) -> list[str]:
 
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     launcher_files = {
-        "share/unaltraweb-launcher": ["packaging/launcher/Makefile", "mcp-factory.yml"],
+        "share/unaltraweb-launcher": ["packaging/launcher/Makefile", "mcp-factory.yml", "mcp-job-storage.json"],
         "share/unaltraweb-launcher/scripts": [
             "scripts/unaltraweb-mcp-bootstrap.sh", "scripts/unaltraweb-mcp-project-id.sh",
             "scripts/unaltraweb-mcp-cleanup.sh", "scripts/unaltraweb-docker-mount.sh",

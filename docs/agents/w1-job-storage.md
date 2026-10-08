@@ -83,6 +83,122 @@ historical Diavisuals 0.4.0/0.5.0 receipts. Core, reusable workflow and PDF prod
 identities stay independent. Changed published bytes require the normal
 component/receipt/release flow; no old release is rewritten.
 
-This intake records requirements and scope. Implementation, native API mapping,
-descriptor SHA-256, Docker evidence, PR/release references and supported-profile
-limits will be recorded here as they are actually established.
+## Native storage increment (development, 2026-10-08)
+
+The source implementation and installed test runtime now provide the native
+storage manager and receiver. This is an increment on draft PR #103, not a W1
+release or acceptance of all the domain pipelines listed above.
+
+### Declaration and API
+
+- Companion SHA-256:
+  `abba9be2d362665dfb4a3108e4061b5b632140e0dfb70a50c910f33142d47108`.
+  The launcher companion and `unaltraweb_mcp/job_storage/provider.json` are
+  byte-identical. `web://job-storage-provider` serves those exact installed bytes.
+- Pinned schema SHA-256:
+  `25e2bf047715e170ad8975ca3fd81d0597bdb0fead9ac6c52e8a777b3fb6434c`.
+- `job_storage(request)` and package-only CLI
+  `unaltraweb-mcp --project PATH mcp job-storage --request-json JSON` expose
+  status/quiesce/seal. Unknown fields, workspace overrides and stale CAS values
+  are refused. Errors have bounded `code`/`error` fields and `ok:false`.
+- Native `Manager` operations implement admission, input streaming, execution,
+  sealing, read-only delivery, independently checked acknowledgement, exact
+  release plans/application, client attachment/detachment and scoped recovery.
+  These Python operations are internal authority, not an arbitrary-command MCP.
+
+The host launcher selects a private persistent registry outside the consumer,
+defaulting to `$XDG_STATE_HOME/unaltraweb/job-storage-v1` (or the corresponding
+`$HOME/.local/state` path). `--storage-state` selects an explicit alternative.
+The controller receives a checked bind at `/var/lib/unaltraweb-job-storage` and
+the observed directory identity; the server fixes that selection at startup.
+Containerized launchers additionally need the explicit `--host-storage-state`
+mapping for W1. A connection without that mapping can still use non-storage
+operations; it cannot allocate jobs using an ephemeral controller HOME.
+
+The registry uses private descriptor-relative files, CAS, process-held lease
+guards and bounded logs/metadata. Native workers have read-only container roots,
+registered no-copy volume mounts, no consumer/factory checkout or Docker socket,
+and run domain code as UID 65532. The supervisor can signal its own isolated
+domain process group when monitored limits are exceeded. Ordinary local volumes
+provide monitored limits, not hard quotas. Capacity is observed using a separately
+registered small persistent probe volume on the actual Docker storage filesystem.
+
+### Receiver policy and preservation
+
+The current accepted domain is **`unaltraweb-job-v1`**. A site selects its durable
+layout once, for example:
+
+```yaml
+unaltraweb:
+  product_retention:
+    enabled: true
+    root: .unaltraweb/products
+    format: zip
+    profiles: [unaltraweb-job-v1]
+    assets:
+      root: assets/received
+      roles: [rendered-visual, edited-visual, document]
+```
+
+Directory, ZIP and gzip-compressed tar retain the complete common bundle and
+native input inventory. Archive extraction and domain checks use fresh managed
+job volumes. Archive-byte and inner-bundle hashes remain distinct. Selected
+assets include the transitive resource closure and an edited SVG's original.
+Publication is create-only/no-replace, with retained partial candidates on error.
+An existing destination is revalidated before reuse; authored collisions are
+preserved. A relocated copy receives a fresh independent receiver binding and
+complete checks, not authority copied from the original registry.
+
+`runtime_drain` stops admission. Graceful EOF drops the connection's tracked
+interests; other clients keep their jobs. Client SDKs can force termination before
+graceful storage cleanup completes. The standalone host manager therefore also
+supports exact post-termination recovery through
+`unaltraweb-mcp-docker reap-session --project PATH --session-id ID --container-id ID`
+with the selected `--storage-state` and prepared utility `--image` when needed.
+It selects only jobs recorded for that exact backend, proves backend death,
+reconciles operation leases, and then applies the normal retention gates.
+The ordinary D0 reaper observes W1 workers but cannot bypass their private journal.
+Runtime absence and retained pending storage are reported separately.
+
+### Observed evidence
+
+`test/job_storage_smoke.py` is an opt-in native test with create-only synthetic
+fixtures. Failed runs and unresolved jobs remain available for inspection.
+
+- `tmp/w1-102/native-acceptance-10/`: actual directory, ZIP and tar-gzip delivery,
+  idempotent reuse, producer volume retirement, independent verification of all
+  11 files afterward, receiver relocation, and preservation/refusal of an authored
+  SVG change. All three formats used actual Docker volumes and native stdio.
+- The same run's `faults/evidence.json`: two independent native client processes,
+  a busy worker, actual controller kill, scoped orphan recovery, monitored
+  scratch-pressure cancellation and admission refusal against observed daemon
+  capacity. Pending source/result volumes remain retained; eligible scratch is
+  observed absent. An unsupported hard-quota request is refused.
+- `tmp/w1-102/native-eof-recovery-11/evidence.json`: real installed MCP seal,
+  status available after drain, actual backend termination and external-manager
+  completion after the SDK's bounded EOF grace period. Pending job
+  `372529e5fd3e4c0881f59b9a0f33f232` is closed with scratch absent and its complete
+  sealed product retained. The earlier interrupted EOF in run 10 also recovered
+  through the exact recorded backend identity (`pending-eof/recovery-evidence.json`).
+- Prepared development MCP configuration ID used for these installed tests:
+  `sha256:1119be0bde21e03c07c4ab9b66659104dbf38fd2d70e8699ffe2a7910c499437`.
+  It is a development image, not a replacement for published 0.7.1.
+- Focused unit coverage includes archive traversal/link/duplicate/case-alias and
+  truncation refusal, missing resources, reduced source/mapping inventories,
+  policy/binding staleness, author preservation, receiver/registry locks, stream
+  failure/timeout and inherited guard descriptors. Current full suite: **690
+  cases, 663 passed and 27 optional skips**. Wheel packaging/clean installation,
+  distribution validation, native MCP check/smoke and whitespace checks have passed.
+
+### Remaining W1 gates
+
+The existing site/PDF/practice/preview/capture/computation APIs still use their
+previous execution paths. Their migration to the native jobs, complete real
+web/PDF figure acceptance and new component/release tuple remain work in this PR.
+The increment does not yet accept other producers' domain bundles, implement
+explicit reopen/user-discard, or establish the full native fault matrix for
+foreign/replaced resources, interrupted release and concurrent delivery. The
+upstream read-only planner remains an independent conformance gate to exercise.
+Diavisuals 0.6.0 composition and historical receipt acceptance remain tracked in
+#85. No complete W1 adoption, hub activation, real-manual migration or new public
+release is claimed by these storage-layer results.

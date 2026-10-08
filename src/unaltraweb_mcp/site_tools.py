@@ -5994,6 +5994,25 @@ def artifact_import_check(project: Path, import_id: str = "", output_folder: str
     return check_imports(project, import_id, output_folder)
 
 
+def job_storage(project: Path, request: dict[str, Any]) -> dict[str, Any]:
+    """The bounded W1 control hook, always bound to the selected consumer."""
+    from .job_storage import contract
+    from .job_storage.manager import Manager
+
+    try:
+        contract.validate(request)
+        contract.require(request["kind"] == "gacontext.job-storage-request", "Expected a storage request")
+        return Manager(project_path(project)).control(request)
+    except (contract.StorageError, OSError) as exc:
+        return {"ok": False, "code": getattr(exc, "code", "storage-observation-unknown"), "error": str(exc)[:4096]}
+
+
+def job_storage_provider() -> dict[str, Any]:
+    from .job_storage.manager import provider
+
+    return provider()[0]
+
+
 def list_tools() -> dict[str, Any]:
     inventory = {
         "resources": ["web://distribution", "web://site-context", "web://site-doctor", "web://new-web-scaffolds", "web://starter-templates", "web://profile-contract", "web://editorial-policy", "web://editorial-status", "web://image-backgrounds", "web://manual-writing-guidance", "web://manual-authoring-components", "web://manual-computations", "web://web-captures", "web://profile-prune-plan", "web://content-inventory", "web://language-policy", "web://content-approval", "web://translation-plan", "web://bibliography", "web://bibliometrics", "web://build-health", "web://prompts"],
@@ -6005,6 +6024,8 @@ def list_tools() -> dict[str, Any]:
     inventory["tools"].extend(["import_artifact_bundle", "artifact_import_check"])
     inventory["tools"].extend(["runtime_identity", "runtime_drain"])
     inventory["tools"].append("manual_practice_pdf_build")
+    inventory["tools"].append("job_storage")
+    inventory["resources"].append("web://job-storage-provider")
     return inventory
 
 

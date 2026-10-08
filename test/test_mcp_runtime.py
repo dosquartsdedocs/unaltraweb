@@ -1022,6 +1022,8 @@ class McpRuntimeTests(unittest.TestCase):
                 "CAPTURE": str(capture),
                 "READY_CAPTURE": str(ready),
                 "RELEASE_FILE": str(release),
+                "UNALTRAWEB_JOB_STORAGE_STATE": str(self.project / "controller-registry"),
+                "UNALTRAWEB_JOB_STORAGE_HOST_STATE": str(self.project / "controller-registry"),
                 **{
                     key: value.replace("${workspaceFolder}", str(project.resolve()))
                     for key, value in transport["env"].items()

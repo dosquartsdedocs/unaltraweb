@@ -208,6 +208,7 @@ mcp:
   server_name: unaltraweb
   transport: stdio
   resources:
+    - web://job-storage-provider
     - web://runtime-identity
     - web://artifact-imports
     - web://distribution
@@ -233,6 +234,7 @@ mcp:
     - web://build-health
     - web://prompts
   required_tools:
+    - job_storage
     - runtime_identity
     - runtime_drain
     - import_artifact_bundle

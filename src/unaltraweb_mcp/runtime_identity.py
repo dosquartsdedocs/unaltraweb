@@ -69,19 +69,27 @@ def code_bytes(path, *, directory_fd=None):
 def fingerprint(root, expected_root=None):
     """Only bounded package code/contracts; never traverse consumer content."""
     directory = None
+    storage_directory = None
     try:
         directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         before = os.fstat(directory)
         if expected_root and (before.st_dev, before.st_ino) != expected_root:
             raise ValueError("Package root was replaced")
         files = sorted(name for name in os.listdir(directory) if Path(name).suffix in {".py", ".json"})
+        if "job_storage" in os.listdir(directory):
+            storage_directory = os.open("job_storage", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)
+            storage_before = os.fstat(storage_directory)
+            files.extend("job_storage/" + name for name in sorted(os.listdir(storage_directory)) if Path(name).suffix in {".py", ".json"})
         if not 1 <= len(files) <= 128:
             raise ValueError("Package inventory exceeds bounds")
         hashes = {}
         total = 0
         metadata_version = None
         for path in files:
-            data = code_bytes(path, directory_fd=directory)
+            if path.startswith("job_storage/"):
+                data = code_bytes(path.removeprefix("job_storage/"), directory_fd=storage_directory)
+            else:
+                data = code_bytes(path, directory_fd=directory)
             total += len(data)
             if total > 16 * 1024 * 1024:
                 raise ValueError("Package exceeds observation bounds")
@@ -96,10 +104,16 @@ def fingerprint(root, expected_root=None):
         after = root.lstat()
         if (after.st_dev, after.st_ino, after.st_mtime_ns) != (before.st_dev, before.st_ino, before.st_mtime_ns):
             raise ValueError("Package root changed during inspection")
+        if storage_directory is not None:
+            after_storage = os.stat("job_storage", dir_fd=directory, follow_symlinks=False)
+            if (after_storage.st_dev, after_storage.st_ino, after_storage.st_mtime_ns) != (storage_before.st_dev, storage_before.st_ino, storage_before.st_mtime_ns):
+                raise ValueError("Storage package changed during inspection")
         return {"available": True, "sha256": hashlib.sha256(canonical(hashes)).hexdigest(), "files": hashes, "metadata_version": metadata_version}
     except (OSError, ValueError):
         return {"available": False, "sha256": None, "reason": "Package bytes cannot be observed safely"}
     finally:
+        if storage_directory is not None:
+            os.close(storage_directory)
         if directory is not None:
             os.close(directory)
 
@@ -119,7 +133,9 @@ class RuntimeIdentity:
         values = os.environ if environment is None else environment
         keys = {"UNALTRAWEB_DOCKER_ROOT", "UNALTRAWEB_RUNTIME_SESSION", "UNALTRAWEB_MANAGED_RUNTIME",
                 "UNALTRAWEB_MCP_REQUESTED_IMAGE", "UNALTRAWEB_MCP_IMAGE_REFERENCE", "UNALTRAWEB_MCP_IMAGE",
-                "UNALTRAWEB_EXPECTED_IMAGE_ID", "UNALTRAWEB_WORKER_IMAGES", "UNALTRAWEB_LAUNCHER_PROJECT", "UNALTRAWEB_RUNTIME_NETWORK", *WORKER_ENV.values()}
+                "UNALTRAWEB_EXPECTED_IMAGE_ID", "UNALTRAWEB_WORKER_IMAGES", "UNALTRAWEB_LAUNCHER_PROJECT", "UNALTRAWEB_RUNTIME_NETWORK",
+                "UNALTRAWEB_JOB_STORAGE_STATE", "UNALTRAWEB_JOB_STORAGE_HOST_STATE", "UNALTRAWEB_JOB_STORAGE_ROOT_IDENTITY",
+                "UNALTRAWEB_JOB_STORAGE_IMAGE", *WORKER_ENV.values()}
         self.env = {key: values[key] for key in keys if key in values}
         self.project = Path(project).resolve()
         self.factory = Path(factory).resolve()
@@ -184,11 +200,13 @@ class RuntimeIdentity:
         self.closed = False
         self.resources = set()
         self.networks = set()
+        self.storage_jobs = set()
+        self.storage_release = None
 
     @contextmanager
-    def admit(self):
+    def admit(self, *, allow_draining=False):
         with self.lock:
-            if self.draining or self.closed:
+            if self.closed or (self.draining and not allow_draining):
                 raise RuntimeError("This MCP instance is draining; reconnect before starting new work")
             if self.admitted >= 16:
                 raise RuntimeError("This MCP instance is busy; the bounded operation queue is full")
@@ -221,7 +239,7 @@ class RuntimeIdentity:
         with self.lock:
             self.draining = True
             return {"ok": True, "scope": "connection", "state": "draining", "instance_id": self.instance_id,
-                    "session_id": self.session_id or None, "active_operations": int(self.operation is not None),
+                    "session_id": self.session_id or None, "active_operations": max(self.admitted, int(self.operation is not None)),
                     "resources_released": False, "next": "Close this stdio connection; wait for the exact container and owned jobs to terminate."}
 
     def register_resource(self, container_id):
@@ -236,11 +254,22 @@ class RuntimeIdentity:
         with self.lock:
             self.networks.add(network_id)
 
+    def register_storage(self, registry_id, job_id):
+        if not all(isinstance(value, str) and lifecycle.SESSION_ID.fullmatch(value) for value in (registry_id, job_id)):
+            raise RuntimeError("Cannot track invalid storage identities")
+        with self.lock:
+            if len(self.storage_jobs) >= 64 and (registry_id, job_id) not in self.storage_jobs:
+                raise RuntimeError("Connection storage history reached its bound")
+            self.storage_jobs.add((registry_id, job_id))
+
     def close(self):
         with self.lock:
             self.draining = True
-            if self.operation:
+            if self.operation or self.admitted:
                 raise RuntimeError("Cannot release resources while an operation remains active")
+        if self.storage_jobs:
+            from .job_storage.manager import Manager
+            self.storage_release = Manager(self.project).toggle_off(sorted(self.storage_jobs))
         for cid in sorted(self.resources):
             lifecycle.remove_idle_container(cid, self.project_id, self.session_id)
         for nid in sorted(self.networks):
@@ -314,6 +343,8 @@ class RuntimeIdentity:
                              "profile": PROFILE, "profile_sha256": self.profile_hash, "selection_sha256": self.selection_hash},
                 "lifecycle": {"state": state, "scope": "connection", "active_operation": operation,
                               "queued_operations": queued, "admitted_operation_bound": 16,
-                              "operation_concurrency": 1, "idle_expiry": "stdio EOF after active work drains", "resources_released": False},
+                              "operation_concurrency": 1, "idle_expiry": "stdio EOF after active work drains", "resources_released": False,
+                              "storage_jobs": [{"registry_id": registry, "job_id": job} for registry, job in sorted(self.storage_jobs)],
+                              "storage_release": self.storage_release},
                 "managed": self.managed, "diagnostics": diagnostics,
                 "note": "Bounded observation, not permanent attestation. Host/container PIDs occupy distinct namespaces; helpers are separate processes."}

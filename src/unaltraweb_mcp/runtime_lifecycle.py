@@ -16,7 +16,7 @@ IMAGE_ID = re.compile(r"sha256:[0-9a-f]{64}")
 CONTAINER_ID = re.compile(r"[0-9a-f]{64}")
 SESSION_ID = re.compile(r"[0-9a-f]{32}")
 PREFIX = "io.context.mcp-"
-WORKER_ROLES = {"computation", "manual-pdf", "web-capture"}
+WORKER_ROLES = {"computation", "manual-pdf", "web-capture", "job-storage"}
 IDLE_ROLES = {"preview", "web-capture-site"}
 CONTAINER_FORMAT = ('{"id":{{json .Id}},"image_id":{{json .Image}},'
     '"network_mode":{{json .HostConfig.NetworkMode}},'
@@ -176,8 +176,10 @@ def session_status(project, session_id, container_id, *, reap=False):
             for info in resources:
                 if info["role"] in IDLE_ROLES:
                     remove_idle_container(info["id"], project_id, session_id)
-                elif not info["running"]:
+                elif not info["running"] and info["role"] != "job-storage":
                     # Exited exact owned objects only; no force or volume flag.
+                    # W1 objects also have a private lease/operation journal and
+                    # can only be reconciled by that native manager.
                     current = inspect_container(info["id"])
                     if current is not None:
                         if current != info or docker(["rm", info["id"]]).returncode:

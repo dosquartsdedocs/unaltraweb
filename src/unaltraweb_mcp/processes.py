@@ -5,7 +5,9 @@ import selectors
 import signal
 import subprocess
 import time
+import threading
 from dataclasses import dataclass
+from collections.abc import Iterable
 from pathlib import Path
 
 
@@ -31,6 +33,9 @@ def run_process(
     timeout_seconds: float,
     output_limit: int = DEFAULT_OUTPUT_LIMIT,
     input_data: bytes | None = None,
+    pass_fds: tuple[int, ...] = (),
+    input_chunks: Iterable[bytes] | None = None,
+    stdout_consumer=None,
 ) -> ProcessResult:
     """Run a bounded child process and terminate its process group on timeout."""
     if timeout_seconds <= 0:
@@ -39,29 +44,48 @@ def run_process(
         raise ValueError("Process output limit must be positive.")
     if input_data is not None and not isinstance(input_data, bytes):
         raise ValueError("Process input must be bytes.")
+    if input_data is not None and input_chunks is not None:
+        raise ValueError("Process input must use bytes or a bounded chunk stream, not both.")
+    if not isinstance(pass_fds, tuple) or any(type(fd) is not int or fd < 0 for fd in pass_fds):
+        raise ValueError("Inherited process descriptors must be a tuple of non-negative integers.")
+    if stdout_consumer is not None and not callable(stdout_consumer):
+        raise ValueError("Process stdout consumer must be callable.")
+    chunks = iter(input_chunks) if input_chunks is not None else iter([input_data or b""])
 
     process = subprocess.Popen(
         command,
         cwd=str(cwd) if cwd is not None else None,
         env=env,
-        stdin=subprocess.PIPE if input_data is not None else subprocess.DEVNULL,
+        stdin=subprocess.PIPE if input_data is not None or input_chunks is not None else subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         start_new_session=True,
+        **({"pass_fds": pass_fds} if pass_fds else {}),
     )
     assert process.stdout is not None
     assert process.stderr is not None
 
     selector = selectors.DefaultSelector()
-    selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+    consumer_error = []
+    consumer_thread = None
+    if stdout_consumer is None:
+        selector.register(process.stdout, selectors.EVENT_READ, "stdout")
+    else:
+        def consume():
+            try:
+                stdout_consumer(process.stdout)
+            except BaseException as exc:
+                consumer_error.append(exc)
+            finally:
+                process.stdout.close()
+        consumer_thread = threading.Thread(target=consume, daemon=True)
+        consumer_thread.start()
     selector.register(process.stderr, selectors.EVENT_READ, "stderr")
-    pending_input = memoryview(input_data or b"")
+    pending_input = memoryview(b"")
+    input_complete = False
     if process.stdin is not None:
-        if pending_input:
-            os.set_blocking(process.stdin.fileno(), False)
-            selector.register(process.stdin, selectors.EVENT_WRITE, "stdin")
-        else:
-            process.stdin.close()
+        os.set_blocking(process.stdin.fileno(), False)
+        selector.register(process.stdin, selectors.EVENT_WRITE, "stdin")
     output = {"stdout": bytearray(), "stderr": bytearray()}
     truncated = {"stdout": False, "stderr": False}
     deadline = time.monotonic() + timeout_seconds
@@ -71,8 +95,10 @@ def run_process(
     killed = False
 
     try:
-        while selector.get_map() or process.poll() is None:
+        while selector.get_map() or process.poll() is None or (consumer_thread and consumer_thread.is_alive()):
             now = time.monotonic()
+            if consumer_error:
+                raise consumer_error[0]
             if not timed_out and now >= deadline:
                 timed_out = True
                 terminate_deadline = now + 1.0
@@ -99,6 +125,21 @@ def run_process(
             for key, _ in events:
                 stream = str(key.data)
                 if stream == "stdin":
+                    if not pending_input and not input_complete:
+                        try:
+                            chunk = next(chunks)
+                        except StopIteration:
+                            input_complete = True
+                        else:
+                            if not isinstance(chunk, bytes) or (input_chunks is not None and len(chunk) > 1024*1024):
+                                raise ValueError("Process stream chunks must be bytes of at most one MiB.")
+                            pending_input = memoryview(chunk)
+                            if not pending_input:
+                                continue
+                    if input_complete:
+                        selector.unregister(key.fileobj)
+                        key.fileobj.close()
+                        continue
                     try:
                         written = os.write(key.fd, pending_input[:65536])
                         pending_input = pending_input[written:]
@@ -106,7 +147,8 @@ def run_process(
                         continue
                     except BrokenPipeError:
                         pending_input = memoryview(b"")
-                    if not pending_input:
+                        input_complete = True
+                    if input_complete:
                         selector.unregister(key.fileobj)
                         key.fileobj.close()
                     continue
@@ -128,9 +170,28 @@ def run_process(
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait()
+        if consumer_thread is not None:
+            consumer_thread.join(timeout=2)
+            if consumer_thread.is_alive():
+                raise RuntimeError("Process stream consumer did not terminate; preserve partial output.")
+            if consumer_error:
+                raise consumer_error[0]
+    except BaseException:
+        # The group can outlive its leader while descendants still own a pipe.
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+        if consumer_thread is not None:
+            consumer_thread.join(timeout=2)
+        raise
     finally:
         selector.close()
-        process.stdout.close()
+        # The consumer owns its buffered stream; closing it from another thread
+        # can deadlock while that thread holds the buffered reader's lock.
+        if consumer_thread is None:
+            process.stdout.close()
         process.stderr.close()
         if process.stdin is not None and not process.stdin.closed:
             process.stdin.close()

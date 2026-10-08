@@ -40,6 +40,7 @@ FACTORY_REQUIRED_MCP_COMMANDS = {
     "prompts",
 }
 PACKAGE_ONLY_MCP_COMMANDS = {
+    "job-storage",
     "import-artifact-bundle",
     "artifact-import-check",
     "bibliography-add-entry",
@@ -206,6 +207,12 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return 0
     if command == "list-tools":
         return print_json(tools.list_tools())
+    if command == "job-storage":
+        from .job_storage.contract import StorageError
+        try:
+            return print_json(tools.job_storage(project, args.request_json), enforce_ok=True)
+        except (StorageError, OSError) as exc:
+            return print_json({"ok": False, "error": str(exc), "code": getattr(exc, "code", "storage-observation-unknown")}, enforce_ok=True)
     if command == "import-artifact-bundle":
         return print_json(tools.import_artifact_bundle(project, args.path, args.sha256, args.import_id, args.content_path,
                                                       title=args.title, dry_run=not args.apply, confirm_import=args.confirm_import), enforce_ok=True)
@@ -457,6 +464,8 @@ def build_parser() -> argparse.ArgumentParser:
     artifact_check = mcp_sub.add_parser("artifact-import-check")
     artifact_check.add_argument("--import-id", default="")
     artifact_check.add_argument("--output-folder", default="")
+    storage = mcp_sub.add_parser("job-storage")
+    storage.add_argument("--request-json", type=strict_json, required=True, help="Exact docker-job-volumes-v1 status/quiesce/seal request")
     for name in ["serve", "list-tools", "starter-templates", "detect-site", "site-context", "site-doctor", "site-check", "profile-check", "manual-source-quality-check", "manual-editorial-quality-check", "manual-authoring-capabilities", "content-inventory", "language-policy", "bibliography-inventory", "bibliometrics-check", "build-health", "html-audit", "preview-stop", "prompts"]:
         mcp_sub.add_parser(name)
 

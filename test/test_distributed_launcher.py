@@ -43,6 +43,8 @@ class DistributedLauncherTests(unittest.TestCase):
             "MCP_CONSUMER_WORKSPACE", "MCP_PROJECT_ID", "UNALTRAWEB_PROJECT", "MCP_RELEASE_IMAGE", "UNALTRAWEB_MCP_IMAGE",
         }}
         self.env.update(PATH=f"{self.bin}:{self.env['PATH']}", CALLS=str(self.log), UNALTRAWEB_DOCKER_SOCKET="/absent-test-socket")
+        self.registry = self.root / 'state, "quoted" $literal'
+        self.env.update(UNALTRAWEB_JOB_STORAGE_STATE=str(self.registry), UNALTRAWEB_JOB_STORAGE_HOST_STATE=str(self.registry))
 
     def run_make(self, target: str, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(["make", "--silent", "--no-print-directory", "-C", str(self.launcher), target, *args],
@@ -85,6 +87,7 @@ class DistributedLauncherTests(unittest.TestCase):
         self.assertEqual(mounts, [
             ["type=bind", f"source={project}", "target=/workspace"],
             ["type=bind", f"source={project}", f"target={project}"],
+            ["type=bind", f"source={self.registry}", "target=/var/lib/unaltraweb-job-storage"],
         ])
         project_label = next(arg for arg in run if arg.startswith("io.context.mcp-project="))
         result = self.run_make("mcp-down")
