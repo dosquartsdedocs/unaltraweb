@@ -105,6 +105,8 @@ def main() -> int:
             "unaltraweb_mcp/image_probe.py",
             "unaltraweb_mcp/source_checks.py",
             "unaltraweb_mcp/source-check-policy-v1.schema.json",
+            "unaltraweb_mcp/practice_verifier.py",
+            "unaltraweb_mcp/practice-verifier-runtime.json",
             "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",
             "unaltraweb_mcp/scaffolds/common/README.md.tmpl",

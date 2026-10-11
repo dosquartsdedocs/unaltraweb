@@ -26,10 +26,11 @@ PROFILE = {"name": "unaltraweb-docker-stdio-v1", "identity_schema": 1,
            "preview_scope": "session", "disk_cleanup": "separate-explicit-operation",
            "container_limits": {"controller": {"cpus": 2, "memory_mib": 4096, "pids": 512},
                                 "preview": {"cpus": 2, "memory_mib": 2048, "pids": 256},
-                                "manual_pdf": {"cpus": 2, "memory_mib": 2048, "pids": 256},
+                                 "manual_pdf": {"cpus": 2, "memory_mib": 2048, "pids": 256},
+                                 "practice_verifier": {"cpus": 2, "memory_mib": 4096, "pids": 512},
                                 "web_capture": {"cpus": 2, "memory_mib": 2048, "pids": 256},
                                 "computation": {"cpus": 4, "memory_mib": 8192, "pids": 512}},
-           "worker_timeout_seconds": {"manual_pdf": 1800, "web_capture": 900, "computation": 1800},
+           "worker_timeout_seconds": {"manual_pdf": 1800, "web_capture": 900, "computation": 1800, "practice_verifier": 120, "practice_reopen": 300},
            "timeout_scope": "per bounded worker invocation; a request may compose several jobs"}
 WORKER_ENV = {"manual_pdf": "MANUAL_PDF_IMAGE", "web_capture": "WEB_CAPTURE_IMAGE",
               "compute_python": "COMPUTE_PYTHON_IMAGE", "compute_r": "COMPUTE_R_IMAGE"}
@@ -119,7 +120,7 @@ class RuntimeIdentity:
         values = os.environ if environment is None else environment
         keys = {"UNALTRAWEB_DOCKER_ROOT", "UNALTRAWEB_RUNTIME_SESSION", "UNALTRAWEB_MANAGED_RUNTIME",
                 "UNALTRAWEB_MCP_REQUESTED_IMAGE", "UNALTRAWEB_MCP_IMAGE_REFERENCE", "UNALTRAWEB_MCP_IMAGE",
-                "UNALTRAWEB_EXPECTED_IMAGE_ID", "UNALTRAWEB_WORKER_IMAGES", "UNALTRAWEB_LAUNCHER_PROJECT", "UNALTRAWEB_RUNTIME_NETWORK", *WORKER_ENV.values()}
+                 "UNALTRAWEB_EXPECTED_IMAGE_ID", "UNALTRAWEB_WORKER_IMAGES", "UNALTRAWEB_LAUNCHER_PROJECT", "UNALTRAWEB_RUNTIME_NETWORK", "PRACTICE_VERIFIER_IMAGE", *WORKER_ENV.values()}
         self.env = {key: values[key] for key in keys if key in values}
         self.project = Path(project).resolve()
         self.factory = Path(factory).resolve()
@@ -150,6 +151,11 @@ class RuntimeIdentity:
         self.expected_image = self.env.get("UNALTRAWEB_EXPECTED_IMAGE_ID", "")
         self.workers = {key: {"reference": self.env.get(variable) or self.contract["components"][key]["reference"], "expected_image_id": ""}
                         for key, variable in WORKER_ENV.items()}
+        from .practice_verifier import runtime_contract
+        self.practice_verifier_contract = runtime_contract()
+        verifier_image = self.practice_verifier_contract["controller"]["image_id"]
+        self.workers["practice_verifier"] = {"reference": self.env.get("PRACTICE_VERIFIER_IMAGE") or verifier_image,
+                                             "expected_image_id": verifier_image}
         raw_overrides = self.env.get("UNALTRAWEB_WORKER_IMAGES", "{}")
         if len(raw_overrides) > 8192:
             raise ValueError("Worker selection metadata exceeds its bound")

@@ -74,6 +74,37 @@ class PracticePdfFixture(unittest.TestCase):
 
 
 class PracticePdfTests(PracticePdfFixture):
+    def test_build_returns_pdf_and_receipt_seals_for_new_and_reused_outputs(self):
+        with patch.object(practice_pdf, "run_process", side_effect=self.fake_render):
+            built = self.build()
+        self.assertEqual(built["pdf_sha256"], practice_pdf.digest((self.project/built["pdf"]).read_bytes()))
+        self.assertEqual(built["receipt_sha256"], practice_pdf.digest((self.project/built["receipt"]).read_bytes()))
+        with patch.object(practice_pdf, "run_process", side_effect=AssertionError("No second render")):
+            reused = self.build()
+        self.assertEqual(reused["state"], "current")
+        self.assertEqual(reused["pdf_sha256"], built["pdf_sha256"])
+        self.assertEqual(reused["receipt_sha256"], built["receipt_sha256"])
+
+    def test_review_p2_mapped_private_root_requires_exclusion_and_refuses_include(self):
+        source = "_practices/demo/ca/docent/LLEGIU-ME.md"
+        path = self.project/source
+        path.parent.mkdir(parents=True)
+        path.write_bytes(self.source.read_bytes())
+        shutil.rmtree(self.project/"practiques")  # Exercise a legacy-root-only project.
+        self.config["unaltraweb"]["practices"] = {"readings": [{"source": source, "slug": "demo", "lang": "ca", "recipient": "docent"}]}
+        for excluded, included in ((False, []), (False, ["_practices"]), (True, ["_practices"]), (True, ["_practices/**"])):
+            with self.subTest(excluded=excluded, included=included):
+                self.config["exclude"] = [*CONFIG["exclude"], *(["_practices/"] if excluded else [])]
+                self.config["include"] = included
+                self.write_config()
+                with self.assertRaisesRegex(ValueError, "_practices|private practice"):
+                    self.plan(source=source)
+                self.assertFalse(site_tools.profile_check(self.project)["ok"])
+        self.config["exclude"] = [*CONFIG["exclude"], "_practices/"]
+        self.config["include"] = []
+        self.write_config()
+        self.assertEqual(self.plan(source=source)["audience"], "docent")
+
     def test_portable_links_resolve_against_original_source_and_bind_destination(self):
         source = "_practices/tigit-projecte-territorial/readings/ca/LLEGIU-ME-estudiant.md"
         selected = {"_practices/tigit-projecte-territorial/templates/infografia-a3.svg": {

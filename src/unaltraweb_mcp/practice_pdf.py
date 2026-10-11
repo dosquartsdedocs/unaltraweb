@@ -25,7 +25,7 @@ import yaml
 
 from . import manual_pdf_preview as fs
 from .docker_mount import docker_bind_mount
-from .editorial_sources import Reader, canonical, digest, relative_path, strict_json, yaml_mapping, private_practice_identity
+from .editorial_sources import Reader, canonical, digest, relative_path, strict_json, yaml_mapping, private_practice_identity, private_practice_readings
 from .processes import run_process
 from .runtime_lifecycle import inspect_image
 
@@ -67,19 +67,23 @@ def validate_source_request(project: Path, source: str, version: str, run: str =
     return validate_request(source, version, run, identity=private_practice_identity(config, source))
 
 
-def private_path_issues(config: dict[str, Any]) -> list[str]:
+def private_path_issues(config: dict[str, Any], *, source: str = "") -> list[str]:
     excluded = config.get("exclude", [])
     included = config.get("include", [])
     if not isinstance(excluded, list) or not isinstance(included, list):
         return ["Jekyll exclude/include must be lists"]
+    roots = set(PRIVATE_ROOTS)
+    roots.update(Path(path).parts[0] for path in private_practice_readings(config))
+    if source:
+        roots.add(Path(relative_path(source)).parts[0])
     names = {value.rstrip("/") for value in excluded if isinstance(value, str)}
-    issues = [f"Add {name}/ to _config.yml exclude" for name in PRIVATE_ROOTS if name not in names]
+    issues = [f"Add {name}/ to _config.yml exclude" for name in sorted(roots) if name not in names]
     for value in included:
         if isinstance(value, str):
             prefix = value.strip("/").split("/")[0]
             if value == "." or any(fnmatch.fnmatchcase(root, prefix)
                                    or fnmatch.fnmatchcase(root + "/LLEGIU-ME.md", value)
-                                   or fnmatch.fnmatchcase(root + "/reading.pdf", value) for root in PRIVATE_ROOTS):
+                                   or fnmatch.fnmatchcase(root + "/reading.pdf", value) for root in roots):
                 issues.append(f"Jekyll include must not expose private practice paths: {value}")
     return issues
 
@@ -334,7 +338,7 @@ def prepare(project: Path, factory: Path, source: str, version: str, image_id: s
         if (not isinstance(manual_config, dict) or not isinstance(manual_config.get("pdf", {}), dict)
                 or not isinstance(manual_config.get("pdf", {}).get("cover", {}), dict)):
             raise ValueError("Manual, PDF and cover configuration must be mappings")
-        issues = private_path_issues(config)
+        issues = private_path_issues(config, source=source)
         if issues:
             raise ValueError("; ".join(issues))
         languages = config.get("languages") or [config.get("default_lang") or config.get("lang") or "en"]
@@ -487,7 +491,8 @@ def build(project: Path, factory: Path, source: str, version: str, *, image: str
             if receipt.get("effective_source") != {"markdown": "outputs/source.effective.md", "markdown_sha256": receipt["artifacts"]["outputs/source.effective.md"],
                                                     "ast": "outputs/source.effective.json", "ast_sha256": receipt["artifacts"]["outputs/source.effective.json"]}:
                 raise ValueError("Retained effective source metadata differs from its verified artifacts")
-            return {**result, "state": "current", "receipt": f"{job}/receipt.json"}
+            return {**result, "state": "current", "receipt": f"{job}/receipt.json",
+                    "receipt_sha256": digest(existing), "pdf_sha256": receipt["artifacts"][f"outputs/{plan['basename']}.pdf"]}
         try:
             with reader.parent(job.as_posix()) as (parent, name):
                 os.stat(name, dir_fd=parent, follow_symlinks=False)
@@ -547,8 +552,10 @@ def build(project: Path, factory: Path, source: str, version: str, *, image: str
                     "effective_source": {"markdown": "outputs/source.effective.md", "markdown_sha256": artifacts["outputs/source.effective.md"],
                                          "ast": "outputs/source.effective.json", "ast_sha256": artifacts["outputs/source.effective.json"]},
                    "original_inputs": plan["original_inputs"], "factory_inputs": plan["factory_inputs"], "artifacts": artifacts}
-        _write(job_fd, "receipt.json", canonical(receipt))
-        return {**result, "state": "built", "receipt": f"{job}/receipt.json"}
+        sealed = canonical(receipt)
+        _write(job_fd, "receipt.json", sealed)
+        return {**result, "state": "built", "receipt": f"{job}/receipt.json", "receipt_sha256": digest(sealed),
+                "pdf_sha256": artifacts[f"outputs/{plan['basename']}.pdf"]}
     finally:
         if job_fd is not None:
             os.close(job_fd)

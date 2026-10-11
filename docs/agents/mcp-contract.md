@@ -90,6 +90,7 @@ baseline format nor runtime cleanup changes.
 | Resource | Description |
 | --- | --- |
 | `web://practice-edition-schema` | Versioned Web recipient/edition configuration, separate from the producer-owned GIS descriptor. |
+| `web://practice-verifier-runtime` | Static private controller/package/profile identities and distinct release metadata; acquisition belongs to the hub. |
 | `web://runtime-identity` | Bounded identity of this serving process: startup/current code, instance/PID namespaces, binding, runtime selections and cooperative lifecycle. |
 | `web://distribution` | Package-owned component BOM plus offline, feature-aware doctor findings for the current factory and project. |
 | `web://site-context` | Site profile, feature flags, content inventory, bibliography, bibliometrics, build state, and offline consumer-update advisory. |
@@ -120,13 +121,17 @@ baseline format nor runtime cleanup changes.
 Private teaching editions use `manual_practice_compose(config, dry_run=false)`
 (CLI `mcp manual-practice-compose`, factory Make `manual-practice-compose`).
 `web://practice-edition-schema` supplies the versioned Web composition contract.
-The editor invokes the installed QGIS public verifier, validates the full common
+The editor invokes the native CLI of the hub-prepared private QGIS controller, validates the full common
 bundle, selects explicit IDs with their complete producer closure, and retains
 one independent PDF and one ZIP per recipient, plus external receipts, under
 `dist/practiques/`. The PDF is copied from the sealed reading job and has exactly
 the same bytes as its ZIP member; no second render occurs. The entire edition
 directory is installed atomically and never replaces an existing edition. GIS parsing,
 execution and offline project reopening remain producer-owned.
+
+Each PDF build returns its original PDF and receipt hashes. Composition captures
+and checks that seal before building the other recipient, then copies only those
+sealed bytes. A changed PDF or replaced/resealed receipt fails before publication.
 
 `packages.<recipient>` retains its ZIP fields and adds `pdf` with the independent
 PDF path/hash/bytes and its own receipt path/hash. Names share the same stem:
@@ -137,11 +142,22 @@ resource links; extract the ZIP beside it for those links to resolve locally.
 
 An edition's `gis.profile` explicitly selects `qgis-practice-v1` or
 `qgis-practice-v2` and its matching producer schema hash. Omitted profile is the
-legacy v1 case only. The installed verifier is checked independently by package
-version/content revision/wheel hash; v2 schema discovery explicitly invokes
-`practice-schema --profile qgis-practice-v2`. The selected bundle check must return
+legacy v1 case only. New configurations explicitly select verifier origin
+`prepared-image`, its image ID, native installed-package revision and schema hash.
+Legacy installed-wheel configuration shapes remain readable but are not silently
+converted or executed by this public Web runtime. Schema discovery invokes the
+requested profile in the private image. The selected bundle check must return
 that same profile. V2 map exports and their font/symbol/sidecar closures retain
 producer-declared roles and paths; the editor does not inspect their native formats.
+
+The public Web image contains no private QGIS package. The hub prepares the
+authenticated private image before activation; missing/mismatched images produce
+a concrete blocker without pull/build. Native calls reuse bounded processes,
+mount encoding and exact worker lifecycle. `practice_verifier` is a startup-fixed
+worker selection. Release wheel hashes and release producer revisions are declared
+provenance, separate from observed image/package identity; no `direct_url` is
+fabricated. Public CI reports private checks as `not_run`.
+See [private-practice-verifier-98.md](private-practice-verifier-98.md).
 
 Existing private readings can be declared once in `_config.yml` under
 `unaltraweb.practices.readings`, with exact `source`, `slug`, `lang`, `recipient`.

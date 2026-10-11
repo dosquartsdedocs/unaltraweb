@@ -3,6 +3,8 @@
 
 No commit, publication, source worktree copy or runtime allocation is performed.
 The GIS domain code is installed only from the selected hash-bound producer wheel.
+Historical private/local acceptance only: its embedded-QGIS images must not be
+published as public Web images. The public build now delegates to a prepared image.
 """
 from __future__ import annotations
 

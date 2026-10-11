@@ -72,20 +72,30 @@ class EditionTests(unittest.TestCase):
             editions.validate_closure(report, manifest, ["initial"], "alumnat", ["initial"], profile="qgis-practice-v2")
 
     def test_v2_identity_requests_v2_schema_and_refuses_v1_pin(self):
-        expected = {"package": "unaltracaptura-qgis", "version": "0.6.0rc2", "revision": "sha256:"+"a"*64,
-                    "schema_sha256": "b"*64, "wheel_sha256": "c"*64}
+        expected = {"origin": "prepared-image", "package": "unaltracaptura-qgis", "version": "0.6.0", "revision": "sha256:"+"a"*64,
+                    "schema_sha256": "b"*64, "image_id": "sha256:"+"c"*64}
         observed = {"ok": True, "profile": "qgis-practice-v2", "schema_sha256": "b"*64,
                     "installed_package": {"name": expected["package"], "version": expected["version"], "revision": expected["revision"]}}
-        installed = SimpleNamespace(returncode=0, stdout_truncated=False,
-                                    stdout=json.dumps({"archive_info": {"hashes": {"sha256": "c"*64}}}))
-        with patch.object(editions, "provider_command", return_value=observed) as provider, patch.object(editions, "run_process", return_value=installed):
+        response = {"result": observed, "origin": {"controller": {"observed_image_id": expected["image_id"]}}}
+        with patch.object(editions, "provider_command", return_value=response) as provider:
             self.assertEqual(editions.verifier_identity(self.root, expected, "qgis-practice-v2")["profile"], "qgis-practice-v2")
-            provider.assert_called_once_with(self.root, ["practice-schema", "--profile", "qgis-practice-v2"])
-            with self.assertRaisesRegex(ValueError, "identity/schema"):
+            provider.assert_called_once_with(self.root, "schema", profile="qgis-practice-v2")
+            with self.assertRaisesRegex(ValueError, "identity differs"):
                 editions.verifier_identity(self.root, {**expected, "schema_sha256": "d"*64}, "qgis-practice-v2")
-        with patch.object(editions, "provider_command", return_value={**observed, "profile": "qgis-practice-v1"}):
-            with self.assertRaisesRegex(ValueError, "identity/schema"):
+        with patch.object(editions, "provider_command", return_value={**response, "result": {**observed, "profile": "qgis-practice-v1"}}):
+            with self.assertRaisesRegex(ValueError, "identity differs"):
                 editions.verifier_identity(self.root, expected, "qgis-practice-v2")
+
+    def test_legacy_wheel_selection_is_not_silently_reinterpreted_as_an_image(self):
+        expected = {"package": "unaltracaptura-qgis", "version": "0.6.0rc2", "revision": "sha256:"+"a"*64,
+                    "schema_sha256": "b"*64, "wheel_sha256": "c"*64}
+        rules = editions.schema()
+        h.check_shape(expected, rules["properties"]["gis"]["properties"]["verifier"], rules["$defs"])
+        original = copy.deepcopy(expected)
+        with patch.object(editions, "provider_command") as provider, self.assertRaisesRegex(ValueError, "Legacy installed-wheel"):
+            editions.verifier_identity(self.root, expected, "qgis-practice-v2")
+        provider.assert_not_called()
+        self.assertEqual(expected, original)
     def test_zip_contains_exact_files_and_no_control_or_receipt(self):
         (self.root / "data").mkdir()
         (self.root / "data/source.bin").write_bytes(b"opaque domain bytes")
@@ -169,8 +179,8 @@ class EditionTests(unittest.TestCase):
         report.update(ok=True, bundle={"sha256": "a"*64}, activity="fixture", job="retained-fixture")
         spec = {"schema_version": 1, "kind": "unaltraweb-practice-edition", "slug": "fixture", "version": "r1", "language": "ca",
                 "gis": {"bundle": "sandbox/gis/bundle.json", "sha256": "a"*64, "verifier": {
-                    "package": "unaltracaptura-qgis", "version": "0.6.0rc2", "revision": "sha256:"+"b"*64,
-                    "schema_sha256": "c"*64, "wheel_sha256": "d"*64}},
+                    "origin": "prepared-image", "package": "unaltracaptura-qgis", "version": "0.6.0", "revision": "sha256:"+"b"*64,
+                    "schema_sha256": "c"*64, "image_id": "sha256:"+"d"*64}},
                 "selection": {who: ["initial"] for who in editions.RECIPIENTS}, "readings": {}}
         sealed = {}
         for who in editions.RECIPIENTS:
@@ -184,8 +194,12 @@ class EditionTests(unittest.TestCase):
             (self.root/pdf).write_bytes(b"%PDF-1.4\nsealed fixture " + who.encode())
             receipt = pdf + ".receipt.json"
             (self.root/receipt).write_text(json.dumps({"renderer": {"reference": "fixture-worker"}, "portable_links": {},
-                "effective_source": {}, "original_inputs": {source: digest(path.read_bytes())}, "factory_inputs": {}}))
-            sealed[source] = {"ok": True, "state": "current", "pdf": pdf, "receipt": receipt}
+                "schema_version": 1, "kind": "private-practice-pdf", "fingerprint": digest(source.encode()),
+                "effective_source": {}, "original_inputs": {source: digest(path.read_bytes())}, "factory_inputs": {},
+                "artifacts": {Path(pdf).name: digest((self.root/pdf).read_bytes())}}))
+            sealed[source] = {"ok": True, "state": "current", "pdf": pdf, "receipt": receipt,
+                              "fingerprint": digest(source.encode()), "pdf_sha256": digest((self.root/pdf).read_bytes()),
+                              "receipt_sha256": digest((self.root/receipt).read_bytes())}
         (self.root/"_config.yml").write_text("{}")
         (self.root/"edition.json").write_text(json.dumps(spec))
 
@@ -197,7 +211,7 @@ class EditionTests(unittest.TestCase):
         stack.enter_context(patch.object(editions, "privacy_preflight"))
         stack.enter_context(patch.object(editions.fs, "_require_generated_path"))
         stack.enter_context(patch.object(editions, "verifier_identity", return_value={"profile": "qgis-practice-v1"}))
-        stack.enter_context(patch.object(editions, "provider_command", return_value=report))
+        stack.enter_context(patch.object(editions, "provider_command", return_value={"result": report, "origin": {"kind": "prepared-image"}}))
         stack.enter_context(patch.object(editions.handoff.Verifier, "bundle", return_value=(manifest, {}, {})))
         stack.enter_context(patch.object(editions.handoff, "check"))
         stack.enter_context(patch.object(editions, "active_runtime", return_value=None))
@@ -270,3 +284,71 @@ class EditionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "changed during copying"):
             editions.copy_pdf(self.root, fd, "wrong-hash.pdf", {**row, "sha256": "0"*64})
         self.assertEqual((self.root/"delivery.pdf").read_bytes(), raw)
+
+    def test_review_p2_pdf_drift_during_second_build_cannot_be_resealed_into_delivery(self):
+        builder, sealed = self.composition_fixture()
+        original_build = builder.side_effect
+        student = next(value for name, value in sealed.items() if "/alumnat/" in name)
+        pdf_path, receipt_path = self.root/student["pdf"], self.root/student["receipt"]
+        original_pdf, original_receipt = pdf_path.read_bytes(), receipt_path.read_bytes()
+        for reseal in (False, True):
+            with self.subTest(reseal=reseal):
+                spec = json.loads((self.root/"edition.json").read_bytes())
+                spec["version"] = "p2-resealed" if reseal else "p2-original-receipt"
+                (self.root/"edition.json").write_text(json.dumps(spec))
+                pdf_path.write_bytes(original_pdf)
+                receipt_path.write_bytes(original_receipt)
+                def build(project, factory, source, version, **kwargs):
+                    value = original_build(project, factory, source, version, **kwargs)
+                    if "/docent/" in source and not kwargs.get("dry_run", False):
+                        changed = original_pdf + b"\nchanged after the student seal\n"
+                        pdf_path.write_bytes(changed)
+                        if reseal:
+                            receipt = json.loads(original_receipt)
+                            receipt["artifacts"][pdf_path.name] = digest(changed)
+                            receipt_path.write_text(json.dumps(receipt))
+                    return value
+                builder.side_effect = build
+                with self.assertRaisesRegex((ValueError, h.HandoffError), "changed|sealed|seal|receipt"):
+                    editions.compose(self.root, self.root, "edition.json")
+                self.assertFalse((self.root/"dist/practiques/fixture"/spec["version"]/"ca").exists())
+
+    def test_review_p2_escaped_css_urls_and_imports_use_the_real_css_tokenizer(self):
+        folder = self.root/"_practices/css"
+        folder.mkdir(parents=True)
+        for attribute in ("fill", "stroke", "filter", "clip-path", "mask", "marker-end", "cursor"):
+            for url in ("https://example.invalid/palette.svg#paint", "missing.svg#paint"):
+                with self.subTest(attribute=attribute, url=url):
+                    raw = ('<svg xmlns="http://www.w3.org/2000/svg"><rect '+attribute+'="u\\72l('+url+')"/></svg>').encode()
+                    (folder/"poster.svg").write_bytes(raw)
+                    declaration = {"path": "_practices/css/poster.svg", "sha256": digest(raw), "destination": "resources/poster.svg",
+                                   "role": "editable-infographic", "recipients": ["alumnat"], "dependencies": []}
+                    with closing(h.Workspace(str(self.root))) as workspace, self.assertRaises(ValueError):
+                        editions.author_resources(workspace, [declaration])
+        raw = b'<svg xmlns="http://www.w3.org/2000/svg"><style>@\\69mport "https://example.invalid/style.css";</style></svg>'
+        (folder/"poster.svg").write_bytes(raw)
+        declaration["sha256"] = digest(raw)
+        with closing(h.Workspace(str(self.root))) as workspace, self.assertRaises(ValueError):
+            editions.author_resources(workspace, [declaration])
+
+    def test_review_p2_pdf_digest_is_compared_with_original_receipt_even_if_rehashed(self):
+        _, sealed = self.composition_fixture()
+        result = copy.deepcopy(next(iter(sealed.values())))
+        path = self.root/result["pdf"]
+        path.write_bytes(path.read_bytes() + b"\nmutated and rehashed\n")
+        result["pdf_sha256"] = digest(path.read_bytes())
+        with closing(h.Workspace(str(self.root))) as workspace, self.assertRaisesRegex(ValueError, "sealed receipt"):
+            editions.sealed_reading(workspace, result)
+
+    def test_review_p2_escaped_local_css_reference_keeps_declared_dependency(self):
+        folder = self.root/"_practices/css"
+        folder.mkdir(parents=True)
+        raw = b'<svg xmlns="http://www.w3.org/2000/svg"><rect fill="u\\72l(palette.svg#paint)"/></svg>'
+        dependency = b'<svg xmlns="http://www.w3.org/2000/svg"><pattern id="paint"/></svg>'
+        (folder/"poster.svg").write_bytes(raw)
+        (folder/"palette.svg").write_bytes(dependency)
+        declaration = {"path": "_practices/css/poster.svg", "sha256": digest(raw), "destination": "resources/poster.svg",
+                       "role": "editable-infographic", "recipients": ["alumnat"], "dependencies": [
+                           {"path": "_practices/css/palette.svg", "sha256": digest(dependency), "destination": "resources/palette.svg"}]}
+        with closing(h.Workspace(str(self.root))) as workspace:
+            self.assertEqual(len(editions.author_resources(workspace, [declaration])["alumnat"]), 2)

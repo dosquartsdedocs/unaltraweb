@@ -41,7 +41,7 @@ from unaltraweb_mcp.distribution import (  # noqa: E402
     validate_component_contract,
 )
 from scripts.validate_workflows import DEPLOY_PDF_PROVENANCE_POLICY_SHA256, load_workflow_text, reusable_deploy_input_errors  # noqa: E402
-from scripts import install_practice_verifier as practice_verifier  # noqa: E402
+from scripts import check_practice_verifier_runtime as practice_verifier  # noqa: E402
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -125,8 +125,10 @@ def validate(root: Path = ROOT) -> list[str]:
     if __version__ != version:
         errors.append(f"wheel version {__version__} != contract version {version}")
     errors.extend(component_version_errors(contract))
-    if practice_verifier.required(contract) and "scripts/install_practice_verifier.py --install" not in (root / "Dockerfile.mcp").read_text():
-        errors.append("MCP image must install the BOM-pinned public practice verifier")
+    if practice_verifier.required(contract):
+        dockerfile = (root / "Dockerfile.mcp").read_text()
+        if "install_practice_verifier" in dockerfile or re.search(r"(?im)^\s*(?:RUN|COPY|ADD).*unaltracaptura", dockerfile):
+            errors.append("Public MCP image must not download or embed the private QGIS package")
     included = {name for name, item in contract["components"].items() if item["included_in_wheel"]}
     if included != {"wheel"}:
         errors.append(f"wheel must not bundle external components: {sorted(included)}")
@@ -218,6 +220,9 @@ def validate(root: Path = ROOT) -> list[str]:
     if make_value(root / "packaging/launcher/Makefile", "MCP_RELEASE_IMAGE") != component_reference("mcp"):
         errors.append("installed launcher must select its own package release image")
     project = pyproject.get("project", {})
+    dependencies = [*project.get("dependencies", []), *(entry for values in project.get("optional-dependencies", {}).values() for entry in values)]
+    if any(re.search(r"unaltracaptura[-_]qgis", str(entry), re.I) for entry in dependencies):
+        errors.append("Public Web wheel must not install the private QGIS package as a dependency")
     if "version" in project or project.get("dynamic") != ["version"]:
         errors.append("pyproject version must be derived from the package component contract")
     if pyproject.get("tool", {}).get("setuptools", {}).get("dynamic", {}).get("version", {}).get("attr") != "unaltraweb_mcp.__version__":
@@ -622,7 +627,8 @@ def main(argv: list[str] | None = None) -> int:
         "errors": errors,
         "pending_releases": pending,
         "unavailable_releases": unavailable,
-        "practice_verifier": {"ready": not verifier_errors, "errors": verifier_errors},
+        "practice_verifier": {"selection_ready": not verifier_errors, "errors": verifier_errors, "origin": "prepared-image",
+                              "private_checks": {"state": "not_run", "reason": "Public CI uses metadata/unit fixtures; native private acceptance and review are separate required gates"}},
     }, indent=2, sort_keys=True))
     readiness_errors = release_tag_errors + candidate_receipt_errors
     structural_errors = [error for error in errors if error not in readiness_errors]

@@ -13,17 +13,15 @@ import os
 import posixpath
 from pathlib import Path
 import stat
-import sys
 import re
 from urllib.parse import unquote, urlsplit
 import xml.etree.ElementTree as ET
 import uuid
 import zipfile
 
-from . import __version__, artifact_handoff_v1 as handoff, manual_pdf_preview as fs, practice_pdf
+from . import __version__, artifact_handoff_v1 as handoff, manual_pdf_preview as fs, practice_pdf, practice_verifier
 from .editorial_sources import Reader, canonical, digest, private_practice_identity, yaml_mapping
 from .manual_release import _install_new_directory
-from .processes import run_process
 from .runtime_identity import active_runtime
 from .distribution import consumer_integration
 
@@ -33,6 +31,7 @@ CLASSROOM_ROLES = {"initial-data", "initial-project", "resolved-data", "resolved
 PROFILE_ROLES = {"qgis-practice-v1": CLASSROOM_ROLES,
                  "qgis-practice-v2": CLASSROOM_ROLES | {"map-svg", "map-pdf"}}
 TEACHER_ROLES = {"resolved-data", "resolved-project"}
+CSS_IRI_ATTRIBUTES = {"fill", "stroke", "filter", "clip-path", "mask", "marker", "marker-start", "marker-mid", "marker-end", "cursor", "color-profile"}
 
 
 def require(condition, message):
@@ -88,38 +87,22 @@ def privacy_preflight(project, config_path, spec, site):
     fs._require_generated_path(project, Path("dist/practiques") / spec["slug"], label="Retained edition delivery")
 
 
-def provider_command(project, arguments):
-    # An operator can select another prepared interpreter; a consumer document
-    # cannot supply arbitrary executables, Python imports or command arguments.
-    python = os.environ.get("UNALTRAWEB_PRACTICE_QGIS_PYTHON") or sys.executable
-    require(Path(python).is_absolute(), "Producer verifier interpreter must be explicitly absolute")
-    result = run_process([python, "-I", "-m", "veure_qgis_mcp.cli", *arguments], cwd=project,
-                         timeout_seconds=120, output_limit=1024*1024)
-    require(not result.returncode and not result.timed_out and not result.stdout_truncated and not result.stderr_truncated,
-            "Installed QGIS verifier refused the bundle/selection: " + (result.stderr or result.stdout)[-3000:])
-    value = handoff.parse_json(result.stdout.encode())
-    require(value.get("ok") is True, "Installed QGIS verifier did not certify this operation")
-    return value
+def provider_command(project, operation, **request):
+    return practice_verifier.call(project, operation, **request)
 
 
 def verifier_identity(project, expected, profile="qgis-practice-v1"):
     require(profile in PROFILE_ROLES, "Unsupported selected GIS profile")
-    # Legacy rc1's public default is v1 and has no --profile option. V2 always
-    # requests its explicit schema; it must never be validated with a v1 pin.
-    arguments = ["practice-schema"] + (["--profile", profile] if profile != "qgis-practice-v1" else [])
-    observed = provider_command(project, arguments)
+    require(expected.get("origin") == "prepared-image",
+            "Legacy installed-wheel verifier selections are retained but incompatible with this public Web runtime; use the original candidate or an explicit prepared-image selection in a new edition configuration")
+    response = provider_command(project, "schema", profile=profile)
+    observed, origin = response["result"], response["origin"]
     package = observed.get("installed_package") or {}
     require(observed.get("profile") == profile and observed.get("schema_sha256") == expected["schema_sha256"]
-            and all(package.get(key) == expected[key if key != "name" else "package"] for key in ("name", "version", "revision")),
-            "Installed QGIS verifier identity/schema differs from the edition pin")
-    python = os.environ.get("UNALTRAWEB_PRACTICE_QGIS_PYTHON") or sys.executable
-    code = "import json; from importlib.metadata import distribution; d=distribution('unaltracaptura-qgis'); print(d.read_text('direct_url.json') or '{}')"
-    installed = run_process([python, "-I", "-c", code], cwd=project, timeout_seconds=20)
-    require(not installed.returncode and not installed.stdout_truncated, "Cannot inspect the installed producer wheel identity")
-    metadata = handoff.parse_json(installed.stdout.encode())
-    require(metadata.get("archive_info", {}).get("hashes", {}).get("sha256") == expected["wheel_sha256"],
-            "Installed producer wheel hash differs from the selected candidate")
-    return {"profile": profile, "package": package, "schema_sha256": observed["schema_sha256"], "wheel_sha256": expected["wheel_sha256"]}
+            and all(package.get(key) == expected[key if key != "name" else "package"] for key in ("name", "version", "revision"))
+            and origin["controller"]["observed_image_id"] == expected["image_id"],
+            "Prepared QGIS verifier image/package/profile identity differs from the edition pin")
+    return {"profile": profile, "package": package, "schema_sha256": observed["schema_sha256"], "origin": origin}
 
 
 def validate_closure(report, manifest, roots, recipient, teacher_only=(), *, profile="qgis-practice-v1"):
@@ -210,10 +193,11 @@ def author_resources(workspace, declarations):
                 references.append({"source": source, "target": target})
 
             def css(text):
-                require(not re.search(r"@import\b", text, re.I), "Imported SVG stylesheets need a supported explicit resource profile")
                 def walk(tokens):
                     for token in tokens:
                         require(token.type != "error", "Invalid SVG CSS resource expression")
+                        require(not (token.type == "at-keyword" and token.lower_value == "import"),
+                                "Imported SVG stylesheets need a supported explicit resource profile")
                         if token.type == "url":
                             reference(token.value)
                         elif token.type == "function":
@@ -236,7 +220,7 @@ def author_resources(workspace, declarations):
                     require(not name.lower().startswith("on"), "Executable SVG attributes are unsupported")
                     if name in {"href", "src"}:
                         reference(value, navigation=tag == "a")
-                    if name == "style" or "url(" in value.lower():
+                    if name == "style" or name in CSS_IRI_ATTRIBUTES or "url(" in value.lower():
                         css(value)
                 if tag == "style":
                     css(node.text or "")
@@ -326,6 +310,24 @@ def zip_files(project, directory, filename, entries):
         return _output_record(output, filename)
 
 
+def sealed_reading(workspace, result):
+    """Anchor a build's PDF and receipt before another recipient can render."""
+    pdf_hash, receipt_hash = result.get("pdf_sha256"), result.get("receipt_sha256")
+    require(all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) for value in (pdf_hash, receipt_hash, result.get("fingerprint"))),
+            "Reading build did not return its sealed PDF/receipt identities")
+    actual_receipt, _, raw = workspace.read(result["receipt"], 1024*1024, collect=True)
+    require(actual_receipt == receipt_hash, "Reading receipt differs from its original build seal")
+    receipt = handoff.parse_json(raw)
+    relative_pdf = Path(result["pdf"]).relative_to(Path(result["receipt"]).parent).as_posix()
+    require(type(receipt.get("schema_version")) is int and receipt["schema_version"] == 1
+            and receipt.get("kind") == "private-practice-pdf" and receipt.get("fingerprint") == result.get("fingerprint")
+            and isinstance(receipt.get("artifacts"), dict) and receipt["artifacts"].get(relative_pdf) == pdf_hash,
+            "Reading PDF identity differs from its sealed receipt")
+    observed, size, _ = workspace.read(result["pdf"], handoff.MAX_FILE_BYTES)
+    require(observed == pdf_hash, "Reading PDF bytes differ from the original sealed receipt")
+    return {"pdf_sha256": pdf_hash, "bytes": size, "receipt_sha256": receipt_hash, "receipt": receipt}
+
+
 def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
     require(Path(project).is_absolute(), "Composition requires an explicit absolute consumer")
     project = Path(project)
@@ -351,17 +353,15 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
                 os.close(parent)
         profile = spec["gis"].get("profile", "qgis-practice-v1")
         verifier = verifier_identity(project, spec["gis"]["verifier"], profile)
-        closures, reports, readings = {}, {}, {}
+        closures, reports, readings, verification_runs = {}, {}, {}, {}
         with closing(handoff.Workspace(str(project))) as workspace:
             common = handoff.Verifier(workspace)
             manifest, _, _ = common.bundle(spec["gis"]["bundle"], spec["gis"]["sha256"])
             require(manifest["producer"]["name"] == "unaltracaptura-qgis", "Unsupported GIS producer")
             base = Path(spec["gis"]["bundle"]).parent
             for who in RECIPIENTS:
-                args = ["practice-check", "--workspace", str(project), "--path", spec["gis"]["bundle"], "--sha256", spec["gis"]["sha256"]]
-                for identifier in spec["selection"][who]:
-                    args.extend(["--select", identifier])
-                reports[who] = provider_command(project, args)
+                response = provider_command(project, "check", bundle=spec["gis"]["bundle"], sha256=spec["gis"]["sha256"], selected=spec["selection"][who])
+                reports[who], verification_runs[who] = response["result"], response["origin"]
                 require(reports[who].get("bundle", {}).get("sha256") == spec["gis"]["sha256"], "Producer checked a different bundle")
                 closures[who] = validate_closure(reports[who], manifest, spec["selection"][who], who, spec["gis"].get("teacher_only", []), profile=profile)
                 source = spec["readings"][who]["source"]
@@ -390,17 +390,20 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
             result = {"ok": True, "dry_run": dry_run, "publishes": False, "path": relative.as_posix(),
                       "operation": "Web composition of existing GIS products; no GIS calculation invoked", "gis_verifier": verifier,
                       "gis": {"bundle": spec["gis"], "producer": manifest["producer"], "activity": reports["alumnat"]["activity"], "job": reports["alumnat"]["job"]},
-                      "selection": spec["selection"], "closure": closures, "author_resources": auxiliary,
+                       "selection": spec["selection"], "closure": closures, "author_resources": auxiliary,
+                       "verification_runs": verification_runs,
                       "reading_resources": reading_resources,
                       "reading_links": {who: planned_readings[who]["portable_links"] for who in RECIPIENTS}}
             if dry_run:
                 return result
+            sealed = {}
             for who in RECIPIENTS:
                 readings[who] = practice_pdf.build(project, factory, spec["readings"][who]["source"], spec["version"], image=image, run=run_id,
                                                    portable_targets=portable[who], bindings=spec["readings"][who].get("bindings", []),
                                                    products=products[who], restricted=restricted[who])
                 require(readings[who]["ok"], "Reading PDF did not complete")
                 require(readings[who]["portable_links"] == planned_readings[who]["portable_links"], "Reading resource mapping changed during rendering")
+                sealed[who] = sealed_reading(workspace, readings[who])
             workspace.recheck()
             with Reader(project) as reader:
                 require(digest(reader.read(config_path)) == config_sha, "Edition configuration changed during rendering")
@@ -416,18 +419,18 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
                     rows.extend(auxiliary[who])
                     rows.extend(reading_resources[who])
                     pdf = readings[who]
-                    hashed, length, _ = workspace.read(pdf["pdf"], handoff.MAX_FILE_BYTES)
+                    hashed, length = sealed[who]["pdf_sha256"], sealed[who]["bytes"]
                     reading_row = {"id": "reading-"+who, "source": pdf["pdf"], "destination": practice_pdf.BASENAMES[spec["language"]]+".pdf",
                                    "sha256": hashed, "bytes": length, "role": "reading"}
                     rows.append(reading_row)
-                    receipt_sha, _, receipt_raw = workspace.read(pdf["receipt"], 1024*1024, collect=True)
-                    pdf_receipt = handoff.parse_json(receipt_raw)
+                    receipt_sha, pdf_receipt = sealed[who]["receipt_sha256"], sealed[who]["receipt"]
                     name = spec["slug"] + ("-docent" if who == "docent" else "") + "-" + spec["version"] + "-" + spec["language"] + ".zip"
                     zipped = zip_files(project, stage, name, rows)
                     delivered_pdf = copy_pdf(project, stage, name.removesuffix(".zip") + ".pdf", reading_row)
                     receipt = {"schema_version": 1, "kind": "unaltraweb-practice-edition-receipt", "recipient": who,
                         "slug": spec["slug"], "version": spec["version"], "language": spec["language"], "zip": zipped,
-                        "config": {"path": config_path, "sha256": config_sha}, "producer_verification": reports[who], "verifier": verifier,
+                         "config": {"path": config_path, "sha256": config_sha}, "producer_verification": reports[who], "verifier": verifier,
+                         "verification_runtime": verification_runs[who],
                         "reading": {"source": spec["readings"][who], "pdf": pdf["pdf"], "pdf_sha256": hashed,
                                     "receipt": pdf["receipt"], "receipt_sha256": receipt_sha, "renderer": pdf_receipt["renderer"],
                                     "portable_links": pdf_receipt["portable_links"], "effective_source": pdf_receipt["effective_source"],
@@ -457,7 +460,7 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
                 with Reader(project) as reader:
                     require(digest(reader.read(config_path)) == config_sha, "Edition selection changed before publication")
                     for who in RECIPIENTS:
-                        practice_pdf._unchanged(project, json.loads(reader.read(readings[who]["receipt"]))["original_inputs"])
+                        practice_pdf._unchanged(project, sealed[who]["receipt"]["original_inputs"])
                 write_new(stage, "edition.json", canonical({**result, "packages": packages, "readings": readings}))
                 os.fsync(stage)
                 current = fs._open_directory(root, relative.parent)

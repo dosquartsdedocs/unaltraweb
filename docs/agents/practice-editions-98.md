@@ -10,6 +10,8 @@ candidate identities and evidence remain retained historical checkpoints.
 
 The later [working-tree consolidation](#working-tree-consolidation--independent-pdf-and-zip)
 adds the independent delivery PDF. It is not part of the immutable candidate-04 image.
+The subsequent [private-runtime bridge](private-practice-verifier-98.md) supersedes
+the embedded-verifier plan for public 0.7.2; all candidate descriptions below remain historical.
 
 ## Checkout, preservation and reservation
 
@@ -803,13 +805,12 @@ Both independent PDFs match their previous sealed bytes (`d875d11b…` alumnat,
 exactly. This copy/packaging proof complements the full composition unit tests;
 it is not a new installed-controller acceptance or a replacement of candidate-04.
 
-The normal `Dockerfile.mcp` now invokes `scripts/install_practice_verifier.py`.
-That installer accepts only the released QGIS wheel URL+SHA from the component
-BOM, preserves pip direct-URL identity, and checks both explicit public profiles.
-The final owner pin has not arrived: no placeholder is inserted into the BOM.
-Source validation reports the required verifier as pending, publication preflight
-refuses it, and image installation fails before pip/network until it is declared.
-The existing PDF 0.7.1/workflow pins and nine shared checkers remain unchanged.
+The initial consolidation proposed a released-wheel installer. The owner then
+chose to keep QGIS private; that installer has been removed from the working tree.
+The public image delegates to the hub-prepared private controller and publishes
+only its identity/transport contract. Public CI validates metadata/unit fixtures
+and marks native private checks `not_run`. The PDF 0.7.1/workflow pins and nine
+shared checkers remain unchanged. See the private-runtime bridge contract above.
 
 The retained controller/PDF archive route for D1 is documented in
 [practice-runtime-archives-98.md](practice-runtime-archives-98.md).

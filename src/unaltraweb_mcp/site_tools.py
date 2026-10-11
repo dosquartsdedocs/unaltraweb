@@ -2957,7 +2957,8 @@ def profile_check(project: Path) -> dict[str, Any]:
     manual_source_quality: dict[str, Any] = {}
     manual_editorial_quality: dict[str, Any] = {}
     if profile == "unaltremanual":
-        if (project / "practiques").exists() or (project / "practiques").is_symlink():
+        if (any((project / root).exists() or (project / root).is_symlink() for root in ("practiques", "_practices"))
+                or unaltraweb_config(config).get("practices")):
             from .practice_pdf import private_path_issues
             issues.extend({"severity": "error", "code": "private-practice-exclusion", "message": message}
                           for message in private_path_issues(config))
@@ -6031,6 +6032,7 @@ def list_tools() -> dict[str, Any]:
     inventory["tools"].append("manual_practice_pdf_build")
     inventory["tools"].append("manual_practice_compose")
     inventory["resources"].append("web://practice-edition-schema")
+    inventory["resources"].append("web://practice-verifier-runtime")
     return inventory
 
 

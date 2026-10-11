@@ -64,6 +64,16 @@ class SessionLifecycleTests(unittest.TestCase):
         self.assertFalse(value["resources_released"])
 
     @patch.object(lifecycle, "session_networks", return_value=[])
+    @patch.object(lifecycle, "session_containers")
+    @patch.object(lifecycle, "inspect_container", return_value=None)
+    def test_orphan_running_private_verifier_is_preserved(self, inspect, resources, networks):
+        resources.return_value = [self.resource("practice-verifier")]
+        with patch.object(lifecycle, "docker", side_effect=AssertionError("must preserve a busy verifier")):
+            value = self.status(reap=True)
+        self.assertEqual(value["state"], "busy")
+        self.assertFalse(value["resources_released"])
+
+    @patch.object(lifecycle, "session_networks", return_value=[])
     @patch.object(lifecycle, "session_containers", return_value=[])
     @patch.object(lifecycle, "inspect_container", return_value=None)
     def test_absence_is_required_for_release(self, inspect, resources, networks):

@@ -15,9 +15,8 @@ COPY . /opt/unaltraweb
 RUN python3 -m pip install --no-cache-dir --break-system-packages "/opt/unaltraweb[mcp]" \
     && chmod -R a+rX /opt/unaltraweb
 
-# Fails closed until the released producer wheel URL+SHA is recorded in the BOM.
-# This installs verifier bytes, not the QGIS engine, and never uses a local rc wheel.
-RUN python3 /opt/unaltraweb/scripts/install_practice_verifier.py --install
+# The private QGIS verifier is delegated to the hub-prepared native controller.
+# No private wheel, source, credential or image is fetched into this public image.
 
 WORKDIR /workspace
 ENTRYPOINT ["unaltraweb-mcp"]

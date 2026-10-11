@@ -179,7 +179,7 @@ class DistributionTests(unittest.TestCase):
         )
         self.assertEqual(
             set(contract["components"]),
-            {"gem", "wheel", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf", "diavisuals", "vegavisuals"},
+            {"gem", "wheel", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf", "diavisuals", "vegavisuals", "qgis_practice_verifier"},
         )
         self.assertEqual(
             {name for name, value in contract["components"].items() if value["included_in_wheel"]},
@@ -806,18 +806,17 @@ class DistributionTests(unittest.TestCase):
                     self.assertFalse(result["release_ready"])
                     self.assertEqual(result["errors"], expected_errors)
 
-    def test_practice_publication_requires_the_final_released_verifier(self) -> None:
-        from test_practice_verifier_install import fixture_contract
+    def test_practice_publication_declares_private_runtime_without_installing_it(self) -> None:
         contract = distribution_contract()
+        accepted = copy.deepcopy(contract)
         contract["components"].pop(distribution_validator.practice_verifier.COMPONENT, None)
         arguments = dict(ref_type="branch", ref_name="main", default_branch="main", component_ids=["gem", "wheel", "runtime", "mcp"])
-        self.assertTrue(any("pin is missing" in error for error in publish_ref_errors(contract, **arguments)))
-        contract["components"].update(fixture_contract()["components"])
-        contract["wheel_contract"]["not_bundled"].append(distribution_validator.practice_verifier.COMPONENT)
-        self.assertEqual(component_contract_semantic_errors(contract), [])
-        self.assertEqual(publish_ref_errors(contract, **arguments), [])
-        contract["components"][distribution_validator.practice_verifier.COMPONENT]["release_status"] = "pending"
-        self.assertTrue(publish_ref_errors(contract, **arguments))
+        self.assertTrue(any("incomplete" in error for error in publish_ref_errors(contract, **arguments)))
+        self.assertEqual(component_contract_semantic_errors(accepted), [])
+        with patch("unaltraweb_mcp.practice_verifier.call", side_effect=AssertionError("No private execution in public CI")):
+            self.assertEqual(publish_ref_errors(accepted, **arguments), [])
+        accepted["components"][distribution_validator.practice_verifier.COMPONENT]["release_status"] = "pending"
+        self.assertTrue(publish_ref_errors(accepted, **arguments))
 
     def test_release_candidate_receipt_binds_ready_components_to_parent_commit(self) -> None:
         contract = distribution_contract()

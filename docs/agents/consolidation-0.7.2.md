@@ -7,7 +7,21 @@ source-CI control, and preparation of runtime archives for the existing hub load
 Earlier candidate reports describe their historical checkpoints; their source
 snapshots, images, wheels, receipts and retained evidence remain unchanged.
 
-## Publication blockers
+**Current private-runtime decision:** QGIS 0.6.0 is released but private. The earlier
+wheel-install plan below is superseded by [native private-runtime delegation](private-practice-verifier-98.md).
+Public Web builds now contain only the Web bridge/metadata; the hub prepares the
+private QGIS controller. No published/private wheel is downloaded into Web.
+The three independent review P2 findings are reproduced and corrected in this
+source delta; a new source review and independent runtime check are still required
+on its committed HEAD. The H2 contract declares the private producer's hash-bound
+`release.json` externally; public runtime archives contain only Web-only and PDF
+images. Local acceptance and the external receipt are documented in the linked
+bridge and archive contracts.
+
+## Blockers recorded at the original draft checkpoint
+
+The first two entries describe the superseded installer plan at `88dd2518`, not
+current requirements to make QGIS public or embed its wheel:
 
 - The final **published QGIS wheel URL and SHA-256 are still missing**. The owner
   reports prepared source `a660dfa54ea6bc6cf5d3d3fbeb12593f62c726e1` and wheel
@@ -41,10 +55,11 @@ their previously published MCP digest until a new published digest is reviewed.
 
 ## Reproducibility and retained evidence
 
-The publishable wheel carries the source-CI runner, policy schema and common
-workflow template. The normal MCP image installs the released QGIS verifier from
-the BOM and runs the factory-owned compositor/scripts. Neither public entrypoint
-requires consumers to copy generic code or inspect a mutable provider checkout.
+The publishable wheel carries the source-CI runner, policy schema, common workflow
+template and native private-runtime bridge/descriptor. The normal MCP image runs
+the factory-owned compositor/scripts and delegates verification to the prepared
+private QGIS controller. Neither public entrypoint requires consumers to copy
+generic code or inspect a mutable provider checkout.
 
 `prepare_practice_candidate.py`, `prepare_practice_editions_candidate.py` and
 their pinned rc fixture defaults are historical acceptance/preparation tools.
@@ -67,7 +82,16 @@ checks and native bounded source-checker execution. After declaring 0.7.2,
 the suite passes 706 cases (678 passed / 28 skips): the additional skipped
 Docker mount-parser test requires the not-yet-prepared 0.7.2 MCP image. It was
 not redirected to an older image to claim a new-runtime pass. A fresh 0.7.2 wheel
-build/install and distribution/workflow/whitespace checks pass; publication
-readiness remains false because the QGIS pin is absent. Hosted CI status is
-recorded in the draft PR. None of this publishes or approves the manuals' draft
-teaching content. W1 draft PR #103 is outside this consolidation.
+build/install and distribution/workflow/whitespace checks passed at that original
+checkpoint; its publication readiness was false because the QGIS pin was absent.
+
+The later private-runtime/P2 checkpoint passes **720 tests (692 passed / 28
+skips)** and fresh-wheel installation. Native local evidence verifies Web package
+absence, v1/v2 delegation, sealed PDF/ZIP pairs, selected-resource-only engine
+mounts and exact teardown. Distribution metadata is now structurally ready while
+private checks remain explicitly `not_run` in public CI. The final source's hosted
+CI and independent re-review are tracked on PR #104; local evidence is not
+relabeled as those gates. The receipt-only H2 addition leaves executable bytes and
+selected image/schema identities unchanged, so retained native renders are reused.
+None of this publishes or approves the manuals' draft teaching content. W1 draft
+PR #103 is outside this consolidation.

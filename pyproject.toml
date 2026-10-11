@@ -55,6 +55,7 @@ unaltraweb_mcp = [
   "component-contract.schema.json",
   "artifact-handoff-v1.schema.json",
   "practice-edition-v1.schema.json",
+  "practice-verifier-runtime.json",
   "source-check-policy-v1.schema.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore.tmpl",

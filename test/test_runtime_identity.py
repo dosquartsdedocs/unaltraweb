@@ -97,6 +97,17 @@ class LiveIdentityTests(unittest.TestCase):
         self.assertEqual(value["binding"]["daemon_host_project"], str(self.project))
         self.assertEqual(runtime.workers["manual_pdf"]["reference"], "sha256:" + "1" * 64)
 
+    def test_private_verifier_selection_is_startup_fixed_without_acquisition(self):
+        from unaltraweb_mcp.practice_verifier import runtime_contract
+        image = runtime_contract()["controller"]["image_id"]
+        values = {"UNALTRAWEB_WORKER_IMAGES": json.dumps({"practice_verifier": {"reference": image, "expected_image_id": image}})}
+        runtime = self.runtime(**values)
+        values["UNALTRAWEB_WORKER_IMAGES"] = "{}"
+        with patch.dict(os.environ, {"PRACTICE_VERIFIER_IMAGE": "wrong:later"}):
+            self.assertEqual(runtime.workers["practice_verifier"]["reference"], image)
+            self.assertEqual(runtime.workers["practice_verifier"]["expected_image_id"], image)
+            self.assertEqual(runtime.observe()["runtime"]["workers"]["practice_verifier"]["state"], "missing")
+
     def test_busy_drain_refuses_new_work_and_does_not_claim_release(self):
         runtime = self.runtime()
         self.assertFalse(runtime.drain()["ok"])

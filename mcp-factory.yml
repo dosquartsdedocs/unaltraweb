@@ -202,16 +202,19 @@ discovery:
     - Site builds execute inside the MCP runtime; previews use one labelled container and a dynamically allocated loopback port per consumer project.
     - Durable website state belongs in versioned site files, not in chat history.
     - Manual release tools prepare local candidates only; publication remains a human-controlled GitHub Actions operation.
+    - Private practice verification uses the hub-prepared native QGIS controller declared by web://practice-verifier-runtime; public Web images never acquire its private package.
 release:
   default: v0.7.2
 contracts:
   component_bom: 1
   distribution_doctor: 1
+  practice_verifier_runtime: 1
 mcp:
   server_name: unaltraweb
   transport: stdio
   resources:
     - web://practice-edition-schema
+    - web://practice-verifier-runtime
     - web://runtime-identity
     - web://artifact-imports
     - web://distribution

@@ -18,14 +18,7 @@
         "bundle": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/hash"},
         "teacher_only": {"$ref": "#/$defs/ids"},
         "verifier": {
-          "type": "object", "additionalProperties": false,
-          "required": ["package", "version", "revision", "wheel_sha256", "schema_sha256"],
-          "properties": {
-            "package": {"type": "string", "const": "unaltracaptura-qgis"},
-            "version": {"type": "string", "minLength": 1, "maxLength": 64},
-            "revision": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-            "wheel_sha256": {"$ref": "#/$defs/hash"}, "schema_sha256": {"$ref": "#/$defs/hash"}
-          }
+          "oneOf": [{"$ref": "#/$defs/legacy_verifier"}, {"$ref": "#/$defs/image_verifier"}]
         }
       }
     },
@@ -40,6 +33,28 @@
     }
   },
   "$defs": {
+    "legacy_verifier": {
+      "type": "object", "additionalProperties": false,
+      "required": ["package", "version", "revision", "wheel_sha256", "schema_sha256"],
+      "properties": {
+        "package": {"type": "string", "const": "unaltracaptura-qgis"},
+        "version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "revision": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "wheel_sha256": {"$ref": "#/$defs/hash"}, "schema_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "image_verifier": {
+      "type": "object", "additionalProperties": false,
+      "required": ["origin", "package", "version", "revision", "image_id", "schema_sha256"],
+      "properties": {
+        "origin": {"const": "prepared-image"},
+        "package": {"type": "string", "const": "unaltracaptura-qgis"},
+        "version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "revision": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "image_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "schema_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
     "dependency": {
       "type": "object", "additionalProperties": false, "required": ["path", "sha256", "destination"],
       "properties": {"path": {"$ref": "#/$defs/path"}, "destination": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/hash"}}

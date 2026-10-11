@@ -16,7 +16,7 @@ IMAGE_ID = re.compile(r"sha256:[0-9a-f]{64}")
 CONTAINER_ID = re.compile(r"[0-9a-f]{64}")
 SESSION_ID = re.compile(r"[0-9a-f]{32}")
 PREFIX = "io.context.mcp-"
-WORKER_ROLES = {"computation", "manual-pdf", "web-capture"}
+WORKER_ROLES = {"computation", "manual-pdf", "web-capture", "practice-verifier"}
 IDLE_ROLES = {"preview", "web-capture-site"}
 CONTAINER_FORMAT = ('{"id":{{json .Id}},"image_id":{{json .Image}},'
     '"network_mode":{{json .HostConfig.NetworkMode}},'

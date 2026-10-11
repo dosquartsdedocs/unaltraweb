@@ -496,6 +496,12 @@ def run_server(project: Path, factory: Path) -> None:
         from .practice_editions import SCHEMA
         return SCHEMA.read_text(encoding="utf-8")
 
+    @mcp.resource("web://practice-verifier-runtime")
+    def practice_verifier_runtime_resource() -> str:
+        """Declared private image/source/profile identities; no acquisition or private execution."""
+        from .practice_verifier import runtime_contract
+        return json.dumps(runtime_contract(), sort_keys=True)
+
     @mcp.tool()
     def manual_pdf_preview_prepare() -> dict[str, Any]:
         """Build stale latest PDFs and stage ignored receipt-owned copies for local Jekyll review without publishing."""
