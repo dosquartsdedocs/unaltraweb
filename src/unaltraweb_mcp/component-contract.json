@@ -2,8 +2,8 @@
   "$schema": "component-contract.schema.json",
   "schema_version": 1,
   "release": {
-    "version": "0.7.1",
-    "tag": "v0.7.1"
+    "version": "0.7.2",
+    "tag": "v0.7.2"
   },
   "consumer_integration": {
     "schema_version": 1,
@@ -62,10 +62,10 @@
     "gem": {
       "kind": "gem",
       "name": "unaltraweb",
-      "version": "0.7.1",
-      "release": "v0.7.1",
+      "version": "0.7.2",
+      "release": "v0.7.2",
       "release_status": "ready",
-      "reference": "unaltraweb (= 0.7.1)",
+      "reference": "unaltraweb (= 0.7.2)",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
       "features": ["jekyll-core", "site-build"]
@@ -73,10 +73,10 @@
     "wheel": {
       "kind": "python-wheel",
       "name": "unaltraweb-mcp",
-      "version": "0.7.1",
-      "release": "v0.7.1",
+      "version": "0.7.2",
+      "release": "v0.7.2",
       "release_status": "ready",
-      "reference": "unaltraweb-mcp==0.7.1",
+      "reference": "unaltraweb-mcp==0.7.2",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": true,
       "features": ["calibre-import", "doctor", "new-web", "offline-inspection", "mcp-control-plane", "source-ci"]
@@ -84,10 +84,10 @@
     "runtime": {
       "kind": "container",
       "name": "unaltraweb runtime",
-      "version": "0.7.1",
-      "release": "v0.7.1",
+      "version": "0.7.2",
+      "release": "v0.7.2",
       "release_status": "ready",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb:0.7.1",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb:0.7.2",
       "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
@@ -96,10 +96,10 @@
     "mcp": {
       "kind": "container",
       "name": "unaltraweb MCP runtime",
-      "version": "0.7.1",
-      "release": "v0.7.1",
+      "version": "0.7.2",
+      "release": "v0.7.2",
       "release_status": "ready",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.1",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.2",
       "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-mcp",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,
