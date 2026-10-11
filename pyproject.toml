@@ -29,6 +29,7 @@ mcp = ["mcp>=1.0.0,<2"]
 [project.scripts]
 unaltraweb-mcp = "unaltraweb_mcp.cli:main"
 unaltraweb-mcp-docker = "unaltraweb_mcp.docker_launcher:main"
+unaltraweb-source-checks = "unaltraweb_mcp.source_checks:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -53,6 +54,8 @@ unaltraweb_mcp = [
   "component-contract.json",
   "component-contract.schema.json",
   "artifact-handoff-v1.schema.json",
+  "practice-edition-v1.schema.json",
+  "source-check-policy-v1.schema.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore.tmpl",
   "scaffolds/common/.unaltraweb/*.sh",

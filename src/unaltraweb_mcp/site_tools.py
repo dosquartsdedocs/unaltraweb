@@ -288,6 +288,7 @@ SCAFFOLD_TEMPLATE_FILES = {
     "home.md.tmpl",
     "root.html.tmpl",
     "deploy.yml.tmpl",
+    "source-checks.yml.tmpl",
     "dependabot.yml.tmpl",
 }
 SCAFFOLD_MANIFEST_PATH = Path(".unaltraweb/scaffold.json")
@@ -301,6 +302,7 @@ SCAFFOLD_MANAGED_PATHS = (
     Path("Gemfile.lock"),
     Path(".github/pull_request_template.md"),
     Path(".github/workflows/deploy.yml"),
+    Path(".github/workflows/source-checks.yml"),
 )
 LANGUAGE_RE = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 SITE_SOURCE_MAX_BYTES = 1024 * 1024
@@ -737,8 +739,11 @@ def _render_scaffold_template(path: Path, replacements: dict[str, str]) -> bytes
 
 
 def _common_scaffold_replacements() -> dict[str, str]:
+    from .source_checks import CHECKER_IMAGE
     integration = consumer_integration()
     return {
+        "WHEEL_VERSION": str(component("wheel")["version"]),
+        "SOURCE_CHECK_IMAGE": CHECKER_IMAGE,
         "GEM_VERSION": str(component("gem")["version"]),
         "MCP_IMAGE": component_reference("mcp"),
         "CORE_REPOSITORY": str(integration["core_repository"]),
@@ -785,6 +790,7 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
         common_root / ".github/dependabot.yml.tmpl",
         common_root / ".github/pull_request_template.md",
         common_root / ".github/workflows/deploy.yml.tmpl",
+        common_root / ".github/workflows/source-checks.yml.tmpl",
         profile_root / "_config.yml.tmpl",
         profile_root / "home.md.tmpl",
     ]
@@ -823,6 +829,11 @@ def _scaffold_payloads(profile: str, *, title: str, baseurl: str, url: str, defa
     payloads[Path(".github/workflows/deploy.yml")] = _render_scaffold_template(
         common_root / ".github/workflows/deploy.yml.tmpl", common_replacements
     )
+    payloads[Path(".github/workflows/source-checks.yml")] = _render_scaffold_template(
+        common_root / ".github/workflows/source-checks.yml.tmpl", common_replacements
+    )
+    from .source_checks import default_policy
+    payloads[Path(".unaltraweb/source-checks.json")] = (json.dumps(default_policy(profile), indent=2, sort_keys=True) + "\n").encode()
     payloads[Path(".github/dependabot.yml")] = _render_scaffold_template(
         common_root / ".github/dependabot.yml.tmpl", common_replacements
     )
@@ -909,6 +920,9 @@ def _managed_scaffold_payloads(project: Path, *, config: dict[str, Any] | None =
         payloads[Path(name)] = _render_scaffold_template(common_root / f"{name}.tmpl", replacements)
     payloads[Path(".github/workflows/deploy.yml")] = _render_scaffold_template(
         common_root / ".github/workflows/deploy.yml.tmpl", replacements
+    )
+    payloads[Path(".github/workflows/source-checks.yml")] = _render_scaffold_template(
+        common_root / ".github/workflows/source-checks.yml.tmpl", replacements
     )
     payloads[Path(".github/dependabot.yml")] = _render_scaffold_template(
         common_root / ".github/dependabot.yml.tmpl", replacements
@@ -5149,13 +5163,23 @@ def manual_pdf_build(project: Path, factory: Path, language: str = "", release_s
 
 def manual_practice_pdf_build(project: Path, factory: Path, source: str, version: str,
                               run: str = "", dry_run: bool = False) -> dict[str, Any]:
-    from .practice_pdf import validate_request
+    from .practice_pdf import validate_source_request
 
-    validate_request(source, version, run)
+    validate_source_request(project_path(project), source, version, run)
     return run_factory_make(factory, project, "manual-practice-pdf-build", env={
         "PRACTICE_SOURCE": source, "PRACTICE_VERSION": version, "PRACTICE_RUN": run,
         "PRACTICE_DRY_RUN": "1" if dry_run else "0",
     })
+
+
+def manual_practice_compose(project: Path, factory: Path, config: str, *, dry_run: bool = False) -> dict[str, Any]:
+    from .practice_editions import compose
+    from .artifact_handoff_v1 import HandoffError
+
+    try:
+        return compose(project, factory, config, dry_run=dry_run)
+    except (OSError, ValueError, RuntimeError, HandoffError) as exc:
+        return {"ok": False, "publishes": False, "error": str(exc)[:4096]}
 
 
 def manual_pdf_preview_prepare(project: Path, factory: Path) -> dict[str, Any]:
@@ -6005,6 +6029,8 @@ def list_tools() -> dict[str, Any]:
     inventory["tools"].extend(["import_artifact_bundle", "artifact_import_check"])
     inventory["tools"].extend(["runtime_identity", "runtime_drain"])
     inventory["tools"].append("manual_practice_pdf_build")
+    inventory["tools"].append("manual_practice_compose")
+    inventory["resources"].append("web://practice-edition-schema")
     return inventory
 
 

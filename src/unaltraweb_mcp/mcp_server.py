@@ -486,6 +486,17 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.manual_practice_pdf_build(project, factory, source, version, run=run, dry_run=dry_run)
 
     @mcp.tool()
+    def manual_practice_compose(config: str, dry_run: bool = False) -> dict[str, Any]:
+        """Compose create-only student/teacher PDF and ZIP pairs from approved readings and producer-verified GIS IDs/closure; never rerun GIS or publish a site."""
+        return tools.manual_practice_compose(project, factory, config, dry_run=dry_run)
+
+    @mcp.resource("web://practice-edition-schema")
+    def practice_edition_schema_resource() -> str:
+        """Versioned consumer composition configuration; GIS semantics remain producer-owned."""
+        from .practice_editions import SCHEMA
+        return SCHEMA.read_text(encoding="utf-8")
+
+    @mcp.tool()
     def manual_pdf_preview_prepare() -> dict[str, Any]:
         """Build stale latest PDFs and stage ignored receipt-owned copies for local Jekyll review without publishing."""
         return tools.manual_pdf_preview_prepare(project, factory)

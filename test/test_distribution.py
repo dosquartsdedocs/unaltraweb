@@ -98,6 +98,7 @@ class DistributionTests(unittest.TestCase):
 
     def test_publish_preflight_reuses_only_digest_pinned_released_pdf(self) -> None:
         contract = distribution_contract()
+        contract["wheel_contract"]["factory_required_mcp"].remove("manual-practice-compose")  # Legacy release gate under test.
         contract["components"]["manual_pdf"].update(version="0.5.0", release="v0.5.0", release_status="released", reference=consumer_integration()["manual_pdf_image"])
         kwargs = {"ref_type": "branch", "ref_name": "main", "default_branch": "main", "component_ids": ["runtime", "mcp", "manual_pdf"]}
         self.assertEqual(publish_ref_errors(contract, **kwargs), [])
@@ -637,12 +638,15 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
         result = json.loads(completed.stdout)
         self.assertTrue(result["ok"])
+        if distribution_validator.practice_verifier.publication_errors(contract):
+            expected_pending = sorted(set(expected_pending) | {distribution_validator.practice_verifier.COMPONENT})
         self.assertEqual(result["release_ready"], not expected_pending and not expected_unavailable)
         self.assertEqual(result["pending_releases"], expected_pending)
         self.assertEqual(result["unavailable_releases"], expected_unavailable)
 
     def test_publish_ref_must_match_the_distribution_release(self) -> None:
         contract = distribution_contract()
+        contract["wheel_contract"]["factory_required_mcp"].remove("manual-practice-compose")  # Independent legacy version/ref gates.
         release_tag = contract["release"]["tag"]
         candidate_ids = ["gem", "wheel", "runtime", "mcp", "manual_pdf"]
         pending = copy.deepcopy(contract)
@@ -712,6 +716,7 @@ class DistributionTests(unittest.TestCase):
 
     def test_release_readiness_tracks_the_immutable_metadata_commit(self) -> None:
         contract = copy.deepcopy(distribution_contract())
+        contract["wheel_contract"]["factory_required_mcp"].remove("manual-practice-compose")
         for component_id, component in contract["components"].items():
             component["release_status"] = "ready" if component_id in {"runtime", "mcp"} else "released"
         digest = "a" * 64
@@ -800,6 +805,19 @@ class DistributionTests(unittest.TestCase):
                     self.assertFalse(result["ok"])
                     self.assertFalse(result["release_ready"])
                     self.assertEqual(result["errors"], expected_errors)
+
+    def test_practice_publication_requires_the_final_released_verifier(self) -> None:
+        from test_practice_verifier_install import fixture_contract
+        contract = distribution_contract()
+        contract["components"].pop(distribution_validator.practice_verifier.COMPONENT, None)
+        arguments = dict(ref_type="branch", ref_name="main", default_branch="main", component_ids=["gem", "wheel", "runtime", "mcp"])
+        self.assertTrue(any("pin is missing" in error for error in publish_ref_errors(contract, **arguments)))
+        contract["components"].update(fixture_contract()["components"])
+        contract["wheel_contract"]["not_bundled"].append(distribution_validator.practice_verifier.COMPONENT)
+        self.assertEqual(component_contract_semantic_errors(contract), [])
+        self.assertEqual(publish_ref_errors(contract, **arguments), [])
+        contract["components"][distribution_validator.practice_verifier.COMPONENT]["release_status"] = "pending"
+        self.assertTrue(publish_ref_errors(contract, **arguments))
 
     def test_release_candidate_receipt_binds_ready_components_to_parent_commit(self) -> None:
         contract = distribution_contract()

@@ -41,6 +41,7 @@ from unaltraweb_mcp.distribution import (  # noqa: E402
     validate_component_contract,
 )
 from scripts.validate_workflows import DEPLOY_PDF_PROVENANCE_POLICY_SHA256, load_workflow_text, reusable_deploy_input_errors  # noqa: E402
+from scripts import install_practice_verifier as practice_verifier  # noqa: E402
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -111,6 +112,9 @@ def validate(root: Path = ROOT) -> list[str]:
     required_components = {
         "gem", "wheel", "runtime", "mcp", "compute_python", "compute_r", "web_capture", "manual_pdf", "diavisuals", "vegavisuals"
     }
+    if practice_verifier.COMPONENT in contract.get("components", {}):
+        required_components.add(practice_verifier.COMPONENT)
+        errors.extend(practice_verifier.publication_errors(contract))
     if contract.get("schema_version") != 1:
         errors.append("component contract schema_version must be 1")
     if set(contract.get("components", {})) != required_components:
@@ -121,6 +125,8 @@ def validate(root: Path = ROOT) -> list[str]:
     if __version__ != version:
         errors.append(f"wheel version {__version__} != contract version {version}")
     errors.extend(component_version_errors(contract))
+    if practice_verifier.required(contract) and "scripts/install_practice_verifier.py --install" not in (root / "Dockerfile.mcp").read_text():
+        errors.append("MCP image must install the BOM-pinned public practice verifier")
     included = {name for name, item in contract["components"].items() if item["included_in_wheel"]}
     if included != {"wheel"}:
         errors.append(f"wheel must not bundle external components: {sorted(included)}")
@@ -515,7 +521,7 @@ def publish_ref_errors(
     default_branch: str,
     component_ids: list[str],
 ) -> list[str]:
-    errors: list[str] = []
+    errors: list[str] = practice_verifier.publication_errors(contract)
     release = contract.get("release", {})
     version = str(release.get("version") or "")
     release_tag = str(release.get("tag") or "")
@@ -590,6 +596,10 @@ def main(argv: list[str] | None = None) -> int:
         component_id for component_id, selected in contract["components"].items()
         if selected["release_status"] == "pending"
     )
+    verifier_errors = practice_verifier.publication_errors(contract)
+    if verifier_errors and practice_verifier.COMPONENT not in pending:
+        pending.append(practice_verifier.COMPONENT)
+        pending.sort()
     unavailable = sorted(
         component_id for component_id, selected in contract["components"].items()
         if selected["release_status"] == "unavailable"
@@ -612,6 +622,7 @@ def main(argv: list[str] | None = None) -> int:
         "errors": errors,
         "pending_releases": pending,
         "unavailable_releases": unavailable,
+        "practice_verifier": {"ready": not verifier_errors, "errors": verifier_errors},
     }, indent=2, sort_keys=True))
     readiness_errors = release_tag_errors + candidate_receipt_errors
     structural_errors = [error for error in errors if error not in readiness_errors]

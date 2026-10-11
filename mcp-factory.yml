@@ -17,6 +17,8 @@ workspace_rule:
     - .github/dependabot.yml
     - .github/pull_request_template.md
     - .github/workflows/deploy.yml
+    - .github/workflows/source-checks.yml
+    - .unaltraweb/source-checks.json
     - _config.yml
     - Makefile
     - Gemfile
@@ -44,6 +46,7 @@ workspace_rule:
     - .unaltraweb/docker-mount.sh
     - .unaltraweb/computations.yml
     - .vegavisuals.yml
+    - .unaltraweb/source-checks.json
     - _pages
     - _posts
     - _news
@@ -208,6 +211,7 @@ mcp:
   server_name: unaltraweb
   transport: stdio
   resources:
+    - web://practice-edition-schema
     - web://runtime-identity
     - web://artifact-imports
     - web://distribution
@@ -271,6 +275,7 @@ mcp:
     - manual_pdf_status
     - manual_pdf_build
     - manual_practice_pdf_build
+    - manual_practice_compose
     - manual_pdf_preview_prepare
     - manual_pdf_preview_clean
     - manual_pdf_publish

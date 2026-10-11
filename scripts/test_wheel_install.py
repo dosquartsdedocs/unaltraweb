@@ -103,6 +103,8 @@ def main() -> int:
             "unaltraweb_mcp/editorial_sources.py",
             "unaltraweb_mcp/image_backgrounds.py",
             "unaltraweb_mcp/image_probe.py",
+            "unaltraweb_mcp/source_checks.py",
+            "unaltraweb_mcp/source-check-policy-v1.schema.json",
             "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
             "unaltraweb_mcp/scaffolds/common/Makefile.tmpl",
             "unaltraweb_mcp/scaffolds/common/README.md.tmpl",
@@ -117,6 +119,7 @@ def main() -> int:
             "unaltraweb_mcp/scaffolds/common/.github/dependabot.yml.tmpl",
             "unaltraweb_mcp/scaffolds/common/.github/pull_request_template.md",
             "unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml.tmpl",
+            "unaltraweb_mcp/scaffolds/common/.github/workflows/source-checks.yml.tmpl",
         ]
         missing = [name for name in required if name not in names]
         if missing:
@@ -129,6 +132,10 @@ def main() -> int:
         python = environment / "bin/python"
         cli = environment / "bin/unaltraweb-mcp"
         run([str(python), "-m", "pip", "install", "--no-deps", str(wheels[0])], cwd=temp, env=env)
+        source_cli = environment / "bin/unaltraweb-source-checks"
+        source_help = run([str(source_cli), "--help"], cwd=temp).stdout
+        if "--base-sha" not in source_help or "--reports" not in source_help:
+            raise RuntimeError("Installed source-CI entrypoint is missing its bounded interface")
         docker_cli = environment / "bin/unaltraweb-mcp-docker"
         launcher = Path(run([str(docker_cli), "path"], cwd=temp).stdout.strip())
         if launcher != environment / "share/unaltraweb-launcher":
@@ -178,6 +185,11 @@ def main() -> int:
             ], cwd=temp).stdout)
             if not created["ok"]:
                 raise RuntimeError(f"new-web failed for {profile} from clean wheel: {created}")
+            source_policy = json.loads((profile_site / ".unaltraweb/source-checks.json").read_bytes())
+            if source_policy["profile"] != profile:
+                raise RuntimeError("Source-CI policy did not declare the generated profile")
+            if not (profile_site / ".github/workflows/source-checks.yml").is_file():
+                raise RuntimeError("Source-CI workflow control is missing")
             readme = (profile_site / "README.md").read_text(encoding="utf-8")
             agents = (profile_site / "AGENTS.md").read_text(encoding="utf-8")
             collaboration = (profile_site / ".github/CONTRIBUTING.md").read_text(encoding="utf-8")
@@ -317,6 +329,7 @@ def main() -> int:
                 "Gemfile.lock",
                 ".github/pull_request_template.md",
                 ".github/workflows/deploy.yml",
+                ".github/workflows/source-checks.yml",
             }
             if set(manifest["files"]) != expected_managed:
                 raise RuntimeError(f"generated {profile} scaffold baseline is incomplete: {manifest['files']}")

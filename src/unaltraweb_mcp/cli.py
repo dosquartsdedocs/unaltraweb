@@ -28,6 +28,7 @@ FACTORY_REQUIRED_MCP_COMMANDS = {
     "manual-pdf-status",
     "manual-pdf-build",
     "manual-practice-pdf-build",
+    "manual-practice-compose",
     "manual-pdf-preview-prepare",
     "manual-pdf-publish",
     "manual-release-status",
@@ -196,6 +197,10 @@ def cmd_import_calibre(args: argparse.Namespace) -> int:
 
 
 def cmd_mcp(args: argparse.Namespace) -> int:
+    if args.mcp_command == "manual-practice-compose":
+        selected = args.project or os.environ.get("MCP_CONSUMER_WORKSPACE")
+        if not selected or not Path(selected).is_absolute():
+            raise ValueError("Practice composition requires --project or MCP_CONSUMER_WORKSPACE with an explicit absolute consumer")
     project = project_dir(args.project)
     command = args.mcp_command
     factory = factory_dir(command) if command in FACTORY_REQUIRED_MCP_COMMANDS else find_factory_dir()
@@ -318,6 +323,8 @@ def cmd_mcp(args: argparse.Namespace) -> int:
     if command == "manual-practice-pdf-build":
         return print_json(tools.manual_practice_pdf_build(project, factory, args.source, args.version,
                                                          run=args.run, dry_run=args.dry_run), enforce_ok=True)
+    if command == "manual-practice-compose":
+        return print_json(tools.manual_practice_compose(project, factory, args.config, dry_run=args.dry_run), enforce_ok=True)
     if command == "manual-pdf-preview-prepare":
         return print_json(tools.manual_pdf_preview_prepare(project, factory), enforce_ok=True)
     if command == "manual-pdf-preview-clean":
@@ -536,6 +543,9 @@ def build_parser() -> argparse.ArgumentParser:
     practice_pdf.add_argument("--version", required=True)
     practice_pdf.add_argument("--run", default="")
     practice_pdf.add_argument("--dry-run", action="store_true")
+    practice_compose = mcp_sub.add_parser("manual-practice-compose")
+    practice_compose.add_argument("--config", required=True, help="Versioned consumer-relative practice-edition configuration")
+    practice_compose.add_argument("--dry-run", action="store_true")
 
     mcp_sub.add_parser("manual-pdf-preview-prepare")
 

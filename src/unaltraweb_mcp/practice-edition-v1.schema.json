@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unaltraweb private practice edition v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "slug", "version", "language", "gis", "readings", "selection"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "kind": {"type": "string", "const": "unaltraweb-practice-edition"},
+    "slug": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"},
+    "version": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+    "language": {"type": "string", "enum": ["ca", "es", "en"]},
+    "gis": {
+      "type": "object", "additionalProperties": false,
+      "required": ["bundle", "sha256", "verifier"],
+      "properties": {
+        "profile": {"type": "string", "enum": ["qgis-practice-v1", "qgis-practice-v2"], "default": "qgis-practice-v1"},
+        "bundle": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/hash"},
+        "teacher_only": {"$ref": "#/$defs/ids"},
+        "verifier": {
+          "type": "object", "additionalProperties": false,
+          "required": ["package", "version", "revision", "wheel_sha256", "schema_sha256"],
+          "properties": {
+            "package": {"type": "string", "const": "unaltracaptura-qgis"},
+            "version": {"type": "string", "minLength": 1, "maxLength": 64},
+            "revision": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+            "wheel_sha256": {"$ref": "#/$defs/hash"}, "schema_sha256": {"$ref": "#/$defs/hash"}
+          }
+        }
+      }
+    },
+    "readings": {
+      "type": "object", "additionalProperties": false, "required": ["alumnat", "docent"],
+      "properties": {"alumnat": {"$ref": "#/$defs/reading"}, "docent": {"$ref": "#/$defs/reading"}}
+    },
+    "resources": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/resource"}},
+    "selection": {
+      "type": "object", "additionalProperties": false, "required": ["alumnat", "docent"],
+      "properties": {"alumnat": {"$ref": "#/$defs/roots"}, "docent": {"$ref": "#/$defs/roots"}}
+    }
+  },
+  "$defs": {
+    "dependency": {
+      "type": "object", "additionalProperties": false, "required": ["path", "sha256", "destination"],
+      "properties": {"path": {"$ref": "#/$defs/path"}, "destination": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/hash"}}
+    },
+    "resource": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "sha256", "destination", "role", "recipients", "dependencies"],
+      "properties": {
+        "path": {"$ref": "#/$defs/path"}, "destination": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/hash"},
+        "role": {"type": "string", "const": "editable-infographic"},
+        "recipients": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"type": "string", "enum": ["alumnat", "docent"]}},
+        "dependencies": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/dependency"}}
+      }
+    },
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9._-]{0,79}$"},
+    "ids": {"type": "array", "maxItems": 256, "items": {"$ref": "#/$defs/id"}},
+    "roots": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/id"}},
+    "reading": {
+      "type": "object", "additionalProperties": false, "required": ["source", "approved_sha256"],
+      "properties": {"source": {"$ref": "#/$defs/path"}, "approved_sha256": {"$ref": "#/$defs/hash"},
+                     "bindings": {"type": "array", "maxItems": 200, "items": {"$ref": "#/$defs/binding"}}}
+    },
+    "binding": {
+      "type": "object", "additionalProperties": false, "required": ["reference", "sha256"],
+      "oneOf": [{"required": ["path"]}, {"required": ["product"]}],
+      "properties": {
+        "reference": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "path": {"$ref": "#/$defs/path"}, "product": {"$ref": "#/$defs/id"},
+        "sha256": {"$ref": "#/$defs/hash"}, "destination": {"$ref": "#/$defs/path"}
+      }
+    }
+  }
+}
