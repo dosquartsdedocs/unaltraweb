@@ -79,6 +79,18 @@ def inspect_container(value):
     return _inspect("container", value, CONTAINER_FORMAT)
 
 
+def _container_comparison(info):
+    """Ignore only mount ordering, retaining complete records and duplicates."""
+    mounts = info.get("mounts")
+    if not isinstance(mounts, list) or any(not isinstance(item, dict) for item in mounts):
+        raise RuntimeError("Invalid container mount observation")
+
+    def encode(value):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+    return encode({**info, "mounts": sorted(mounts, key=encode)})
+
+
 def inspect_image(reference, expected_id=""):
     image_reference(reference)
     if expected_id and not IMAGE_ID.fullmatch(expected_id):
@@ -180,8 +192,15 @@ def session_status(project, session_id, container_id, *, reap=False):
                     # Exited exact owned objects only; no force or volume flag.
                     current = inspect_container(info["id"])
                     if current is not None:
-                        if current != info or docker(["rm", info["id"]]).returncode:
+                        if _container_comparison(current) != _container_comparison(info):
                             raise RuntimeError("Exited resource changed during recovery")
+                        result = docker(["rm", info["id"]])
+                        truncated = result.stdout_truncated or result.stderr_truncated
+                        if result.returncode or result.timed_out or truncated:
+                            raise RuntimeError(f"Exited resource removal failed (exit={result.returncode}, "
+                                               f"timed_out={result.timed_out}, output_truncated={truncated})")
+                        if inspect_container(info["id"]) is not None:
+                            raise RuntimeError("Exited resource removal is not confirmed")
             resources = session_containers(project_id, session_id)
             for info in networks:
                 remove_idle_network(info["id"], project_id, session_id)

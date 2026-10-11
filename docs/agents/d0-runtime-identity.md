@@ -87,6 +87,14 @@ does not authorize removal. `reap-session` preserves a live backend or running
 job, and recovers only that retired session's idle resources. Occupied or foreign
 networks fail closed. No fresh-helper PID is presented as the backend's PID.
 
+Exited-resource recovery compares complete Docker observations while canonicalizing
+only the order of mount records. Every mount field, field type and duplicate record
+remains significant; a real identity/state/mount change still refuses removal.
+Removal failure or timeout is reported separately from observation drift, and
+the exact container ID must be absent before release is confirmed. This recovery
+code runs in the installed host adapter: selecting a controller image does not
+update an already installed adapter.
+
 The legacy `down` / `make mcp-down` is an explicit **workspace-wide** shutdown;
 `mcp-down-all` is maintainer/factory-wide. Neither is the hub's per-client toggle
 operation. The managed sequence is live drain, close this transport, inspect its
