@@ -4124,56 +4124,62 @@ def run_factory_make(
     return payload
 
 
-def _cleanup_timed_out_workers(*, role: str, project_id: str, token: str) -> dict[str, Any]:
+def _cleanup_timed_out_workers(*, role: str, project_id: str, token: str,
+                               expected_image_id: str = "", session_id: str | None = None) -> dict[str, Any]:
     from .runtime_identity import active_runtime
     from .runtime_lifecycle import inspect_container
     runtime = active_runtime()
+    if session_id is None and runtime is not None:
+        session_id = runtime.session_id
     filters = [
         f"label={WORKER_FACTORY_LABEL}=unaltraweb",
         f"label={WORKER_ROLE_LABEL}={role}",
         f"label={WORKER_PROJECT_LABEL}={project_id}",
         f"label={WORKER_TOKEN_LABEL}={token}",
     ]
-    if runtime is not None and runtime.session_id:
-        filters.append(f"label=io.context.mcp-session={runtime.session_id}")
+    if session_id:
+        filters.append(f"label=io.context.mcp-session={session_id}")
     command = ["docker", "ps", "-aq", "--no-trunc"]
     for value in filters:
         command.extend(["--filter", value])
-    try:
+    def inventory():
         listed = run_process(command, timeout_seconds=10)
-    except OSError as exc:
-        return {"ok": False, "filters": filters, "removed": [], "error": str(exc)}
-    if listed.returncode != 0 or listed.stdout_truncated:
-        return {
-            "ok": False,
-            "filters": filters,
-            "removed": [],
-            "error": listed.stderr.strip() or "Docker worker inventory failed or was truncated.",
-        }
-    container_ids = [line.strip() for line in listed.stdout.splitlines() if line.strip()]
-    if len(container_ids) > 32 or any(not re.fullmatch(r"[0-9a-f]{64}", container_id) for container_id in container_ids):
-        return {"ok": False, "filters": filters, "removed": [], "error": "Docker returned an invalid worker container id."}
-    if not container_ids:
-        return {"ok": True, "filters": filters, "removed": []}
+        if listed.returncode or listed.timed_out or listed.stdout_truncated or listed.stderr_truncated:
+            raise RuntimeError(listed.stderr.strip() or "Docker worker inventory failed or exceeded its bound.")
+        ids = [line.strip() for line in listed.stdout.splitlines() if line.strip()]
+        if len(ids) > 32 or len(set(ids)) != len(ids) or any(not re.fullmatch(r"[0-9a-f]{64}", cid) for cid in ids):
+            raise RuntimeError("Docker returned an invalid worker container id.")
+        return ids
+
     try:
+        if runtime is not None and session_id != runtime.session_id:
+            raise RuntimeError("Worker cleanup differs from the active session")
+        container_ids = inventory()
+        verified = []
         for cid in container_ids:
             info = inspect_container(cid)
             if info is None:
                 continue
             if (info["id"] != cid or info.get("factory") != "unaltraweb" or info.get("role") != role
                     or info.get("project_id") != project_id or info.get("worker_token") != token
-                    or (runtime is not None and runtime.session_id and info.get("session_id") != runtime.session_id)):
+                    or (session_id is not None and (info.get("session_id") or "") != session_id)
+                    or (expected_image_id and info.get("image_id") != expected_image_id)):
                 raise RuntimeError("Worker ownership changed before cleanup")
-        removed = run_process(["docker", "rm", "-f", *container_ids], timeout_seconds=30)
-        confirmed = removed.returncode == 0 and all(inspect_container(cid) is None for cid in container_ids)
-    except (OSError, ValueError, RuntimeError, KeyError) as exc:
+            verified.append(cid)
+        if verified:
+            removed = run_process(["docker", "rm", "-f", *verified], timeout_seconds=30)
+            if removed.returncode or removed.timed_out or removed.stdout_truncated or removed.stderr_truncated:
+                raise RuntimeError(removed.stderr.strip() or "Docker worker removal failed or exceeded its bound.")
+        if any(inspect_container(cid) is not None for cid in container_ids) or (container_ids and inventory()):
+            raise RuntimeError("Docker worker termination could not be confirmed.")
+    except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
         return {"ok": False, "filters": filters, "removed": [], "resources_released": False, "error": str(exc)}
     return {
-        "ok": confirmed,
+        "ok": True,
         "filters": filters,
-        "removed": container_ids if confirmed else [],
-        "resources_released": confirmed,
-        "error": "" if confirmed else (removed.stderr.strip() or "Docker worker termination could not be confirmed."),
+        "removed": verified,
+        "resources_released": True,
+        "error": "",
     }
 
 

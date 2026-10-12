@@ -200,6 +200,58 @@ the fixes (`tmp/private-verifier-98/review-p2-before.log`):
 
 Regression negatives rehash the edited SVG and replace the PDF receipt to exercise
 real resealing attempts. Both output copies must match the original reading seal.
-The corrected source needs independent re-review on its committed HEAD. The
-external receipt reference was added after the retained local probe; it does not
-change executable bridge/compositor bytes or the accepted image/schema selections.
+The independent [re-review of `e16e2478`](https://github.com/dosquartsdedocs/unaltraweb/pull/104#pullrequestreview-5485508017)
+explicitly resolved these three findings. The external receipt reference was added
+after the retained local probe without changing its executable bridge/compositor
+bytes or accepted image/schema selections.
+
+## Create-stage teardown correction after e16e2478
+
+The same re-review identified [P2 4243700163](https://github.com/dosquartsdedocs/unaltraweb/pull/104#discussion_r4243700163):
+`docker create` could allocate a container and then time out or return a truncated
+or malformed reply before entering the cleanup guard. A never-started container
+is not retired by `--rm`.
+
+Creation, reply validation and start/attach now share the guarded lifecycle.
+The already minted project/token labels scope the existing native worker cleanup,
+including direct CLI calls without a session and creation with uncertain effects.
+Recovery uses the bounded exact-token daemon inventory; an untrusted reply or
+container name is never removal authority. Before `start`, the daemon-observed
+full CID, image, factory, role, project, token and session must match the invocation.
+The shared cleanup helper accepts the bridge's expected image/session, revalidates
+every listed CID and removes only positively verified objects. Objects already
+observed absent are not passed to `rm`.
+
+Inventory/removal timeouts, either truncated stream, Docker errors, ownership
+mismatches and unknown absence produce `teardown is unconfirmed`, with the worker
+token for diagnosis and the original operation failure retained in the exception
+chain. Cleanup must confirm known-CID absence and an empty scoped inventory.
+Observation is bounded; private execution, request arguments, mounts, limits and
+the selected image/profile pins retain their previous semantics.
+
+Regression evidence is create-only under `/tmp/opencode/web104-create-cleanup-01/`:
+
+- `red.log`: seven create-stage tests, 30 failing cases on the original executable
+  bytes; SHA-256 `de80dcba863548ceb2b530bb39a90c25bf3c7b1ef953f10e0fb52df9272b6699`.
+- `green.log`: all 18 bridge tests pass, including malformed/truncated/lost create
+  replies, allocation failure before create, cleanup failures, foreign CIDs,
+  ownership/image/session mismatches, Docker/absence errors and the positive
+  bounded reopen contract; SHA-256
+  `70925737a0e85516e4d349ceef54527a963bb48f9e0a350b0c7e573a39c14dcb`.
+- `lifecycle.log`: all 35 shared site/lifecycle tests pass; SHA-256
+  `74d62aeec13ef065365713a469238f4fd09c35956888dfa6066a0b504d638dec`.
+- `native.json`: actual prepared-image allocations followed by injected timeout,
+  truncated and malformed create replies, plus one successful native schema call.
+  All four exact CIDs are absent. No model, PDF or render was run. SHA-256
+  `8ae0fe6ead4b1cd93c721041fce70508c289fc61bcee2b3309aba734ed5e34ef`.
+- `full.log`: 729 tests, 701 passed / 28 optional skips, including an additional
+  stale-inventory regression that forbids removing a CID already observed absent.
+  SHA-256 `0d6bc4249c40346a4f01c3f4a8d6e005a0740e439c7dc050d9fa35c550f60f2d`.
+
+The hub's earlier independent Web-only identity/capabilities/binding/EOF probe
+remains retained at `/tmp/opencode/practice33-web-native-private-01/evidence.json`,
+SHA-256 `ced4a6262d87674b4ff2fa5cff7290e92d1cd33f834edfa1f694ced7d500c6cf`.
+That probe describes its original `555bea37…` image, not the new cleanup bytes or
+release acceptance. This lifecycle delta needs its own TIG review on the new HEAD;
+the earlier PDF/ZIP renders, descriptor `f17eec24…` and private receipt `45db1e01…`
+remain unchanged.

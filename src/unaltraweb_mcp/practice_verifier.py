@@ -143,23 +143,36 @@ def call(project, operation, *, profile=None, bundle=None, sha256=None, selected
         command.extend(["--group-add", str(socket.stat().st_gid), "--mount", docker_bind_mount(socket, "/var/run/docker.sock")])
         mounts.append({"source": str(socket), "target": "/var/run/docker.sock", "readonly": False})
     command.extend(["--entrypoint", "python3", observed["observed_image_id"], "-I", "-B", "-m", "veure_qgis_mcp.cli", *arguments])
-    created = run_process(command, timeout_seconds=30, output_limit=65536)
-    if created.returncode or created.timed_out or created.stdout_truncated or created.stderr_truncated:
-        raise RuntimeError("Cannot start the prepared private verifier: " + created.stderr[-2000:])
-    cid = created.stdout.strip()
-    if not lifecycle.CONTAINER_ID.fullmatch(cid):
-        raise RuntimeError("Private verifier did not return an exact container ID")
+    cid = ""
     completed = None
-    cleanup = {"ok": True, "resources_released": False, "container_id": cid}
     try:
+        # Allocation can succeed even when the create reply is lost or invalid.
+        # The pre-minted ownership token, not that reply, scopes final cleanup.
+        created = run_process(command, timeout_seconds=30, output_limit=65536)
+        if created.returncode or created.timed_out or created.stdout_truncated or created.stderr_truncated:
+            raise RuntimeError("Cannot start the prepared private verifier: " + created.stderr[-2000:])
+        reported = created.stdout.strip()
+        if not lifecycle.CONTAINER_ID.fullmatch(reported):
+            raise RuntimeError("Private verifier did not return an exact container ID")
+        info = lifecycle.inspect_container(reported)
+        if (not isinstance(info, dict) or info.get("id") != reported or info.get("image_id") != observed["observed_image_id"]
+                or info.get("factory") != "unaltraweb" or info.get("role") != ROLE or info.get("project_id") != project_id
+                or info.get("worker_token") != token or (info.get("session_id") or "") != session):
+            raise RuntimeError("Private verifier create returned an unverified or foreign container ID")
+        cid = reported
         completed = run_process(["docker", "start", "--attach", cid], timeout_seconds=300 if operation == "reopen" else 120,
                                 output_limit=1024*1024)
     finally:
-        if lifecycle.inspect_container(cid) is not None:
-            cleanup = {**_cleanup_timed_out_workers(role=ROLE, project_id=project_id, token=token), "container_id": cid}
-        cleanup["resources_released"] = lifecycle.inspect_container(cid) is None
-    if not cleanup.get("ok") or not cleanup["resources_released"]:
-        raise RuntimeError("Private verifier exact teardown is unconfirmed: " + cid)
+        try:
+            cleanup = {**_cleanup_timed_out_workers(role=ROLE, project_id=project_id, token=token,
+                       expected_image_id=observed["observed_image_id"], session_id=session), "container_id": cid or None}
+            if cid and cleanup.get("ok"):
+                cleanup["resources_released"] = cleanup.get("resources_released") is True and lifecycle.inspect_container(cid) is None
+        except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
+            raise RuntimeError(f"Private verifier exact teardown is unconfirmed (token={token}): {exc}") from exc
+        if cleanup.get("ok") is not True or cleanup.get("resources_released") is not True:
+            raise RuntimeError(f"Private verifier exact teardown is unconfirmed (token={token}): " +
+                               (cleanup.get("error") or "container absence is unconfirmed"))
     if completed.returncode or completed.timed_out or completed.stdout_truncated or completed.stderr_truncated:
         raise RuntimeError("Native private verifier refused or exceeded its bound: " + (completed.stderr or completed.stdout)[-3000:])
     value = parse_json(completed.stdout.encode())
