@@ -942,7 +942,7 @@ class SiteManagementQualityTests(unittest.TestCase):
             env = run.call_args_list[0].kwargs["env"]
             return {"id": cid, "factory": "unaltraweb", "role": env["UNALTRAWEB_WORKER_ROLE"],
                     "project_id": env["UNALTRAWEB_WORKER_PROJECT"], "worker_token": env["UNALTRAWEB_WORKER_TOKEN"]}
-        with patch("unaltraweb_mcp.site_tools.run_process", side_effect=[timed_out, listed, removed]) as run, patch(
+        with patch("unaltraweb_mcp.site_tools.run_process", side_effect=[timed_out, listed, removed, removed]) as run, patch(
             "unaltraweb_mcp.runtime_lifecycle.inspect_container", side_effect=inspect_owned,
         ):
             result = site_tools.run_factory_make(
@@ -967,6 +967,19 @@ class SiteManagementQualityTests(unittest.TestCase):
         ]:
             self.assertTrue(any(label in value for value in list_command))
         self.assertEqual(run.call_args_list[2].args[0], ["docker", "rm", "-f", "a" * 64])
+
+    def test_worker_disappearing_after_inventory_is_not_an_unverified_removal_target(self) -> None:
+        def result(stdout):
+            return site_tools.ProcessResult(args=["docker"], returncode=0, stdout=stdout, stderr="", timed_out=False,
+                                            stdout_truncated=False, stderr_truncated=False)
+        with patch("unaltraweb_mcp.site_tools.run_process", side_effect=[result("a" * 64), result("")]) as run, \
+                patch("unaltraweb_mcp.runtime_lifecycle.inspect_container", return_value=None), \
+                patch("unaltraweb_mcp.runtime_identity.active_runtime", return_value=None):
+            cleanup = site_tools._cleanup_timed_out_workers(role="practice-verifier", project_id="b" * 16, token="c" * 32,
+                                                           expected_image_id="sha256:" + "d" * 64, session_id="")
+        self.assertTrue(cleanup["ok"] and cleanup["resources_released"])
+        self.assertEqual(cleanup["removed"], [])
+        self.assertEqual([call.args[0][:3] for call in run.call_args_list], [["docker", "ps", "-aq"], ["docker", "ps", "-aq"]])
 
     def test_http_check_uses_only_owned_preview_origin_and_rejects_hostile_scope(self) -> None:
         _, project_id, _ = site_tools._preview_identity(self.project)

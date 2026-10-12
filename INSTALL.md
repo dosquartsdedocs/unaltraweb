@@ -12,7 +12,16 @@ Create a clean profile-specific repository locally or through the MCP:
 unaltraweb-mcp --project ./my-site new-web --site-profile unaltredocs --title "Project documentation" --default-lang en
 ```
 
-The command is idempotent for identical inputs and refuses differing files, symlinks, and unsafe language paths. It records exactly nine package-managed scaffold controls in `.unaltraweb/scaffold.json`: `.gitignore`, `.unaltraweb/docker-mount.sh`, `.github/CONTRIBUTING.md`, `.github/dependabot.yml`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, and `.github/workflows/deploy.yml`. An explicit `scaffold_sync` dry-run can later update files that remain unchanged from their baseline and adopt exact current package bytes without rewriting them. Synchronization is all-or-nothing when a managed file conflicts, and retired paths are removed only from the baseline without deleting project files. `README.md`, `AGENTS.md`, `_config.yml`, and content remain site-owned. The command does not require or inspect `unaltraweb-template`.
+The command is idempotent for identical inputs and refuses differing files, symlinks, and unsafe language paths. It records ten package-managed scaffold controls in `.unaltraweb/scaffold.json`: `.gitignore`, `.unaltraweb/docker-mount.sh`, `.github/CONTRIBUTING.md`, `.github/dependabot.yml`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, `.github/workflows/deploy.yml`, and `.github/workflows/source-checks.yml`. An explicit `scaffold_sync` dry-run can later update files that remain unchanged from their baseline and adopt exact current package bytes without rewriting them. Synchronization is all-or-nothing when a managed file conflicts, and retired paths are removed only from the baseline without deleting project files. `README.md`, `AGENTS.md`, `_config.yml`, `.unaltraweb/source-checks.json`, and content remain site-owned. The command does not require or inspect `unaltraweb-template`.
+
+The source-check control is prepared for the containing 0.7.2 release. It installs
+that exact public PyPI package version and runs the existing public profile/prose
+checkers in a digest-pinned image. Activate it after the containing package is
+published; public 0.7.1 does not contain the new source-CI runner. The workflow is
+copied byte-for-byte from the package, so public consumers do not need access to
+a private provider workflow. Project-only JSON policy declares coverage/data roots;
+models, private inputs and rendered deliveries remain explicitly `not_run`.
+See [the source CI contract](docs/agents/source-ci-98.md).
 
 The wheel can verify its own modular distribution and a generated site without a factory checkout:
 

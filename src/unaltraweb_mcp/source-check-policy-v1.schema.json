@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unaltraweb source-check project policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile", "public_roots", "practice_roots", "data_roots"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "profile": {"type": "string", "enum": ["unaltreselfie", "unaltreprojecte", "unaltremanual", "unaltredocs"]},
+    "public_roots": {"$ref": "#/$defs/roots"},
+    "practice_roots": {"$ref": "#/$defs/roots"},
+    "data_roots": {"$ref": "#/$defs/roots"},
+    "allow_empty_public_sources": {"enum": [false, true]},
+    "empty_reason": {"type": "string", "maxLength": 240}
+  },
+  "$defs": {
+    "roots": {"type": "array", "maxItems": 64, "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 1024}}
+  }
+}

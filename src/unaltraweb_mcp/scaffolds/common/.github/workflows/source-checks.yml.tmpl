@@ -1,0 +1,74 @@
+name: Public source conservation
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: Full ancestor commit used to preserve the already-versioned legacy inventory.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-checks-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SOURCE_CHECK_IMAGE: __SOURCE_CHECK_IMAGE__
+      SOURCE_CHECK_PACKAGE: "unaltraweb-mcp==__WHEEL_VERSION__"
+      SOURCE_BASE_SHA: ${{ github.event.pull_request.base.sha || inputs.base_sha }}
+    steps:
+      - name: Checkout sources and comparison history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prepare Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.13"
+
+      - name: Install the shared public package and prepare the exact checker image
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -I -m venv "$RUNNER_TEMP/unaltraweb-source-checks"
+          "$RUNNER_TEMP/unaltraweb-source-checks/bin/python" -I -m pip --isolated install \
+            --index-url https://pypi.org/simple --only-binary=:all: --no-deps \
+            --disable-pip-version-check "$SOURCE_CHECK_PACKAGE"
+          docker pull "$SOURCE_CHECK_IMAGE"
+
+      - name: Check declared sources and preserve the legacy inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/unaltraweb-source-checks/bin/python" -I -m unaltraweb_mcp.source_checks \
+            --project "$GITHUB_WORKSPACE" --base-sha "$SOURCE_BASE_SHA" \
+            --reports "$RUNNER_TEMP/unaltraweb-source-reports" --image "$SOURCE_CHECK_IMAGE"
+
+      - name: Report exact coverage and deferred checks
+        if: always()
+        shell: bash
+        run: |
+          if test -f "$RUNNER_TEMP/unaltraweb-source-reports/summary.md"; then
+            cat "$RUNNER_TEMP/unaltraweb-source-reports/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '%s\n' 'Source CI did not produce a report; coverage is unknown, not passed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Retain source-check reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: public-source-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/unaltraweb-source-reports/
+          if-no-files-found: error
+          retention-days: 14

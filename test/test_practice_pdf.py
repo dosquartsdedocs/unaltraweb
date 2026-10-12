@@ -68,10 +68,96 @@ class PracticePdfFixture(unittest.TestCase):
         (job / "outputs/LLEGIU-ME.pdf").write_bytes(b"%PDF-1.7\nunit-test-output")
         (job / "outputs/preview.png").write_bytes(b"unit-test-preview")
         (job / "outputs/render-report.json").write_text('{"pages": 1, "publishes": false}')
+        (job / "outputs/source.effective.md").write_text("Effective unit fixture\n")
+        (job / "outputs/source.effective.json").write_text('{"blocks": []}')
         return SimpleNamespace(returncode=0, timed_out=False, stdout="", stderr="")
 
 
 class PracticePdfTests(PracticePdfFixture):
+    def test_build_returns_pdf_and_receipt_seals_for_new_and_reused_outputs(self):
+        with patch.object(practice_pdf, "run_process", side_effect=self.fake_render):
+            built = self.build()
+        self.assertEqual(built["pdf_sha256"], practice_pdf.digest((self.project/built["pdf"]).read_bytes()))
+        self.assertEqual(built["receipt_sha256"], practice_pdf.digest((self.project/built["receipt"]).read_bytes()))
+        with patch.object(practice_pdf, "run_process", side_effect=AssertionError("No second render")):
+            reused = self.build()
+        self.assertEqual(reused["state"], "current")
+        self.assertEqual(reused["pdf_sha256"], built["pdf_sha256"])
+        self.assertEqual(reused["receipt_sha256"], built["receipt_sha256"])
+
+    def test_review_p2_mapped_private_root_requires_exclusion_and_refuses_include(self):
+        source = "_practices/demo/ca/docent/LLEGIU-ME.md"
+        path = self.project/source
+        path.parent.mkdir(parents=True)
+        path.write_bytes(self.source.read_bytes())
+        shutil.rmtree(self.project/"practiques")  # Exercise a legacy-root-only project.
+        self.config["unaltraweb"]["practices"] = {"readings": [{"source": source, "slug": "demo", "lang": "ca", "recipient": "docent"}]}
+        for excluded, included in ((False, []), (False, ["_practices"]), (True, ["_practices"]), (True, ["_practices/**"])):
+            with self.subTest(excluded=excluded, included=included):
+                self.config["exclude"] = [*CONFIG["exclude"], *(["_practices/"] if excluded else [])]
+                self.config["include"] = included
+                self.write_config()
+                with self.assertRaisesRegex(ValueError, "_practices|private practice"):
+                    self.plan(source=source)
+                self.assertFalse(site_tools.profile_check(self.project)["ok"])
+        self.config["exclude"] = [*CONFIG["exclude"], "_practices/"]
+        self.config["include"] = []
+        self.write_config()
+        self.assertEqual(self.plan(source=source)["audience"], "docent")
+
+    def test_portable_links_resolve_against_original_source_and_bind_destination(self):
+        source = "_practices/tigit-projecte-territorial/readings/ca/LLEGIU-ME-estudiant.md"
+        selected = {"_practices/tigit-projecte-territorial/templates/infografia-a3.svg": {
+            "destination": "resources/figures/plantilla.svg", "sha256": "a"*64, "bytes": 200}}
+        text = "[Plantilla](../../templates/infografia-a3.svg#panel) [Teoria](https://example.org/a?q=1#b) [Secció](#apartat)"
+        plan = practice_pdf.reading_links(text, source, selected)
+        self.assertEqual(len(plan["links"]), 1)
+        self.assertEqual(plan["links"][0]["target"], "resources/figures/plantilla.svg#panel")
+        self.assertEqual(plan["links"][0]["sha256"], "a"*64)
+        for bad in ("../../../../../../secret.svg", "/etc/passwd", "%2fetc/passwd", "../../templates/private.svg"):
+            with self.subTest(link=bad), self.assertRaises(ValueError):
+                practice_pdf.reading_links(f"[Resource]({bad})", source, selected)
+
+    def test_standalone_local_links_fail_but_https_and_anchors_are_valid(self):
+        with self.assertRaisesRegex(ValueError, "Standalone"):
+            practice_pdf.reading_links("[Local](guide.pdf)", SOURCE)
+        plan = practice_pdf.reading_links("[Web](https://example.org) [Here](#here)", SOURCE)
+        self.assertEqual(plan["links"], [])
+
+    def test_one_binding_resolves_logical_capture_from_retained_run(self):
+        capture = self.project / "sandbox/practiques/demo/run-old/captures/inici.png"
+        capture.parent.mkdir(parents=True)
+        capture.write_bytes(b"declared captured pixels")
+        binding = {"reference": "captures/inici.png", "path": capture.relative_to(self.project).as_posix(),
+                   "sha256": practice_pdf.digest(capture.read_bytes()), "destination": "resources/captures/inici.png"}
+        self.config["unaltraweb"]["practices"] = {"readings": [{"source": SOURCE, "slug": "demo", "lang": "ca", "recipient": "alumnat", "bindings": [binding]}]}
+        self.write_config()
+        self.source.write_text(self.source.read_text() + "\n![Capture](captures/inici.png)\n\n[Download](captures/inici.png)\n")
+        plan = self.plan(portable_targets={})
+        self.assertEqual(plan["portable_links"]["links"][0]["target"], binding["destination"])
+        self.assertEqual(plan["portable_links"]["bindings"], [binding])
+        self.assertIn(binding["path"], plan["original_inputs"])
+        self.assertIn(b"declared captured pixels", plan["files"].values())
+        capture.write_bytes(b"changed pixels")
+        with self.assertRaisesRegex(ValueError, "binding hash"):
+            self.plan(portable_targets={})
+
+    def test_product_binding_cannot_cross_recipient_selection(self):
+        self.source.write_text(self.source.read_text()+"\n![Capture](captures/inici.png)\n")
+        binding = {"reference": "captures/inici.png", "product": "teacher-capture", "sha256": "a"*64}
+        with self.assertRaisesRegex(ValueError, "not selected"):
+            self.plan(portable_targets={}, bindings=[binding], products={})
+
+    def test_link_mapping_changes_fingerprint_without_rewriting_original(self):
+        self.source.write_text(self.source.read_text()+"\n[Template](template.svg)\n")
+        original = self.source.read_bytes()
+        path = str(Path(SOURCE).parent / "template.svg")
+        one = self.plan(portable_targets={path: {"destination": "resources/one.svg", "sha256": "a"*64, "bytes": 20}})
+        two = self.plan(portable_targets={path: {"destination": "resources/two.svg", "sha256": "a"*64, "bytes": 20}})
+        self.assertNotEqual(one["fingerprint"], two["fingerprint"])
+        self.assertEqual(self.source.read_bytes(), original)
+        self.assertEqual(one["files"]["original.md"], original)
+
     def test_metadata_and_layout_use_course_codes_and_practice_version(self):
         plan = self.plan()
         metadata = plan["metadata"]

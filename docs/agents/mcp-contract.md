@@ -89,6 +89,8 @@ baseline format nor runtime cleanup changes.
 
 | Resource | Description |
 | --- | --- |
+| `web://practice-edition-schema` | Versioned Web recipient/edition configuration, separate from the producer-owned GIS descriptor. |
+| `web://practice-verifier-runtime` | Static private controller/package/profile identities and distinct release metadata; acquisition belongs to the hub. |
 | `web://runtime-identity` | Bounded identity of this serving process: startup/current code, instance/PID namespaces, binding, runtime selections and cooperative lifecycle. |
 | `web://distribution` | Package-owned component BOM plus offline, feature-aware doctor findings for the current factory and project. |
 | `web://site-context` | Site profile, feature flags, content inventory, bibliography, bibliometrics, build state, and offline consumer-update advisory. |
@@ -116,8 +118,68 @@ baseline format nor runtime cleanup changes.
 
 ## Tools
 
+Private teaching editions use `manual_practice_compose(config, dry_run=false)`
+(CLI `mcp manual-practice-compose`, factory Make `manual-practice-compose`).
+`web://practice-edition-schema` supplies the versioned Web composition contract.
+The editor invokes the native CLI of the hub-prepared private QGIS controller, validates the full common
+bundle, selects explicit IDs with their complete producer closure, and retains
+one independent PDF and one ZIP per recipient, plus external receipts, under
+`dist/practiques/`. The PDF is copied from the sealed reading job and has exactly
+the same bytes as its ZIP member; no second render occurs. The entire edition
+directory is installed atomically and never replaces an existing edition. GIS parsing,
+execution and offline project reopening remain producer-owned.
+
+Each PDF build returns its original PDF and receipt hashes. Composition captures
+and checks that seal before building the other recipient, then copies only those
+sealed bytes. A changed PDF or replaced/resealed receipt fails before publication.
+
+`packages.<recipient>` retains its ZIP fields and adds `pdf` with the independent
+PDF path/hash/bytes and its own receipt path/hash. Names share the same stem:
+`<slug>[-docent]-<version>-<lang>.pdf` and `.zip`. Source/reading code remains
+versioned; data, PDFs, ZIPs and their retained sandbox/dist jobs remain ignored
+deliveries for Moodle, not Git publication. The paired PDF keeps ZIP-relative
+resource links; extract the ZIP beside it for those links to resolve locally.
+
+An edition's `gis.profile` explicitly selects `qgis-practice-v1` or
+`qgis-practice-v2` and its matching producer schema hash. Omitted profile is the
+legacy v1 case only. New configurations explicitly select verifier origin
+`prepared-image`, its image ID, native installed-package revision and schema hash.
+Legacy installed-wheel configuration shapes remain readable but are not silently
+converted or executed by this public Web runtime. Schema discovery invokes the
+requested profile in the private image. The selected bundle check must return
+that same profile. V2 map exports and their font/symbol/sidecar closures retain
+producer-declared roles and paths; the editor does not inspect their native formats.
+
+The public Web image contains no private QGIS package. The hub prepares the
+authenticated private image before activation; missing/mismatched images produce
+a concrete blocker without pull/build. Native calls reuse bounded processes,
+mount encoding and exact worker lifecycle. `practice_verifier` is a startup-fixed
+worker selection. Release wheel hashes and release producer revisions are declared
+provenance, separate from observed image/package identity; no `direct_url` is
+fabricated. Public CI reports private checks as `not_run`.
+See [private-practice-verifier-98.md](private-practice-verifier-98.md).
+
+Existing private readings can be declared once in `_config.yml` under
+`unaltraweb.practices.readings`, with exact `source`, `slug`, `lang`, `recipient`.
+Only Markdown beneath `practiques/` or `_practices/` is accepted. The same resolver
+serves PDF preparation and targeted `prose_check` / `editorial_review_prepare`.
+Private targets include draft/unpublished prose and retain original anchors;
+they are excluded from the default public corpus. Mapping does not approve copy
+or expose private directories through Jekyll.
+
+Reading mappings and edition readings accept the same optional `bindings` list:
+`reference`, exactly one `path` or selected `product`, required `sha256`, and
+optional portable `destination`. One practice resolver uses these declarations
+for both image snapshots and prose links. It never searches sandbox directories.
+Composition normalizes a prose href relative to the original source and emits
+only the authorised recipient's ZIP destination; bound files/maps and effective
+Pandoc sources are fingerprinted and receipted. Normal filesystem validators stay
+strict. Standalone PDFs allow explicit image bindings but refuse local file links
+without a portable edition context; HTTPS and internal anchors remain intact.
+
 | Tool | Notes |
 | --- | --- |
+| `manual_practice_compose` | One versioned consumer configuration selects GIS roots, two approved reading hashes and optional declared editable-SVG resources; delivers an independent PDF and ZIP per recipient with complete closure and create-only receipts. |
 | `runtime_identity` | Observe the actual serving instance, startup/current package evidence and selected/observed images; never prepare a runtime or inspect site content. |
 | `runtime_drain` | With `confirm=true`, stop admission on this connection; then close stdio and verify exact container/session resource termination. It is not workspace-wide down. |
 | `distribution_doctor` | Return offline component/factory/project findings with stable codes and optional local Docker image inspection that never pulls. |
@@ -133,7 +195,7 @@ baseline format nor runtime cleanup changes.
 | `site_source_read` | Read one allowed UTF-8 site source and return its exact SHA-256. |
 | `site_source_write` | Dry-run or atomically create/update one allowed source. Creates require `create_only`; updates require the exact SHA-256 returned by a read. |
 | `site_source_delete` | Dry-run or delete one allowed source with exact SHA-256 and explicit confirmation. It never deletes `_config.yml` or directories. |
-| `scaffold_sync` | Dry-run or transactionally synchronize the nine package-managed scaffold controls against `.unaltraweb/scaffold.json`; preserve local edits if the package file has not changed from baseline, reject conflicting edits and known version downgrades, and optionally require `expected_plan_sha256` from the reviewed proposal. Exact package bytes may be adopted without rewriting. Adopted, unchanged and preserved files are rechecked around the manifest-last transaction; rollback covers partial apply. README prose remains site-owned. |
+| `scaffold_sync` | Dry-run or transactionally synchronize the ten package-managed scaffold controls against `.unaltraweb/scaffold.json`; preserve local edits if the package file has not changed from baseline, reject conflicting edits and known version downgrades, and optionally require `expected_plan_sha256` from the reviewed proposal. Exact package bytes may be adopted without rewriting. Adopted, unchanged and preserved files are rechecked around the manifest-last transaction; rollback covers partial apply. README prose and source-CI project policy remain site-owned. |
 | `profile_check` | Check current profile and expected content/config paths. |
 | `prose_check` | Check a selected content target or all supported reader-facing sources and public metadata using shared profile/genre rules; no writes or model calls. |
 | `editorial_policy` | Inspect common guidance, profile defaults, genre overrides, local writing preferences and optional publication requirements. |
@@ -257,7 +319,17 @@ It sets `lang`, `default_lang`, and `languages` so a new site has an explicit so
 
 Before writing, it validates every managed path, rejects destination symlinks, and compares existing files with the complete rendered scaffold through bounded regular-file reads. Identical files make repeated calls idempotent. Any differing file or file/directory collision detected during preflight aborts the whole operation before website files are written. Descriptor-relative, no-clobber writes and a final descriptor-relative content check prevent raced paths from being followed or overwritten; overwrite mode is not available. The baseline manifest is created after every other scaffold file.
 
-The baseline records exactly `.gitignore`, `.unaltraweb/docker-mount.sh`, `.github/CONTRIBUTING.md`, `.github/dependabot.yml`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, and `.github/workflows/deploy.yml`. `scaffold_sync` updates one of these while its bytes still match the recorded baseline, adopts it when its bytes already equal the current package payload, and creates a newly managed path only when absent. If the package payload still equals the baseline but the local file differs, it preserves the local file and the original baseline hash; a subsequent upstream edit will still conflict. Conflicting local/upstream edits, missing managed files, collisions, unsafe paths and known newer consumer versions block the whole apply. It removes retired paths only from the baseline and never deletes their project files; it also never changes site-owned README/agent guidance, config, seed content, bibliography, data, or assets. A real synchronization requires `dry_run=false` and `confirm_sync=true`; adopted, unchanged and preserved files are included in the final rechecks around the manifest-last commit.
+The baseline records exactly `.gitignore`, `.unaltraweb/docker-mount.sh`, `.github/CONTRIBUTING.md`, `.github/dependabot.yml`, `Makefile`, `Gemfile`, `Gemfile.lock`, `.github/pull_request_template.md`, `.github/workflows/deploy.yml`, and `.github/workflows/source-checks.yml`. `scaffold_sync` updates one of these while its bytes still match the recorded baseline, adopts it when its bytes already equal the current package payload, and creates a newly managed path only when absent. If the package payload still equals the baseline but the local file differs, it preserves the local file and the original baseline hash; a subsequent upstream edit will still conflict. Conflicting local/upstream edits, missing managed files, collisions, unsafe paths and known newer consumer versions block the whole apply. It removes retired paths only from the baseline and never deletes their project files; it also never changes site-owned README/agent guidance, config, seed content, bibliography, data, assets, or `.unaltraweb/source-checks.json`. A real synchronization requires `dry_run=false` and `confirm_sync=true`; adopted, unchanged and preserved files are included in the final rechecks around the manifest-last commit.
+
+Source CI is a separate host entrypoint, `unaltraweb-source-checks` (equivalently
+`python -I -m unaltraweb_mcp.source_checks`), not another MCP server. One packaged
+workflow control calls it for all profiles; only the bounded Git-versioned JSON
+policy differs by project. It wraps the public `profile-check` and `prose-check`
+commands and observes the existing approval inventory without granting approval.
+Read-only clone mounts, no Docker socket, network-none checkers, explicit partial
+coverage and base-to-head inventory checks preserve the distinction between
+source conservation and retained-input/domain validation. See
+[source-ci-98.md](source-ci-98.md) for activation and the public/private GitHub boundary.
 
 At session start, `site_context.update_status` supplies an offline advisory against the active MCP package, including current literal version pins, target integration tuple, planned paths, preserved files, conflicts and `plan_sha256`. The agent explains available updates and asks for explicit acceptance before invoking `scaffold_sync` with that digest as `expected_plan_sha256`. The digest binds the consumer path, configuration, baseline, observed managed bytes and target package bytes; stale approval is rejected before writes. The parameter is optional for compatibility with existing explicit sync callers, but the guided flow always supplies it. An update can refresh scaffold controls without claiming a newer semver release. Unmanaged sites report an unavailable plan instead of being reinitialized. A declined update leaves normal content work available; there is no background network poll, self-upgrade, Git operation or automatic artefact regeneration. This flow requires a reviewed MCP/package release containing it and a reconnected client; updating the discovery checkout alone cannot replace the public digest-pinned runtime.
 

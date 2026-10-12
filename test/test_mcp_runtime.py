@@ -336,8 +336,9 @@ class McpRuntimeTests(unittest.TestCase):
                     ".github/dependabot.yml",
                     ".github/pull_request_template.md",
                     ".github/workflows/deploy.yml",
+                    ".github/workflows/source-checks.yml",
                 })
-                for site_owned in ["README.md", "AGENTS.md", "_config.yml"]:
+                for site_owned in ["README.md", "AGENTS.md", "_config.yml", ".unaltraweb/source-checks.json"]:
                     self.assertNotIn(site_owned, scaffold["files"])
                 for path in site_tools.PROFILE_CONTRACTS[profile]["recommended_paths"]:
                     self.assertTrue((project / path).exists(), path)

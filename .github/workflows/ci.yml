@@ -76,6 +76,9 @@ jobs:
       - name: Validate distribution structure
         run: make distribution-check
 
+      - name: Declare private QGIS checks not run in public CI
+        run: python scripts/check_practice_verifier_runtime.py
+
       - name: Build and test wheel
         run: make wheel-check
 

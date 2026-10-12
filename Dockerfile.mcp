@@ -1,4 +1,4 @@
-ARG UNALTRAWEB_RUNTIME_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb:0.7.1
+ARG UNALTRAWEB_RUNTIME_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb:0.7.2
 FROM ${UNALTRAWEB_RUNTIME_IMAGE}
 
 LABEL org.opencontainers.image.source="https://github.com/dosquartsdedocs/unaltraweb"
@@ -14,6 +14,9 @@ RUN apt-get update -y \
 COPY . /opt/unaltraweb
 RUN python3 -m pip install --no-cache-dir --break-system-packages "/opt/unaltraweb[mcp]" \
     && chmod -R a+rX /opt/unaltraweb
+
+# The private QGIS verifier is delegated to the hub-prepared native controller.
+# No private wheel, source, credential or image is fetched into this public image.
 
 WORKDIR /workspace
 ENTRYPOINT ["unaltraweb-mcp"]

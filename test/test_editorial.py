@@ -482,3 +482,44 @@ Inline `data-caption-source="TODO example"` is code.
 
 if __name__ == "__main__":
     unittest.main()
+class PrivatePracticeMappingTests(unittest.TestCase):
+    def test_declared_draft_readings_are_reviewed_in_place_not_as_public_content(self):
+        import tempfile
+        from pathlib import Path
+        from unaltraweb_mcp import editorial
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sources = {who: f"_practices/tigit-projecte-territorial/ca/{who}/LLEGIU-ME.md" for who in ("alumnat", "docent")}
+            config = {"lang": "ca", "languages": ["ca"], "exclude": ["_practices", "practiques", "sandbox", "dist"],
+                "unaltraweb": {"site_profile": "unaltremanual", "practices": {"readings": [
+                    {"source": source, "slug": "tigit-projecte-territorial", "lang": "ca", "recipient": who} for who, source in sources.items()]}}}
+            (root / "_config.yml").write_text(json.dumps(config))
+            for who, source in sources.items():
+                path = root / source
+                path.parent.mkdir(parents=True)
+                raw = "---\ntitle: Lectura privada\nlang: ca\ncontent_status: draft\npublished: false\n---\n# Observeu el mapa\n\nCompareu els municipis i justifiqueu la resposta.\n"
+                path.write_text(raw)
+                checked = editorial.prose_check(root, source)
+                self.assertTrue(checked["ok"], checked)
+                self.assertEqual(checked["files_checked"], 1)
+                packet = editorial.editorial_review_prepare(root, source, "line")
+                self.assertEqual(packet["sources"][0]["path"], source)
+                self.assertEqual(packet["sources"][0]["scope"], "private-practice")
+                self.assertTrue(packet["fragments"])
+                self.assertTrue(all(item["path"] == source and item["id"] for item in packet["fragments"]))
+                self.assertEqual(path.read_text(), raw)
+            public = editorial.prose_check(root)
+            self.assertTrue(all(path not in public.get("sources", []) for path in sources.values()))
+            for target in ("_practices", "context/private.md", "_practices/unknown.md"):
+                self.assertFalse(editorial.prose_check(root, target)["ok"])
+
+    def test_mapping_rejects_traversal_context_and_duplicate_identity(self):
+        from unaltraweb_mcp.editorial_sources import private_practice_readings, EditorialError
+        import copy
+        valid = {"source": "_practices/old/guide.md", "slug": "old", "lang": "ca", "recipient": "alumnat"}
+        for path in ("context/guide.md", "_practices/../secret.md", "_practices/data.gpkg", "_practices/old/docent/guide.md"):
+            config = {"unaltraweb": {"practices": {"readings": [{**valid, "source": path}]}}}
+            with self.subTest(path=path), self.assertRaises(EditorialError):
+                private_practice_readings(config)
+        with self.assertRaises(EditorialError):
+            private_practice_readings({"unaltraweb": {"practices": {"readings": [valid, {**valid, "source": "_practices/old/another.md"}]}}})

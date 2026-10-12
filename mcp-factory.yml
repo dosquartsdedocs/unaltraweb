@@ -1,7 +1,7 @@
 schema_version: 1
 name: unaltraweb
 kind: codex-mcp-factory
-version: 0.7.1
+version: 0.7.2
 description: Reusable Jekyll website factory with package-owned site creation and MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, build checks, and local manual release candidates.
 repository: https://github.com/dosquartsdedocs/unaltraweb
 install_scope: user
@@ -17,6 +17,8 @@ workspace_rule:
     - .github/dependabot.yml
     - .github/pull_request_template.md
     - .github/workflows/deploy.yml
+    - .github/workflows/source-checks.yml
+    - .unaltraweb/source-checks.json
     - _config.yml
     - Makefile
     - Gemfile
@@ -44,6 +46,7 @@ workspace_rule:
     - .unaltraweb/docker-mount.sh
     - .unaltraweb/computations.yml
     - .vegavisuals.yml
+    - .unaltraweb/source-checks.json
     - _pages
     - _posts
     - _news
@@ -164,7 +167,7 @@ workspace_rule:
 runtime:
   kind: container
   package_manager: docker
-  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.1
+  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.7.2
   package: unaltraweb-mcp
   module: unaltraweb_mcp
 transport:
@@ -199,15 +202,19 @@ discovery:
     - Site builds execute inside the MCP runtime; previews use one labelled container and a dynamically allocated loopback port per consumer project.
     - Durable website state belongs in versioned site files, not in chat history.
     - Manual release tools prepare local candidates only; publication remains a human-controlled GitHub Actions operation.
+    - Private practice verification uses the hub-prepared native QGIS controller declared by web://practice-verifier-runtime; public Web images never acquire its private package.
 release:
-  default: v0.7.1
+  default: v0.7.2
 contracts:
   component_bom: 1
   distribution_doctor: 1
+  practice_verifier_runtime: 1
 mcp:
   server_name: unaltraweb
   transport: stdio
   resources:
+    - web://practice-edition-schema
+    - web://practice-verifier-runtime
     - web://runtime-identity
     - web://artifact-imports
     - web://distribution
@@ -271,6 +278,7 @@ mcp:
     - manual_pdf_status
     - manual_pdf_build
     - manual_practice_pdf_build
+    - manual_practice_compose
     - manual_pdf_preview_prepare
     - manual_pdf_preview_clean
     - manual_pdf_publish

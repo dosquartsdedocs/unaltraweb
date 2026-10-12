@@ -21,6 +21,8 @@ CONTENT_ROOTS = ("_pages", "_posts", "_news", "_projects", "_outputs", "_chapter
 TEXT_SUFFIXES = {".md", ".markdown", ".html", ".qmd", ".rmd"}
 PUBLIC_FIELDS = {"title", "short_title", "description", "excerpt", "summary", "bio", "caption", "alt"}
 GENRES = {"prose", "bio", "news", "chapter", "procedure", "reference", "preface", "quote", "example", "cv"}
+PRACTICE_SOURCE = re.compile(r"practiques/([a-z0-9][a-z0-9-]{0,63})/(ca|es|en)/(alumnat|docent)/(LLEGIU-ME|LEEME|README)\.md\Z")
+PRACTICE_NAMES = {"ca": "LLEGIU-ME", "es": "LEEME", "en": "README"}
 
 
 def default_language(config: dict[str, Any]) -> str:
@@ -105,6 +107,51 @@ def relative_path(raw: str) -> str:
     if any(part in {"", ".", "..", ".git"} for part in raw.split("/")) or any(c in raw for c in "*?[]"):
         raise EditorialError(f"Unsafe editorial path: {raw}")
     return raw
+
+
+def private_practice_readings(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """One bounded author-declared mapping shared by private review and PDFs."""
+    section = (config.get("unaltraweb") or {}).get("practices") or {}
+    if not isinstance(section, dict):
+        raise EditorialError("unaltraweb.practices must be a mapping")
+    rows = section.get("readings", [])
+    if not isinstance(rows, list) or len(rows) > 128:
+        raise EditorialError("Private reading mappings must be a bounded list")
+    result, identities, names = {}, set(), set()
+    for row in rows:
+        if (not isinstance(row, dict) or not {"source", "slug", "lang", "recipient"} <= row.keys()
+                or set(row) - {"source", "slug", "lang", "recipient", "bindings"}
+                or not all(isinstance(row[key], str) for key in ("source", "slug", "lang", "recipient"))):
+            raise EditorialError("Private reading mapping requires source/slug/lang/recipient")
+        if "bindings" in row and (not isinstance(row["bindings"], list) or len(row["bindings"]) > 200):
+            raise EditorialError("Reading resource bindings must be a bounded list")
+        source = relative_path(row["source"])
+        if (Path(source).parts[0] not in {"practiques", "_practices"} or Path(source).suffix != ".md"
+                or len(Path(source).parts) < 3 or any(part.startswith(".") for part in Path(source).parts)
+                or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", row["slug"])
+                or row["lang"] not in PRACTICE_NAMES or row["recipient"] not in {"alumnat", "docent"}):
+            raise EditorialError("Invalid confined private reading mapping")
+        identity = (row["slug"], row["lang"], row["recipient"])
+        canonical = PRACTICE_SOURCE.fullmatch(source)
+        if canonical and (canonical.groups()[:3] != identity or canonical[4] != PRACTICE_NAMES[row["lang"]]):
+            raise EditorialError("Mapping conflicts with the canonical reading identity")
+        other = "docent" if row["recipient"] == "alumnat" else "alumnat"
+        if other in Path(source).parts or source.casefold() in names or identity in identities:
+            raise EditorialError("Duplicate or cross-recipient private reading mapping")
+        result[source] = dict(row)
+        names.add(source.casefold())
+        identities.add(identity)
+    return result
+
+
+def private_practice_identity(config: dict[str, Any], source: str) -> dict[str, Any] | None:
+    declared = private_practice_readings(config)
+    if source in declared:
+        return declared[source]
+    match = PRACTICE_SOURCE.fullmatch(source)
+    if match and match[4] == PRACTICE_NAMES[match[2]]:
+        return {"source": source, "slug": match[1], "lang": match[2], "recipient": match[3]}
+    return None
 
 
 class Reader:
@@ -427,8 +474,10 @@ def corpus(reader: Reader, config: dict[str, Any], profile: str, target: str = "
     extra = config.get("collections") or {}
     if not manual_only and isinstance(extra, dict):
         roots.update("_" + key for key in extra if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", str(key)))
+    roots.difference_update({"practiques", "_practices"})
+    private = private_practice_identity(config, target) if target and profile == "unaltremanual" else None
     root_pages = reader.root_pages() if not manual_only else []
-    if target and target != "_config.yml" and target.split("/")[0] not in roots and target not in root_pages:
+    if target and not private and target != "_config.yml" and target.split("/")[0] not in roots and target not in root_pages:
         raise EditorialError("Editorial target must be reader-facing content or public metadata.")
     paths = ([target] if Path(target).suffix else reader.walk(target)) if target else [path for root in sorted(roots) for path in reader.walk(root)]
     if not target:
@@ -443,7 +492,7 @@ def corpus(reader: Reader, config: dict[str, Any], profile: str, target: str = "
         raise EditorialError("Site languages must be a list of language codes.")
     sources, fragments, skipped = {}, [], []
     for path in sorted(set(paths)):
-        if any(isinstance(pattern, str) and (fnmatch.fnmatch(path, pattern) or path.startswith(pattern.rstrip("/") + "/")) for pattern in excludes):
+        if not private and any(isinstance(pattern, str) and (fnmatch.fnmatch(path, pattern) or path.startswith(pattern.rstrip("/") + "/")) for pattern in excludes):
             skipped.append({"path": path, "reason": "excluded by site configuration"})
             continue
         suffix = Path(path).suffix.lower()
@@ -456,6 +505,8 @@ def corpus(reader: Reader, config: dict[str, Any], profile: str, target: str = "
             continue
         lang = next((part for part in Path(path).parts if part in languages), default_lang)
         genre = "news" if path.startswith(("_news/", "_posts/")) else "chapter" if path.startswith(f"_{collection}/") else "reference" if profile == "unaltredocs" else "prose"
+        if private:
+            lang, genre = private["lang"], "procedure"
         if metadata:
             if suffix == ".json":
                 data = strict_json(content)
@@ -469,12 +520,18 @@ def corpus(reader: Reader, config: dict[str, Any], profile: str, target: str = "
                 profiles = [profiles]
             if not isinstance(profiles, list) or any(not isinstance(item, str) for item in profiles):
                 raise EditorialError(f"Invalid profiles in {path}.")
-            if front.get("published") is False or (profiles and profile not in profiles):
+            if private and front.get("lang", lang) != lang:
+                raise EditorialError("Reading language differs from its declared mapping")
+            if not private and (front.get("published") is False or (profiles and profile not in profiles)):
                 skipped.append({"path": path, "reason": "not published in this profile"})
                 continue
             if manual_only and path.startswith("_pages/") and front.get("layout") not in {"manual-home", "manual-chapter"} and "unaltremanual" not in profiles:
                 continue
         sources[path] = {"path": path, "sha256": digest(content.encode()), "text": content, "editable_source": path}
+        if private:
+            sources[path].update(scope="private-practice", reading=private)
+            for unit in units:
+                unit["scope"] = "private-practice"
         fragments.extend(units)
         if len(fragments) > MAX_FRAGMENTS:
             raise EditorialError("Editorial fragment budget exceeded; select a smaller target.")
@@ -501,4 +558,5 @@ def corpus(reader: Reader, config: dict[str, Any], profile: str, target: str = "
     if target and not sources:
         raise EditorialError(f"No selected publishable sources for target: {target}")
     return {"sources": sources, "fragments": fragments, "skipped": skipped,
-            "coverage": "Markdown/HTML prose and public metadata fields; code, math and quotations require semantic/rendered review."}
+            "coverage": ("Explicitly selected private practice reading; no publication or author approval implied." if private else
+                         "Markdown/HTML prose and public metadata fields; code, math and quotations require semantic/rendered review.")}
