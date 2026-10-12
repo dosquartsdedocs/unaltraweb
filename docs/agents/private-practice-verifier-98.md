@@ -255,3 +255,42 @@ That probe describes its original `555bea37…` image, not the new cleanup bytes
 release acceptance. This lifecycle delta needs its own TIG review on the new HEAD;
 the earlier PDF/ZIP renders, descriptor `f17eec24…` and private receipt `45db1e01…`
 remain unchanged.
+
+## Real MCP resource-read correction after the 0.7.2 candidate
+
+PR #104 was integrated at `da4e1fcc875211c4eff75834b45d2c4887adec0b` with the
+reviewed tree. Its downloaded wheel `e16a7586…` and public image configuration
+`9bd8b6a8…` passed PDF/ZIP composition and exact-packet reopen, but native
+`resources/read` for `web://practice-verifier-runtime` failed with
+`NameError: name 'json' is not defined`. The callback was the module's only direct
+use of the `json` global; the adjacent practice-edition resource reads its packaged
+schema directly and the other JSON resources use the existing `tools.dumps` helper.
+
+The production correction adds only `import json` to `mcp_server.py`. The regression
+starts an actual CLI server subprocess over MCP stdio, then performs `initialize`,
+`resources/list` and `resources/read` for both practice resources. It parses the
+responses, compares them with the packaged JSON and checks the accepted image,
+native-package revision, producer revision, schema and external-receipt pins.
+The child has no external executables on `PATH`; the test needs neither a Docker
+daemon nor private QGIS data, images, downloads, renders or a site build. No callback
+or serializer is patched into the server. The same assertion is called by the
+installed-image MCP smoke, so listing a broken resource can no longer pass that gate.
+
+Create-only source regression evidence:
+
+- `/tmp/opencode/web98-resource-fix-01/red.log`: the unchanged `da4e1fcc` server
+  fails the real resource read with the recorded NameError; SHA-256
+  `c09ddc7e595b789580c44dad668a734d8b92c70b5c7f69078f01bab108d099cf`.
+- `/tmp/opencode/web98-resource-fix-01/green.log`: the same test passes after the
+  one-line import correction; SHA-256
+  `752562e45d6b624f56dd707f2f8756ebb8051c9d049974986cc4c44450a993ed`.
+- `/tmp/opencode/web98-resource-fix-01/full.log`: 730 tests, 702 passed / 28 optional
+  skips; the real MCP resource test runs and passes. SHA-256
+  `c5b77cd7abd1ae3d5cc20b50d2b88d2528e6e7ec7bc7f37d89485b3317fb1e33`.
+
+The blocked-candidate checkpoint
+`/tmp/opencode/unaltraweb-072-104/blocked-checkpoint.json` retains SHA-256
+`c51c6fbf2f0661804b9e241552cc16939f2efcbf61bdf6f9e4021c06be2b2189`.
+Those immutable candidates remain blocked; this source fix does not repair their
+bytes or authorize their release. Independent delta review, integration and new
+same-source candidates remain required before resuming 0.7.2 publication.

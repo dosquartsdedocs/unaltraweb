@@ -16,6 +16,7 @@ from unittest.mock import patch
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from unaltraweb_mcp import manual_pdf_preview, site_tools
+from test_mcp_practice_resources import assert_practice_resources
 
 
 class MetadataParser(HTMLParser):
@@ -157,6 +158,7 @@ async def smoke() -> None:
                 assert "web://site-context" in resources
                 assert "web://new-web-scaffolds" in resources
                 assert "web://content-inventory" in resources
+                await assert_practice_resources(session)
 
                 prompt_items = (await session.list_prompts()).prompts
                 prompts = {prompt.name: prompt for prompt in prompt_items}
