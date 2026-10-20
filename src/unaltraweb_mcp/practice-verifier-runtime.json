@@ -4,11 +4,11 @@
   "origin": "prepared-image",
   "provider": {
     "name": "unaltracaptura-qgis",
-    "version": "0.6.0",
-    "installed_revision": "sha256:4dcd2c40bca4836a202c0c5cc400553b0f134925023b7300e0c0ff2fff1d8492"
+    "version": "0.6.1",
+    "installed_revision": "sha256:4604801be887a19747aa74c84a2d99141308fadde44f5cddacb4d821b6861398"
   },
   "controller": {
-    "image_id": "sha256:1fe4a54a42cbac4a6eea596be73425985ab3bca5f28f5871d2fa66d7c0a05f8b",
+    "image_id": "sha256:d06b742c3e7d2e9383cf8a1d22bce928dd806f316a0bcbb1f676f50e22e94b05",
     "os": "linux",
     "architecture": "amd64",
     "observed_oci_source_revision": null
@@ -23,18 +23,18 @@
   "release": {
     "basis": "owner release declaration; not a local wheel-install observation",
     "repository": "https://github.com/dosquartsdedocs/unaltracaptura-qgis",
-    "tag": "v0.6.0",
-    "source_commit": "ba68ebaf57d6066e1922bc79e76aec451c24084e",
-    "practice_producer_revision": "sha256:2e4d6e1eb5a364162770921fc416f9cf64c60540868c0d4c907b993a779d0cc9",
+    "tag": "v0.6.1",
+    "source_commit": "1ca6ed95195d44097057d7165dc5dc0730cdf1c0",
+    "practice_producer_revision": "sha256:35443a3343f403892b387c1622656ff3a242044b890fe4ea0cd1e66dd52653e1",
     "receipt": {
       "file": "release.json",
-      "url": "https://github.com/dosquartsdedocs/unaltracaptura-qgis/releases/download/v0.6.0/release.json",
+      "url": "https://github.com/dosquartsdedocs/unaltracaptura-qgis/releases/download/v0.6.1/release.json",
       "bytes": 1251,
-      "sha256": "45db1e016e666126e5a51f157be0be1066aaa08f32042f5907d46e0e7da1e404"
+      "sha256": "c09148927767855e6694e246ae38a9bdda4181086d18f78c204999648ec1089c"
     },
     "wheel": {
-      "bytes": 331788,
-      "sha256": "dde653f7a719d8dbb20b4471e3cdb7f9c99cbdfcb116647caba5a08e710c7b76"
+      "bytes": 334648,
+      "sha256": "89998d9e41dcc90b8768ac036bf480e3501138d715824e12f928ab15f75dfbb7"
     }
   },
   "acquisition": {

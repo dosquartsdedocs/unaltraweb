@@ -8,6 +8,17 @@ Use the term **site profile** for prepared website families such as `unaltreself
 
 The goal is not to maintain one personal site here. The goal is to make a self-owned alternative to the inherited `al-folio` base, supporting academic personal sites, research project sites and documentation/course sites.
 
+## Active compatibility work — #109
+
+Web 0.7.3 is being prepared as a new exact compatibility point for published
+private QGIS 0.6.1. Its descriptor uses the independently observed native practice
+revision, distinct from D0 and release-producer fingerprints. The local synthetic
+PDF/ZIP and extracted-product reopen acceptance passes; review, CI and immutable
+publication remain required. Real consumer selection belongs to the hub.
+
+Evidence and boundaries: [QGIS 0.6.1 adoption](docs/agents/qgis-0.6.1-adoption-109.md).
+Published 0.7.2 and the separate W1 work in PR103 remain preserved.
+
 ## Current Shape
 
 Release [**v0.7.1**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.1)

@@ -76,6 +76,11 @@ def main() -> int:
             for installed_path, source_path in launcher_files.items():
                 if archive.read(launcher_prefix + installed_path) != (ROOT / source_path).read_bytes():
                     raise RuntimeError(f"Wheel launcher asset differs from source: {installed_path}")
+            for name in ("component-contract.json", "practice-verifier-runtime.json"):
+                if archive.read("unaltraweb_mcp/" + name) != (ROOT / "src/unaltraweb_mcp" / name).read_bytes():
+                    raise RuntimeError(f"Wheel dependency declaration differs from source: {name}")
+            if any(name.startswith(("veure_qgis_mcp/", "unaltracaptura_annotations/")) for name in names):
+                raise RuntimeError("Private QGIS implementation leaked into the public wheel")
         forbidden_roots = {"docs", "scripts", "_layouts", "_includes", "_sass"}
         leaked = []
         for name in names:

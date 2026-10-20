@@ -1,4 +1,4 @@
-ARG UNALTRAWEB_RUNTIME_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb:0.7.2
+ARG UNALTRAWEB_RUNTIME_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb:0.7.3
 FROM ${UNALTRAWEB_RUNTIME_IMAGE}
 
 LABEL org.opencontainers.image.source="https://github.com/dosquartsdedocs/unaltraweb"

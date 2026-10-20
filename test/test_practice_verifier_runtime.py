@@ -206,6 +206,20 @@ class PrivateVerifierTests(unittest.TestCase):
             bridge.call(self.project, "schema", profile="qgis-practice-v1")
         run.assert_not_called()
 
+    def test_previous_release_and_d0_identity_cannot_replace_native_practice_identity(self):
+        for revision in (
+            "sha256:4dcd2c40bca4836a202c0c5cc400553b0f134925023b7300e0c0ff2fff1d8492",
+            "sha256:8e5f451cd0669c80e17c6b1b72f3e22dce53dbd405098ef67f6980cf759553bc",
+            self.contract["release"]["practice_producer_revision"],
+        ):
+            value = self.schema()
+            value["installed_package"]["revision"] = revision
+            with self.subTest(revision=revision), self.assertRaisesRegex(ValueError, "accepted image contract"):
+                bridge.validate_schema_identity(value, self.contract, "qgis-practice-v2")
+        previous = copy.deepcopy(distribution_contract())
+        previous["components"][checker.COMPONENT].update(version="0.6.0", release="v0.6.0")
+        self.assertTrue(checker.publication_errors(previous))
+
     def test_public_check_is_metadata_only_and_private_checks_are_explicit_not_run(self):
         self.assertEqual(checker.publication_errors(distribution_contract()), [])
         stdout = io.StringIO()
