@@ -33,17 +33,21 @@ async def assert_practice_resources(session) -> None:
     verifier = values["web://practice-verifier-runtime"]
     assert verifier["kind"] == "unaltraweb-private-practice-verifier" and verifier["origin"] == "prepared-image"
     assert verifier["provider"] == {
-        "name": "unaltracaptura-qgis", "version": "0.6.0",
-        "installed_revision": "sha256:4dcd2c40bca4836a202c0c5cc400553b0f134925023b7300e0c0ff2fff1d8492",
+        "name": "unaltracaptura-qgis", "version": "0.6.1",
+        "installed_revision": "sha256:4604801be887a19747aa74c84a2d99141308fadde44f5cddacb4d821b6861398",
     }
-    assert verifier["controller"]["image_id"] == "sha256:1fe4a54a42cbac4a6eea596be73425985ab3bca5f28f5871d2fa66d7c0a05f8b"
+    assert verifier["controller"]["image_id"] == "sha256:d06b742c3e7d2e9383cf8a1d22bce928dd806f316a0bcbb1f676f50e22e94b05"
     assert verifier["engine"]["image_id"] == "sha256:1003721d96abe9607d8337b36851f9b29f84c2f8f92b377d1a73ff03c9d15cd2"
     assert verifier["profiles"] == {
         "qgis-practice-v1": "9bc7f15ede9d67b3e1209c329da13d9fcb08004090d05b27662a43de6edf3445",
         "qgis-practice-v2": "528c8be229c72c346f134ffaa60094f94224094a25b6fb11bcc87802ddc7fffb",
     }
-    assert verifier["release"]["practice_producer_revision"] == "sha256:2e4d6e1eb5a364162770921fc416f9cf64c60540868c0d4c907b993a779d0cc9"
-    assert verifier["release"]["receipt"]["sha256"] == "45db1e016e666126e5a51f157be0be1066aaa08f32042f5907d46e0e7da1e404"
+    assert verifier["release"]["practice_producer_revision"] == "sha256:35443a3343f403892b387c1622656ff3a242044b890fe4ea0cd1e66dd52653e1"
+    assert verifier["release"]["receipt"]["sha256"] == "c09148927767855e6694e246ae38a9bdda4181086d18f78c204999648ec1089c"
+    assert verifier["release"]["source_commit"] == "1ca6ed95195d44097057d7165dc5dc0730cdf1c0"
+    assert verifier["release"]["wheel"] == {
+        "bytes": 334648, "sha256": "89998d9e41dcc90b8768ac036bf480e3501138d715824e12f928ab15f75dfbb7",
+    }
     assert verifier["acquisition"] == {
         "visibility": "private", "prepared_by": "hub", "implicit_pull": False,
         "public_web_contains_provider_package": False,
