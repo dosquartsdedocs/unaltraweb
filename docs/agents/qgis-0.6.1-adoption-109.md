@@ -1,13 +1,58 @@
 # Web #109 — QGIS 0.6.1 compatibility point
 
-Web **0.7.3 is prepared locally**, not yet published or selected by a real
-consumer. This maintenance point changes the exact external private-QGIS
+Web **0.7.3 is published and verified**, with real consumer adoption remaining
+separate. This maintenance point changes the exact external private-QGIS
 dependency from 0.6.0 to 0.6.1. Published Web 0.7.2 remains immutable.
 
 Provider handoff: [Web #109](https://github.com/dosquartsdedocs/unaltraweb/issues/109#issuecomment-6283746978).
 Hub preparation: [gaContExt #38](https://github.com/dosquartsdedocs/gacontext/issues/38#issuecomment-6301327451).
 The latter has prepared/enrolled QGIS independently; it has not selected this new
 Web point or changed a real consumer cohort.
+
+## Published delivery
+
+[Release v0.7.3](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.3)
+was published at `2026-10-21T00:18:07Z`. Source PR110 and the two-line release-runner
+correction PR111 produced artifacts from `9d97197dec5fc9346ab795191a3afd18884c27fb`.
+Receipt-only PR112 integrated at `bff69e372b623ffba880be3d075bcc6f07d8c82b`, with
+that source as its first parent and no other file change. Annotated tag object:
+`5faa7bbd4d00994032f7b15b2d3aee7c8d836346`.
+
+The [machine-readable handoff](https://github.com/dosquartsdedocs/unaltraweb/releases/download/v0.7.3/release-handoff.json)
+has 13578 bytes and SHA-256
+`bd2962be42f296df856430a4e31c8aae6daf17f6858e4aaf240712da49cbb585`.
+It contains the complete credential-free artifact URLs, sizes, hashes, independent
+worker provenance, native selector roles and acceptance limits.
+
+| Published component | Identity |
+| --- | --- |
+| Web receipt | `7b3c8b12734554d60ae212d88028132ee982f96b8f9465b75a1ea84ad3e71f9e` |
+| Wheel, 286769 bytes | `bb27901e03063280f06be282559fefeb936c5350ace9c5d4ee9f322d57539af7` |
+| Gem, 33491456 bytes | `80886c7195bd6f6fa4b1c90f808864769d392abfdbc4deca3e7cadafae96589a` |
+| MCP registry digest | `sha256:8183e7117f5902fc0ad4d930b757d874b2da1f93d5ef4db102ae4c1b03e357a3` |
+| MCP configuration ID | `sha256:0a5b91a4c1c8b3b0bd8d3c4160ed1e5b9ccc8ad3cd0abee67f621d8636d15bd6` |
+| Base runtime registry digest | `sha256:fd23c62f31b4c0a612a17bfbbb93990dad367f261b415607b90219847efbf67a` |
+| Base runtime configuration ID | `sha256:6a067fc0de6054e7e882ffb5f84dc39709a4a6f3b2fe6ddf9817339085873564` |
+
+Signed candidate workflow `39516559493`, package preparation `39516559072`,
+receipt PR CI `39518426989`, tag CI `39519357013`, image promotion `39519454438`
+and Trusted Publishing `39519455129` pass. All source PRs used protected normal
+merges and explicit owner technical reviews. Copilot returned quota exhaustion;
+no independent human or completed Copilot approval is claimed.
+
+All 17 final GitHub assets, both registry packages, OCI aliases, configuration IDs
+and source labels were verified anonymously. The previous 17 Web 0.7.2 assets and
+its annotated tag remain identical. Final candidate synthetic acceptance:
+`ec07eef91c66411e166c0117b3a205491198bf2342776c8087eb647f5ad4c906`.
+A fresh launcher installed from the public GitHub wheel then passed real MCP
+resource reads, complete package-file equality, binding, no drift, limits and
+drain/EOF/exact absence:
+`849c38b70a8b634fb0757357747522b8e60769f29819f5c75365dd674693152e`.
+The earlier local preparation records below remain historical evidence.
+
+The post-release checkout selector uses the published MCP digest above. This is
+a later source-only pin, not a rebuild or alteration of the immutable tag/receipt.
+No global/consumer registration or existing connection was replaced.
 
 ## Exact private dependency
 
@@ -93,18 +138,19 @@ names (`unaltraweb:issue109-073`, `unaltraweb-mcp:issue109-073` and
 `unaltraweb-manual-pdf:issue109-073`), not published aliases. Gem checks execute
 inside that prepared Web image with network disabled.
 The wheel gate additionally checks descriptor/BOM byte equality and absence of
-private QGIS package roots. Exact-head review/CI precede integration and immutable
-publication.
+private QGIS package roots. At this preparation checkpoint, exact-head review/CI
+and publication were still pending; the completed delivery is recorded above.
 
-## Publication and adoption gates
+## Publication contract and remaining adoption
 
 Use the normal reviewed-source image/package workflows and receipt-only release
 commit. Reverify exact downloaded Web artifacts and the same descriptor against
 the final candidates; retain the public controller/PDF archives separately from
 the private QGIS dependency. Do not publish the private intake directory.
 
-Return final immutable Web/package/descriptor/receipt/image references to
-gaContExt #38. The hub then owns new preparation, compatibility curation and any
+Final immutable Web/package/descriptor/receipt/image references were returned in
+[gaContExt #38](https://github.com/dosquartsdedocs/gacontext/issues/38#issuecomment-6304912982).
+The hub owns new preparation, compatibility curation and any
 explicit consumer CAS selection/reload. Local acceptance, verified publication
 and actual consumer adoption are distinct states. No teaching approval, scientific
 manual recomputation, W1/SDK expansion or automatic consumer migration is claimed.
