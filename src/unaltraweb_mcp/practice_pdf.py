@@ -326,7 +326,9 @@ def reading_links(markdown: str, source: str, portable_targets: dict | None = No
 
 
 def prepare(project: Path, factory: Path, source: str, version: str, image_id: str, run: str = "", *, portable_targets=None,
-            bindings=None, products=None, restricted=()) -> dict[str, Any]:
+            bindings=None, products=None, restricted=(), source_root="/source") -> dict[str, Any]:
+    if not Path(source_root).is_absolute() or ".." in Path(source_root).parts:
+        raise ValueError("Prepared rendering resources require an explicit absolute root")
     slug, language, audience, basename = validate_source_request(project, source, version, run)
     manual = _manual_builder(factory)
     files: dict[str, bytes] = {}
@@ -360,7 +362,7 @@ def prepare(project: Path, factory: Path, source: str, version: str, image_id: s
                 suffix = Path(resolver.resolved[raw]["source"]).suffix.lower()
                 target = f"assets/{digest(content)}{suffix}"
                 files[target] = content
-                return "/source/" + target
+                return source_root.rstrip("/") + "/" + target
             relative_path(raw)
             if Path(raw).suffix.lower() not in ASSET_SUFFIXES:
                 raise ValueError("Practice v1 images must be local PNG, JPEG or PDF; render other figure sources first")
@@ -371,7 +373,7 @@ def prepare(project: Path, factory: Path, source: str, version: str, image_id: s
             assert content is not None
             target = f"assets/{digest(content)}{Path(raw).suffix.lower()}"
             files[target] = content
-            return "/source/" + target
+            return source_root.rstrip("/") + "/" + target
 
         cover = manual.nested(config, "unaltraweb", "manual", "pdf", "cover")
         for key, original in (("series-logo", "series_logo"), ("cover-logo", "institution_logo")):

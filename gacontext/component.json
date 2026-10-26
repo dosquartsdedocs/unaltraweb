@@ -1,0 +1,25 @@
+{
+  "component": "mcp-controls",
+  "files": {
+    "Makefile.inc": {
+      "bytes": 632,
+      "sha256": "215e7876563e814b1974cd69ff6c1e5728633769c6441d843b4cdf38e5804ba1"
+    },
+    "README.md": {
+      "bytes": 1362,
+      "sha256": "a54087777faf1faaedd67c5b8e8ac2f5bf9830e1cca89df344ee513f766df143"
+    },
+    "distribution.schema.json": {
+      "bytes": 12582,
+      "sha256": "403ace6d583fd78aefe88a320bcf7ea2238d413a7cbde8d6ff3fac8a41f0a294"
+    },
+    "provider.schema.json": {
+      "bytes": 2820,
+      "sha256": "90a8d1e0a248d287484d866fcb9f48c3fe5af652a1ca328392ad33ed823f6039"
+    }
+  },
+  "kind": "gacontext.scaffold-component",
+  "profile_schema": 1,
+  "revision": 2,
+  "schema_version": 1
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dosquartsdedocs/gacontext/provider-profile-v1.schema.json",
+  "$comment": "@gacontext-owner: managed. H1 requirements resolve to the accompanying unchanged distribution.schema.json through an offline registry.",
+  "title": "Provider-owned MCP layout and dependency links",
+  "description": "Structural schema; the central bounded reader also checks paths, identifiers, version grammar and uniqueness. Metadata validation is not runtime adoption.",
+  "type": "object",
+  "required": ["kind", "schema_version", "provider", "binding", "workers", "job_storage", "domain", "capabilities", "links"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"const": "../gacontext/provider.schema.json"},
+    "kind": {"const": "gacontext.provider-profile"},
+    "schema_version": {"const": 1},
+    "provider": {"type": "string", "minLength": 1, "maxLength": 128},
+    "binding": {"enum": ["consumer", "application", "repository"]},
+    "workers": {"type": "array", "maxItems": 16, "items": {
+      "type": "object", "required": ["role", "image_id"], "additionalProperties": false,
+      "properties": {
+        "role": {"type": "string", "minLength": 1, "maxLength": 128},
+        "image_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "limits": {"type": "object", "required": ["cpus", "memory_bytes", "pids", "timeout_seconds"], "additionalProperties": false,
+          "properties": {
+            "cpus": {"type": "integer", "minimum": 1, "maximum": 64},
+            "memory_bytes": {"type": "integer", "minimum": 16777216, "maximum": 68719476736},
+            "pids": {"type": "integer", "minimum": 1, "maximum": 4096},
+            "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 86400}
+          }
+        }
+      }
+    }},
+    "job_storage": {"type": ["string", "null"], "maxLength": 1024},
+    "domain": {
+      "type": "object", "required": ["source_roots", "resource_roots", "prompt_roots"], "additionalProperties": false,
+      "properties": {
+        "source_roots": {"$ref": "#/$defs/paths"},
+        "resource_roots": {"$ref": "#/$defs/paths"},
+        "prompt_roots": {"$ref": "#/$defs/paths"}
+      }
+    },
+    "capabilities": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^\\S+$"}},
+    "links": {"type": "object", "maxProperties": 32, "additionalProperties": {
+      "allOf": [
+        {"$ref": "https://github.com/dosquartsdedocs/gacontext/distribution-v1.schema.json#/$defs/requirement"},
+        {"properties": {"required": {"const": true}}}
+      ]
+    }}
+  },
+  "$defs": {"paths": {"type": "array", "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 1024}}}
+}

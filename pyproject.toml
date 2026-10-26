@@ -25,6 +25,7 @@ dependencies = [
 
 [project.optional-dependencies]
 mcp = ["mcp>=1.0.0,<2"]
+shared-runtime = ["gacontext-runtime==0.1.0a7"]
 
 [project.scripts]
 unaltraweb-mcp = "unaltraweb_mcp.cli:main"
@@ -56,6 +57,9 @@ unaltraweb_mcp = [
   "artifact-handoff-v1.schema.json",
   "practice-edition-v1.schema.json",
   "practice-verifier-runtime.json",
+  "shared-runtime.json",
+  "shared-job-storage.json",
+  "shared-practice-verifier.json",
   "source-check-policy-v1.schema.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore.tmpl",

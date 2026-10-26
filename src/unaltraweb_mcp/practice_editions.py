@@ -29,7 +29,8 @@ SCHEMA = Path(__file__).with_name("practice-edition-v1.schema.json")
 RECIPIENTS = ("alumnat", "docent")
 CLASSROOM_ROLES = {"initial-data", "initial-project", "resolved-data", "resolved-project", "capture", "capture-original", "annotation"}
 PROFILE_ROLES = {"qgis-practice-v1": CLASSROOM_ROLES,
-                 "qgis-practice-v2": CLASSROOM_ROLES | {"map-svg", "map-pdf"}}
+                 "qgis-practice-v2": CLASSROOM_ROLES | {"map-svg", "map-pdf"},
+                 "qgis-practice-v3": CLASSROOM_ROLES | {"map-svg", "map-pdf"}}
 TEACHER_ROLES = {"resolved-data", "resolved-project"}
 CSS_IRI_ATTRIBUTES = {"fill", "stroke", "filter", "clip-path", "mask", "marker", "marker-start", "marker-mid", "marker-end", "cursor", "color-profile"}
 
@@ -61,10 +62,13 @@ def load_config(project, config_path):
     return document, digest(raw), site
 
 
-def privacy_preflight(project, config_path, spec, site):
-    fs._require_git_root(project)
-    tracked, ignored = fs._git_state(project, Path(config_path))
-    require(tracked and not ignored, "Edition configuration must be a versioned, non-ignored consumer source")
+def privacy_preflight(project, config_path, spec, site, *, snapshot=False):
+    # A volume worker rechecks the frozen content policy; Git/source admission is
+    # required in the original consumer before its files reach that snapshot.
+    if not snapshot:
+        fs._require_git_root(project)
+        tracked, ignored = fs._git_state(project, Path(config_path))
+        require(tracked and not ignored, "Edition configuration must be a versioned, non-ignored consumer source")
     problems = practice_pdf.private_path_issues(site)
     require(not problems, "; ".join(problems))
     required_roots = {"practiques", "sandbox", "dist"}
@@ -83,8 +87,9 @@ def privacy_preflight(project, config_path, spec, site):
             require(value != "." and not any(fnmatch.fnmatchcase(root, value.strip("/")) or root.startswith(value.rstrip("/")+"/")
                     or fnmatch.fnmatchcase(root+"/LLEGIU-ME.md", value) or fnmatch.fnmatchcase(root+"/delivery.zip", value)
                     for root in required_roots), "Jekyll include exposes a private practice root")
-    fs._require_generated_path(project, Path("sandbox/practiques") / spec["slug"], label="Practice snapshots")
-    fs._require_generated_path(project, Path("dist/practiques") / spec["slug"], label="Retained edition delivery")
+    if not snapshot:
+        fs._require_generated_path(project, Path("sandbox/practiques") / spec["slug"], label="Practice snapshots")
+        fs._require_generated_path(project, Path("dist/practiques") / spec["slug"], label="Retained edition delivery")
 
 
 def provider_command(project, operation, **request):
@@ -332,6 +337,7 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
     require(Path(project).is_absolute(), "Composition requires an explicit absolute consumer")
     project = Path(project)
     spec, config_sha, site = load_config(project, config_path)
+    require(spec["gis"].get("profile") != "qgis-practice-v3", "QGIS v3 composition requires the explicitly selected shared edition profile")
     privacy_preflight(project, config_path, spec, site)
     relative = Path("dist/practiques") / spec["slug"] / spec["version"] / spec["language"]
     # Opening every ancestor rejects symlinks even in the early collision check.

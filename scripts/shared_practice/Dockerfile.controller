@@ -1,0 +1,13 @@
+# No private QGIS package; this candidate only adds the selected common SDK.
+ARG BASE_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:8183e7117f5902fc0ad4d930b757d874b2da1f93d5ef4db102ae4c1b03e357a3
+FROM ${BASE_IMAGE}
+ARG SDK_CODE_SHA256
+ARG DOMAIN_SHA256
+LABEL io.context.gacontext.runtime-code-sha256="${SDK_CODE_SHA256}" \
+      io.context.unaltraweb.shared-domain-sha256="${DOMAIN_SHA256}" \
+      org.opencontainers.image.revision="sha256:${DOMAIN_SHA256}"
+COPY packages/ /opt/shared-packages/
+RUN python3 -m pip install --no-index --no-deps --no-compile --break-system-packages --force-reinstall /opt/shared-packages/*.whl
+COPY controls/ /opt/unaltraweb/
+ENV PYTHONDONTWRITEBYTECODE=1
+ENTRYPOINT ["unaltraweb-mcp"]

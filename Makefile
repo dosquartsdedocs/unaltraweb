@@ -481,3 +481,7 @@ metrics-update-all:
 
 metrics-check:
 	@cd "$(PROJECT_ROOT)" && $(PYTHON) "$(CURDIR)/scripts/biblio/metrics_update.py" --offline --dry-run $(METRICS_ARGS) 1>&2 && $(PYTHON) -c 'import json,sys; print(json.dumps({"ok": True, "project": sys.argv[1], "offline": True, "dry_run": True}, indent=2))' "$(PROJECT_ROOT)"
+
+# Canonical factory controls; domain parameters remain in provider-owned mcp/.
+# The standalone gem does not contain this optional factory integration tree.
+-include gacontext/Makefile.inc

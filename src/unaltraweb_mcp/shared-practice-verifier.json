@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "kind": "unaltraweb-shared-practice-verifier",
+  "scope": "explicit shared edition owner candidate; not the published classic verifier",
+  "provider": {
+    "name": "unaltracaptura-qgis",
+    "version": "0.8.0.dev0",
+    "installed_revision": "sha256:af3c68a4aa590a299a5aeff59ad64b54e975b3eddc38874379bf14a13925721f"
+  },
+  "image_id": "sha256:7f5b79a8bf24c62c60a8b9509bc3028add79cafb282513cfb1456497d5f94354",
+  "engine_image_id": "sha256:41c8f841b98ac848ef05b531dcd196194646181bf95bb3ded62e1c9fabd57a50",
+  "profile": "qgis-practice-v3",
+  "schema_sha256": "ae18b20a853fb8aae8a63c04b04772c6c25d5ca677614cdc5c70fba5155f9252",
+  "sdk_code_sha256": "9c3317ce859f82fe85d978ab72ba19cf818bc2aa969d601f9e346cb129b3f464",
+  "wheel_sha256": "096b0957a032de0386c1adf6df148f75f16f050b00ea083a9ce9c0434ff3e0ae",
+  "handoff": "https://github.com/dosquartsdedocs/unaltraweb/issues/116#issuecomment-6383441603",
+  "implicit_prepare": false,
+  "public_web_contains_provider_package": false
+}

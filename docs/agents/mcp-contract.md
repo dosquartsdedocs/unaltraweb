@@ -91,6 +91,8 @@ baseline format nor runtime cleanup changes.
 | --- | --- |
 | `web://practice-edition-schema` | Versioned Web recipient/edition configuration, separate from the producer-owned GIS descriptor. |
 | `web://practice-verifier-runtime` | Static private controller/package/profile identities and distinct release metadata; acquisition belongs to the hub. |
+| `web://shared-runtime` | Exact optional common SDK pin and experimental owner-adoption scope; no preparation or activation. |
+| `web://job-storage-provider` | Byte-identical installed W1 companion for the common private-practice adapter. |
 | `web://runtime-identity` | Bounded identity of this serving process: startup/current code, instance/PID namespaces, binding, runtime selections and cooperative lifecycle. |
 | `web://distribution` | Package-owned component BOM plus offline, feature-aware doctor findings for the current factory and project. |
 | `web://site-context` | Site profile, feature flags, content inventory, bibliography, bibliometrics, build state, and offline consumer-update advisory. |
@@ -118,10 +120,23 @@ baseline format nor runtime cleanup changes.
 
 ## Tools
 
+The experimental #116 shared profile adds `job_storage(request)` (CLI
+`mcp job-storage --request-json JSON`). A private startup-selected context fixes the
+original consumer, common service/task/owner/job and prepared SDK worker. Native
+status and exact-CAS seal/quiesce are delegated to the published common SDK;
+requests cannot choose another workspace/registry/job or supply acknowledgements.
+No service initialization, generic manager fork or automatic old-job migration is
+performed. Without a selected context the tool returns an explicit unavailable
+result. The selected SDK is a7. An optional startup-bound
+`worker_timeout_seconds` integer (1–900, default 900) is enforced by the common
+manager; protected per-attempt requests and live logs survive worker termination.
+See [shared-practices-116.md](shared-practices-116.md) for the qualified PDF/timeout
+and project-edition slices, including the remaining producer integration gates.
+
 Private teaching editions use `manual_practice_compose(config, dry_run=false)`
 (CLI `mcp manual-practice-compose`, factory Make `manual-practice-compose`).
 `web://practice-edition-schema` supplies the versioned Web composition contract.
-The editor invokes the native CLI of the hub-prepared private QGIS controller, validates the full common
+In the classic v1/v2 profile, the editor invokes the native CLI of the hub-prepared private QGIS controller, validates the full common
 bundle, selects explicit IDs with their complete producer closure, and retains
 one independent PDF and one ZIP per recipient, plus external receipts, under
 `dist/practiques/`. The PDF is copied from the sealed reading job and has exactly
@@ -139,6 +154,22 @@ PDF path/hash/bytes and its own receipt path/hash. Names share the same stem:
 versioned; data, PDFs, ZIPs and their retained sandbox/dist jobs remain ignored
 deliveries for Moodle, not Git publication. The paired PDF keeps ZIP-relative
 resource links; extract the ZIP beside it for those links to resolve locally.
+
+The explicit #116 shared profile also accepts `qgis-practice-v3`. It requires the
+startup `edition_verifier_image` pin from package-owned
+`shared-practice-verifier.json`, plus registration of that image and the PDF
+worker in the selected common job service. The published classic verifier is
+unchanged. The private CLI and Web compositor execute as separate SDK actors
+against retained snapshots, with no original-consumer mount into either worker.
+The shared result returns an opaque sealed product and pending receiver delivery,
+rather than a host `dist` path. Complete closure is mandatory: required control,
+source or reconstruction dependencies are rejected rather than silently dropped.
+The final native edition keeps recipient PDF/ZIP pairs, receipts and originals
+through whole-snapshot retention. Web's independent delivered-product check binds
+request projections to the actual retained configuration/approved readings,
+verifies the native reading seals and portable-resource mappings, and streams
+every ZIP member against its selected source. Actual QGIS GUI reopen remains a
+separate producer acceptance check; it is not implied by that Web verification.
 
 An edition's `gis.profile` explicitly selects `qgis-practice-v1` or
 `qgis-practice-v2` and its matching producer schema hash. Omitted profile is the

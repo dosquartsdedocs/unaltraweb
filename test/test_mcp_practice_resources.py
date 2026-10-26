@@ -29,7 +29,9 @@ async def assert_practice_resources(session) -> None:
 
     edition = values["web://practice-edition-schema"]
     assert edition["properties"]["kind"]["const"] == "unaltraweb-practice-edition"
-    assert edition["properties"]["gis"]["properties"]["profile"]["enum"] == ["qgis-practice-v1", "qgis-practice-v2"]
+    # V3 requires the separately selected shared candidate; the published
+    # classic verifier below must retain its exact v1/v2 compatibility point.
+    assert edition["properties"]["gis"]["properties"]["profile"]["enum"] == ["qgis-practice-v1", "qgis-practice-v2", "qgis-practice-v3"]
     verifier = values["web://practice-verifier-runtime"]
     assert verifier["kind"] == "unaltraweb-private-practice-verifier" and verifier["origin"] == "prepared-image"
     assert verifier["provider"] == {

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "kind": "unaltraweb-shared-runtime-selection",
+  "package": "gacontext-runtime",
+  "version": "0.1.0a7",
+  "source_commit": "67d7bb74948c77b5dff1304c450d0cd0d382ee3b",
+  "wheel": {
+    "url": "https://github.com/dosquartsdedocs/gacontext/releases/download/v0.1.0a7/gacontext_runtime-0.1.0a7-py3-none-any.whl",
+    "sha256": "539ee0eb5d68657ca4615e78d37889ea06b6f81052fb816e9f7721ca8753e92c",
+    "bytes": 340342
+  },
+  "code_sha256": "9c3317ce859f82fe85d978ab72ba19cf818bc2aa969d601f9e346cb129b3f464",
+  "managed_component_revision": 2,
+  "managed_component_sha256": "694f6712d0f00cdec46aea8e84d95228efc102ddf4d068f364a14769fb2b9743",
+  "acquisition": "explicit authenticated download and verified offline copy-mode installation",
+  "implicit_prepare": false,
+  "native_adoption": "experimental owner acceptance; not a published Web compatibility point"
+}

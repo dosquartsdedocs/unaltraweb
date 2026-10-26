@@ -1,0 +1,22 @@
+{
+  "$schema": "../gacontext/provider.schema.json",
+  "binding": "consumer",
+  "capabilities": ["tool:job_storage", "experimental:shared-private-practice-pdf", "experimental:shared-private-practice-edition-v3"],
+  "domain": {
+    "prompt_roots": [
+      "prompts"
+    ],
+    "resource_roots": [
+      "scripts/manual"
+    ],
+    "source_roots": [
+      "src/unaltraweb_mcp"
+    ]
+  },
+  "job_storage": "mcp-job-storage.json",
+  "kind": "gacontext.provider-profile",
+  "links": {},
+  "provider": "unaltraweb",
+  "schema_version": 1,
+  "workers": []
+}

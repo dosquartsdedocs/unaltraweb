@@ -14,7 +14,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["bundle", "sha256", "verifier"],
       "properties": {
-        "profile": {"type": "string", "enum": ["qgis-practice-v1", "qgis-practice-v2"], "default": "qgis-practice-v1"},
+        "profile": {"type": "string", "enum": ["qgis-practice-v1", "qgis-practice-v2", "qgis-practice-v3"], "default": "qgis-practice-v1"},
         "bundle": {"$ref": "#/$defs/path"}, "sha256": {"$ref": "#/$defs/hash"},
         "teacher_only": {"$ref": "#/$defs/ids"},
         "verifier": {

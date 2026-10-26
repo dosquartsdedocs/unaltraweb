@@ -120,7 +120,7 @@ class RuntimeIdentity:
         values = os.environ if environment is None else environment
         keys = {"UNALTRAWEB_DOCKER_ROOT", "UNALTRAWEB_RUNTIME_SESSION", "UNALTRAWEB_MANAGED_RUNTIME",
                 "UNALTRAWEB_MCP_REQUESTED_IMAGE", "UNALTRAWEB_MCP_IMAGE_REFERENCE", "UNALTRAWEB_MCP_IMAGE",
-                 "UNALTRAWEB_EXPECTED_IMAGE_ID", "UNALTRAWEB_WORKER_IMAGES", "UNALTRAWEB_LAUNCHER_PROJECT", "UNALTRAWEB_RUNTIME_NETWORK", "PRACTICE_VERIFIER_IMAGE", *WORKER_ENV.values()}
+                  "UNALTRAWEB_EXPECTED_IMAGE_ID", "UNALTRAWEB_WORKER_IMAGES", "UNALTRAWEB_LAUNCHER_PROJECT", "UNALTRAWEB_RUNTIME_NETWORK", "PRACTICE_VERIFIER_IMAGE", "UNALTRAWEB_SHARED_JOB_CONTEXT", *WORKER_ENV.values()}
         self.env = {key: values[key] for key in keys if key in values}
         self.project = Path(project).resolve()
         self.factory = Path(factory).resolve()
@@ -131,6 +131,10 @@ class RuntimeIdentity:
         if not Path(self.host_project).is_absolute() or any(c in self.host_project for c in "\r\n"):
             raise ValueError("Invalid startup host workspace binding")
         self.project_id = hashlib.sha256(self.host_project.encode()).hexdigest()[:16]
+        self.shared_job_context = None
+        if self.env.get("UNALTRAWEB_SHARED_JOB_CONTEXT"):
+            from .shared_jobs import load_context
+            self.shared_job_context = load_context(Path(self.host_project), self.env["UNALTRAWEB_SHARED_JOB_CONTEXT"])
         self.session_id = self.env.get("UNALTRAWEB_RUNTIME_SESSION", "")
         if self.session_id and not lifecycle.SESSION_ID.fullmatch(self.session_id):
             raise ValueError("Invalid startup session ID")

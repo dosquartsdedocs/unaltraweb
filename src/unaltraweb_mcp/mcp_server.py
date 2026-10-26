@@ -66,6 +66,9 @@ def run_server(project: Path, factory: Path) -> None:
 
                 @wraps(function)
                 async def operation(*arguments, **keywords):
+                    request = keywords.get("request", arguments[0] if arguments else None)
+                    if function.__name__ == "job_storage" and isinstance(request, dict) and request.get("operation") == "status":
+                        return await anyio.to_thread.run_sync(partial(function, *arguments, **keywords))
                     with runtime.admit():
                         async with operation_lane["lock"]:
                             with runtime.job(function.__name__):
@@ -496,6 +499,22 @@ def run_server(project: Path, factory: Path) -> None:
         """Versioned consumer composition configuration; GIS semantics remain producer-owned."""
         from .practice_editions import SCHEMA
         return SCHEMA.read_text(encoding="utf-8")
+
+    @mcp.tool()
+    def job_storage(request: dict[str, Any]) -> dict[str, Any]:
+        """Forward status or exact-CAS seal/quiesce for the startup-bound shared job; never initialize, acknowledge or delete."""
+        from .shared_jobs import job_storage as control
+        return control(project, request)
+
+    @mcp.resource("web://job-storage-provider")
+    def job_storage_provider_resource() -> str:
+        from .shared_jobs import PROVIDER
+        return PROVIDER.read_text(encoding="utf-8")
+
+    @mcp.resource("web://shared-runtime")
+    def shared_runtime_resource() -> str:
+        from .shared_jobs import CONTRACT
+        return CONTRACT.read_text(encoding="utf-8")
 
     @mcp.resource("web://practice-verifier-runtime")
     def practice_verifier_runtime_resource() -> str:

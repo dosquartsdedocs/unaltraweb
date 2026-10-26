@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dosquartsdedocs/gacontext/distribution-v1.schema.json",
+  "title": "gaContExt H1 distribution metadata and proposed plans",
+  "description": "Wire structure. The bounded Python reader additionally validates version grammar, timestamps, uniqueness, source identity and cross-field semantics. This is not a legacy mcp-factory.yml schema.",
+  "oneOf": [
+    {"$ref": "#/$defs/catalogue"},
+    {"$ref": "#/$defs/inventory"},
+    {"$ref": "#/$defs/request"},
+    {"$ref": "#/$defs/plan"}
+  ],
+  "$defs": {
+    "text": {"type": "string", "maxLength": 8192},
+    "token": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^\\S+$"},
+    "name": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "version": {"type": "string", "minLength": 1, "maxLength": 128},
+    "range": {"type": "string", "maxLength": 8192},
+    "hash": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+    "path": {"type": "string", "minLength": 1, "maxLength": 8192, "pattern": "^/"},
+    "capabilities": {"type": "array", "maxItems": 4096, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 8192, "pattern": "^\\S+$"}},
+    "actions": {"type": "array", "maxItems": 6, "uniqueItems": true, "items": {"enum": ["install", "build", "init", "check", "smoke", "update"]}},
+    "sources": {"type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": {"enum": ["installed", "catalogue", "development"]}},
+    "platform": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "os": {"type": "string", "maxLength": 256, "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+        "arch": {"type": "string", "maxLength": 256, "pattern": "^[a-z0-9][a-z0-9._-]*$"}
+      }
+    },
+    "target": {"allOf": [{"$ref": "#/$defs/platform"}, {"required": ["os", "arch"], "properties": {"os": {"not": {"const": "any"}}, "arch": {"not": {"const": "any"}}}}]},
+    "transport": {
+      "type": "object", "required": ["type"], "additionalProperties": false,
+      "properties": {
+        "type": {"enum": ["stdio", "http", "sse", "streamable-http"]},
+        "command": {"type": "array", "maxItems": 4096, "items": {"$ref": "#/$defs/text"}},
+        "url": {"$ref": "#/$defs/text"},
+        "env": {"type": "object", "maxProperties": 4096, "propertyNames": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"}, "additionalProperties": {"$ref": "#/$defs/text"}}
+      },
+      "if": {"properties": {"type": {"const": "stdio"}}},
+      "then": {"required": ["command"], "properties": {"command": {"minItems": 1, "prefixItems": [{"minLength": 1}]}, "url": {"maxLength": 0}}},
+      "else": {"required": ["url"], "properties": {"url": {"pattern": "^https?://"}, "command": {"maxItems": 0}}}
+    },
+    "artifact": {
+      "type": "object", "required": ["role", "kind", "uri", "sha256"], "additionalProperties": false,
+      "properties": {
+        "role": {"$ref": "#/$defs/token"},
+        "kind": {"enum": ["wheel", "image-archive", "oci", "resource", "launcher"]},
+        "uri": {"type": "string", "minLength": 1, "maxLength": 8192, "pattern": "^\\S+$"},
+        "sha256": {"$ref": "#/$defs/hash"},
+        "image_id": {"type": "string", "pattern": "^(sha256:[0-9a-fA-F]{64})?$"},
+        "repository_digest": {"type": "string", "maxLength": 8192, "pattern": "^([^\\s]+@sha256:[0-9a-fA-F]{64})?$"},
+        "auth_ref": {"$ref": "#/$defs/text"}
+      }
+    },
+    "requirement": {
+      "type": "object", "required": ["name"], "additionalProperties": false,
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "version": {"$ref": "#/$defs/version"},
+        "version_range": {"$ref": "#/$defs/range"},
+        "release": {"$ref": "#/$defs/token"},
+        "capabilities": {"$ref": "#/$defs/capabilities"},
+        "source": {"enum": ["installed", "catalogue", "development"]},
+        "candidate_id": {"$ref": "#/$defs/token"},
+        "required": {"type": "boolean"},
+        "actions": {"$ref": "#/$defs/actions"}
+      }
+    },
+    "requirement_record": {
+      "type": "object", "required": ["name", "version", "version_range", "release", "capabilities", "source", "candidate_id", "required", "actions"], "additionalProperties": false,
+      "properties": {
+        "name": {"$ref": "#/$defs/name"}, "version": {"$ref": "#/$defs/text"},
+        "version_range": {"$ref": "#/$defs/range"}, "release": {"$ref": "#/$defs/text"},
+        "capabilities": {"$ref": "#/$defs/capabilities"},
+        "source": {"enum": ["", "installed", "catalogue", "development"]},
+        "candidate_id": {"$ref": "#/$defs/text"}, "required": {"type": "boolean"},
+        "actions": {"$ref": "#/$defs/actions"}
+      }
+    },
+    "factory": {
+      "type": "object", "required": ["name"], "additionalProperties": false,
+      "properties": {"name": {"$ref": "#/$defs/name"}, "description": {"$ref": "#/$defs/text"}, "repository": {"$ref": "#/$defs/text"}}
+    },
+    "candidate": {
+      "type": "object", "required": ["candidate_id", "name", "version", "profile", "binding"], "additionalProperties": false,
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/token"}, "name": {"$ref": "#/$defs/name"},
+        "version": {"$ref": "#/$defs/version"}, "profile": {"$ref": "#/$defs/token"},
+        "binding": {"enum": ["consumer", "application", "repository"]},
+        "source": {"enum": ["catalogue", "installed"]},
+        "platform": {"$ref": "#/$defs/platform"}, "release": {"$ref": "#/$defs/token"},
+        "requires_python": {"$ref": "#/$defs/range"}, "capabilities": {"$ref": "#/$defs/capabilities"},
+        "dependencies": {"type": "array", "maxItems": 4096, "items": {"$ref": "#/$defs/requirement"}},
+        "artifacts": {"type": "array", "maxItems": 4096, "items": {"$ref": "#/$defs/artifact"}},
+        "transport": {"$ref": "#/$defs/transport"}, "path": {"$ref": "#/$defs/path"},
+        "evidence": {"enum": ["declared", "stale", "unknown"]},
+        "availability": {"enum": ["available", "unavailable", "unknown"]}
+      },
+      "if": {"properties": {"availability": {"const": "available"}}},
+      "then": {"required": ["artifacts", "transport"], "properties": {"artifacts": {"minItems": 1}}}
+    },
+    "snapshot": {
+      "type": "object", "required": ["kind", "schema_version", "id", "observed_at", "factories", "candidates"], "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["gacontext.catalogue", "gacontext.inventory"]},
+        "schema_version": {"type": "integer", "const": 1}, "id": {"$ref": "#/$defs/token"},
+        "observed_at": {"type": "string", "maxLength": 128, "format": "date-time"},
+        "factories": {"type": "array", "maxItems": 4096, "items": {"$ref": "#/$defs/factory"}},
+        "candidates": {"type": "array", "maxItems": 4096, "items": {"$ref": "#/$defs/candidate"}}
+      }
+    },
+    "catalogue": {"allOf": [{"$ref": "#/$defs/snapshot"}, {"properties": {"kind": {"const": "gacontext.catalogue"}, "candidates": {"items": {"properties": {"source": {"const": "catalogue"}}}}}}]},
+    "inventory": {"allOf": [{"$ref": "#/$defs/snapshot"}, {"properties": {"kind": {"const": "gacontext.inventory"}, "candidates": {"items": {"required": ["path"], "properties": {"source": {"const": "installed"}}}}}}]},
+    "request": {
+      "type": "object", "required": ["kind", "schema_version", "workspace", "target", "requirements"], "additionalProperties": false,
+      "properties": {
+        "kind": {"const": "gacontext.request"}, "schema_version": {"type": "integer", "const": 1},
+        "workspace": {"$ref": "#/$defs/path"}, "target": {"$ref": "#/$defs/target"},
+        "python_version": {"$ref": "#/$defs/version"}, "sources": {"$ref": "#/$defs/sources"},
+        "actions": {"allOf": [{"$ref": "#/$defs/actions"}, {"minItems": 1}]},
+        "allow_prerelease": {"type": "boolean"}, "allow_stale": {"type": "boolean"},
+        "bindings": {"type": "object", "maxProperties": 4096, "propertyNames": {"$ref": "#/$defs/name"}, "additionalProperties": {"$ref": "#/$defs/path"}},
+        "requirements": {"type": "array", "minItems": 1, "maxItems": 4096, "items": {"allOf": [{"$ref": "#/$defs/requirement"}, {"properties": {"required": {"const": true}}}]}}
+      }
+    },
+    "candidate_record": {
+      "type": "object", "required": ["candidate_id", "name", "version", "source", "profile", "binding", "platform", "release", "requires_python", "capabilities", "dependencies", "artifacts", "transport", "path", "evidence", "availability", "metadata_sha256"], "additionalProperties": false,
+      "properties": {
+        "candidate_id": {"$ref": "#/$defs/token"}, "name": {"$ref": "#/$defs/name"},
+        "version": {"$ref": "#/$defs/version"}, "profile": {"$ref": "#/$defs/token"},
+        "binding": {"enum": ["consumer", "application", "repository"]},
+        "source": {"enum": ["catalogue", "installed", "development"]},
+        "platform": {"$ref": "#/$defs/platform"}, "release": {"$ref": "#/$defs/text"},
+        "requires_python": {"$ref": "#/$defs/range"}, "capabilities": {"$ref": "#/$defs/capabilities"},
+        "dependencies": {"type": "array", "items": {"$ref": "#/$defs/requirement_record"}},
+        "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
+        "transport": {"$ref": "#/$defs/transport"}, "path": {"$ref": "#/$defs/text"},
+        "evidence": {"enum": ["declared", "stale"]}, "availability": {"const": "available"},
+        "metadata_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "candidate_reference": {
+      "type": "object", "required": ["name", "source", "candidate_id", "version"], "additionalProperties": false,
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "source": {"enum": ["catalogue", "installed", "development"]},
+        "candidate_id": {"$ref": "#/$defs/token"},
+        "version": {"$ref": "#/$defs/version"}
+      }
+    },
+    "lock": {
+      "type": "object", "required": ["status", "workspace", "target", "python_version", "sources", "actions", "selected", "order", "bindings", "requirements", "resolved_dependencies", "request_sha256", "runtime_verified", "artifacts_verified"], "additionalProperties": false,
+      "properties": {
+        "status": {"const": "proposed"}, "workspace": {"$ref": "#/$defs/path"}, "target": {"$ref": "#/$defs/target"},
+        "python_version": {"$ref": "#/$defs/text"}, "sources": {"$ref": "#/$defs/sources"}, "actions": {"$ref": "#/$defs/actions"},
+        "selected": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/candidate_record"}},
+        "order": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/name"}},
+        "bindings": {"type": "object", "additionalProperties": {"$ref": "#/$defs/path"}},
+        "requirements": {"type": "array", "items": {"$ref": "#/$defs/requirement_record"}},
+        "resolved_dependencies": {"type": "array", "items": {"type": "object", "required": ["from", "to", "candidate", "requirement", "chain"], "additionalProperties": false, "properties": {"from": {"$ref": "#/$defs/name"}, "to": {"$ref": "#/$defs/name"}, "candidate": {"$ref": "#/$defs/candidate_reference"}, "requirement": {"$ref": "#/$defs/requirement_record"}, "chain": {"type": "array", "items": {"$ref": "#/$defs/name"}}}}},
+        "request_sha256": {"$ref": "#/$defs/hash"}, "runtime_verified": {"const": false}, "artifacts_verified": {"const": false}
+      }
+    },
+    "plan": {
+      "type": "object", "required": ["kind", "schema_version", "ok", "read_only", "lock", "conflicts", "steps"], "additionalProperties": false,
+      "properties": {
+        "kind": {"const": "gacontext.plan"}, "schema_version": {"type": "integer", "const": 1},
+        "ok": {"type": "boolean"}, "read_only": {"const": true},
+        "lock": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/lock"}]},
+        "conflicts": {"type": "array", "items": {"type": "object", "required": ["code", "message"]}},
+        "steps": {"type": "integer", "minimum": 0},
+        "inputs": {"type": "array", "items": {"type": "object", "required": ["kind", "sha256"], "additionalProperties": false, "properties": {"kind": {"type": "string"}, "id": {"type": "string"}, "observed_at": {"type": "string"}, "sha256": {"$ref": "#/$defs/hash"}}}}
+      },
+      "if": {"properties": {"ok": {"const": true}}},
+      "then": {"properties": {"lock": {"$ref": "#/$defs/lock"}, "conflicts": {"maxItems": 0}}},
+      "else": {"properties": {"lock": {"type": "null"}, "conflicts": {"minItems": 1}}}
+    }
+  }
+}

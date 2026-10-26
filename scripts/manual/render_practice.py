@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Run only inside the bounded PDF toolchain with /source readonly and /out writable."""
+from contextlib import nullcontext
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -12,6 +14,11 @@ MARKDOWN = "markdown+fenced_divs+pipe_tables+link_attributes-raw_tex-raw_html"
 
 
 def run(command, log):
+    # Record the entered tool phase before launching it, including when a shared
+    # worker is terminated before Python can run an exception handler.
+    log.flush()
+    os.write(log.fileno(), (json.dumps({"command": command}) + "\n").encode())
+    os.fsync(log.fileno())
     subprocess.run(command, cwd=OUTPUT, check=True, stdout=log, stderr=subprocess.STDOUT)
 
 
@@ -88,19 +95,24 @@ def check_pdf_links(pdf, context):
     return observed
 
 
-def main():
+def main(*, source=None, output=None, log_stream=None):
+    global SOURCE, OUTPUT
+    if source is not None:
+        SOURCE = Path(source)
+    if output is not None:
+        OUTPUT = Path(output)
     request = json.loads((SOURCE / "request.json").read_text())
     basename = request["basename"]
     assert basename in {"LLEGIU-ME", "LEEME", "README"}
     filters = request["filters"]
     assert filters == ["practice-layout.lua", "code-blocks.lua", "figure-captions.lua", "practice-finish.lua"]
-    with (OUTPUT / "render.log").open("x") as log:
+    with (nullcontext(log_stream) if log_stream is not None else (OUTPUT / "render.log").open("x")) as log:
         context, applied = effective_source(request, log)
         command = ["pandoc", str(OUTPUT / "source.effective.json"), "--standalone", "--from=json",
-                   "--number-sections", "--top-level-division=section", "--metadata-file=/source/metadata.yml",
-                   "--template=/source/practice.tex", "--resource-path=/source", "-t", "latex", "-o", "practice.tex"]
+                   "--number-sections", "--top-level-division=section", "--metadata-file=" + str(SOURCE / "metadata.yml"),
+                   "--template=" + str(SOURCE / "practice.tex"), "--resource-path=" + str(SOURCE), "-t", "latex", "-o", "practice.tex"]
         for name in filters:
-            command.append("--lua-filter=/source/" + name)
+            command.append("--lua-filter=" + str(SOURCE / name))
         run(command, log)
         for _ in range(3):
             run(["xelatex", "-no-shell-escape", "-interaction=nonstopmode", "-halt-on-error", "practice.tex"], log)

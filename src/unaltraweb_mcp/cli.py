@@ -61,6 +61,7 @@ PACKAGE_ONLY_MCP_COMMANDS = {
     "html-audit",
     "http-check",
     "initialize-site",
+    "job-storage",
     "language-policy",
     "list-tools",
     "manual-authoring-capabilities",
@@ -211,6 +212,10 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         return 0
     if command == "list-tools":
         return print_json(tools.list_tools())
+    if command == "job-storage":
+        from .shared_jobs import job_storage
+        from .artifact_handoff_v1 import parse_json
+        return print_json(job_storage(project, parse_json(args.request_json.encode())), enforce_ok=True)
     if command == "import-artifact-bundle":
         return print_json(tools.import_artifact_bundle(project, args.path, args.sha256, args.import_id, args.content_path,
                                                       title=args.title, dry_run=not args.apply, confirm_import=args.confirm_import), enforce_ok=True)
@@ -546,6 +551,8 @@ def build_parser() -> argparse.ArgumentParser:
     practice_compose = mcp_sub.add_parser("manual-practice-compose")
     practice_compose.add_argument("--config", required=True, help="Versioned consumer-relative practice-edition configuration")
     practice_compose.add_argument("--dry-run", action="store_true")
+    job_storage = mcp_sub.add_parser("job-storage")
+    job_storage.add_argument("--request-json", required=True)
 
     mcp_sub.add_parser("manual-pdf-preview-prepare")
 

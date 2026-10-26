@@ -1,0 +1,25 @@
+# Explicit local SDK-bearing domain candidate, independent of the published PDF.
+ARG SUPPORT_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:8183e7117f5902fc0ad4d930b757d874b2da1f93d5ef4db102ae4c1b03e357a3
+ARG BASE_IMAGE=ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:1bb3f2dafd741e96c28639ec1cc8ccaeb81cbaa73e649f787c0b4ef59997bd4b
+FROM ${SUPPORT_IMAGE} AS public-support
+FROM ${BASE_IMAGE}
+ARG SDK_CODE_SHA256
+ARG DOMAIN_SHA256
+LABEL io.context.gacontext.runtime-code-sha256="${SDK_CODE_SHA256}" \
+      io.context.unaltraweb.shared-domain-sha256="${DOMAIN_SHA256}" \
+      org.opencontainers.image.revision="sha256:${DOMAIN_SHA256}"
+COPY packages/ /opt/shared-packages/
+RUN python3 -m pip install --no-index --no-deps --no-compile --force-reinstall /opt/shared-packages/*.whl
+COPY controls/ /opt/unaltraweb/
+# SVG tokenizers, embedded-image decoder and license metadata from the immutable
+# public Web dependency image; no private QGIS package or implicit pip download.
+COPY --from=public-support /usr/local/lib/python3.13/dist-packages/tinycss2 /usr/local/lib/python3.13/site-packages/tinycss2
+COPY --from=public-support /usr/local/lib/python3.13/dist-packages/tinycss2-1.5.1.dist-info /usr/local/lib/python3.13/site-packages/tinycss2-1.5.1.dist-info
+COPY --from=public-support /usr/local/lib/python3.13/dist-packages/webencodings /usr/local/lib/python3.13/site-packages/webencodings
+COPY --from=public-support /usr/local/lib/python3.13/dist-packages/webencodings-0.6.1.dist-info /usr/local/lib/python3.13/site-packages/webencodings-0.6.1.dist-info
+COPY --from=public-support /usr/local/lib/python3.13/dist-packages/PIL /usr/local/lib/python3.13/site-packages/PIL
+COPY --from=public-support /usr/local/lib/python3.13/dist-packages/pillow.libs /usr/local/lib/python3.13/site-packages/pillow.libs
+COPY --from=public-support /usr/local/lib/python3.13/dist-packages/pillow-12.3.0.dist-info /usr/local/lib/python3.13/site-packages/pillow-12.3.0.dist-info
+ENV PYTHONDONTWRITEBYTECODE=1
+WORKDIR /work
+ENTRYPOINT ["python3", "-I", "-B", "-m", "unaltraweb_mcp.shared_practice_worker"]

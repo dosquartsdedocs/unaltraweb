@@ -5171,8 +5171,14 @@ def manual_pdf_build(project: Path, factory: Path, language: str = "", release_s
 def manual_practice_pdf_build(project: Path, factory: Path, source: str, version: str,
                               run: str = "", dry_run: bool = False) -> dict[str, Any]:
     from .practice_pdf import validate_source_request
+    from . import shared_jobs, shared_practices
 
     validate_source_request(project_path(project), source, version, run)
+    try:
+        if shared_jobs.selected(project) is not None:
+            return shared_practices.build(project, factory, source, version, run=run, dry_run=dry_run)
+    except (OSError, ValueError, RuntimeError) as exc:
+        return {"ok": False, "publishes": False, "code": getattr(exc, "code", "shared-operation-failed"), "error": str(exc)[:2048]}
     return run_factory_make(factory, project, "manual-practice-pdf-build", env={
         "PRACTICE_SOURCE": source, "PRACTICE_VERSION": version, "PRACTICE_RUN": run,
         "PRACTICE_DRY_RUN": "1" if dry_run else "0",
@@ -5184,9 +5190,14 @@ def manual_practice_compose(project: Path, factory: Path, config: str, *, dry_ru
     from .artifact_handoff_v1 import HandoffError
 
     try:
+        from .shared_jobs import selected
+        if selected(project) is not None:
+            from .shared_editions import compose as compose_shared
+            return compose_shared(project, factory, config, dry_run=dry_run)
         return compose(project, factory, config, dry_run=dry_run)
     except (OSError, ValueError, RuntimeError, HandoffError) as exc:
-        return {"ok": False, "publishes": False, "error": str(exc)[:4096]}
+        return {"ok": False, "publishes": False, "error": str(exc)[:4096],
+                **({"code": exc.code} if hasattr(exc, "code") else {})}
 
 
 def manual_pdf_preview_prepare(project: Path, factory: Path) -> dict[str, Any]:
@@ -6039,6 +6050,8 @@ def list_tools() -> dict[str, Any]:
     inventory["tools"].append("manual_practice_compose")
     inventory["resources"].append("web://practice-edition-schema")
     inventory["resources"].append("web://practice-verifier-runtime")
+    inventory["resources"].extend(["web://job-storage-provider", "web://shared-runtime"])
+    inventory["tools"].append("job_storage")
     return inventory
 
 
