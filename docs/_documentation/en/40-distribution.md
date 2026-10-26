@@ -25,6 +25,23 @@ The template is the better place to validate gem consumption, centralized styles
 
 ## Component Contract
 
+### Coherent core pins and reviewed scaffold updates
+
+The 0.7.4 source contract distinguishes the package release from the gem version
+at the selected Git core. `consumer_integration.core_gem_version` drives the native
+Gemfile and lock, while the controller and reusable workflow retain independent
+pins. Source checks inspect the real referenced Git contract; installed acceptance
+resolves and builds that core with Bundler rather than comparing generated text.
+
+Conflicting managed ignore/workflow files can use explicit hash-bound reviews.
+The provider proposes conservative `keep`, `prepend-package` and `pins-only`
+results; it never accepts an arbitrary replacement or ignores a conflict.
+Local ignore order/negations and workflow controls are preserved, and stale
+reviews fail before mutation. The same manifest-last transaction and recovery
+guards apply. Subsequent plans retain the customization visibly.
+See the [owner migration record](https://github.com/dosquartsdedocs/unaltraweb/blob/main/docs/agents/scaffold-closeout-118.md)
+for the plan/review/apply sequence, acceptance and publication status.
+
 ### Published 0.7.1 release
 
 [**0.7.1**](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.1)

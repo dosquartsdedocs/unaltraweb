@@ -53,6 +53,7 @@ where = ["src"]
 unaltraweb_mcp = [
   "component-contract.json",
   "component-contract.schema.json",
+  "consumer-core.json",
   "artifact-handoff-v1.schema.json",
   "practice-edition-v1.schema.json",
   "practice-verifier-runtime.json",

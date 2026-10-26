@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import __version__
 from . import calibre_import
-from .distribution import distribution_doctor
+from .consumer_advisory import distribution_doctor
 from .editorial_sources import strict_json
 from .image_backgrounds import print_warnings as print_image_warnings
 from . import site_tools as tools
@@ -271,7 +271,8 @@ def cmd_mcp(args: argparse.Namespace) -> int:
         )
     if command == "scaffold-sync":
         return print_json(
-            tools.scaffold_sync(project, dry_run=not args.apply, confirm_sync=args.confirm_sync, expected_plan_sha256=args.expected_plan_sha256),
+            tools.scaffold_sync(project, dry_run=not args.apply, confirm_sync=args.confirm_sync, expected_plan_sha256=args.expected_plan_sha256,
+                                review=tools._strict_json_loads(args.review_json) if args.review_json else None),
             enforce_ok=True,
         )
     if command == "profile-check":
@@ -510,6 +511,7 @@ def build_parser() -> argparse.ArgumentParser:
     scaffold_sync.add_argument("--apply", action="store_true")
     scaffold_sync.add_argument("--confirm-sync", action="store_true")
     scaffold_sync.add_argument("--expected-plan-sha256", default="", help="SHA-256 of the reviewed site-context/scaffold-sync plan")
+    scaffold_sync.add_argument("--review-json", default="", help="Versioned hash-bound per-path scaffold review JSON; prepare a resolved dry-run before applying")
 
     mcp_new_web = mcp_sub.add_parser("new-web")
     _add_new_web_arguments(mcp_new_web)

@@ -20,12 +20,11 @@ from unaltraweb_mcp.distribution import (
     companion_dependency_requirements,
     component_contract_semantic_errors,
     component_reference,
-    consumer_integration,
     distribution_contract,
-    distribution_doctor,
     is_mutable_reference,
     validate_component_contract,
 )
+from unaltraweb_mcp.consumer_advisory import consumer_integration, distribution_doctor
 from scripts.validate_distribution import (
     load_release_candidate_receipt_errors,
     publish_ref_errors,
@@ -170,7 +169,9 @@ class DistributionTests(unittest.TestCase):
 
         self.assertEqual(contract["schema_version"], 1)
         self.assertEqual(contract["release"]["version"], __version__)
-        self.assertEqual(contract["consumer_integration"], consumer_integration())
+        projected = consumer_integration()
+        self.assertEqual(contract["consumer_integration"], {key: value for key, value in projected.items() if key != "core_gem_version"})
+        self.assertRegex(projected["core_gem_version"], r"^[0-9]+\.[0-9]+\.[0-9]+$")
         self.assertRegex(contract["consumer_integration"]["core_sha"], r"^[0-9a-f]{40}$")
         self.assertRegex(contract["consumer_integration"]["vegavisuals_sha"], r"^[0-9a-f]{40}$")
         self.assertRegex(
@@ -347,8 +348,8 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(finding["actual"]["lock_repository"], "https://github.com/example/wrong.git")
 
     def test_project_doctor_accepts_an_exact_one_line_gem_declaration(self) -> None:
-        version = distribution_contract()["release"]["version"]
         integration = consumer_integration()
+        version = integration["core_gem_version"]
         with tempfile.TemporaryDirectory() as raw_project:
             project = Path(raw_project)
             site_tools.new_web(project, site_profile_value="unaltredocs")
@@ -361,6 +362,17 @@ class DistributionTests(unittest.TestCase):
 
         finding = next(item for item in result["findings"] if item["code"] == "UW-DIST-PROJECT-GEM-PIN")
         self.assertEqual(finding["severity"], "info", finding)
+
+    def test_consumer_gem_version_matches_actual_immutable_git_contract(self) -> None:
+        from scripts.validate_distribution import selected_core_gem_errors
+        contract = distribution_contract()
+        root = Path(__file__).resolve().parents[1]
+        def source(revision):
+            result = subprocess.run(["git", "show", revision + ":src/unaltraweb_mcp/component-contract.json"],
+                                    cwd=root, check=True, capture_output=True, text=True)
+            return json.loads(result.stdout)
+        self.assertEqual(selected_core_gem_errors(contract, source(consumer_integration()["core_sha"])), [])
+        self.assertTrue(selected_core_gem_errors(contract, source("3332e0b93933f12317e05f1ce8d38ce80046feab")))
 
     def test_project_doctor_rejects_a_mismatched_bundler_git_ref(self) -> None:
         integration = consumer_integration()

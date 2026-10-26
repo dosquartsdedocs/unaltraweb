@@ -34,7 +34,7 @@ The default distribution is Docker-first. Generated sites run their normal build
 
 ## Current Status
 
-- Public release [`v0.5.0`](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.5.0) provides the Docker images, Ruby gem and Python wheel as one receipt-bound distribution.
+- Published releases provide receipt-bound Docker images, Ruby gems and Python wheels. The 0.7.4 source unit corrects the native core/gem tuple and adds reviewed scaffold conflict resolution; see [the acceptance and migration record](docs/agents/scaffold-closeout-118.md) for publication status and exact boundaries.
 - `ghcr.io/dosquartsdedocs/unaltraweb-mcp` is the canonical normal local runtime for generated sites; `ghcr.io/dosquartsdedocs/unaltraweb` is its lower-level Jekyll runtime base.
 - The Ruby gem supports native Bundler/Jekyll consumers. The modular MCP wheel supports native creation and inspection, and does not bundle the gem, factory checkout, worker images or companion renderers.
 - PDF, browser-capture and computation environments remain separate images so the normal site image does not carry every heavy toolchain.

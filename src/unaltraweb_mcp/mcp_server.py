@@ -7,7 +7,7 @@ from functools import partial, wraps
 from pathlib import Path
 from typing import Any
 
-from .distribution import distribution_doctor as inspect_distribution
+from .consumer_advisory import distribution_doctor as inspect_distribution
 from . import site_tools as tools
 
 
@@ -372,9 +372,9 @@ def run_server(project: Path, factory: Path) -> None:
         return tools.site_source_delete(project, path, expected_sha256=expected_sha256, dry_run=dry_run, confirm_delete=confirm_delete)
 
     @mcp.tool()
-    def scaffold_sync(dry_run: bool = True, confirm_sync: bool = False, expected_plan_sha256: str = "") -> dict[str, Any]:
+    def scaffold_sync(dry_run: bool = True, confirm_sync: bool = False, expected_plan_sha256: str = "", review: dict[str, Any] | None = None) -> dict[str, Any]:
         """Synchronize reviewed package controls; preserve edits without upstream changes and refuse conflicts or downgrades."""
-        return tools.scaffold_sync(project, dry_run=dry_run, confirm_sync=confirm_sync, expected_plan_sha256=expected_plan_sha256)
+        return tools.scaffold_sync(project, dry_run=dry_run, confirm_sync=confirm_sync, expected_plan_sha256=expected_plan_sha256, review=review)
 
     @mcp.tool()
     def profile_check() -> dict[str, Any]:

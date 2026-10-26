@@ -8,6 +8,17 @@ Use the term **site profile** for prepared website families such as `unaltreself
 
 The goal is not to maintain one personal site here. The goal is to make a self-owned alternative to the inherited `al-folio` base, supporting academic personal sites, research project sites and documentation/course sites.
 
+## Scaffold correction — #115 / #118
+
+The 0.7.4 unit adds an explicit native core/gem version pair and reviewed,
+hash-bound ignore/workflow resolutions on the existing scaffold transaction.
+Installed migration and real Git/Bundler/Jekyll acceptance are recorded in
+[the owner closeout](docs/agents/scaffold-closeout-118.md); immutable publication
+and manual adoption remain separately recorded gates.
+
+Experimental #116 is preserved on `feat/116-common-practice-sdk` at
+`6a8cd85ff75c8ad41dc67f8fb1c3c5a8f8919e53`, outside this correction/release.
+
 ## Published 0.7.3 compatibility point — #109
 
 Web [0.7.3](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.3)

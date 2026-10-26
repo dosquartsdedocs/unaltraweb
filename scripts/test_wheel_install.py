@@ -61,6 +61,12 @@ def main() -> int:
             raise RuntimeError(f"Expected one wheel, found: {wheels}")
         with zipfile.ZipFile(wheels[0]) as archive:
             names = archive.namelist()
+            expected_modules = {path.name: path.read_bytes() for path in (ROOT / "src/unaltraweb_mcp").iterdir()
+                                if path.is_file() and path.suffix in {".py", ".json"}}
+            installed_modules = {Path(name).name: archive.read(name) for name in names
+                                 if Path(name).parent.as_posix() == "unaltraweb_mcp" and Path(name).suffix in {".py", ".json"}}
+            if installed_modules != expected_modules:
+                raise RuntimeError("Wheel contains missing, stale or foreign package modules")
             launcher_prefix = f"{wheels[0].name.split('-')[0]}-{wheels[0].name.split('-')[1]}.data/data/share/unaltraweb-launcher/"
             launcher_files = {
                 "Makefile": "packaging/launcher/Makefile",

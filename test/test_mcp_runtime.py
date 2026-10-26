@@ -18,7 +18,8 @@ import yaml
 from unaltraweb_mcp import cli
 from unaltraweb_mcp import site_tools
 from unaltraweb_mcp.docker_mount import docker_bind_mount
-from unaltraweb_mcp.distribution import companion_dependency_requirements, component_reference, consumer_integration
+from unaltraweb_mcp.distribution import companion_dependency_requirements, component_reference
+from unaltraweb_mcp.consumer_advisory import consumer_integration
 
 
 class McpRuntimeTests(unittest.TestCase):
@@ -199,7 +200,7 @@ class McpRuntimeTests(unittest.TestCase):
                 self.assertIn(f'git: "{integration["core_repository"]}"', gemfile)
                 self.assertIn(f'ref: "{integration["core_sha"]}"', gemfile)
                 self.assertIn(f"revision: {integration['core_sha']}", lockfile)
-                self.assertIn(f"{component_reference('gem')}!", lockfile)
+                self.assertIn(f"unaltraweb (= {integration['core_gem_version']})!", lockfile)
                 self.assertIn("jekyll-scholar (>= 7.3, < 8)", lockfile)
                 self.assertEqual((project / "context/writing-profile.md").is_file(), profile == "unaltremanual")
                 computations_path = project / ".unaltraweb/computations.yml"
