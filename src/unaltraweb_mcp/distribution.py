@@ -227,6 +227,7 @@ def consumer_integration() -> dict[str, Any]:
     """Return an isolated copy of the reviewed consumer runtime tuple."""
     result = dict(_contract()["consumer_integration"])
     result.setdefault("site_deploy_workflow_sha", result["core_sha"])
+    result.setdefault("core_gem_version", str(_contract()["components"]["gem"]["version"]))
     return result
 
 
@@ -637,8 +638,8 @@ def _project_findings(project: Path) -> tuple[list[dict[str, Any]], dict[str, An
         return findings, project_state, images, selected_components
 
     selected_components.extend(["gem", "mcp"])
-    gem_version = component("gem")["version"]
     integration = consumer_integration()
+    gem_version = integration["core_gem_version"]
     gemfile = (project / "Gemfile").read_text(encoding="utf-8", errors="ignore") if (project / "Gemfile").is_file() else ""
     gem_declaration = _ruby_without_comments(_gemfile_declaration(gemfile, "unaltraweb"))
     exact_version = bool(re.search(rf"(?m)^\s*gem\s+['\"]unaltraweb['\"]\s*,\s*['\"](?:=\s*)?{re.escape(gem_version)}['\"]", gem_declaration))

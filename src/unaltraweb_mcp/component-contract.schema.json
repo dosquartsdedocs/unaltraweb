@@ -25,6 +25,7 @@
         "schema_version": {"type": "integer", "const": 1},
         "core_repository": {"const": "https://github.com/dosquartsdedocs/unaltraweb.git"},
         "core_sha": {"type": "string", "minLength": 40, "maxLength": 40, "pattern": "^[0-9a-f]{40}$"},
+        "core_gem_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
         "site_deploy_workflow": {"const": "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml"},
         "site_deploy_workflow_sha": {"type": "string", "minLength": 40, "maxLength": 40, "pattern": "^[0-9a-f]{40}$"},
         "manual_pdf_image": {"type": "string", "minLength": 117, "maxLength": 117, "pattern": "^ghcr\\.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:[0-9a-f]{64}$"},

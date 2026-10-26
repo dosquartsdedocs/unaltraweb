@@ -744,7 +744,7 @@ def _common_scaffold_replacements() -> dict[str, str]:
     return {
         "WHEEL_VERSION": str(component("wheel")["version"]),
         "SOURCE_CHECK_IMAGE": CHECKER_IMAGE,
-        "GEM_VERSION": str(component("gem")["version"]),
+        "GEM_VERSION": str(integration["core_gem_version"]),
         "MCP_IMAGE": component_reference("mcp"),
         "CORE_REPOSITORY": str(integration["core_repository"]),
         "CORE_SHA": str(integration["core_sha"]),
@@ -930,13 +930,14 @@ def _managed_scaffold_payloads(project: Path, *, config: dict[str, Any] | None =
     return payloads
 
 
-def _scaffold_manifest_bytes(files: dict[str, str]) -> bytes:
+def _scaffold_manifest_bytes(files: dict[str, str], *, resolutions: dict | None = None) -> bytes:
     return (
         json.dumps(
             {
                 "schema_version": 1,
                 "source": "unaltraweb_mcp package",
                 "files": dict(sorted(files.items())),
+                **({"reviewed_resolutions": resolutions} if resolutions else {}),
             },
             indent=2,
             sort_keys=True,
@@ -1242,6 +1243,7 @@ def _release_number(version: str) -> tuple[int, ...] | None:
 
 
 def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
+    from . import scaffold_review
     root_fd = _open_project_root(project)
     try:
         try:
@@ -1257,8 +1259,9 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
         except (UnicodeDecodeError, ValueError, json.JSONDecodeError) as exc:
             raise RuntimeError("Scaffold baseline is not valid UTF-8 JSON.") from exc
         files = manifest.get("files") if isinstance(manifest, dict) else None
-        if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or not isinstance(files, dict):
+        if not isinstance(manifest, dict) or type(manifest.get("schema_version")) is not int or manifest.get("schema_version") != 1 or not isinstance(files, dict):
             raise RuntimeError("Unsupported or invalid scaffold baseline schema.")
+        resolution_history = scaffold_review.history(manifest.get("reviewed_resolutions"))
         baseline: dict[str, str] = {}
         for raw_path, raw_hash in files.items():
             path = str(raw_path)
@@ -1290,6 +1293,7 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
         conflicts: list[dict[str, str]] = []
         observed: dict[str, str] = {}
         version_contents: dict[str, bytes | None] = {}
+        review_inputs, resolution_options = [], []
         for relative in SCAFFOLD_MANAGED_PATHS:
             path = relative.as_posix()
             package_hash = _source_hash(payloads[relative])
@@ -1303,6 +1307,13 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
                 continue
             current_hash = _source_hash(current) if current is not None else ""
             observed[path] = current_hash
+            if (current is not None and current != payloads[relative] and current_hash != baseline_hash
+                    and package_hash != baseline_hash and path in scaffold_review.MODES):
+                candidates = scaffold_review.options(path, baseline_hash, current, payloads[relative])
+                resolution_options.extend(candidates)
+                if candidates:
+                    review_inputs.append({"path": path, "baseline_sha256": baseline_hash, "local_sha256": current_hash,
+                        "payload_sha256": package_hash, "local_content": current.decode("utf-8"), "payload_content": payloads[relative].decode("utf-8")})
             if path in {"Makefile", "Gemfile", "Gemfile.lock"}:
                 version_contents[path] = current
 
@@ -1337,23 +1348,29 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
         target_version = str(component("mcp")["version"])
         target_number = _release_number(target_version)
         for key, path in [("mcp_version", "Makefile"), ("gem_version", "Gemfile"), ("locked_gem_version", "Gemfile.lock")]:
+            selected_version = target_version if key == "mcp_version" else consumer_integration()["core_gem_version"]
+            selected_number = _release_number(selected_version)
             current_number = _release_number(current_versions[key])
-            if target_number is not None and current_number is not None and current_number > target_number:
+            if selected_number is not None and current_number is not None and current_number > selected_number:
                 conflicts.append({
                     "path": path, "code": "newer-consumer-version",
-                    "reason": f"Consumer version {current_versions[key]} is newer than this MCP's {target_version}; update/reconnect the MCP instead of downgrading the consumer.",
+                    "reason": f"Consumer version {current_versions[key]} is newer than the selected component's {selected_version}; update/reconnect the MCP instead of downgrading the consumer.",
                 })
-            elif path in preserved and current_number is not None and current_number != target_number:
+            elif path in preserved and current_number is not None and current_number != selected_number:
                 conflicts.append({
                     "path": path, "code": "custom-version-pin",
                     "reason": "A locally customized version pin differs from this MCP; review the override before synchronizing the integration tuple.",
                 })
 
+        resolvable = {row["path"] for row in conflicts if row["reason"] in {
+            "local file differs from its recorded baseline", "new package-managed path already exists with different content"}}
+        resolution_options = [row for row in resolution_options if row["path"] in resolvable]
+        review_inputs = [row for row in review_inputs if row["path"] in resolvable]
         retired = sorted(path for path in baseline if path not in {item.as_posix() for item in SCAFFOLD_MANAGED_PATHS})
         managed_paths = {item.as_posix() for item in SCAFFOLD_MANAGED_PATHS}
         next_baseline = {path: digest for path, digest in baseline.items() if path in managed_paths}
         next_baseline.update({path.as_posix(): _source_hash(payloads[path]) for path in SCAFFOLD_MANAGED_PATHS})
-        next_manifest = _scaffold_manifest_bytes(next_baseline)
+        next_manifest = _scaffold_manifest_bytes(next_baseline, resolutions=resolution_history)
         target = {"version": target_version, "mcp_image": component_reference("mcp"), **consumer_integration()}
         plan_sha256 = _source_hash(json.dumps({
             "schema_version": 1, "project": str(project), "target": target,
@@ -1376,6 +1393,9 @@ def _scaffold_sync_plan(project: Path) -> dict[str, Any]:
             "migrations": migrations,
             "retired": retired,
             "conflicts": conflicts,
+            "review_inputs": review_inputs,
+            "resolution_options": resolution_options,
+            "reviewed_resolutions": resolution_history,
             "manifest_update": next_manifest != manifest_content,
             "_payloads": payloads,
             "_manifest": next_manifest,
@@ -1606,9 +1626,42 @@ def scaffold_sync(
     dry_run: bool = True,
     confirm_sync: bool = False,
     expected_plan_sha256: str = "",
+    review: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     project = project_path(project)
     plan = _scaffold_sync_plan(project)
+    if review is not None:
+        from . import scaffold_review
+        resolved = scaffold_review.validate_review(review, plan["plan_sha256"], plan["resolution_options"])
+        allowed_conflicts = {row["path"] for row in plan["conflicts"] if row["reason"] in {
+            "local file differs from its recorded baseline", "new package-managed path already exists with different content"}}
+        if any(row["path"] not in allowed_conflicts for row in resolved):
+            raise ValueError("Review cannot override unsafe paths, missing files or version guards")
+        receipts = dict(plan["reviewed_resolutions"])
+        base_plan = plan["plan_sha256"]
+        for row in resolved:
+            path = row["path"]
+            content = row["content"].encode("utf-8")
+            if row["result_sha256"] == row["local_sha256"]:
+                plan["preserved"].append(path)
+            else:
+                plan["_payloads"][Path(path)] = content
+                plan["updates"].append({"path": path, "expected_sha256": row["local_sha256"], "sha256": row["result_sha256"]})
+            receipts[path] = {key: value for key, value in row.items() if key not in {"path", "content"}}
+            receipts[path]["base_plan_sha256"] = base_plan
+        selected_paths = {row["path"] for row in resolved}
+        plan["conflicts"] = [row for row in plan["conflicts"] if row["path"] not in selected_paths]
+        baseline_files = _strict_json_loads(plan["_manifest"].decode())["files"]
+        plan["_manifest"] = _scaffold_manifest_bytes(baseline_files, resolutions=receipts)
+        plan["manifest_update"] = True
+        plan["reviewed_resolutions"] = receipts
+        plan["resolved"] = [{key: value for key, value in row.items() if key != "content"} for row in resolved]
+        plan["base_plan_sha256"] = base_plan
+        plan["plan_sha256"] = _source_hash(json.dumps({"base": base_plan, "resolved": plan["resolved"],
+            "manifest_sha256": _source_hash(plan["_manifest"])}, sort_keys=True, separators=(",", ":")).encode())
+        plan["ok"] = not plan["conflicts"]
+        if not dry_run and not expected_plan_sha256:
+            raise RuntimeError("Reviewed resolutions require expected_plan_sha256 from their resolved dry-run")
     if expected_plan_sha256:
         if not re.fullmatch(r"[0-9a-f]{64}", expected_plan_sha256):
             raise ValueError("expected_plan_sha256 must be a lowercase SHA-256 digest.")
@@ -1693,10 +1746,11 @@ def consumer_update_status(project: Path) -> dict[str, Any]:
     if plan["manifest_update"]:
         changes.append(SCAFFOLD_MANIFEST_PATH.as_posix())
     target_number = _release_number(plan["target"]["version"])
-    numbers = [_release_number(plan["current_versions"][key]) for key in ("mcp_version", "gem_version", "locked_gem_version")]
-    known = [number for number in numbers if number is not None]
+    expected = {"mcp_version": plan["target"]["version"], "gem_version": plan["target"]["core_gem_version"],
+                "locked_gem_version": plan["target"]["core_gem_version"]}
     newer_consumer = any(item.get("code") == "newer-consumer-version" for item in plan["conflicts"])
-    newer_available = not newer_consumer and target_number is not None and any(number < target_number for number in known)
+    newer_available = not newer_consumer and any(_release_number(plan["current_versions"][key]) is not None
+        and _release_number(plan["current_versions"][key]) < _release_number(version) for key, version in expected.items())
     available = bool(changes or newer_available) and not newer_consumer
     can_apply = available and plan["ok"]
     if newer_consumer:

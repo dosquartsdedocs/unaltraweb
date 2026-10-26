@@ -333,7 +333,21 @@ source conservation and retained-input/domain validation. See
 
 At session start, `site_context.update_status` supplies an offline advisory against the active MCP package, including current literal version pins, target integration tuple, planned paths, preserved files, conflicts and `plan_sha256`. The agent explains available updates and asks for explicit acceptance before invoking `scaffold_sync` with that digest as `expected_plan_sha256`. The digest binds the consumer path, configuration, baseline, observed managed bytes and target package bytes; stale approval is rejected before writes. The parameter is optional for compatibility with existing explicit sync callers, but the guided flow always supplies it. An update can refresh scaffold controls without claiming a newer semver release. Unmanaged sites report an unavailable plan instead of being reinitialized. A declined update leaves normal content work available; there is no background network poll, self-upgrade, Git operation or automatic artefact regeneration. This flow requires a reviewed MCP/package release containing it and a reconnected client; updating the discovery checkout alone cannot replace the public digest-pinned runtime.
 
-Planning, version comparisons, conflict/preservation decisions and replacement bytes are deterministic code, also callable through the CLI without an agent. The agent controls invocation, explanation, collection of user acceptance and Git/review orchestration; the server cannot guarantee that an agent will present the startup offer. No LLM generates managed replacements or resolves conflicts within `scaffold_sync`. The plan is repeatable for the same bound path and input bytes; diagnostic time in the surrounding `site_context` response does not enter its digest.
+Planning, version comparisons, conflict/preservation decisions and replacement bytes are deterministic code, also callable through the CLI without an agent. The agent controls invocation, explanation, collection of user acceptance and Git/review orchestration; the server cannot guarantee that an agent will present the startup offer. No LLM generates managed replacement bytes within `scaffold_sync`. The plan is repeatable for the same bound path and input bytes; diagnostic time in the surrounding `site_context` response does not enter its digest.
+
+From 0.7.4, `scaffold_sync(..., review=...)` exposes a bounded reviewed-resolution
+path. Conflicted plans return `review_inputs` and deterministic `resolution_options`.
+The versioned `unaltraweb-scaffold-review` binds the original `base_plan_sha256`,
+each path/mode, baseline/local/payload/result hashes and a review reason. Supported
+modes retain all local ignore bytes (`keep` or package-before-local
+`prepend-package`) or update only defined workflow scalar pins (`pins-only`),
+preserving mandatory controls and unrelated local behavior. Missing/unsafe paths,
+unknown modes and version guards cannot be overridden. The resolved dry-run has
+its own hash, mandatory on apply together with the same review and confirmation.
+The manifest records the real upstream baseline and reviewed-result receipts;
+subsequent plans remain honest about customization. CLI uses `--review-json JSON`.
+See [scaffold-closeout-118.md](scaffold-closeout-118.md) for the public migration
+sequence and the independently selected native `core_gem_version`.
 
 Each scaffold is already reduced to one profile, so `profile_prune_plan` is not part of new-site creation. The prune rule remains available for existing mixed-profile sites.
 

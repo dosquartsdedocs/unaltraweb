@@ -105,6 +105,15 @@ def selected_deployment_errors(contract: dict[str, Any], workflow: dict[str, Any
     return errors
 
 
+def selected_core_gem_errors(contract: dict[str, Any], core_contract: dict[str, Any]) -> list[str]:
+    expected = contract["consumer_integration"].get("core_gem_version")
+    actual = core_contract.get("release", {}).get("version")
+    declared = core_contract.get("components", {}).get("gem", {}).get("version")
+    if not expected or expected != actual or expected != declared:
+        return ["selected immutable core source's gem version differs from consumer_integration.core_gem_version"]
+    return []
+
+
 def validate(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     contract = distribution_contract()
@@ -173,6 +182,13 @@ def validate(root: Path = ROOT) -> list[str]:
         )
         if core_ancestor.returncode != 0:
             errors.append("consumer integration core SHA must be an ancestor of the current source")
+        core_record = subprocess.run(["git", "show", f"{core_sha}:src/unaltraweb_mcp/component-contract.json"],
+                                     cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        try:
+            selected_core = json.loads(core_record.stdout) if core_record.returncode == 0 else {}
+            errors.extend(selected_core_gem_errors(contract, selected_core))
+        except (ValueError, TypeError, AttributeError):
+            errors.append("selected immutable core has no readable gem version contract")
         pinned_workflow = subprocess.run(
             ["git", "show", f"{workflow_sha}:.github/workflows/site-deploy.yml"],
             cwd=root,
