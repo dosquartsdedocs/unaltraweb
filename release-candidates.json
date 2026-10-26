@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "release": "v0.7.3",
-  "source_commit": "9d97197dec5fc9346ab795191a3afd18884c27fb",
+  "release": "v0.7.4",
+  "source_commit": "676caa695d8e8f84a8a11800bb5a4a17599af539",
   "components": {
     "gem": {
-      "artifact": "unaltraweb-0.7.3.gem",
-      "sha256": "80886c7195bd6f6fa4b1c90f808864769d392abfdbc4deca3e7cadafae96589a"
+      "artifact": "unaltraweb-0.7.4.gem",
+      "sha256": "20e76a0603c035a3bb64f528f1d3a649ca026b3cd65336f28073edc2dd203fa4"
     },
     "wheel": {
-      "artifact": "unaltraweb_mcp-0.7.3-py3-none-any.whl",
-      "sha256": "bb27901e03063280f06be282559fefeb936c5350ace9c5d4ee9f322d57539af7"
+      "artifact": "unaltraweb_mcp-0.7.4-py3-none-any.whl",
+      "sha256": "0202ff0982fea276a7ba775245faa7bafd75acc5cfad3e1f549055e87cd336ec"
     },
     "runtime": {
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb@sha256:fd23c62f31b4c0a612a17bfbbb93990dad367f261b415607b90219847efbf67a"
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb@sha256:5d82d15358f2785e1a548f8d3d2a0e932602e3d9d7b4d1efa330fb774c65f5cb"
     },
     "mcp": {
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:8183e7117f5902fc0ad4d930b757d874b2da1f93d5ef4db102ae4c1b03e357a3"
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:10bcaf1411f27a518969283a77e23dcc99119014b216270b3089ba85ba0b6c7e"
     }
   }
 }
