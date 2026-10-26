@@ -7,7 +7,7 @@ from functools import partial, wraps
 from pathlib import Path
 from typing import Any
 
-from .distribution import distribution_doctor as inspect_distribution
+from .consumer_advisory import distribution_doctor as inspect_distribution
 from . import site_tools as tools
 
 

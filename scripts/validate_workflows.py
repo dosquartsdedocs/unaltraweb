@@ -122,11 +122,8 @@ def load_consumer_integration(root: Path) -> dict[str, Any]:
         "manual_pdf_image",
         "vegavisuals_sha",
     }
-    if not isinstance(integration, dict) or not required <= set(integration) or set(integration) - required - {"site_deploy_workflow_sha", "core_gem_version"}:
+    if not isinstance(integration, dict) or not required <= set(integration) or set(integration) - required - {"site_deploy_workflow_sha"}:
         raise ValueError("component contract has no exact consumer_integration object")
-    if "core_gem_version" in integration and (not isinstance(integration["core_gem_version"], str)
-            or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", integration["core_gem_version"])):
-        raise ValueError("component contract has no valid core gem version")
     integration = dict(integration)
     integration.setdefault("site_deploy_workflow_sha", integration["core_sha"])
     return integration

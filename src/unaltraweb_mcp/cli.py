@@ -7,7 +7,7 @@ from pathlib import Path
 
 from . import __version__
 from . import calibre_import
-from .distribution import distribution_doctor
+from .consumer_advisory import distribution_doctor
 from .editorial_sources import strict_json
 from .image_backgrounds import print_warnings as print_image_warnings
 from . import site_tools as tools

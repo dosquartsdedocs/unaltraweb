@@ -106,10 +106,12 @@ def selected_deployment_errors(contract: dict[str, Any], workflow: dict[str, Any
 
 
 def selected_core_gem_errors(contract: dict[str, Any], core_contract: dict[str, Any]) -> list[str]:
-    expected = contract["consumer_integration"].get("core_gem_version")
+    from unaltraweb_mcp.consumer_advisory import consumer_core_policy
+    policy = consumer_core_policy()
+    expected = policy["gem_version"]
     actual = core_contract.get("release", {}).get("version")
     declared = core_contract.get("components", {}).get("gem", {}).get("version")
-    if not expected or expected != actual or expected != declared:
+    if policy["core_sha"] != contract["consumer_integration"]["core_sha"] or expected != actual or expected != declared:
         return ["selected immutable core source's gem version differs from consumer_integration.core_gem_version"]
     return []
 

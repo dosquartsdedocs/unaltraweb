@@ -20,12 +20,11 @@ from unaltraweb_mcp.distribution import (
     companion_dependency_requirements,
     component_contract_semantic_errors,
     component_reference,
-    consumer_integration,
     distribution_contract,
-    distribution_doctor,
     is_mutable_reference,
     validate_component_contract,
 )
+from unaltraweb_mcp.consumer_advisory import consumer_integration, distribution_doctor
 from scripts.validate_distribution import (
     load_release_candidate_receipt_errors,
     publish_ref_errors,
@@ -170,7 +169,9 @@ class DistributionTests(unittest.TestCase):
 
         self.assertEqual(contract["schema_version"], 1)
         self.assertEqual(contract["release"]["version"], __version__)
-        self.assertEqual(contract["consumer_integration"], consumer_integration())
+        projected = consumer_integration()
+        self.assertEqual(contract["consumer_integration"], {key: value for key, value in projected.items() if key != "core_gem_version"})
+        self.assertRegex(projected["core_gem_version"], r"^[0-9]+\.[0-9]+\.[0-9]+$")
         self.assertRegex(contract["consumer_integration"]["core_sha"], r"^[0-9a-f]{40}$")
         self.assertRegex(contract["consumer_integration"]["vegavisuals_sha"], r"^[0-9a-f]{40}$")
         self.assertRegex(

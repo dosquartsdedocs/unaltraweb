@@ -23,7 +23,11 @@ The native Git adapter explicitly selects:
 - Classic QGIS 0.6.1 and all other independent worker/companion pins are preserved.
 
 The generated native Gemfile/lock use the selected core's gem version, not the
-wheel's release version. Source validation reads the immutable Git commit's
+wheel's release version. The controller-only `consumer-core.json` declares that
+version and binds it to the BOM's exact core SHA; `consumer_advisory.py` projects
+it into the public target as `core_gem_version`. The shared retained-document
+checker module **and schema** remain byte-identical to the core and PDF worker.
+Source validation reads the immutable Git commit's
 contract and rejects a mismatch. Doctor/update comparisons use independent
 component targets, so a coherent 0.7.4 MCP / 0.7.3 Git core is not perpetually
 reported as out of date. Docker's existing generated Bundler state still loads

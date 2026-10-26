@@ -16,7 +16,8 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
-from .distribution import component, component_reference, consumer_integration
+from .distribution import component, component_reference
+from .consumer_advisory import consumer_integration
 from .docker_mount import docker_bind_mount
 from .image_backgrounds import image_background_check
 from .editorial import (
@@ -5815,7 +5816,7 @@ def _core_override_inventory(project: Path) -> dict[str, Any]:
 
 
 def site_doctor(project: Path, factory: Path | None = None) -> dict[str, Any]:
-    from .distribution import distribution_doctor
+    from .consumer_advisory import distribution_doctor
 
     project = project_path(project)
     factory_root = project_path(factory) if factory is not None else None

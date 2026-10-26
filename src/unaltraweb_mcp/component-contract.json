@@ -9,7 +9,6 @@
     "schema_version": 1,
     "core_repository": "https://github.com/dosquartsdedocs/unaltraweb.git",
     "core_sha": "9d97197dec5fc9346ab795191a3afd18884c27fb",
-    "core_gem_version": "0.7.3",
     "site_deploy_workflow": "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml",
     "site_deploy_workflow_sha": "3332e0b93933f12317e05f1ce8d38ce80046feab",
     "manual_pdf_image": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:1bb3f2dafd741e96c28639ec1cc8ccaeb81cbaa73e649f787c0b4ef59997bd4b",
