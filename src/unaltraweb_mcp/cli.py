@@ -29,6 +29,7 @@ FACTORY_REQUIRED_MCP_COMMANDS = {
     "manual-pdf-build",
     "manual-practice-pdf-build",
     "manual-practice-compose",
+    "manual-context-export",
     "manual-pdf-preview-prepare",
     "manual-pdf-publish",
     "manual-release-status",
@@ -197,10 +198,10 @@ def cmd_import_calibre(args: argparse.Namespace) -> int:
 
 
 def cmd_mcp(args: argparse.Namespace) -> int:
-    if args.mcp_command == "manual-practice-compose":
+    if args.mcp_command in {"manual-practice-compose", "manual-context-export"}:
         selected = args.project or os.environ.get("MCP_CONSUMER_WORKSPACE")
         if not selected or not Path(selected).is_absolute():
-            raise ValueError("Practice composition requires --project or MCP_CONSUMER_WORKSPACE with an explicit absolute consumer")
+            raise ValueError("Manual delivery requires --project or MCP_CONSUMER_WORKSPACE with an explicit absolute consumer")
     project = project_dir(args.project)
     command = args.mcp_command
     factory = factory_dir(command) if command in FACTORY_REQUIRED_MCP_COMMANDS else find_factory_dir()
@@ -326,6 +327,9 @@ def cmd_mcp(args: argparse.Namespace) -> int:
                                                          run=args.run, dry_run=args.dry_run), enforce_ok=True)
     if command == "manual-practice-compose":
         return print_json(tools.manual_practice_compose(project, factory, args.config, dry_run=args.dry_run), enforce_ok=True)
+    if command == "manual-context-export":
+        return print_json(tools.manual_context_export(project, factory, args.name, language=args.language,
+                          chapters=args.chapter, sections=args.section), enforce_ok=True)
     if command == "manual-pdf-preview-prepare":
         return print_json(tools.manual_pdf_preview_prepare(project, factory), enforce_ok=True)
     if command == "manual-pdf-preview-clean":
@@ -526,6 +530,12 @@ def build_parser() -> argparse.ArgumentParser:
     computation_render.add_argument("--stale-only", action="store_true")
 
     mcp_sub.add_parser("manual-computation-render-figures")
+
+    context_export = mcp_sub.add_parser("manual-context-export", help="Retain a resolved manual context v1 package; no rendering")
+    context_export.add_argument("--name", required=True)
+    context_export.add_argument("--language", default="")
+    context_export.add_argument("--chapter", action="append", help="Chapter ref (repeatable); preserves manual order")
+    context_export.add_argument("--section", action="append", help="Exact chapter-ref#anchor block ID (repeatable)")
 
     for name in ["web-capture-status", "web-capture-check"]:
         web_capture = mcp_sub.add_parser(name)
