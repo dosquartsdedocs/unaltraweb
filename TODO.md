@@ -8,13 +8,26 @@ Use the term **site profile** for prepared website families such as `unaltreself
 
 The goal is not to maintain one personal site here. The goal is to make a self-owned alternative to the inherited `al-folio` base, supporting academic personal sites, research project sites and documentation/course sites.
 
+## Portable manual context — #121
+
+The 0.8.0 development source adds bound MCP/CLI context-v1 exports with native
+resolver/check reuse, create-only retention and exact transport closure. The
+first real exporter package and two-version installed-MCP/Itemarium conformance
+pass on isolated synthetic manuals. See [the owner record](docs/agents/manual-context-121.md)
+and [the author guide](docs/_documentation/en/47-manual-context.md).
+
+Source delivery is on PR122; merge, release and gaContExt #52 admission are
+separate gates. QGIS context provenance and raster-bearing capture SVG support
+require coordinated follow-up; incompatible resources fail explicitly.
+
 ## Scaffold correction — #115 / #118
 
 The 0.7.4 unit adds an explicit native core/gem version pair and reviewed,
 hash-bound ignore/workflow resolutions on the existing scaffold transaction.
-Installed migration and real Git/Bundler/Jekyll acceptance are recorded in
-[the owner closeout](docs/agents/scaffold-closeout-118.md); immutable publication
-and manual adoption remain separately recorded gates.
+Installed migration, real Git/Bundler/Jekyll acceptance and completed immutable
+publication are recorded in [the owner closeout](docs/agents/scaffold-closeout-118.md).
+The checkout launcher selects published MCP digest `10bcaf14…` (0.7.4).
+Consumer selection and manual adoption remain separately coordinated actions.
 
 Experimental #116 is preserved on `feat/116-common-practice-sdk` at
 `6a8cd85ff75c8ad41dc67f8fb1c3c5a8f8919e53`, outside this correction/release.
@@ -29,8 +42,8 @@ integrated; protected CI, signed candidates, package publication and anonymous
 download checks pass. The final synthetic PDF/ZIP/extracted-packet acceptance and
 a fresh published-wheel MCP resource/identity/detach check pass.
 
-The checkout now selects published MCP digest `8183e711…`; existing client
-connections are not reloaded. Complete immutable pins and evidence were returned
+The 0.7.3 post-release checkout selected MCP digest `8183e711…`. Complete
+immutable pins and evidence were returned
 to [gaContExt #38](https://github.com/dosquartsdedocs/gacontext/issues/38#issuecomment-6304912982).
 Real consumer curation, selection and scoped reload remain hub-owned work.
 
