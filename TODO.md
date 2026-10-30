@@ -12,9 +12,10 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 The 0.7.4 unit adds an explicit native core/gem version pair and reviewed,
 hash-bound ignore/workflow resolutions on the existing scaffold transaction.
-Installed migration and real Git/Bundler/Jekyll acceptance are recorded in
-[the owner closeout](docs/agents/scaffold-closeout-118.md); immutable publication
-and manual adoption remain separately recorded gates.
+Installed migration, real Git/Bundler/Jekyll acceptance and completed immutable
+publication are recorded in [the owner closeout](docs/agents/scaffold-closeout-118.md).
+The checkout launcher selects published MCP digest `10bcaf14…` (0.7.4).
+Consumer selection and manual adoption remain separately coordinated actions.
 
 Experimental #116 is preserved on `feat/116-common-practice-sdk` at
 `6a8cd85ff75c8ad41dc67f8fb1c3c5a8f8919e53`, outside this correction/release.
@@ -29,8 +30,8 @@ integrated; protected CI, signed candidates, package publication and anonymous
 download checks pass. The final synthetic PDF/ZIP/extracted-packet acceptance and
 a fresh published-wheel MCP resource/identity/detach check pass.
 
-The checkout now selects published MCP digest `8183e711…`; existing client
-connections are not reloaded. Complete immutable pins and evidence were returned
+The 0.7.3 post-release checkout selected MCP digest `8183e711…`. Complete
+immutable pins and evidence were returned
 to [gaContExt #38](https://github.com/dosquartsdedocs/gacontext/issues/38#issuecomment-6304912982).
 Real consumer curation, selection and scoped reload remain hub-owned work.
 
