@@ -12,6 +12,8 @@ import json
 import os
 from pathlib import Path
 import sys
+import subprocess
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -25,7 +27,7 @@ def save(path, value):
         stream.write("\n")
 
 
-async def export(project, name):
+async def export(project, name, image=""):
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
     def payload(result):
@@ -34,6 +36,20 @@ async def export(project, name):
         args=["-B", "-m", "unaltraweb_mcp.cli", "mcp", "serve"],
         env={"PATH": os.environ["PATH"], "HOME": str(project), "PYTHONPATH": str(ROOT / "src"),
              "MCP_CONSUMER_WORKSPACE": str(project), "UNALTRAWEB_FACTORY_DIR": str(ROOT)})
+    container = ""
+    image_id = ""
+    if image:
+        from unaltraweb_mcp.docker_mount import docker_bind_mount
+        image_id = subprocess.run(["docker", "image", "inspect", image, "--format", "{{.Id}}"], check=True,
+                                  capture_output=True, text=True, timeout=20).stdout.strip()
+        container = "unaltraweb-context-121-" + uuid.uuid4().hex
+        parameters = StdioServerParameters(command="docker", args=["run", "--rm", "-i", "--pull", "never",
+            "--name", container, "--network", "none", "--read-only", "--user", f"{os.getuid()}:{os.getgid()}",
+            "--cpus", "2", "--memory", "2g", "--pids-limit", "256", "--tmpfs", "/tmp:rw,nosuid,nodev,size=268435456",
+            "--label", "io.context.mcp-factory=unaltraweb", "--label", "io.context.mcp-role=context-acceptance",
+            "--mount", docker_bind_mount(project, "/workspace"), "-e", "HOME=/tmp",
+            "-e", "UNALTRAWEB_DOCKER_ROOT=" + str(project), "-e", "UNALTRAWEB_MCP_IMAGE=" + image_id,
+            "--entrypoint", "unaltraweb-mcp", image_id, "--project", "/workspace", "mcp", "serve"])
     async with stdio_client(parameters) as (incoming, outgoing):
         async with ClientSession(incoming, outgoing) as client:
             await client.initialize()
@@ -48,13 +64,20 @@ async def export(project, name):
             await client.call_tool("runtime_drain", {"confirm": True})
             result["absolute_path"] = str(project / result["path"])
             assert hashlib.sha256(Path(result["absolute_path"]).read_bytes()).hexdigest() == result["sha256"]
-            return {"identity": identity, "export": result, "create_only_refusal": again}
+            observed = {"identity": identity, "export": result, "create_only_refusal": again}
+    if image:
+        assert identity["package"]["mode"] == "installed" and not identity["package"]["drift"]
+        absent = subprocess.run(["docker", "container", "inspect", container], capture_output=True, timeout=20)
+        assert absent.returncode != 0, "Fixture MCP container remains after stdio close"
+        observed.update(image_id=image_id, exact_container_absent=True)
+    return observed
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--single", action="store_true")
+    parser.add_argument("--image", default="", help="Already-built MCP image; pull-never, network-disabled fixture stdio")
     args = parser.parse_args()
     output = args.output.resolve()
     if output != args.output or not output.is_relative_to(ROOT / "tmp") or not output.parent.is_dir():
@@ -63,16 +86,23 @@ def main():
     project = output / "manual-fixture"
     project.mkdir()
     fixture(project)
-    first = asyncio.run(export(project, "v1"))
+    first = asyncio.run(export(project, "v1", args.image))
     save(output / "producer-v1.json", first)
+    command = [sys.executable, "-B", "-m", "unaltraweb_mcp.cli", "--project", str(project), "mcp", "manual-context-export",
+               "--name", "cli-block", "--language", "ca", "--chapter", "first", "--section", "first#method"]
+    completed = subprocess.run(command, env={**os.environ, "PYTHONPATH": str(ROOT / "src"), "UNALTRAWEB_FACTORY_DIR": str(ROOT)},
+                               check=True, capture_output=True, text=True, timeout=120)
+    cli = json.loads(completed.stdout)
+    assert cli["ok"] and cli["sections"] == 1 and cli["figures"] == 1, cli
+    save(output / "producer-cli.json", {"command": command, "result": cli})
     result = {"ok": True, "synthetic_manual": True, "producer_export_invoked": True, "transport": "mcp-stdio",
-              "first": first["export"], "questions_generated": 0}
+              "first": first["export"], "cli_verified": True, "questions_generated": 0}
     if not args.single:
         original = (project / "_chapters/ca/first.md").read_text()
         write(project, "_chapters/ca/first.md", original + "\nSegona versió: text afegit.\n")
         write(project, "_chapters/ca/second.md", "---\ntitle: Segon\nref: second\nlang: ca\nweight: 20\n---\nCapítol afegit en la segona versió.\n")
         commit(project, ["_chapters/ca/first.md", "_chapters/ca/second.md"], "Second fixture revision")
-        second = asyncio.run(export(project, "v2"))
+        second = asyncio.run(export(project, "v2", args.image))
         save(output / "producer-v2.json", second)
         result["next"] = second["export"]
         assert first["export"]["manual"]["id"] == second["export"]["manual"]["id"]

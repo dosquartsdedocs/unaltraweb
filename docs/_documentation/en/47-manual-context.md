@@ -58,19 +58,48 @@ so parent blocks do not duplicate descendant prose. Order is explicit rather
 than inferred from filenames. Numbered chapters precede reference chapters, as
 in the native manual resolver; public `pdf: false` chapters remain available.
 
-The first increment supports static standalone PNG/JPEG/GIF/WebP/SVG figures and
-native alt/title-caption/credit syntax. It rejects unresolved generated sources,
-Liquid/includes, missing/external resources, unsafe paths and incompatible SVGs.
-Further resolver coverage is being verified in #121. No renderer or download is
-invoked implicitly. In particular, the current receiver rejects SVG `<image>`,
-even embedded PNG data in capture SVGs, and excludes PDF. An edited capture is
-never silently substituted with its original raster.
+The exporter resolves native figures, localized variants/fallback and the
+existing output precedence on a bounded no-follow snapshot. It reuses native
+computation status (including generated chapters), complete companion receipts
+for diagrams/Vega, and web-capture status. These project-wide completeness checks
+also reject unrelated stale/orphaned records; selecting a chapter cannot bypass
+a required producer gate. Unmanaged generated outputs are not freshness evidence.
+
+Literal Markdown/HTML includes without parameters, manual bibliography includes,
+`cite` tags, tables, subfigures, listings, callouts and definition lists are
+projected to portable prose. Captions, credits and bibliography fields/links are
+retained; the exporter does not emulate a CSL citation style. Code examples stay
+literal. HTML comments are not reader-facing context. Arbitrary Liquid, dynamic
+includes and active/interactive HTML need an explicitly prepared portable source
+and fail with a diagnostic rather than disappearing.
+
+No renderer or download runs implicitly. Standalone PNG/JPEG/GIF/WebP/SVG images
+are accepted. The current receiver rejects SVG `<image>`, even embedded PNG data
+in capture SVGs, and excludes PDF. A current native web-capture SVG can pass only
+if its effective bytes meet this standalone boundary. QGIS capture provenance
+has no native context-v1 adapter in this increment: recognizable QGIS captures
+are refused with a diagnostic, not relabelled as static. Its profile/receipt
+integration and receiver support for raster-bearing SVG require coordinated
+follow-up. Edited captures are never silently substituted with original rasters.
+
+Diagrams use the provider's exact effective-artifact receipt. Vega uses exactly
+the output declared in `.vegavisuals.yml` (including an edited output only when
+that is the declared, verified output). Computation SVG overrides must postdate
+their current source and generated base. Web captures use their native embedded
+PNG/fingerprint checks. The exporter records fresh resolution evidence binding
+the native check **and the actual effective bytes**; `receipt_sha256` refers to
+that evidence in the retained export receipt, not an older renderer receipt
+misattributed to new edited bytes.
 
 `manual.revision` is the actual Git HEAD and `dirty` is explicit. Clean source
 dates use the commit date; dirty snapshots use the latest consumed file mtime,
 with an explicit timezone. The source fingerprint is SHA256 of canonical UTF-8
 JSON (sorted keys, compact separators, no trailing newline) mapping consumed
-project-relative paths to their hashes. Absent variant probes are retained in
+project-relative paths to their hashes: configuration, manual collection inputs,
+referenced includes/bibliography, original and effective visuals, dependency
+files, native locks and complete provider check inventories. Only resolved text
+and registered images enter the transport archive; executable/data/check inputs
+are represented by fingerprints in the producer receipt. Absent variant probes are retained in
 the external producer receipt and rechecked before sealing. The package's direct
 file hashes independently bind every delivered byte. Producer revision is a
 code fingerprint of the package and native resolver/check scripts, not a claim

@@ -17,9 +17,12 @@ import re
 import tarfile
 import tempfile
 import unicodedata
+import html
+from html.parser import HTMLParser
 from urllib.parse import unquote, urlsplit
 
 from markdown_it import MarkdownIt
+import yaml
 
 from . import __version__
 from . import manual_pdf_preview as fs
@@ -60,7 +63,7 @@ class Snapshot:
     def __init__(self, reader, root):
         self.reader, self.root = reader, root
         self.mtimes = {}
-        self.public_roots = {"assets", "_data", "_includes", "_bibliography", "_chapters", "_documentation"}
+        self.public_roots = {"assets", "_data", "_includes", "_bibliography", "_chapters", "_documentation", "_pages", "_layouts", "_plugins", "_sass"}
 
     def public(self, name):
         relative_path(name)
@@ -71,6 +74,12 @@ class Snapshot:
     def copy(self, name, *, optional=False):
         data = self.reader.read(name, optional=optional)
         if data is not None and not (self.root / name).exists():
+            if name.endswith((".yml", ".yaml")):
+                try:
+                    if any(isinstance(token, (yaml.tokens.AliasToken, yaml.tokens.AnchorToken)) for token in yaml.scan(data)):
+                        raise ValueError(f"{name}: aliases/anchors are not supported in export source configuration")
+                except yaml.YAMLError as exc:
+                    raise ValueError(f"{name}: invalid YAML: {exc}") from exc
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
@@ -121,12 +130,28 @@ def split_sections(text, ref, title):
     return result
 
 
+def protect_code_blocks(text, protect):
+    """Preserve fenced (including unclosed) and indented literal code exactly."""
+    lines = text.splitlines(keepends=True)
+    spans = sorted({tuple(token.map) for token in MarkdownIt("commonmark").parse(text)
+                    if token.type in {"fence", "code_block"} and token.map}, reverse=True)
+    for start, end in spans:
+        value = "".join(lines[start:end])
+        ending = "\n" if value.endswith("\n") else ""
+        lines[start:end] = [protect((value[:-1] if ending else value,)) + ending]
+    return "".join(lines)
+
+
 class Projection:
-    def __init__(self, snapshot, manual, config, language):
+    def __init__(self, snapshot, manual, config, language, factory):
         self.snapshot, self.manual, self.config, self.language = snapshot, manual, config, language
         self.default = default_language(config)
         self.languages = config.get("languages") or [self.default]
         self.figures, self.files = {}, {}
+        from .manual_context_sources import Sources
+        self.sources = Sources(snapshot, factory, manual)
+        self.bibliography = None
+        self.expanded_bytes = 0
 
     def figure(self, raw, alt, caption, credits):
         source = self.snapshot.public(local_path(raw))
@@ -144,7 +169,8 @@ class Projection:
         for code in self.languages:
             if stem.lower().endswith("." + code.lower()):
                 language = code
-        effective, resolution = self.resolve(selected)
+        original, effective, resolution = self.sources.resolve(selected)
+        language = self.sources.records.get(original, {}).get("language", language)
         data = self.snapshot.copy(effective)
         validate_image(data, effective)
         for value in (alt, caption, credits):
@@ -154,14 +180,83 @@ class Projection:
         destination = f"figures/{key}{Path(effective).suffix.lower()}"
         self.files[destination] = data
         self.figures[destination] = {"id": "figure-" + key, "path": destination, "alt": alt, "caption": caption,
-            "credits": credits, "language": language, "source": {"path": selected, "sha256": digest(self.snapshot.copy(selected))},
+            "credits": credits, "language": language, "source": {"path": original, "sha256": digest(self.snapshot.copy(original))},
             "resolution": resolution}
         return "/" + destination
 
-    def resolve(self, source):
-        if Path(source).suffix.lower() not in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}:
-            raise ValueError(f"{source}: generated visual requires verified producer resolution before export")
-        return source, {"kind": "static", "edited": source.endswith(".edited.svg")}
+    def bibliography_entries(self):
+        if self.bibliography is None:
+            settings = self.config.get("unaltraweb", {}).get("manual", {})
+            filename = settings.get("bibliography_file") or "manual.bib"
+            self.snapshot.copy(self.snapshot.public("_bibliography/" + filename))
+            path = self.manual.bibliography_source(self.snapshot.root, self.config)
+            if path is None:
+                raise ValueError("Citations require the manual bibliography to be enabled")
+            import bibtexparser
+            from bibtexparser.customization import convert_to_unicode
+            entries = bibtexparser.loads(path.read_text()).entries
+            if len(entries) > 5000 or len({row["ID"] for row in entries}) != len(entries):
+                raise ValueError("Bibliography has duplicate keys or exceeds its bound")
+            self.bibliography = {row["ID"]: convert_to_unicode(row) for row in entries}
+        return self.bibliography
+
+    def references(self, keys):
+        entries = self.bibliography_entries()
+        lines = []
+        for key in sorted(set(keys)):
+            if key not in entries:
+                raise ValueError(f"Unknown citation key {key}; add a verified manual bibliography entry")
+            entry = entries[key]
+            if not entry.get("title"):
+                raise ValueError(f"Bibliography entry {key} has no title")
+            fields = [entry.get(field, "") for field in ("author", "editor", "year", "title", "journal", "booktitle", "publisher")]
+            line = f"- **{key}**: " + ". ".join(value for value in fields if value)
+            for field in ("doi", "url", "manual_url", "website"):
+                value = entry.get(field)
+                if value:
+                    url = "https://doi.org/" + value.removeprefix("https://doi.org/") if field == "doi" else value
+                    parsed = urlsplit(url)
+                    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                        raise ValueError(f"Bibliography {key}: unsupported {field} URL")
+                    line += " " + f"[{field}](<{url}>)"
+            lines.append(line)
+        return "\n".join(lines) + "\n"
+
+    def includes(self, text, source, chain=()):
+        if len(chain) >= 16:
+            raise ValueError("Manual include depth exceeds 16")
+        def include(match):
+            filename = match[2].strip().strip("\"'")
+            if filename == "manual-bibliography.liquid" and match[1] == "include":
+                body = self.references(self.bibliography_entries())
+                self.expanded_bytes += len(body.encode())
+                if self.expanded_bytes > 16 * 1024**2:
+                    raise ValueError("Manual includes exceed the 16 MiB expansion budget")
+                return body
+            if not re.fullmatch(r"[A-Za-z0-9_./-]+\.(?:md|markdown|liquid|html)", filename):
+                raise ValueError(f"{source}: portable includes require a literal filename without parameters")
+            name = ("_includes/" if match[1] == "include" else str(Path(source).parent) + "/") + filename
+            self.snapshot.public(name)
+            if name in chain:
+                raise ValueError(f"Recursive manual include: {name}")
+            body = self.snapshot.copy(name).decode("utf-8")
+            self.expanded_bytes += len(body.encode())
+            if self.expanded_bytes > 16 * 1024**2:
+                raise ValueError("Manual includes exceed the 16 MiB expansion budget")
+            return self.includes(body, name, (*chain, name))
+        protected = []
+        prefix = "UWCONTEXTINCLUDE"
+        while prefix in text:
+            prefix += "X"
+        def protect(match):
+            protected.append(match[0])
+            return f"{prefix}{len(protected)-1}TOKEN"
+        text = protect_code_blocks(text, protect)
+        text = self.manual.MARKDOWN_INLINE_CODE_RE.sub(protect, text)
+        text = re.sub(r"{%\s*(include|include_relative)\s+([^%]+?)\s*%}", include, text)
+        for index in reversed(range(len(protected))):
+            text = text.replace(f"{prefix}{index}TOKEN", protected[index])
+        return text
 
     def text(self, text, source):
         protected = []
@@ -171,22 +266,88 @@ class Projection:
         def protect(match):
             protected.append(match[0])
             return f"{prefix}{len(protected)-1}TOKEN"
-        text = self.manual.FENCED_CODE_BLOCK_RE.sub(protect, text)
+        def restore(value):
+            for index in reversed(range(len(protected))):
+                value = value.replace(f"{prefix}{index}TOKEN", protected[index])
+            return value
+        text = protect_code_blocks(text, protect)
         text = self.manual.MARKDOWN_INLINE_CODE_RE.sub(protect, text)
+        text = self.includes(text, source)
+        # Protect literal examples introduced by an include too.
+        text = protect_code_blocks(text, protect)
+        text = self.manual.MARKDOWN_INLINE_CODE_RE.sub(protect, text)
+        text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
         text = self.manual.BASEURL_RE.sub("", text)
+        cited = []
+        def cite(match):
+            keys = [key.lstrip("@") for key in match[1].split()]
+            entries = self.bibliography_entries()
+            if any(key not in entries for key in keys):
+                raise ValueError(f"{source}: unknown manual citation key")
+            cited.extend(keys)
+            return "[" + "; ".join(keys) + "]"
+        text = self.manual.CITE_RE.sub(cite, text)
         if "{%" in text or "{{" in text:
             raise ValueError(f"{source}: unresolved Liquid/include; use a supported portable component")
+        def component(match):
+            caption = match.groupdict().get("caption") or ""
+            credit, _ = self.manual.caption_source_attribute(match.groupdict().get("attrs") or "")
+            return "\n\n" + "\n\n".join(value for value in (caption, match.group("body"), credit) if value) + "\n\n"
+        text = self.manual.TABLE_DIV_RE.sub(component, text)
+        text = self.manual.SUBFIGURES_DIV_RE.sub(component, text)
+        text = self.manual.LISTING_DIV_RE.sub(component, text)
+        if re.search(r"^:::", text, re.M):
+            raise ValueError(f"{source}: unsupported/malformed manual component")
+        if self.manual.CALLOUT_BLOCK_RE.search(text):
+            for code in {self.manual.normalize_callout_language(self.language), self.manual.normalize_callout_language(self.default)}:
+                for suffix in (".yml", ".yaml"):
+                    langfile = str(self.config.get("data_dir") or "_data") + "/i18n/" + code + suffix
+                    self.snapshot.copy(self.snapshot.public(langfile), optional=True)
+            labels, _ = self.manual.resolve_callout_labels(self.snapshot.root, self.config, self.language)
+            def callout(match):
+                marks = match.group("marks")
+                kind = self.manual.CALLOUT_STYLES[min(len(marks), 6)][1]
+                body = "\n".join("> " + line[len(marks):].lstrip(" \t") for line in match.group("block").splitlines())
+                return "> **" + labels[kind] + "**\n>\n" + body
+            text = self.manual.CALLOUT_BLOCK_RE.sub(callout, text)
         def image(match):
             credit, _ = self.manual.caption_source_attribute(match.group("attrs") or "")
-            alt = match.group("alt")
-            caption = match.group("double_title") or match.group("single_title") or alt
+            alt = restore(match.group("alt"))
+            caption = restore(match.group("double_title") or match.group("single_title") or alt)
+            credit = restore(credit)
             path = self.figure(match.group("path"), alt, caption, credit)
             title = caption.replace('"', '&quot;')
             result = f'![{alt}]({path} "{title}")'
             return result + (f"\n\n{credit}\n" if credit else "")
         text = self.manual.IMAGE_RE.sub(image, text)
-        for index in reversed(range(len(protected))):
-            text = text.replace(f"{prefix}{index}TOKEN", protected[index])
+        text = self.html_images(text)
+        if cited:
+            text += "\n\n## References {#manual-context-references}\n\n" + self.references(cited)
+        return restore(text)
+
+    def html_images(self, text):
+        owner = self
+        class Images(HTMLParser):
+            def handle_starttag(self, tag, attrs):
+                values = dict(attrs)
+                if (tag in {"script", "iframe", "object", "embed", "svg", "source", "video", "audio", "link", "style"}
+                        or any(name.startswith("on") or name in {"srcset", "poster"} for name in values)
+                        or "url(" in values.get("style", "").lower()):
+                    raise ValueError(f"Unsupported active/external HTML component <{tag}>; prepare portable text/figures")
+                if tag == "img":
+                    original = self.get_starttag_text()
+                    if sum(name == "src" for name, _ in attrs) != 1:
+                        raise ValueError("HTML image requires exactly one literal src")
+                    alt, caption, credits = (values.get(key) or "" for key in ("alt", "title", "data-caption-source"))
+                    target = owner.figure(values["src"], alt, caption or alt, credits)
+                    rendered = '<img src="' + target + '" alt="' + html.escape(alt, quote=True) + '" title="' + html.escape(caption, quote=True) + '">'
+                    replacements.append((original, rendered))
+            handle_startendtag = handle_starttag
+        replacements = []
+        parser = Images()
+        parser.feed(text)
+        for old, new in replacements:
+            text = text.replace(old, new)
         return text
 
 
@@ -230,28 +391,38 @@ def prepare(project, factory, language="", chapters=None, sections=None):
         snapshot = Snapshot(reader, Path(temporary))
         config = yaml_mapping(snapshot.copy("_config.yml").decode("utf-8"))
         uw = config.get("unaltraweb") or {}
+        if not isinstance(uw, dict):
+            raise ValueError("unaltraweb must be a mapping")
         if uw.get("site_profile") != "unaltremanual":
             raise ValueError("manual_context_export requires the bound unaltremanual workspace")
         settings = uw.get("manual") or {}
+        if not isinstance(settings, dict):
+            raise ValueError("unaltraweb.manual must be a mapping")
+        if not isinstance(config.get("exclude"), list) or "tmp" not in {str(value).rstrip("/") for value in config["exclude"]}:
+            raise ValueError("Add tmp/ to _config.yml exclude before retaining manual exports")
+        if any(str(value).strip("/").split("/")[0] in {"tmp", "."} for value in config.get("include", [])):
+            raise ValueError("Jekyll include must not expose tmp/manual-context")
         manual_id = label(settings.get("id"), "unaltraweb.manual.id (stable logical manual identity)")
         selected_language = language or default_language(config)
-        if not LANGUAGE.fullmatch(selected_language) or selected_language not in (config.get("languages") or [default_language(config)]):
+        languages = config.get("languages") or [default_language(config)]
+        if (not isinstance(languages, list) or any(not isinstance(code, str) or not LANGUAGE.fullmatch(code) for code in languages)
+                or not isinstance(selected_language, str) or not LANGUAGE.fullmatch(selected_language) or selected_language not in languages):
             raise ValueError("Select a configured manual language")
         collection = settings.get("collection") or "chapters"
-        if not REF.fullmatch(collection):
+        if not isinstance(collection, str) or not REF.fullmatch(collection):
             raise ValueError("Invalid manual collection")
         snapshot.public_roots.add("_" + collection)
         snapshot.tree("_" + collection, {".md", ".markdown"})
         config["default_lang"] = default_language(config)
+        projection = Projection(snapshot, manual, config, selected_language, factory)
         _, candidates, _ = manual.manual_sources(snapshot.root, config, selected_language, for_pdf=False)
         if not 1 <= len(candidates) <= 500:
             raise ValueError("Manual context v1 supports 1–500 chapters")
         known = [front.get("ref") for _, front, _ in candidates]
-        if any(not isinstance(ref, str) or not REF.fullmatch(ref) for ref in known) or len(set(known)) != len(known):
+        if any(not isinstance(ref, str) or not REF.fullmatch(ref) for ref in known) or len({ref.casefold() for ref in known}) != len(known):
             raise ValueError("Selected-language chapters require unique stable ref values")
         if chapters is not None and (not chapters or len(set(chapters)) != len(chapters) or set(chapters) - set(known)):
             raise ValueError("Chapter selection must contain distinct existing refs in the selected language")
-        projection = Projection(snapshot, manual, config, selected_language)
         chapter_rows, section_ids = [], set()
         files = {}
         for order, (path, front, body) in enumerate(candidates):
@@ -260,6 +431,8 @@ def prepare(project, factory, language="", chapters=None, sections=None):
                 continue
             source = path.relative_to(snapshot.root).as_posix()
             title = label(front.get("title"), "chapter title")
+            if "\x00" in body:
+                raise ValueError(f"{source}: manual text contains NUL bytes")
             parts = split_sections(projection.text(body, source), ref, title)
             section_ids.update(part["id"] for part, _ in parts)
             if sections is not None:
@@ -271,6 +444,8 @@ def prepare(project, factory, language="", chapters=None, sections=None):
                 if len(data) > 4 * 1024**2:
                     raise ValueError("Section exceeds 4 MiB; select smaller authored sections")
                 files[part["path"]] = data
+            if sum(len(data) for data in files.values()) > MAX_TOTAL:
+                raise ValueError("Manual text exceeds the export budget; select fewer chapters")
             chapter_rows.append({"ref": ref, "title": title, "order": order, "source_sha256": digest(snapshot.copy(source)), "sections": [part for part, _ in parts]})
         if sections is not None and (not sections or len(set(sections)) != len(sections) or set(sections) - section_ids):
             raise ValueError("Section selection must contain distinct exact section IDs in the selected chapters")
@@ -301,19 +476,24 @@ def prepare(project, factory, language="", chapters=None, sections=None):
         unchanged(project, reader.cache, reader.walk_cache)
         if git_identity(project) != identity or producer_identity(factory) != producer:
             raise ValueError("Manual or producer identity changed during export; retry")
-        return manifest, files, dict(reader.cache), dict(reader.walk_cache), identity
+        evidence = {key: value for key, value in projection.sources.evidence.items()
+                    if key in {row["resolution"].get("receipt_sha256") for row in manifest["figures"]}}
+        return manifest, files, dict(reader.cache), dict(reader.walk_cache), identity, evidence
 
 
 def export(project, factory, name, *, language="", chapters=None, sections=None):
     project, factory = Path(project).resolve(strict=True), Path(factory).resolve(strict=True)
     if not isinstance(name, str) or not NAME.fullmatch(name):
         raise ValueError("Export name must be a safe name of at most 64 characters")
+    for values in (chapters, sections):
+        if values is not None and (not isinstance(values, list) or len(values) > 2000 or any(not isinstance(value, str) for value in values)):
+            raise ValueError("Chapter/section selection must be a bounded list of strings")
     active = active_runtime()
     if active and active.project != project:
         raise ValueError("Export must use the connection's bound manual workspace")
     job = Path("tmp/manual-context") / name
     fs._require_generated_path(project, job, label="Retained manual context export")
-    manifest, files, inputs, walks, identity = prepare(project, factory, language, chapters, sections)
+    manifest, files, inputs, walks, identity, evidence = prepare(project, factory, language, chapters, sections)
     files = {"manual-context.json": canonical(manifest), **files}
     if len(files["manual-context.json"]) > 8 * 1024**2:
         raise ValueError("Manifest exceeds 8 MiB")
@@ -342,6 +522,9 @@ def export(project, factory, name, *, language="", chapters=None, sections=None)
             os.fsync(output.fileno())
         with Reader(project, max_bytes=128 * 1024**2, max_total_bytes=512 * 1024**2) as retained:
             archive_bytes = retained.read(f"{job}/manual-context.tar.gz")
+            expected_tree = {f"{job}/manual-context.tar.gz", *[f"{job}/content/{path}" for path in files]}
+            if set(retained.walk(job.as_posix(), include_hidden=True)) != expected_tree:
+                raise ValueError("Retained export contains unexpected files; unsealed job preserved")
             for path, data in files.items():
                 if retained.read(f"{job}/content/{path}") != data:
                     raise ValueError("Retained content changed before sealing")
@@ -361,8 +544,12 @@ def export(project, factory, name, *, language="", chapters=None, sections=None)
         receipt = {"schema_version": 1, "kind": "unaltraweb-manual-context-export", "producer": manifest["producer"],
                    "manual": manifest["manual"], "package": f"{job}/manual-context.tar.gz", "sha256": digest(archive_bytes),
                    "manifest_sha256": digest(files["manual-context.json"]), "inputs": {key: digest(data) if data is not None else None for key, data in inputs.items()},
-                   "files": manifest["files"], "publishes": False}
+                   "files": manifest["files"], "resolution_evidence": evidence, "publishes": False}
         raw_receipt = canonical(receipt)
+        observed = os.stat(job, dir_fd=root_fd, follow_symlinks=False)
+        opened = os.fstat(job_fd)
+        if (observed.st_dev, observed.st_ino) != (opened.st_dev, opened.st_ino):
+            raise ValueError("Retained export directory changed before sealing")
         _write(job_fd, "receipt.json", raw_receipt)
         return {"ok": True, "state": "sealed", "publishes": False, "path": receipt["package"], "sha256": receipt["sha256"],
                 "receipt": f"{job}/receipt.json", "receipt_sha256": digest(raw_receipt), "producer": manifest["producer"], "manual": manifest["manual"],

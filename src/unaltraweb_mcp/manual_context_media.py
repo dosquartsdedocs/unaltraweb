@@ -23,10 +23,13 @@ def validate_image(data: bytes, path: str) -> None:
         raise ValueError(f"{path}: v1 requires a standalone PNG/JPEG/GIF/WebP/SVG of at most 10 MiB; prepare a compatible output explicitly")
     if suffix != ".svg":
         from PIL import Image
-        with Image.open(io.BytesIO(data), formats=[IMAGE_TYPES[suffix]]) as image:
-            if image.width * image.height > 64_000_000:
-                raise ValueError(f"{path}: image exceeds the 64-megapixel inspection bound")
-            image.verify()
+        try:
+            with Image.open(io.BytesIO(data), formats=[IMAGE_TYPES[suffix]]) as image:
+                if image.width * image.height > 64_000_000:
+                    raise ValueError(f"{path}: image exceeds the 64-megapixel inspection bound")
+                image.verify()
+        except (OSError, SyntaxError, Image.DecompressionBombError) as exc:
+            raise ValueError(f"{path}: invalid or oversized raster; prepare a bounded compatible output: {exc}") from exc
         return
     text = data.decode("utf-8")
     if re.search(r"<!\s*(DOCTYPE|ENTITY)|<\?xml-stylesheet", text, re.I):
