@@ -1,9 +1,10 @@
 # Manual context producer — #121
 
 Workspace: `/home/benizar/git/unaltraweb`; branch `feat/121-manual-context-export`.
-[Draft PR122](https://github.com/dosquartsdedocs/unaltraweb/pull/122) contains the
+The initial [PR122](https://github.com/dosquartsdedocs/unaltraweb/pull/122) contained the
 post-release pin (`59bd62b`), first bound exporter (`cbf7260`) and resolver/check
-continuation. No merge or public release is part of this delivery.
+continuation. That initial delivery preceded the authorized integration and
+publication recorded below.
 
 ## Interface and contract
 
@@ -105,8 +106,8 @@ increment; recognizable QGIS captures get an explicit unsupported diagnostic.
 Interactive/arbitrary Liquid and undeclared outputs also fail closed. These
 limitations are recorded on #121 for producer/receiver coordination.
 
-The source version is 0.8.0 with publication status **pending**. The checkout
-launcher now selects published 0.7.4; observation of this conversation's existing
+At initial source delivery, version 0.8.0 had publication status **pending**. The checkout
+launcher then selected published 0.7.4; observation of this conversation's existing
 MCP still showed installed **0.7.3**, instance `ecac06618bd3436794e89c31746b8914`,
 bound to this checkout. It was not hot-reloaded or rebound. Hub admission belongs
 to gaContExt #52, and real-manual selection/author review remain separate.
@@ -123,7 +124,7 @@ with no manual checkout: all four conformance checks passed, receiver receipt
 `15b8561e1e55899b57d8e45b8d19b7a8eeaa669808cf729d29eac3589a3231fb`
 ([receiver return](https://github.com/dosquartsdedocs/unaltraweb/issues/121#issuecomment-6597815786)).
 
-The four new Web components are marked release-ready for the normal signed
+The four new Web components were marked release-ready for the normal signed
 candidate, receipt-only merge/tag and trusted publication workflow. Independent
 core/gem, workflow, PDF and QGIS selections retain their previously verified
 identities. This source readiness is not a claim of published bytes or admission.
@@ -132,3 +133,59 @@ GaContExt #52 specifically concerns admitting newer **Itemarium** native builds.
 The new Web tuple must also be delivered to the hub owner after publication;
 neither publication alone nor the existing consumer conformance receipt proves
 hub admission, selected-client activation or an export of a real teaching manual.
+
+## Published 0.8.0 and verified intake
+
+[Release v0.8.0](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.8.0)
+is published. PR122 supplies source `54afe7588c36e959a7eb75d5f52763a7456108d7`;
+receipt-only PR123 supplies tag target `f71aeea75e11f4c2b15df4451f47ddd8a161bd8b`.
+Annotated tag object: `eca74d75783bd6630a47376bd1a3076912a1a087`.
+Receipt SHA256: `a2bf883ea62a4f164c925fa477e756378d0590f8dc6bbcdc54c17b645a7896da`.
+
+- Wheel: `4dcec737596b4e4742e04b50a70b81d04ffadf993139e6ba1d1bce665ece4816`.
+- Gem: `bbc3dbbc106b69d7a677608c46bf1d4f64d7016a48b27301022ec71e5a378f79`.
+- Controller OCI: `ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:8b41abacad9ca2894755db7f3587a6b47c8fa8f536d88a151bdfc4ae53ba7f08`.
+- Controller config ID: `sha256:e0502369c85c59f9e512fbd9fdb17dbc128845d057a1423375425e68ce2e79a2`.
+- Runtime OCI: `ghcr.io/dosquartsdedocs/unaltraweb@sha256:d58d8f68cf08a76e9b9f3ef238a0917b856cf7152aa5cc4a6f54ca109e1ac3fe`.
+- Runtime config ID: `sha256:c0ec72478618c3e7a9444cd7ae9120317a18757019b2fbf8f0438ca451695731`.
+
+Complete [release-handoff.json](https://github.com/dosquartsdedocs/unaltraweb/releases/download/v0.8.0/release-handoff.json),
+SHA256 `7a7cab1d48e3302af5f21309e57b540d7ca81eb4d8c0f36c7a5da7099538a53a`,
+lists every asset, untagged Docker archive, independent worker and native profile.
+Core `9d97197` / gem 0.7.3, workflow `3332e0b`, PDF 0.7.1 and classic QGIS 0.6.1 are preserved.
+
+Signed candidate run `41641425949`, package preparation `41641430158`, Trusted
+Publishing `41687937608`, OCI promotion `41687938131` and tag CI `41687888720`
+passed. The exact controller's 40 package modules match the CI wheel. Its new
+code fingerprint is `sha256:a678d2b2649e3479d0049ca0ca8a500aba5bb3f0a59b070cd7aaf5c0c6b466d0`;
+the earlier development image/receipts above are retained as their own evidence.
+
+The exact installed release controller exported two new fixture packages:
+`9bc3b4506a3f04c66631e7bcc3617b558879af95ee29f6c3b8fead870826afa7` and
+`7225f7c00f0992c922048608b622eec9a9d6d4b6a1c18049b32c2b5ffba7eb40`.
+Itemarium 0.6.2 again passed all four checks on these exact bytes. Release assets
+`producer-acceptance.json` and `consumer-conformance.json` have SHA256
+`4a8ae9db55757b584b24b9b1602ffe94e566cd4531016a073c7afc31e78f4e48` and
+`af73eba0cee0c447072df269572c22164dd8aca2eb0ea73e2416170056cd4e63`.
+
+All 18 original assets were downloaded anonymously and hash/size checked,
+including both image archives; PyPI/RubyGems copies and OCI aliases matched.
+[verification.json](https://github.com/dosquartsdedocs/unaltraweb/releases/download/v0.8.0/verification.json)
+has SHA256 `ec04ac1714a1b00c2f8e14f415e0fb0e21a195e42c5848ce53694ce0b85ed403`.
+The downloaded public wheel was installed in a fresh environment: actual MCP
+discovery reports 65 tools, its bound exporter produces a valid package, and
+Itemarium's independent check passes without importing it.
+[public-installation.json](https://github.com/dosquartsdedocs/unaltraweb/releases/download/v0.8.0/public-installation.json)
+has SHA256 `b94920fd618d50ba384207d3e2a126ccd4b1cf98b697760d4d27c09f6b80cf75`.
+
+Post-release verification of the updated checkout pin passes distribution/workflow
+checks, the public-image bootstrap check/smoke and the full local suite: 763 cases,
+736 passed and 27 skips in that prepared environment.
+
+The post-release checkout pin now selects the published 0.8.0 controller. The
+configured hub's immutable `cbb753e4…` controls still admit Web only through 0.7.4;
+this is an observed admission boundary, not a missing producer release. The full
+intake is [gaContExt #54](https://github.com/dosquartsdedocs/gacontext/issues/54),
+alongside Itemarium's separate #52. No hub registry, other client registration or
+real manual was changed here. Source selection, hub admission and live client
+activation remain distinct.

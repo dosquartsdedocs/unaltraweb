@@ -38,10 +38,11 @@ it to an image ID before execution. The source checkout's digest pin is separate
 it advances only after a new receipt exists. Explicit `--image` (or the console
 adapter's `UNALTRAWEB_MCP_IMAGE`) permits a reviewed immutable selection.
 
-The post-release checkout pin selects published 0.7.4 MCP digest
-`sha256:10bcaf1411f27a518969283a77e23dcc99119014b216270b3089ba85ba0b6c7e`.
-The [0.7.4 delivery report](scaffold-closeout-118.md) records the coherent independent
-core/gem tuple, reviewed scaffold migration and verified publication.
+The post-release checkout pin selects published 0.8.0 MCP digest
+`sha256:8b41abacad9ca2894755db7f3587a6b47c8fa8f536d88a151bdfc4ae53ba7f08`.
+The [0.8.0 delivery report](manual-context-121.md) records the verified portable
+manual exporter, public artifact tuple and independent Itemarium conformance.
+The coherent core/gem tuple and reviewed scaffold migration from 0.7.4 remain.
 Existing processes keep their running image until clients reconnect. Site build
 defaults and customized Makefiles remain separate, explicitly reviewed selections.
 
