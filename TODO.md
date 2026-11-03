@@ -10,15 +10,20 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Portable manual context — #121
 
-The 0.8.0 development source adds bound MCP/CLI context-v1 exports with native
+Published [0.8.0](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.8.0)
+adds bound MCP/CLI context-v1 exports with native
 resolver/check reuse, create-only retention and exact transport closure. The
 first real exporter package and two-version installed-MCP/Itemarium conformance
 pass on isolated synthetic manuals. See [the owner record](docs/agents/manual-context-121.md)
 and [the author guide](docs/_documentation/en/47-manual-context.md).
 
-Source delivery is on PR122; merge, release and gaContExt #52 admission are
-separate gates. QGIS context provenance and raster-bearing capture SVG support
-require coordinated follow-up; incompatible resources fail explicitly.
+PR122 and receipt PR123 are integrated; signed images, package publication,
+anonymous downloads and cold installed-MCP export all pass. The checkout pin
+selects published MCP digest `8b41abac…`. Reviewed hub intake is
+[gaContExt #54](https://github.com/dosquartsdedocs/gacontext/issues/54), alongside
+Itemarium's separate native-build admission in #52. QGIS context provenance and
+raster-bearing capture SVG support require coordinated follow-up; incompatible
+resources fail explicitly.
 
 ## Scaffold correction — #115 / #118
 
@@ -26,7 +31,7 @@ The 0.7.4 unit adds an explicit native core/gem version pair and reviewed,
 hash-bound ignore/workflow resolutions on the existing scaffold transaction.
 Installed migration, real Git/Bundler/Jekyll acceptance and completed immutable
 publication are recorded in [the owner closeout](docs/agents/scaffold-closeout-118.md).
-The checkout launcher selects published MCP digest `10bcaf14…` (0.7.4).
+The 0.7.4 post-release checkout selected MCP digest `10bcaf14…`.
 Consumer selection and manual adoption remain separately coordinated actions.
 
 Experimental #116 is preserved on `feat/116-common-practice-sdk` at
