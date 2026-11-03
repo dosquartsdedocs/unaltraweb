@@ -38,10 +38,10 @@ it to an image ID before execution. The source checkout's digest pin is separate
 it advances only after a new receipt exists. Explicit `--image` (or the console
 adapter's `UNALTRAWEB_MCP_IMAGE`) permits a reviewed immutable selection.
 
-The post-release checkout pin selects published 0.7.1 MCP digest
-`sha256:6aa20cff86c3891a876e37ba0548fa36f3c5633c9f22ba672e9f50123d677cf6`.
-The [0.7.1 delivery report](owner-closeout-93.md) records the consolidated deployment
-contract, exact hotfix migration and matching PDF verifier closure.
+The post-release checkout pin selects published 0.7.4 MCP digest
+`sha256:10bcaf1411f27a518969283a77e23dcc99119014b216270b3089ba85ba0b6c7e`.
+The [0.7.4 delivery report](scaffold-closeout-118.md) records the coherent independent
+core/gem tuple, reviewed scaffold migration and verified publication.
 Existing processes keep their running image until clients reconnect. Site build
 defaults and customized Makefiles remain separate, explicitly reviewed selections.
 
@@ -89,6 +89,7 @@ baseline format nor runtime cleanup changes.
 
 | Resource | Description |
 | --- | --- |
+| `web://manual-context-schema` | Portable manual context v1 schema, byte-identical to the reviewed Itemarium consumer contract. |
 | `web://practice-edition-schema` | Versioned Web recipient/edition configuration, separate from the producer-owned GIS descriptor. |
 | `web://practice-verifier-runtime` | Static private controller/package/profile identities and distinct release metadata; acquisition belongs to the hub. |
 | `web://runtime-identity` | Bounded identity of this serving process: startup/current code, instance/PID namespaces, binding, runtime selections and cooperative lifecycle. |
@@ -179,6 +180,7 @@ without a portable edition context; HTTPS and internal anchors remain intact.
 
 | Tool | Notes |
 | --- | --- |
+| `manual_context_export` | Create-only export of the bound manual's selected language/chapter refs/exact section IDs; returns a retained tar.gz and real SHA256. No arbitrary root, renderer, publication or Itemarium runtime dependency. See [context export](../_documentation/en/47-manual-context.md). |
 | `manual_practice_compose` | One versioned consumer configuration selects GIS roots, two approved reading hashes and optional declared editable-SVG resources; delivers an independent PDF and ZIP per recipient with complete closure and create-only receipts. |
 | `runtime_identity` | Observe the actual serving instance, startup/current package evidence and selected/observed images; never prepare a runtime or inspect site content. |
 | `runtime_drain` | With `confirm=true`, stop admission on this connection; then close stdio and verify exact container/session resource termination. It is not workspace-wide down. |

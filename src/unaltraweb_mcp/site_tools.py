@@ -5244,6 +5244,16 @@ def manual_practice_compose(project: Path, factory: Path, config: str, *, dry_ru
         return {"ok": False, "publishes": False, "error": str(exc)[:4096]}
 
 
+def manual_context_export(project: Path, factory: Path, name: str, *, language: str = "",
+                          chapters: list[str] | None = None, sections: list[str] | None = None) -> dict[str, Any]:
+    from .manual_context import export
+
+    try:
+        return export(project, factory, name, language=language, chapters=chapters, sections=sections)
+    except (OSError, ValueError, RuntimeError) as exc:
+        return {"ok": False, "publishes": False, "code": "UW-MANUAL-CONTEXT", "error": str(exc)[:4096]}
+
+
 def manual_pdf_preview_prepare(project: Path, factory: Path) -> dict[str, Any]:
     from . import manual_pdf_preview
 
@@ -6092,6 +6102,8 @@ def list_tools() -> dict[str, Any]:
     inventory["tools"].extend(["runtime_identity", "runtime_drain"])
     inventory["tools"].append("manual_practice_pdf_build")
     inventory["tools"].append("manual_practice_compose")
+    inventory["tools"].append("manual_context_export")
+    inventory["resources"].append("web://manual-context-schema")
     inventory["resources"].append("web://practice-edition-schema")
     inventory["resources"].append("web://practice-verifier-runtime")
     return inventory

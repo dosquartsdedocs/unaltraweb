@@ -451,7 +451,7 @@ def artifact_plan(project: Path, config: dict[str, Any], languages: list[str]) -
     return plan
 
 
-def manual_sources(project: Path, config: dict[str, Any], lang: str) -> tuple[Path | None, list[tuple[Path, dict[str, Any], str]], str]:
+def manual_sources(project: Path, config: dict[str, Any], lang: str, *, for_pdf: bool = True) -> tuple[Path | None, list[tuple[Path, dict[str, Any], str]], str]:
     manual = nested(config, "unaltraweb", "manual")
     collection = str(manual.get("collection") or "chapters").strip()
     collection_root = safe_relative(project, f"_{collection}", label="manual collection", must_exist=True)
@@ -462,7 +462,10 @@ def manual_sources(project: Path, config: dict[str, Any], lang: str) -> tuple[Pa
         if path.suffix.lower() not in {".md", ".markdown"} or not path.is_file():
             continue
         front, body = read_source(path)
-        if front.get("pdf") is False:
+        if for_pdf and front.get("pdf") is False:
+            continue
+        if not for_pdf and (front.get("published") is False or front.get("draft") is True
+                            or (front.get("profiles") is not None and "unaltremanual" not in front["profiles"])):
             continue
         pages.append((path, front, body))
 

@@ -15,7 +15,7 @@ Managed mode requires an immutable reference or an expected full image ID.
 USAGE
 }
 
-image="${UNALTRAWEB_MCP_IMAGE:-ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:8183e7117f5902fc0ad4d930b757d874b2da1f93d5ef4db102ae4c1b03e357a3}"
+image="${UNALTRAWEB_MCP_IMAGE:-ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:10bcaf1411f27a518969283a77e23dcc99119014b216270b3089ba85ba0b6c7e}"
 project="${MCP_CONSUMER_WORKSPACE:-${UNALTRAWEB_PROJECT:-}}"
 operation=serve
 expected_image="${UNALTRAWEB_EXPECTED_IMAGE_ID:-}"

@@ -135,6 +135,33 @@ unsafe-path refusal, symlinks, rollback and concurrent-edit recovery. Wheel test
 compare the complete top-level module inventory against source, excluding stale
 build-cache modules and the separate #116 checkpoint.
 
-Publication receipts, verified immutable images and final cold-download evidence
-will be added after their actual gates complete. Source preparation or a passing
-local acceptance is not a claim of release or manual activation.
+## Published delivery and post-release selection
+
+[Release v0.7.4](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.7.4)
+is public. PR119 supplies artifact source `676caa695d8e8f84a8a11800bb5a4a17599af539`;
+PR120 supplies receipt/tag target `a0b82eadceac608a7e3ce97fb6d2fd2885dd541c`.
+Annotated tag object: `7ef4525c33fd6ee4b9592deec23f1d87910a4581`.
+
+- Controller: `ghcr.io/dosquartsdedocs/unaltraweb-mcp@sha256:10bcaf1411f27a518969283a77e23dcc99119014b216270b3089ba85ba0b6c7e`.
+- Runtime: `ghcr.io/dosquartsdedocs/unaltraweb@sha256:5d82d15358f2785e1a548f8d3d2a0e932602e3d9d7b4d1efa330fb774c65f5cb`.
+- Wheel SHA256: `0202ff0982fea276a7ba775245faa7bafd75acc5cfad3e1f549055e87cd336ec`.
+- Handoff: [release-handoff.json](https://github.com/dosquartsdedocs/unaltraweb/releases/download/v0.7.4/release-handoff.json),
+  SHA256 `aaf6256f438cdb4500b3d96081a7a6edd013c44b3411744aa6738b18decbffb2`.
+
+Trusted Publishing `40388093852`, OCI promotion `40388094024` and tag CI
+`40388002315` passed. All fourteen original assets were downloaded anonymously
+and matched their exact sizes/hashes, including both Docker archives. PyPI and
+RubyGems bytes and OCI aliases matched. The public
+[verification receipt](https://github.com/dosquartsdedocs/unaltraweb/releases/download/v0.7.4/verification.json)
+has SHA256 `c19b46279100d48483ff544d87a3f88fae08d2bfc9b20f302628767ecaae8d09`.
+
+The public wheel was installed in a new environment and passed the complete
+synthetic installed-MCP, reviewed-conflict, stale-CAS and frozen Git/Bundler/Jekyll
+acceptance: [acceptance.json](https://github.com/dosquartsdedocs/unaltraweb/releases/download/v0.7.4/acceptance.json).
+The first invocation refused relative paths before running; the completed run
+uses the required absolute paths. #115/#118 are closed with the
+[full delivery](https://github.com/dosquartsdedocs/unaltraweb/issues/118#issuecomment-6426018149).
+
+The post-release checkout launcher now selects the published controller digest
+above. Existing sessions keep their loaded image; consumer/hub selection and
+author review remain independent of this source pin and technical delivery.

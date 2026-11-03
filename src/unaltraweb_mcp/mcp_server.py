@@ -497,6 +497,17 @@ def run_server(project: Path, factory: Path) -> None:
         from .practice_editions import SCHEMA
         return SCHEMA.read_text(encoding="utf-8")
 
+    @mcp.tool()
+    def manual_context_export(name: str, language: str = "", chapters: list[str] | None = None,
+                              sections: list[str] | None = None) -> dict[str, Any]:
+        """Export the bound manual's exact selected text and verified effective figures to a create-only context v1 tar.gz; never render or publish."""
+        return tools.manual_context_export(project, factory, name, language=language, chapters=chapters, sections=sections)
+
+    @mcp.resource("web://manual-context-schema")
+    def manual_context_schema_resource() -> str:
+        """Portable manual-context v1 contract shared with the independent Itemarium receiver."""
+        return Path(__file__).with_name("manual-context-v1.schema.json").read_text(encoding="utf-8")
+
     @mcp.resource("web://practice-verifier-runtime")
     def practice_verifier_runtime_resource() -> str:
         """Declared private image/source/profile identities; no acquisition or private execution."""
