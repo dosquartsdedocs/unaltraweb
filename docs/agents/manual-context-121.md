@@ -113,3 +113,22 @@ to gaContExt #52, and real-manual selection/author review remain separate.
 
 The #116 checkpoint remains on `feat/116-common-practice-sdk`; it is not included
 in this branch or attributed to these exports.
+
+## Authorized publication follow-up — 2026-11-03
+
+After the source delivery above, the user authorized continuing toward hub
+integration. PR122's final source and both CI runs remain green. Itemarium also
+independently rechecked the exact exporter archives in network-disabled isolation
+with no manual checkout: all four conformance checks passed, receiver receipt
+`15b8561e1e55899b57d8e45b8d19b7a8eeaa669808cf729d29eac3589a3231fb`
+([receiver return](https://github.com/dosquartsdedocs/unaltraweb/issues/121#issuecomment-6597815786)).
+
+The four new Web components are marked release-ready for the normal signed
+candidate, receipt-only merge/tag and trusted publication workflow. Independent
+core/gem, workflow, PDF and QGIS selections retain their previously verified
+identities. This source readiness is not a claim of published bytes or admission.
+
+GaContExt #52 specifically concerns admitting newer **Itemarium** native builds.
+The new Web tuple must also be delivered to the hub owner after publication;
+neither publication alone nor the existing consumer conformance receipt proves
+hub admission, selected-client activation or an export of a real teaching manual.

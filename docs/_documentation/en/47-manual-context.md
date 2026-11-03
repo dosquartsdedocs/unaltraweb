@@ -13,8 +13,8 @@ weight: 470
 permalink: /manual-context/
 ---
 
-The **0.8.0 development source** introduces `manual_context_export`. Published
-0.7.4 and already-running MCP sessions do not acquire it from a checkout edit.
+Version **0.8.0** introduces `manual_context_export`. Version 0.7.4 and
+already-running MCP sessions do not acquire it from a checkout edit.
 Implementation and interoperability are tracked in
 [issue #121](https://github.com/dosquartsdedocs/unaltraweb/issues/121).
 
