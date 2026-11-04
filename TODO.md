@@ -10,6 +10,12 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Portable manual context — #121
 
+Candidate **0.8.1** implements the real-pilot P1 check-only computation-input role
+and P2 HTML metadata restoration, preserving the v1 schema and public boundaries.
+See [repair evidence](docs/agents/manual-context-fix-121.md). Review125 and #116
+remain separate checkpoints. Publication, new hub intake and a real TIGIT export
+are still explicit next gates; the selected public launcher remains 0.8.0.
+
 Published [0.8.0](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.8.0)
 adds bound MCP/CLI context-v1 exports with native
 resolver/check reuse, create-only retention and exact transport closure. The

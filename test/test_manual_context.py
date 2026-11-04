@@ -72,12 +72,16 @@ def companion_receipt(root, owner):
     write(root, f".unaltraweb/receipts/{owner}.json", json.dumps(receipt))
 
 
-def computation_fixture(root, *, chapter=False):
+def computation_fixture(root, *, chapter=False, inputs=None, engine_files=None):
     native = sources.module(FACTORY, "scripts/computations/render.py")
     config = {"version": 1, "source_roots": ["_chapters", "assets/compute"]}
+    if engine_files:
+        config["engines"] = {"python": {"fingerprint_paths": engine_files}}
     write(root, ".unaltraweb/computations.yml", yaml.safe_dump(config))
     source = "_chapters/ca/first.qmd" if chapter else "assets/compute/figure.qmd"
     metadata = {"engine": "python"} if chapter else {"engine": "python", "mode": "figure", "outputs": ["assets/img/figure.svg"]}
+    if inputs is not None:
+        metadata["inputs"] = inputs
     write(root, source, "---\n" + yaml.safe_dump({"title": "Fixture", "ref": "first" if chapter else "figure", "lang": "ca", "unaltraweb_compute": metadata}) + "---\nFixture executable source; no execution claimed.\n")
     if not chapter:
         write(root, "assets/img/figure.svg", SVG)
@@ -379,6 +383,141 @@ class ManualContextTests(unittest.TestCase):
                 self.export()
         self.assertFalse((self.root / "tmp/manual-context/first/receipt.json").exists())
         self.assertTrue((self.root / "tmp/manual-context/first/unexpected.txt").is_file())
+
+    def test_private_declared_computation_input_is_checked_not_transported(self):
+        path = "_practices/course/data/input.csv"
+        sentinel = b"PRIVATE_INPUT_SENTINEL,123\n"
+        write(self.root, path, sentinel)
+        source = computation_fixture(self.root, inputs=[path])
+        self.reference(source)
+        result = self.export()
+        manifest, files = unpack(result, self.root)
+        receipt = json.loads((self.root / result["receipt"]).read_bytes())
+        self.assertEqual(receipt["inputs"][path], context.digest(sentinel))
+        transported = json.dumps(manifest).encode() + b"".join(files.values())
+        self.assertNotIn(sentinel, transported)
+        self.assertNotIn(path.encode(), transported)
+        self.assertEqual(set(files), set(manifest["files"]))
+        write(self.root, "_chapters/ca/other.md", "---\ntitle: Other\nref: other\nlang: ca\n---\nNo computed figure here.\n")
+        other, _ = unpack(self.export("other", chapters=["other"]), self.root)
+        self.assertEqual(other["figures"], [])
+        # Chapter selection must not hide a changed dependency elsewhere.
+        write(self.root, path, sentinel + b"changed\n")
+        with self.assertRaisesRegex(ValueError, "source_or_environment_changed"):
+            self.export("changed", chapters=["other"])
+        (self.root / path).unlink()
+        with self.assertRaisesRegex(ValueError, "Missing declared dependency"):
+            self.export("missing")
+
+    def test_yaml_computation_data_is_opaque_and_still_fingerprinted(self):
+        path = "_practices/course/data/parameters.yml"
+        data = b"defaults: &defaults {value: PRIVATE_YAML_SENTINEL}\nselected: *defaults\n"
+        write(self.root, path, data)
+        source = computation_fixture(self.root, inputs=[path])
+        self.reference(source)
+        result = self.export()
+        manifest, files = unpack(result, self.root)
+        receipt = json.loads((self.root / result["receipt"]).read_bytes())
+        self.assertEqual(receipt["inputs"][path], context.digest(data))
+        transported = json.dumps(manifest).encode() + b"".join(files.values())
+        self.assertNotIn(b"PRIVATE_YAML_SENTINEL", transported)
+        self.assertNotIn(path.encode(), transported)
+        write(self.root, path, data + b"changed: true\n")
+        with self.assertRaisesRegex(ValueError, "source_or_environment_changed"):
+            self.export("changed-yaml")
+
+    def test_configuration_yaml_aliases_remain_refused_after_opaque_copy(self):
+        path = "assets/data/settings.yaml"
+        data = b"defaults: &defaults {value: 1}\nselected: *defaults\n"
+        write(self.root, path, data)
+        with context.Reader(self.root) as reader, tempfile.TemporaryDirectory() as temp:
+            snapshot = context.Snapshot(reader, Path(temp))
+            self.assertEqual(snapshot.copy(path, opaque=True), data)
+            with self.assertRaisesRegex(ValueError, "aliases/anchors"):
+                snapshot.copy(path)
+        with (self.root / "_config.yml").open("ab") as stream:
+            stream.write(data)
+        with self.assertRaisesRegex(ValueError, "aliases/anchors"):
+            self.export("invalid-config")
+
+    def test_private_dependency_does_not_authorize_image_or_include(self):
+        path = "_practices/course/data/private.svg"
+        write(self.root, path, SVG)
+        computation_fixture(self.root, inputs=[path])
+        self.reference(path)
+        with self.assertRaisesRegex(ValueError, "public manual source roots"):
+            self.export()
+        write(self.root, "_chapters/ca/first.md", '---\ntitle: First\nref: first\nlang: ca\n---\n{% include_relative ../../_practices/course/data/private.svg %}\n')
+        with self.assertRaises(ValueError):
+            self.export()
+
+    def test_private_dependency_symlink_and_traversal_are_refused(self):
+        path = "_practices/course/data/input.csv"
+        write(self.root, path, "value\n1\n")
+        computation_fixture(self.root, inputs=[path])
+        (self.root / path).unlink()
+        (self.root / path).symlink_to(self.root / "_config.yml")
+        with self.assertRaises(ValueError):
+            self.export()
+        with context.Reader(self.root) as reader, tempfile.TemporaryDirectory() as temp:
+            snapshot = context.Snapshot(reader, Path(temp))
+            for value in ("_practices", "_practices/course", "_practices/course/../secret", "_practices/course/.env", "../input", ".git/config"):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    snapshot.computation_input(value)
+
+    def test_declared_root_environment_inputs_remain_check_only(self):
+        write(self.root, "Dockerfile.compute-python", "# fixture environment\n")
+        write(self.root, "requirements-compute.txt", "fixture-environment-pin\n")
+        computation_fixture(self.root, engine_files=["Dockerfile.compute-python", "requirements-compute.txt"])
+        result = self.export()
+        manifest, files = unpack(result, self.root)
+        receipt = json.loads((self.root / result["receipt"]).read_bytes())
+        self.assertIn("Dockerfile.compute-python", receipt["inputs"])
+        self.assertNotIn(b"fixture-environment-pin", b"".join(files.values()) + json.dumps(manifest).encode())
+        write(self.root, "requirements-compute.txt", "changed-environment\n")
+        with self.assertRaisesRegex(ValueError, "source_or_environment_changed"):
+            self.export("changed")
+
+    def test_private_root_cannot_be_promoted_through_collection_setting(self):
+        config = yaml.safe_load((self.root / "_config.yml").read_text())
+        config["unaltraweb"]["manual"]["collection"] = "practices"
+        write(self.root, "_config.yml", yaml.safe_dump(config))
+        with self.assertRaisesRegex(ValueError, "public manual source roots"):
+            self.export()
+
+    def test_private_dependency_retains_the_existing_reader_size_bound(self):
+        path = "_practices/course/data/input.bin"
+        write(self.root, path, b"x" * (context.MAX_FILE + 1))
+        computation_fixture(self.root, inputs=[path])
+        with self.assertRaisesRegex(ValueError, "bounded regular file: _practices"):
+            self.export()
+
+    def test_malformed_computation_declarations_have_typed_refusals(self):
+        write(self.root, ".unaltraweb/computations.yml", "version: 1\nsource_roots: [assets/compute]\n")
+        write(self.root, "assets/compute/a.qmd", "---\ntitle: Fixture\nlang: ca\nref: fixture\nunaltraweb_compute:\n  engine: python\n  inputs: _practices/course/data.csv\n---\nText\n")
+        result = site_tools.manual_context_export(self.root, FACTORY, "malformed")
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["code"], "UW-MANUAL-CONTEXT")
+        self.assertIn("list of non-empty literal paths", result["error"])
+
+    def test_html_inline_code_metadata_and_identity_are_restored(self):
+        front = '---\ntitle: First\nref: first\nlang: ca\n---\n'
+        body = '<img src="assets/img/map.png" alt="Alt `code`" title="Caption `literal`" data-caption-source="Credit `name`">\n'
+        write(self.root, "_chapters/ca/first.md", front + body)
+        first, _ = unpack(self.export(), self.root)
+        figure = first["figures"][0]
+        self.assertEqual((figure["alt"], figure["caption"], figure["credits"]), ("Alt `code`", "Caption `literal`", "Credit `name`"))
+        self.assertNotIn("UNALTRAWEBEXPORTPROTECTED", json.dumps(first))
+        write(self.root, "_chapters/ca/first.md", front + '`Unrelated code`\n\n' + body)
+        second, _ = unpack(self.export("second"), self.root)
+        self.assertEqual(figure, second["figures"][0])
+
+    def test_html_protected_entities_are_decoded_once(self):
+        body = '<img src="assets/img/map.png" alt="Alt `a&quot;b` &amp;quot;" title="Caption `a&amp;lt;b`">\n'
+        write(self.root, "_chapters/ca/first.md", '---\ntitle: First\nref: first\nlang: ca\n---\n' + body)
+        manifest, _ = unpack(self.export(), self.root)
+        self.assertEqual(manifest["figures"][0]["alt"], 'Alt `a"b` &quot;')
+        self.assertEqual(manifest["figures"][0]["caption"], 'Caption `a&lt;b`')
 
 
 if __name__ == "__main__":

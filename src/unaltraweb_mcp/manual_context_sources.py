@@ -37,14 +37,24 @@ class Sources:
         self._companions()
         self._captures()
 
-    def dependency(self, name):
-        if name not in {"_config.yml", "Gemfile", "Gemfile.lock", "Dockerfile", "requirements.txt", "renv.lock"}:
+    def dependency(self, name, *, computation_input=False):
+        if computation_input:
+            self.snapshot.computation_input(name)
+        elif name not in {"_config.yml", "Gemfile", "Gemfile.lock", "Dockerfile", "requirements.txt", "renv.lock"}:
             self.snapshot.public(name)
         names = self.snapshot.reader.walk(name)
         if not names:
-            raise ValueError(f"Missing declared public dependency: {name}")
+            raise ValueError(f"Missing declared dependency: {name}")
         for path in names:
-            self.snapshot.copy(path)
+            if computation_input:
+                self.snapshot.computation_input(path)
+            self.snapshot.copy(path, opaque=computation_input)
+
+    @staticmethod
+    def declared_paths(value, label):
+        if not isinstance(value, list) or any(not isinstance(path, str) or not path for path in value):
+            raise ValueError(f"{label} must be a list of non-empty literal paths")
+        return value
 
     def record(self, source, outputs, kind, status, receipt):
         if source in self.records:
@@ -72,11 +82,14 @@ class Sources:
                 meta = front.get("unaltraweb_compute") or {}
                 if not isinstance(meta, dict):
                     raise ValueError(f"Invalid computation metadata: {path}")
-                for name in meta.get("inputs", []):
-                    self.dependency(name)
+                for name in self.declared_paths(meta.get("inputs", []), f"Computation inputs in {path}"):
+                    self.dependency(name, computation_input=True)
         for settings in config["engines"].values():
-            for name in ([settings["dockerfile"]] if settings.get("dockerfile") else []) + settings.get("lockfiles", []) + settings.get("fingerprint_paths", []):
-                self.dependency(name)
+            paths = ([settings["dockerfile"]] if settings.get("dockerfile") else [])
+            paths += self.declared_paths(settings.get("lockfiles") or [], "Computation lockfiles")
+            paths += self.declared_paths(settings.get("fingerprint_paths") or [], "Computation fingerprint_paths")
+            for name in self.declared_paths(paths, "Computation environment inputs"):
+                self.dependency(name, computation_input=True)
         records = native.discover_sources(self.root, config)
         raw_lock = self.snapshot.copy(str(native.LOCK_PATH), optional=True)
         lock = strict_json(raw_lock.decode()) if raw_lock else {"version": 1, "records": {}}
