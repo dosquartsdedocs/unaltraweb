@@ -102,13 +102,14 @@ def main():
     fixture(project)
     if args.private_inputs_html:
         write(project, "_practices/fixture/data/input.csv", "PRIVATE_CHECK_ONLY_SENTINEL,1\n")
-        computation_fixture(project, inputs=["_practices/fixture/data/input.csv"])
+        write(project, "_practices/fixture/data/parameters.yml", "defaults: &defaults {value: PRIVATE_CHECK_ONLY_SENTINEL}\nselected: *defaults\n")
+        computation_fixture(project, inputs=["_practices/fixture/data/input.csv", "_practices/fixture/data/parameters.yml"])
         chapter = project / "_chapters/ca/first.md"
         original = chapter.read_text()
         original = original.replace('![Alt](assets/img/map.png "Mapa de prova"){: data-caption-source="Autoria sintètica"}',
                                     '<img src="assets/img/map.png" alt="Alt `code`" title="Caption `literal`">')
         write(project, "_chapters/ca/first.md", original)
-        commit(project, ["_practices/fixture/data/input.csv", ".unaltraweb/computations.yml", ".unaltraweb/computations.lock.json",
+        commit(project, ["_practices/fixture/data/input.csv", "_practices/fixture/data/parameters.yml", ".unaltraweb/computations.yml", ".unaltraweb/computations.lock.json",
                          "assets/compute/figure.qmd", "assets/img/figure.svg", "_chapters/ca/first.md"], "P1/P2 synthetic native check inputs")
     first = asyncio.run(export(project, "v1", args.image))
     if args.private_inputs_html:

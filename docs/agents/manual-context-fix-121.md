@@ -98,7 +98,7 @@ manufacture replacement archives. These tests qualify the implementation; they
 do not substitute for the real TIGIT owner's subsequent export and bank workflow.
 
 Source metadata proposes **0.8.1** for package/gem artifact/controller/runtime,
-with publication status `pending`. The existing public checkout pin stays on
+with publication status `ready` after explicit closeout authorization. The existing public checkout pin stays on
 0.8.0 until a new immutable publication is verified. Independent selections:
 
 - Native Git core `9d97197dec5fc9346ab795191a3afd18884c27fb`, gem **0.7.3**.
@@ -111,3 +111,20 @@ publication, cold installed proof, then a new reviewed hub intake. The local ima
 is not a published or admitted point. TIGIT keeps its current activated0.8.0
 selection until explicit adoption, and must report a real export's path/SHA/receipt
 or the next exact blocker. No real TIGIT package is claimed by this fixture proof.
+
+## Follow-up review: opaque YAML dependencies
+
+PR126 discussion `4471006805` was reproduced on `b582c998`: a declared
+`_practices/course/data/parameters.yml` with valid YAML anchors and a current
+synthetic native computation receipt failed in `Snapshot.copy`. Check-only
+dependencies now pass `opaque=True`; Reader confinement, budgets, hashes and
+final source checks remain shared. Configuration reads still scan YAML even
+when a previous opaque read has already staged the file.
+
+The regression exports the anchored dataset without transporting its private
+bytes/path, then rejects its changed fingerprint. A separate regression refuses
+anchors on a configuration read after an opaque copy and in `_config.yml`.
+The installed-export harness also includes anchored YAML alongside the CSV
+input. Full local suite: 774 tests, OK (28 skipped). Earlier candidate hashes
+above remain historical; the changed source requires fresh installed-candidate
+and receiver evidence before publication.

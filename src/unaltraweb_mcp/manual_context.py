@@ -72,15 +72,17 @@ class Snapshot:
             raise ValueError(f"Resource is outside the public manual source roots: {name}")
         return name
 
-    def copy(self, name, *, optional=False):
+    def copy(self, name, *, optional=False, opaque=False):
         data = self.reader.read(name, optional=optional)
+        # Check-only dependencies are fingerprinted bytes, not configuration.
+        # A later configuration read must still validate an already staged file.
+        if data is not None and not opaque and name.endswith((".yml", ".yaml")):
+            try:
+                if any(isinstance(token, (yaml.tokens.AliasToken, yaml.tokens.AnchorToken)) for token in yaml.scan(data)):
+                    raise ValueError(f"{name}: aliases/anchors are not supported in export source configuration")
+            except yaml.YAMLError as exc:
+                raise ValueError(f"{name}: invalid YAML: {exc}") from exc
         if data is not None and not (self.root / name).exists():
-            if name.endswith((".yml", ".yaml")):
-                try:
-                    if any(isinstance(token, (yaml.tokens.AliasToken, yaml.tokens.AnchorToken)) for token in yaml.scan(data)):
-                        raise ValueError(f"{name}: aliases/anchors are not supported in export source configuration")
-                except yaml.YAMLError as exc:
-                    raise ValueError(f"{name}: invalid YAML: {exc}") from exc
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)

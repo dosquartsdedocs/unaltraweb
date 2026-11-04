@@ -48,7 +48,7 @@ class Sources:
         for path in names:
             if computation_input:
                 self.snapshot.computation_input(path)
-            self.snapshot.copy(path)
+            self.snapshot.copy(path, opaque=computation_input)
 
     @staticmethod
     def declared_paths(value, label):

@@ -409,6 +409,37 @@ class ManualContextTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Missing declared dependency"):
             self.export("missing")
 
+    def test_yaml_computation_data_is_opaque_and_still_fingerprinted(self):
+        path = "_practices/course/data/parameters.yml"
+        data = b"defaults: &defaults {value: PRIVATE_YAML_SENTINEL}\nselected: *defaults\n"
+        write(self.root, path, data)
+        source = computation_fixture(self.root, inputs=[path])
+        self.reference(source)
+        result = self.export()
+        manifest, files = unpack(result, self.root)
+        receipt = json.loads((self.root / result["receipt"]).read_bytes())
+        self.assertEqual(receipt["inputs"][path], context.digest(data))
+        transported = json.dumps(manifest).encode() + b"".join(files.values())
+        self.assertNotIn(b"PRIVATE_YAML_SENTINEL", transported)
+        self.assertNotIn(path.encode(), transported)
+        write(self.root, path, data + b"changed: true\n")
+        with self.assertRaisesRegex(ValueError, "source_or_environment_changed"):
+            self.export("changed-yaml")
+
+    def test_configuration_yaml_aliases_remain_refused_after_opaque_copy(self):
+        path = "assets/data/settings.yaml"
+        data = b"defaults: &defaults {value: 1}\nselected: *defaults\n"
+        write(self.root, path, data)
+        with context.Reader(self.root) as reader, tempfile.TemporaryDirectory() as temp:
+            snapshot = context.Snapshot(reader, Path(temp))
+            self.assertEqual(snapshot.copy(path, opaque=True), data)
+            with self.assertRaisesRegex(ValueError, "aliases/anchors"):
+                snapshot.copy(path)
+        with (self.root / "_config.yml").open("ab") as stream:
+            stream.write(data)
+        with self.assertRaisesRegex(ValueError, "aliases/anchors"):
+            self.export("invalid-config")
+
     def test_private_dependency_does_not_authorize_image_or_include(self):
         path = "_practices/course/data/private.svg"
         write(self.root, path, SVG)
