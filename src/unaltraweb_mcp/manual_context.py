@@ -67,7 +67,8 @@ class Snapshot:
 
     def public(self, name):
         relative_path(name)
-        if name.split("/")[0] not in self.public_roots or any(part.startswith(".") for part in name.split("/")):
+        if (name.split("/")[0] == "_practices" or name.split("/")[0] not in self.public_roots
+                or any(part.startswith(".") for part in name.split("/"))):
             raise ValueError(f"Resource is outside the public manual source roots: {name}")
         return name
 
@@ -88,6 +89,22 @@ class Snapshot:
             self.mtimes[name] = info.st_mtime_ns
             os.utime(path, ns=(info.st_atime_ns, info.st_mtime_ns))
         return data
+
+    def computation_input(self, name):
+        """Validate a declared check-only input, without making it public.
+
+        Private practice data may feed a public computed figure. Only native
+        computation input/environment declarations call this gate; image/include/output selection
+        continues to use public(). Reader budgets/no-follow and final rechecks
+        apply equally to these opaque bytes, which never enter transport files.
+        """
+        relative_path(name)
+        parts = name.split("/")
+        if (any(part.startswith(".") for part in parts)
+                or parts[0] in {"tmp", "sandbox", "dist", "node_modules", "vendor"}
+                or (parts[0] == "_practices" and len(parts) < 3)):
+            raise ValueError(f"Use a durable, specific declared computation input: {name}")
+        return name
 
     def tree(self, name, suffixes=None):
         names = self.reader.walk(name)
@@ -266,9 +283,10 @@ class Projection:
         def protect(match):
             protected.append(match[0])
             return f"{prefix}{len(protected)-1}TOKEN"
-        def restore(value):
+        def restore(value, *, html_entities=False):
             for index in reversed(range(len(protected))):
-                value = value.replace(f"{prefix}{index}TOKEN", protected[index])
+                content = html.unescape(protected[index]) if html_entities else protected[index]
+                value = value.replace(f"{prefix}{index}TOKEN", content)
             return value
         text = protect_code_blocks(text, protect)
         text = self.manual.MARKDOWN_INLINE_CODE_RE.sub(protect, text)
@@ -320,12 +338,14 @@ class Projection:
             result = f'![{alt}]({path} "{title}")'
             return result + (f"\n\n{credit}\n" if credit else "")
         text = self.manual.IMAGE_RE.sub(image, text)
-        text = self.html_images(text)
+        # HTMLParser already decodes ordinary attribute text. Decode only the
+        # protected fragments here, exactly once, rather than the entire value.
+        text = self.html_images(text, restore=lambda value: restore(value, html_entities=True))
         if cited:
             text += "\n\n## References {#manual-context-references}\n\n" + self.references(cited)
         return restore(text)
 
-    def html_images(self, text):
+    def html_images(self, text, *, restore=lambda value: value):
         owner = self
         class Images(HTMLParser):
             def handle_starttag(self, tag, attrs):
@@ -338,7 +358,7 @@ class Projection:
                     original = self.get_starttag_text()
                     if sum(name == "src" for name, _ in attrs) != 1:
                         raise ValueError("HTML image requires exactly one literal src")
-                    alt, caption, credits = (values.get(key) or "" for key in ("alt", "title", "data-caption-source"))
+                    alt, caption, credits = (restore(values.get(key) or "") for key in ("alt", "title", "data-caption-source"))
                     target = owner.figure(values["src"], alt, caption or alt, credits)
                     rendered = '<img src="' + target + '" alt="' + html.escape(alt, quote=True) + '" title="' + html.escape(caption, quote=True) + '">'
                     replacements.append((original, rendered))
@@ -412,6 +432,7 @@ def prepare(project, factory, language="", chapters=None, sections=None):
         if not isinstance(collection, str) or not REF.fullmatch(collection):
             raise ValueError("Invalid manual collection")
         snapshot.public_roots.add("_" + collection)
+        snapshot.public("_" + collection)
         snapshot.tree("_" + collection, {".md", ".markdown"})
         config["default_lang"] = default_language(config)
         projection = Projection(snapshot, manual, config, selected_language, factory)

@@ -82,6 +82,25 @@ are refused with a diagnostic, not relabelled as static. Its profile/receipt
 integration and receiver support for raster-bearing SVG require coordinated
 follow-up. Edited captures are never silently substituted with original rasters.
 
+### Candidate 0.8.1: check-only computation dependencies
+
+The 0.8.1 source candidate separates explicitly declared native computation
+inputs/environment fingerprints from public content selection. Durable literal
+project-relative inputs, including `_practices/<project>/data/...` and root-level
+`Dockerfile.compute-*` / `requirements-compute.*`, are checked through the same
+bounded no-follow reader and native freshness checks. They do not become public
+image/include/output sources. Hidden paths, broad private roots and transient or
+dependency-installation roots (`tmp`, `sandbox`, `dist`, `node_modules`, `vendor`)
+remain refused. Reader and transport byte limits are unchanged.
+
+Only their hashes participate in the source fingerprint and external producer
+receipt. Private input bytes and paths do not enter the transport. Global
+completeness, stale-input checks and final rechecks still apply when selecting a
+single chapter. The candidate also restores inline-code tokens in HTML image
+alt/title/credits before recording metadata and figure identity. Published 0.8.0
+does not contain these repairs; use the newly qualified release after publication
+and explicit adoption. The v1 schema and SVG/PDF/QGIS restrictions remain unchanged.
+
 Diagrams use the provider's exact effective-artifact receipt. Vega uses exactly
 the output declared in `.vegavisuals.yml` (including an edited output only when
 that is the declared, verified output). Computation SVG overrides must postdate
