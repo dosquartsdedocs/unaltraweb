@@ -101,7 +101,8 @@ Before using S3, the project owner must provision and qualify:
    temporary credentials. This unit does not provision an OIDC trust or host key.
 
 The optional public SDK closure is pinned in
-`scripts/manual/candidate-storage-s3-requirements.txt` (Boto3/Botocore 1.40.75).
+`scripts/manual/candidate-storage-s3-requirements.txt` (Boto3/Botocore 1.40.75,
+urllib3 2.8.0).
 It is installed only for S3 workflow steps. The public wheel offers the
 `artifact-storage` extra for native integrations. No private code is copied into
 consumer sites.
@@ -117,8 +118,10 @@ prepare-job outputs, not selected by the receiving storage service.
 
 The envelope binds repository, selector, full source SHA, run ID, run attempt,
 policy digest and expiration. The GitHub artifact name retains all those build
-selectors; transfer/readback uses its exact numeric artifact ID and
-`overwrite: false`. S3 uses:
+selectors; transfer/readback requires its exact positive numeric artifact ID,
+`merge-multiple: true` to retain the package root for ID downloads, and
+`overwrite: false`. The Python 3.13 CI lane performs an actual synthetic v4
+upload/download followed by envelope and native-format verification. S3 uses:
 
 ```text
 <prefix>/release_candidate/<owner>/<repo>/<selector>/<source-sha>/<run-id>/<run-attempt>/<asset-name>

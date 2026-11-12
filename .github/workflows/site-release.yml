@@ -346,11 +346,18 @@ jobs:
           retention-days: ${{ steps.storage.outputs.retention_days }}
           overwrite: false
 
+      - name: Require exact prepared GitHub artifact ID
+        if: ${{ steps.storage.outputs.transport == 'github-actions' }}
+        env:
+          ARTIFACT_ID: ${{ steps.candidate_upload.outputs.artifact-id }}
+        run: '[[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]'
+
       - name: Read back exact GitHub candidate
         if: ${{ steps.storage.outputs.transport == 'github-actions' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           artifact-ids: ${{ steps.candidate_upload.outputs.artifact-id }}
+          merge-multiple: true
           path: ${{ runner.temp }}/release-readback
 
       - name: Verify GitHub transfer readback
@@ -401,11 +408,18 @@ jobs:
         with:
           python-version: ${{ inputs.python_version }}
 
+      - name: Require exact prepared GitHub artifact ID
+        if: ${{ needs.prepare.outputs.transport == 'github-actions' }}
+        env:
+          ARTIFACT_ID: ${{ needs.prepare.outputs.github_artifact_id }}
+        run: '[[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]'
+
       - name: Download prepared candidate
         if: ${{ needs.prepare.outputs.transport == 'github-actions' }}
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           artifact-ids: ${{ needs.prepare.outputs.github_artifact_id }}
+          merge-multiple: true
           path: ${{ runner.temp }}/release-transfer
 
       - name: Install privileged optional candidate SDK

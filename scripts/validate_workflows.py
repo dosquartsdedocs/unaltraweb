@@ -1506,9 +1506,11 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
                  "name": "stable-manual-${{ inputs.selector }}-${{ inputs.reviewed_sha }}-${{ github.run_id }}-${{ github.run_attempt }}",
                  "path": "${{ runner.temp }}/release-transfer", "if-no-files-found": "error",
                  "retention-days": "${{ steps.storage.outputs.retention_days }}", "overwrite": False}},
+            {"name": "Require exact prepared GitHub artifact ID", "if": github_if,
+             "env": {"ARTIFACT_ID": "${{ steps.candidate_upload.outputs.artifact-id }}"}, "run": '[[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]'},
             {"name": "Read back exact GitHub candidate", "if": github_if,
              "uses": "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", "with": {
-                 "artifact-ids": "${{ steps.candidate_upload.outputs.artifact-id }}", "path": "${{ runner.temp }}/release-readback"}},
+                 "artifact-ids": "${{ steps.candidate_upload.outputs.artifact-id }}", "merge-multiple": True, "path": "${{ runner.temp }}/release-readback"}},
             {"name": "Verify GitHub transfer readback", "if": github_if, "env": {"TRANSFER_SHA256": "${{ steps.seal.outputs.sha256 }}"},
              "run": storage_cli + ' verify --policy "$RUNNER_TEMP/candidate-storage.json" --package "$RUNNER_TEMP/release-readback" --sha256 "$TRANSFER_SHA256"'},
             {"name": "Upload and read back private S3 candidate", "if": s3_if,
@@ -1562,10 +1564,16 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
                     "with": {"python-version": "${{ inputs.python_version }}"},
                 },
                 {
+                    "name": "Require exact prepared GitHub artifact ID",
+                    "if": "${{ needs.prepare.outputs.transport == 'github-actions' }}",
+                    "env": {"ARTIFACT_ID": "${{ needs.prepare.outputs.github_artifact_id }}"},
+                    "run": '[[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]',
+                },
+                {
                     "name": "Download prepared candidate",
                     "if": "${{ needs.prepare.outputs.transport == 'github-actions' }}",
                     "uses": "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
-                    "with": {"artifact-ids": "${{ needs.prepare.outputs.github_artifact_id }}", "path": "${{ runner.temp }}/release-transfer"},
+                    "with": {"artifact-ids": "${{ needs.prepare.outputs.github_artifact_id }}", "merge-multiple": True, "path": "${{ runner.temp }}/release-transfer"},
                 },
                 {
                     "name": "Install privileged optional candidate SDK",

@@ -635,6 +635,7 @@ class WorkflowTests(unittest.TestCase):
             ("          overwrite: false", "          overwrite: true"),
             ("          retention-days: ${{ steps.storage.outputs.retention_days }}", "          retention-days: 90"),
             ("artifact-ids: ${{ steps.candidate_upload.outputs.artifact-id }}", "name: latest-candidate"),
+            ("          merge-multiple: true", "          merge-multiple: false"),
             ("        run: PYTHONPATH=\"$UNALTRAWEB_CORE_DIR/src\" python -m unaltraweb_mcp.candidate_storage verify", "        run: ':' # bypass verify"),
         ]:
             with self.subTest(new=new):
