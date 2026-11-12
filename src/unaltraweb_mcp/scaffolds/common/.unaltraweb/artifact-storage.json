@@ -1,0 +1,7 @@
+{
+  "release_candidate": {
+    "retention_days": 14,
+    "transport": "github-actions"
+  },
+  "schema_version": 1
+}

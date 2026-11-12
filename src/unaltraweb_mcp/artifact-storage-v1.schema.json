@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dosquartsdedocs/unaltraweb/artifact-storage-v1.schema.json",
+  "title": "Project temporary artifact storage v1 (not native publication metadata)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_candidate"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "release_candidate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["transport", "retention_days"],
+          "properties": {
+            "transport": {"const": "github-actions"},
+            "retention_days": {"type": "integer", "minimum": 1, "maximum": 14}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["transport", "retention_days", "s3"],
+          "properties": {
+            "transport": {"const": "s3-private"},
+            "retention_days": {"type": "integer", "minimum": 1, "maximum": 14},
+            "s3": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["profile", "endpoint_url", "region", "bucket", "prefix", "addressing_style", "lifecycle_rule_id"],
+              "properties": {
+                "profile": {"enum": ["s3", "s4"]},
+                "endpoint_url": {"type": "string", "pattern": "^https://[^/?#@]+/?$"},
+                "region": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+                "bucket": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"},
+                "prefix": {"type": "string", "pattern": "^[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$"},
+                "addressing_style": {"enum": ["path", "virtual"]},
+                "lifecycle_rule_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"}
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

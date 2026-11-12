@@ -116,6 +116,9 @@ def main() -> int:
             "unaltraweb_mcp/image_probe.py",
             "unaltraweb_mcp/source_checks.py",
             "unaltraweb_mcp/source-check-policy-v1.schema.json",
+            "unaltraweb_mcp/candidate_storage.py",
+            "unaltraweb_mcp/artifact-storage-v1.schema.json",
+            "unaltraweb_mcp/scaffolds/common/.unaltraweb/artifact-storage.json",
             "unaltraweb_mcp/practice_verifier.py",
             "unaltraweb_mcp/practice-verifier-runtime.json",
             "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
@@ -149,6 +152,10 @@ def main() -> int:
         source_help = run([str(source_cli), "--help"], cwd=temp).stdout
         if "--base-sha" not in source_help or "--reports" not in source_help:
             raise RuntimeError("Installed source-CI entrypoint is missing its bounded interface")
+        storage_cli = environment / "bin/unaltraweb-candidate-storage"
+        storage_default = json.loads(run([str(storage_cli), "plan", "--project", str(temp)], cwd=temp).stdout)
+        if storage_default["transport"] != "github-actions" or storage_default["retention_days"] != 14:
+            raise RuntimeError("Factory-free storage default requires an unintended S3 dependency")
         docker_cli = environment / "bin/unaltraweb-mcp-docker"
         launcher = Path(run([str(docker_cli), "path"], cwd=temp).stdout.strip())
         if launcher != environment / "share/unaltraweb-launcher":
