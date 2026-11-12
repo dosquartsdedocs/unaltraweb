@@ -4,6 +4,13 @@ This site uses the **`__SITE_PROFILE__`** profile: __PROFILE_DESCRIPTION__
 
 The package-managed collaboration contract is `.github/CONTRIBUTING.md`. It defines branch names, exact path reservations, single-checkout session coordination, generated figure bundles, and provider integrations.
 
+`.unaltraweb/artifact-storage.json` is a project-owned v1 temporary-candidate policy.
+It defaults to GitHub Actions (14 days) and is not native publication metadata.
+Private S3/S4 is optional and requires explicit project CI credentials and lifecycle
+qualification; it does not replace the native Pages upload/deploy protocol or
+choose a public delivery destination. Existing runtime/workflow pins remain
+reviewed selections; changing this policy does not upgrade them.
+
 GitHub Web is suitable for small, coordinated content updates. Follow this workflow before changing a file:
 
 1. Open or choose an issue that describes one focused task.

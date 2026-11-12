@@ -40,6 +40,13 @@ on:
         required: false
         type: string
         default: "3.13.3"
+    secrets:
+      candidate_s3_access_key_id:
+        required: false
+      candidate_s3_secret_access_key:
+        required: false
+      candidate_s3_session_token:
+        required: false
 
 permissions:
   contents: read
@@ -53,6 +60,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      transport: ${{ steps.storage.outputs.transport }}
+      policy_json: ${{ steps.storage.outputs.policy_json }}
+      transfer_sha256: ${{ steps.seal.outputs.sha256 }}
+      envelope_bytes: ${{ steps.seal.outputs.envelope_bytes }}
+      github_artifact_id: ${{ steps.candidate_upload.outputs.artifact-id }}
     env:
       CORE_SHA: ${{ inputs.core_sha }}
       CANDIDATE_MANIFEST_SHA256: ${{ inputs.candidate_manifest_sha256 }}
@@ -161,6 +174,14 @@ jobs:
 
       - name: Install reviewed release tooling
         run: python -m pip install "$UNALTRAWEB_CORE_DIR"
+
+      - name: Freeze project candidate storage policy
+        id: storage
+        run: PYTHONPATH="$UNALTRAWEB_CORE_DIR/src" python -m unaltraweb_mcp.candidate_storage plan --project "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/candidate-storage.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Install optional candidate storage SDK
+        if: ${{ steps.storage.outputs.transport == 's3-private' }}
+        run: python -m pip install -r "$UNALTRAWEB_CORE_DIR/scripts/manual/candidate-storage-s3-requirements.txt"
 
       - name: Verify stable site-build image runtime
         run: |
@@ -310,14 +331,49 @@ jobs:
           PY
           (cd "$assets" && sha256sum manual-site-*.tar.gz publication.json release-manifest.json ./*.pdf | sort -k2 > SHA256SUMS)
 
+      - name: Seal exact release candidate transfer
+        id: seal
+        run: PYTHONPATH="$UNALTRAWEB_CORE_DIR/src" python -m unaltraweb_mcp.candidate_storage seal --policy "$RUNNER_TEMP/candidate-storage.json" --assets "$RUNNER_TEMP/release-assets" --output "$RUNNER_TEMP/release-transfer" --github-output "$GITHUB_OUTPUT"
+
       - name: Upload immutable release candidate
+        id: candidate_upload
+        if: ${{ steps.storage.outputs.transport == 'github-actions' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: stable-manual-${{ inputs.selector }}-${{ inputs.reviewed_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/release-assets
+          path: ${{ runner.temp }}/release-transfer
           if-no-files-found: error
-          retention-days: 14
+          retention-days: ${{ steps.storage.outputs.retention_days }}
           overwrite: false
+
+      - name: Require exact prepared GitHub artifact ID
+        if: ${{ steps.storage.outputs.transport == 'github-actions' }}
+        env:
+          ARTIFACT_ID: ${{ steps.candidate_upload.outputs.artifact-id }}
+        run: '[[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]'
+
+      - name: Read back exact GitHub candidate
+        if: ${{ steps.storage.outputs.transport == 'github-actions' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ steps.candidate_upload.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/release-readback
+
+      - name: Verify GitHub transfer readback
+        if: ${{ steps.storage.outputs.transport == 'github-actions' }}
+        env:
+          TRANSFER_SHA256: ${{ steps.seal.outputs.sha256 }}
+        run: PYTHONPATH="$UNALTRAWEB_CORE_DIR/src" python -m unaltraweb_mcp.candidate_storage verify --policy "$RUNNER_TEMP/candidate-storage.json" --package "$RUNNER_TEMP/release-readback" --sha256 "$TRANSFER_SHA256"
+
+      - name: Upload and read back private S3 candidate
+        if: ${{ steps.storage.outputs.transport == 's3-private' }}
+        env:
+          TRANSFER_SHA256: ${{ steps.seal.outputs.sha256 }}
+          UNALTRAWEB_S3_ACCESS_KEY_ID: ${{ secrets.candidate_s3_access_key_id }}
+          UNALTRAWEB_S3_SECRET_ACCESS_KEY: ${{ secrets.candidate_s3_secret_access_key }}
+          UNALTRAWEB_S3_SESSION_TOKEN: ${{ secrets.candidate_s3_session_token }}
+        run: PYTHONPATH="$UNALTRAWEB_CORE_DIR/src" python -m unaltraweb_mcp.candidate_storage s3-upload --policy "$RUNNER_TEMP/candidate-storage.json" --package "$RUNNER_TEMP/release-transfer" --sha256 "$TRANSFER_SHA256"
 
   publish:
     needs: prepare
@@ -335,13 +391,10 @@ jobs:
       SELECTOR: ${{ inputs.selector }}
       SITE_BUILD_IMAGE: ${{ inputs.site_build_image }}
       VEGAVISUALS_SHA: ${{ inputs.vegavisuals_sha }}
+      STORAGE_POLICY_JSON: ${{ needs.prepare.outputs.policy_json }}
+      TRANSFER_SHA256: ${{ needs.prepare.outputs.transfer_sha256 }}
+      TRANSFER_ENVELOPE_BYTES: ${{ needs.prepare.outputs.envelope_bytes }}
     steps:
-      - name: Download prepared candidate
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: stable-manual-${{ inputs.selector }}-${{ inputs.reviewed_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: release-assets
-
       - name: Checkout reviewed release verifier
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -354,6 +407,35 @@ jobs:
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ inputs.python_version }}
+
+      - name: Require exact prepared GitHub artifact ID
+        if: ${{ needs.prepare.outputs.transport == 'github-actions' }}
+        env:
+          ARTIFACT_ID: ${{ needs.prepare.outputs.github_artifact_id }}
+        run: '[[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]'
+
+      - name: Download prepared candidate
+        if: ${{ needs.prepare.outputs.transport == 'github-actions' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.github_artifact_id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/release-transfer
+
+      - name: Install privileged optional candidate SDK
+        if: ${{ needs.prepare.outputs.transport == 's3-private' }}
+        run: python -m pip install -r .unaltraweb-release-core/scripts/manual/candidate-storage-s3-requirements.txt
+
+      - name: Download exact private S3 candidate
+        if: ${{ needs.prepare.outputs.transport == 's3-private' }}
+        env:
+          UNALTRAWEB_S3_ACCESS_KEY_ID: ${{ secrets.candidate_s3_access_key_id }}
+          UNALTRAWEB_S3_SECRET_ACCESS_KEY: ${{ secrets.candidate_s3_secret_access_key }}
+          UNALTRAWEB_S3_SESSION_TOKEN: ${{ secrets.candidate_s3_session_token }}
+        run: PYTHONPATH=.unaltraweb-release-core/src python -m unaltraweb_mcp.candidate_storage s3-download --policy-json-env STORAGE_POLICY_JSON --sha256 "$TRANSFER_SHA256" --envelope-bytes "$TRANSFER_ENVELOPE_BYTES" --output "$RUNNER_TEMP/release-transfer"
+
+      - name: Verify and receive native release assets
+        run: PYTHONPATH=.unaltraweb-release-core/src python -m unaltraweb_mcp.candidate_storage receive --policy-json-env STORAGE_POLICY_JSON --package "$RUNNER_TEMP/release-transfer" --sha256 "$TRANSFER_SHA256" --output release-assets
 
       - name: Publish verified stable release
         env:

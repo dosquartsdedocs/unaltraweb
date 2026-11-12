@@ -25,11 +25,13 @@ dependencies = [
 
 [project.optional-dependencies]
 mcp = ["mcp>=1.0.0,<2"]
+artifact-storage = ["boto3==1.40.75", "botocore==1.40.75", "s3transfer==0.14.0", "jmespath==1.0.1", "python-dateutil==2.9.0.post0", "six==1.17.0", "urllib3==2.8.0"]
 
 [project.scripts]
 unaltraweb-mcp = "unaltraweb_mcp.cli:main"
 unaltraweb-mcp-docker = "unaltraweb_mcp.docker_launcher:main"
 unaltraweb-source-checks = "unaltraweb_mcp.source_checks:main"
+unaltraweb-candidate-storage = "unaltraweb_mcp.candidate_storage:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -59,9 +61,11 @@ unaltraweb_mcp = [
   "manual-context-v1.schema.json",
   "practice-verifier-runtime.json",
   "source-check-policy-v1.schema.json",
+  "artifact-storage-v1.schema.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore.tmpl",
   "scaffolds/common/.unaltraweb/*.sh",
+  "scaffolds/common/.unaltraweb/*.json",
   "scaffolds/common/.github/*.md",
   "scaffolds/common/.github/*.yml",
   "scaffolds/common/.github/*.tmpl",

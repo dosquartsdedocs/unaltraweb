@@ -43,11 +43,44 @@ jobs:
       - name: Install test package
         run: python -m pip install -e ".[mcp]"
 
+      - name: Install optional public candidate SDK for offline adapter tests
+        run: python -m pip install -r scripts/manual/candidate-storage-s3-requirements.txt
+
       - name: Compile Python
         run: python -m compileall -q src scripts test
 
       - name: Run unit tests
         run: PYTHONPATH=src python -m unittest discover -s test -p 'test_*.py'
+
+      - name: Prepare synthetic native candidate for Actions v4
+        id: synthetic
+        if: ${{ matrix.python-version == '3.13' }}
+        run: python scripts/test_candidate_transfer.py prepare --path "$RUNNER_TEMP/synthetic-release-transfer"
+
+      - name: Upload synthetic native candidate
+        id: synthetic_upload
+        if: ${{ matrix.python-version == '3.13' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: synthetic-native-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/synthetic-release-transfer
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: false
+
+      - name: Read back synthetic native candidate by exact ID
+        if: ${{ matrix.python-version == '3.13' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: ${{ steps.synthetic_upload.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/synthetic-release-readback
+
+      - name: Verify real Actions v4 native candidate bytes
+        if: ${{ matrix.python-version == '3.13' }}
+        env:
+          TRANSFER_SHA256: ${{ steps.synthetic.outputs.sha256 }}
+        run: python scripts/test_candidate_transfer.py verify --path "$RUNNER_TEMP/synthetic-release-readback" --sha256 "$TRANSFER_SHA256"
 
       - name: Check patch whitespace
         run: git diff --check
