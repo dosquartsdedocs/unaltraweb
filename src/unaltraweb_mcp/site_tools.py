@@ -6105,6 +6105,8 @@ def list_tools() -> dict[str, Any]:
     inventory["tools"].append("manual_context_export")
     inventory["resources"].append("web://manual-context-schema")
     inventory["resources"].append("web://practice-edition-schema")
+    inventory["resources"].append("web://practice-tabular-edition-schema")
+    inventory["resources"].append("web://input-preparation-schema")
     inventory["resources"].append("web://practice-verifier-runtime")
     return inventory
 

@@ -4,6 +4,16 @@ This site uses the **`__SITE_PROFILE__`** profile: __PROFILE_DESCRIPTION__
 
 The package-managed collaboration contract is `.github/CONTRIBUTING.md`. It defines branch names, exact path reservations, single-checkout session coordination, generated figure bundles, and provider integrations.
 
+`.unaltraweb/input-preparation.json` is a project-owned optional v1 input plan;
+the empty default never fetches or executes anything. Reviewed immutable
+resource inventories can be hydrated explicitly with `make manual-inputs-prepare
+INPUT_PREPARATION_SHA256=<reviewed-hash> INPUT_PREPARATION_FETCH=1`, before local
+freshness/build checks. The equivalent shared deploy inputs are `prepare-inputs`
+and `prepare-inputs-sha256`; source-only CI never hydrates datasets or renders.
+Private `practiques/`, `sandbox/` and `dist/` must stay excluded from Jekyll.
+This command requires a reviewed runtime containing the input-preparation CLI;
+scaffold synchronization never selects a newer runtime/workflow pin implicitly.
+
 GitHub Web is suitable for small, coordinated content updates. Follow this workflow before changing a file:
 
 1. Open or choose an issue that describes one focused task.

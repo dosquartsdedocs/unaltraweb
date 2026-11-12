@@ -1402,6 +1402,26 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             errors.append("site-deploy.yml: PDF worker provenance must run before publication output processing")
         elif build_step_names.index("Verify manual PDF image provenance") > build_step_names.index("Reject versioned manual publication outputs"):
             errors.append("site-deploy.yml: PDF worker provenance must run before publication output processing")
+        for name in ("prepare-inputs", "prepare-inputs-sha256"):
+            declaration = deploy.get("on", {}).get("workflow_call", {}).get("inputs", {}).get(name, {})
+            if declaration.get("type") != "string" or declaration.get("required") is not False or declaration.get("default") != "":
+                errors.append("site-deploy.yml: optional pinned early preparation input pair is missing")
+        early = _named_step(deploy_build, "Prepare pinned manual inputs before checks")
+        checkout = _named_step(deploy_build, "Checkout provider-owned input preparation")
+        if (checkout.get("uses") != "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+                or checkout.get("with") != {"repository": "${{ job.workflow_repository }}", "ref": "${{ job.workflow_sha }}",
+                                            "path": ".unaltraweb-inputs-core", "persist-credentials": False}
+                or checkout.get("if") != "${{ inputs.prepare-inputs != '' }}"):
+            errors.append("site-deploy.yml: input preparation must use the defining immutable provider revision")
+        if (early.get("if") != "${{ inputs.prepare-inputs != '' }}" or "continue-on-error" in early
+                or early.get("env") != {"PREPARE_INPUTS": "${{ inputs.prepare-inputs }}", "PREPARE_INPUTS_SHA256": "${{ inputs.prepare-inputs-sha256 }}", "WORKFLOW_SHA": "${{ job.workflow_sha }}"}
+                or not all(marker in str(early.get("run", "")) for marker in ("unaltraweb_mcp.input_preparation", '--config "$PREPARE_INPUTS"', '--sha256 "$PREPARE_INPUTS_SHA256"', "--fetch"))):
+            errors.append("site-deploy.yml: early preparation must be explicit, hash-bound and fail closed")
+        early_position = build_step_names.index("Prepare pinned manual inputs before checks") if "Prepare pinned manual inputs before checks" in build_step_names else len(build_step_names)
+        if early_position == len(build_step_names) or any(early_position >= build_step_names.index(name)
+               for name in ("Check computation freshness", "Check Vega visualization freshness", "Check published manual PDFs", "Sync manual PDFs")
+               if name in build_step_names):
+            errors.append("site-deploy.yml: input preparation must precede all freshness and PDF controls")
 
     stable = workflows.get("site-release.yml")
     if stable is None:
@@ -1427,9 +1447,15 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             "vegavisuals_sha",
             "ruby_version",
             "python_version",
+            "prepare_inputs",
+            "prepare_inputs_sha256",
         }
         if set(stable_inputs) != expected_stable_inputs:
             errors.append("site-release.yml: stable workflow input inventory differs from the reviewed contract")
+        for name in ("prepare_inputs", "prepare_inputs_sha256"):
+            declaration = stable_inputs.get(name, {})
+            if declaration.get("type") != "string" or declaration.get("required") is not False or declaration.get("default") != "":
+                errors.append("site-release.yml: optional pinned early preparation input pair is missing")
         for input_name in ["selector", "reviewed_sha", "candidate_manifest_sha256", "core_sha", "manual_pdf_image", "site_build_image"]:
             if stable_inputs.get(input_name, {}).get("required") is not True:
                 errors.append(f"site-release.yml: {input_name} must be required")
@@ -1488,6 +1514,14 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         for marker in ["CORE_SHA", "WORKFLOW_SHA", "WORKFLOW_REF", "WORKFLOW_REPOSITORY", "WORKFLOW_FILE_PATH"]:
             if marker not in request_text:
                 errors.append(f"site-release.yml: stable request identity check missing {marker}")
+        early = _named_step(prepare, "Prepare pinned manual inputs before checks")
+        if (early.get("if") is not None or "continue-on-error" in early
+                or early.get("env") != {"PREPARE_INPUTS": "${{ inputs.prepare_inputs }}", "PREPARE_INPUTS_SHA256": "${{ inputs.prepare_inputs_sha256 }}"}
+                or not all(marker in str(early.get("run", "")) for marker in ("unaltraweb_mcp.input_preparation", '--sha256 "$PREPARE_INPUTS_SHA256"', "--fetch"))):
+            errors.append("site-release.yml: early preparation must be explicit, hash-bound and fail closed")
+        names = [step.get("name") for step in prepare.get("steps", []) if isinstance(step, dict)]
+        if "Prepare pinned manual inputs before checks" not in names or names.index("Prepare pinned manual inputs before checks") >= names.index("Verify Vega visualization outputs"):
+            errors.append("site-release.yml: input preparation must precede Vega and PDF controls")
 
         expected_publish = {
             "needs": "prepare",

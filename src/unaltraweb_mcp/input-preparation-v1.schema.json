@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unaltraweb explicit early input preparation v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "resources"],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "resources": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/resource"}}
+  },
+  "$defs": {
+    "resource": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile", "manifest", "sha256"],
+      "properties": {
+        "profile": {"const": "immutable-github-files-v1"},
+        "manifest": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}
