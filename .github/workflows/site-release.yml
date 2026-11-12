@@ -32,6 +32,16 @@ on:
         required: false
         type: string
         default: ""
+      prepare_inputs:
+        description: Optional versioned input-preparation v1 configuration, before freshness and PDF generation.
+        required: false
+        type: string
+        default: ""
+      prepare_inputs_sha256:
+        description: Reviewed SHA-256 of prepare_inputs; required together with that path.
+        required: false
+        type: string
+        default: ""
       ruby_version:
         required: false
         type: string
@@ -161,6 +171,17 @@ jobs:
 
       - name: Install reviewed release tooling
         run: python -m pip install "$UNALTRAWEB_CORE_DIR"
+
+      - name: Prepare pinned manual inputs before checks
+        env:
+          PREPARE_INPUTS: ${{ inputs.prepare_inputs }}
+          PREPARE_INPUTS_SHA256: ${{ inputs.prepare_inputs_sha256 }}
+        run: |
+          if [[ -n "$PREPARE_INPUTS" || -n "$PREPARE_INPUTS_SHA256" ]]; then
+            test -n "$PREPARE_INPUTS"
+            [[ "$PREPARE_INPUTS_SHA256" =~ ^[0-9a-f]{64}$ ]]
+            PYTHONPATH="$UNALTRAWEB_CORE_DIR/src" python -m unaltraweb_mcp.input_preparation --project "$GITHUB_WORKSPACE" --config "$PREPARE_INPUTS" --sha256 "$PREPARE_INPUTS_SHA256" --fetch
+          fi
 
       - name: Verify stable site-build image runtime
         run: |

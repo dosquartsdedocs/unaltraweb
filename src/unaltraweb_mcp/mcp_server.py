@@ -488,7 +488,7 @@ def run_server(project: Path, factory: Path) -> None:
 
     @mcp.tool()
     def manual_practice_compose(config: str, dry_run: bool = False) -> dict[str, Any]:
-        """Compose create-only student/teacher PDF and ZIP pairs from approved readings and producer-verified GIS IDs/closure; never rerun GIS or publish a site."""
+        """Compose create-only student/teacher PDF/ZIP pairs from GIS v1 closure or explicit tabular v2 files and approved readings; never calculate or publish."""
         return tools.manual_practice_compose(project, factory, config, dry_run=dry_run)
 
     @mcp.resource("web://practice-edition-schema")
@@ -496,6 +496,16 @@ def run_server(project: Path, factory: Path) -> None:
         """Versioned consumer composition configuration; GIS semantics remain producer-owned."""
         from .practice_editions import SCHEMA
         return SCHEMA.read_text(encoding="utf-8")
+
+    @mcp.resource("web://practice-tabular-edition-schema")
+    def practice_tabular_edition_schema_resource() -> str:
+        """Explicit tabular v2 composition; no GIS verifier or workbook execution required."""
+        return Path(__file__).with_name("practice-edition-v2.schema.json").read_text(encoding="utf-8")
+
+    @mcp.resource("web://input-preparation-schema")
+    def input_preparation_schema_resource() -> str:
+        """Explicit pinned early input hydration; source-CI never executes it."""
+        return Path(__file__).with_name("input-preparation-v1.schema.json").read_text(encoding="utf-8")
 
     @mcp.tool()
     def manual_context_export(name: str, language: str = "", chapters: list[str] | None = None,

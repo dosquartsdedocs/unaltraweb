@@ -19,6 +19,7 @@ workspace_rule:
     - .github/workflows/deploy.yml
     - .github/workflows/source-checks.yml
     - .unaltraweb/source-checks.json
+    - .unaltraweb/input-preparation.json
     - _config.yml
     - Makefile
     - Gemfile
@@ -47,6 +48,7 @@ workspace_rule:
     - .unaltraweb/computations.yml
     - .vegavisuals.yml
     - .unaltraweb/source-checks.json
+    - .unaltraweb/input-preparation.json
     - _pages
     - _posts
     - _news
@@ -79,6 +81,11 @@ workspace_rule:
     - .vegavisuals.lock.json and outputs declared by .vegavisuals.yml
   allowed_external_writes: []
   path_policies:
+    - path: .unaltraweb/input-preparation.json
+      type: file
+      role: explicit-pinned-input-preparation
+      git: versioned
+      cleanup: never
     - path: practiques
       type: directory
       role: private-practice-sources
@@ -215,6 +222,8 @@ mcp:
   resources:
     - web://manual-context-schema
     - web://practice-edition-schema
+    - web://practice-tabular-edition-schema
+    - web://input-preparation-schema
     - web://practice-verifier-runtime
     - web://runtime-identity
     - web://artifact-imports

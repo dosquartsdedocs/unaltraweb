@@ -30,6 +30,7 @@ mcp = ["mcp>=1.0.0,<2"]
 unaltraweb-mcp = "unaltraweb_mcp.cli:main"
 unaltraweb-mcp-docker = "unaltraweb_mcp.docker_launcher:main"
 unaltraweb-source-checks = "unaltraweb_mcp.source_checks:main"
+unaltraweb-prepare-inputs = "unaltraweb_mcp.input_preparation:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -56,12 +57,15 @@ unaltraweb_mcp = [
   "consumer-core.json",
   "artifact-handoff-v1.schema.json",
   "practice-edition-v1.schema.json",
+  "practice-edition-v2.schema.json",
+  "input-preparation-v1.schema.json",
   "manual-context-v1.schema.json",
   "practice-verifier-runtime.json",
   "source-check-policy-v1.schema.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore.tmpl",
   "scaffolds/common/.unaltraweb/*.sh",
+  "scaffolds/common/.unaltraweb/*.json",
   "scaffolds/common/.github/*.md",
   "scaffolds/common/.github/*.yml",
   "scaffolds/common/.github/*.tmpl",

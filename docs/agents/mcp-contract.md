@@ -92,6 +92,8 @@ baseline format nor runtime cleanup changes.
 | --- | --- |
 | `web://manual-context-schema` | Portable manual context v1 schema, byte-identical to the reviewed Itemarium consumer contract. |
 | `web://practice-edition-schema` | Versioned Web recipient/edition configuration, separate from the producer-owned GIS descriptor. |
+| `web://practice-tabular-edition-schema` | Explicit v2 tabular-file composition without a GIS descriptor, runtime or calculation. |
+| `web://input-preparation-schema` | Versioned, hash-bound early input hydration configuration; separate from source-only CI. |
 | `web://practice-verifier-runtime` | Static private controller/package/profile identities and distinct release metadata; acquisition belongs to the hub. |
 | `web://runtime-identity` | Bounded identity of this serving process: startup/current code, instance/PID namespaces, binding, runtime selections and cooperative lifecycle. |
 | `web://distribution` | Package-owned component BOM plus offline, feature-aware doctor findings for the current factory and project. |
@@ -122,6 +124,11 @@ baseline format nor runtime cleanup changes.
 
 Private teaching editions use `manual_practice_compose(config, dry_run=false)`
 (CLI `mcp manual-practice-compose`, factory Make `manual-practice-compose`).
+GIS compositions keep the unchanged v1 edition schema and accepted private
+verifier profiles. Explicit `schema_version: 2, mode: tabular` uses the additional
+`web://practice-tabular-edition-schema` and byte/size/recipient-checked material
+selections, without invoking QGIS or claiming spreadsheet semantic validation.
+Both modes reuse the original reading-PDF seal, ZIP and create-only receipts.
 `web://practice-edition-schema` supplies the versioned Web composition contract.
 The editor invokes the native CLI of the hub-prepared private QGIS controller, validates the full common
 bundle, selects explicit IDs with their complete producer closure, and retains
@@ -182,7 +189,7 @@ without a portable edition context; HTTPS and internal anchors remain intact.
 | Tool | Notes |
 | --- | --- |
 | `manual_context_export` | Create-only export of the bound manual's selected language/chapter refs/exact section IDs; returns a retained tar.gz and real SHA256. No arbitrary root, renderer, publication or Itemarium runtime dependency. See [context export](../_documentation/en/47-manual-context.md). |
-| `manual_practice_compose` | One versioned consumer configuration selects GIS roots, two approved reading hashes and optional declared editable-SVG resources; delivers an independent PDF and ZIP per recipient with complete closure and create-only receipts. |
+| `manual_practice_compose` | A v1 GIS configuration selects native verified closure; explicit v2 tabular configuration selects exact material hashes/sizes/roles/recipients. Both select two approved readings and optional editable-SVG resources, then deliver a sealed independent PDF and ZIP per recipient with create-only receipts. |
 | `runtime_identity` | Observe the actual serving instance, startup/current package evidence and selected/observed images; never prepare a runtime or inspect site content. |
 | `runtime_drain` | With `confirm=true`, stop admission on this connection; then close stdio and verify exact container/session resource termination. It is not workspace-wide down. |
 | `distribution_doctor` | Return offline component/factory/project findings with stable codes and optional local Docker image inspection that never pulls. |

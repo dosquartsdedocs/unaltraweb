@@ -116,6 +116,10 @@ def main() -> int:
             "unaltraweb_mcp/image_probe.py",
             "unaltraweb_mcp/source_checks.py",
             "unaltraweb_mcp/source-check-policy-v1.schema.json",
+            "unaltraweb_mcp/input_preparation.py",
+            "unaltraweb_mcp/input-preparation-v1.schema.json",
+            "unaltraweb_mcp/practice-edition-v2.schema.json",
+            "unaltraweb_mcp/scaffolds/common/.unaltraweb/input-preparation.json",
             "unaltraweb_mcp/practice_verifier.py",
             "unaltraweb_mcp/practice-verifier-runtime.json",
             "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
@@ -149,6 +153,9 @@ def main() -> int:
         source_help = run([str(source_cli), "--help"], cwd=temp).stdout
         if "--base-sha" not in source_help or "--reports" not in source_help:
             raise RuntimeError("Installed source-CI entrypoint is missing its bounded interface")
+        preparation_help = run([str(environment / "bin/unaltraweb-prepare-inputs"), "--help"], cwd=temp).stdout
+        if "--sha256" not in preparation_help or "--fetch" not in preparation_help:
+            raise RuntimeError("Installed early-preparation CLI is missing its explicit hash/fetch interface")
         docker_cli = environment / "bin/unaltraweb-mcp-docker"
         launcher = Path(run([str(docker_cli), "path"], cwd=temp).stdout.strip())
         if launcher != environment / "share/unaltraweb-launcher":
