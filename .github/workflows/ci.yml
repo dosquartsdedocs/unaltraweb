@@ -41,7 +41,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libcairo2
 
       - name: Install test package
-        run: python -m pip install -e ".[mcp]"
+        run: python -m pip install -e ".[mcp,artifact-publication]"
 
       - name: Compile Python
         run: python -m compileall -q src scripts test

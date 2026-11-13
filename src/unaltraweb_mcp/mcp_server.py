@@ -507,6 +507,26 @@ def run_server(project: Path, factory: Path) -> None:
         """Explicit pinned early input hydration; source-CI never executes it."""
         return Path(__file__).with_name("input-preparation-v1.schema.json").read_text(encoding="utf-8")
 
+    @mcp.resource("web://practice-artifact-storage-schema")
+    def practice_artifact_storage_schema_resource() -> str:
+        """Per-artifact practice destination/recipient policy, independent of manual releases."""
+        return Path(__file__).with_name("practice-artifact-storage-v1.schema.json").read_text(encoding="utf-8")
+
+    @mcp.resource("web://practice-artifact-storage-v2-schema")
+    def practice_artifact_storage_v2_schema_resource() -> str:
+        """Verified consumer repository buckets and explicit private/public storage capability."""
+        return Path(__file__).with_name("practice-artifact-storage-v2.schema.json").read_text(encoding="utf-8")
+
+    @mcp.resource("web://product-publication-schema")
+    def product_publication_schema_resource() -> str:
+        """Adopted gaContExt product-publication v1, with destination-neutral byte identity."""
+        return Path(__file__).with_name("product-publication-v1.schema.json").read_text(encoding="utf-8")
+
+    @mcp.resource("web://publication-policy-schema")
+    def publication_policy_schema_resource() -> str:
+        """Adopted gaContExt project destinations; each Web artifact explicitly selects one."""
+        return Path(__file__).with_name("publication-policy-v1.schema.json").read_text(encoding="utf-8")
+
     @mcp.tool()
     def manual_context_export(name: str, language: str = "", chapters: list[str] | None = None,
                               sections: list[str] | None = None) -> dict[str, Any]:

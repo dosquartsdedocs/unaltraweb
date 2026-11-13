@@ -67,6 +67,15 @@ override INPUT_PREPARATION_CONFIG := $(value INPUT_PREPARATION_CONFIG)
 override INPUT_PREPARATION_SHA256 := $(value INPUT_PREPARATION_SHA256)
 override INPUT_PREPARATION_FETCH := $(value INPUT_PREPARATION_FETCH)
 export INPUT_PREPARATION_CONFIG INPUT_PREPARATION_SHA256 INPUT_PREPARATION_FETCH
+PRACTICE_ARTIFACT_CONFIG ?= .unaltraweb/practice-artifacts.json
+PRACTICE_ARTIFACT_SHA256 ?=
+PRACTICE_ARTIFACT_ID ?=
+PRACTICE_ARTIFACT_STAGE ?=
+override PRACTICE_ARTIFACT_CONFIG := $(value PRACTICE_ARTIFACT_CONFIG)
+override PRACTICE_ARTIFACT_SHA256 := $(value PRACTICE_ARTIFACT_SHA256)
+override PRACTICE_ARTIFACT_ID := $(value PRACTICE_ARTIFACT_ID)
+override PRACTICE_ARTIFACT_STAGE := $(value PRACTICE_ARTIFACT_STAGE)
+export PRACTICE_ARTIFACT_CONFIG PRACTICE_ARTIFACT_SHA256 PRACTICE_ARTIFACT_ID PRACTICE_ARTIFACT_STAGE
 MANUAL_PDF_PUBLISH_DRY_RUN ?= 1
 MANUAL_PDF_CONFIRM_PUBLISH ?= 0
 MANUAL_PDF_PUBLICATION_INTENT_SHA256 ?=
@@ -119,6 +128,7 @@ endif
 .PHONY: manual-practice-pdf-build
 .PHONY: manual-practice-compose
 .PHONY: manual-inputs-prepare
+.PHONY: practice-artifact-plan practice-artifact-stage
 .PHONY: mcp-runtime-image mcp-image mcp-build mcp-check mcp-smoke mcp-smoke-prebuilt mcp-stdio mcp-down mcp-down-all mcp-list-tools mcp-starter-templates mcp-new-web mcp-initialize-site mcp-site-context mcp-profile-check mcp-manual-source-quality-check mcp-manual-editorial-quality-check mcp-manual-authoring-capabilities mcp-manual-computation-status mcp-manual-computation-check mcp-manual-computation-render mcp-manual-computation-render-figures mcp-web-capture-status mcp-web-capture-check mcp-web-capture-render mcp-manual-pdf-status mcp-manual-pdf-build mcp-manual-pdf-preview-prepare mcp-manual-pdf-preview-clean mcp-manual-pdf-publish mcp-manual-release-status mcp-manual-release-check mcp-manual-release-prepare mcp-profile-prune-plan mcp-profile-prune mcp-content-inventory mcp-language-policy mcp-content-approval-inventory mcp-translation-plan mcp-bibliography-inventory mcp-bibliometrics-check mcp-build-health
 
 REPOSITORY_CONTEXT_TARGETS := distribution-doctor manual-compute-status manual-compute-check manual-compute-render manual-compute-render-figures manual-compute-image-python manual-compute-image-r manual-compute-images manual-compute-rstudio web-capture-status web-capture-check web-capture-render visualization-status visualization-check visualization-render manual-pdf-preflight manual-pdf-status manual-pdf-check manual-pdf-build manual-pdf-publish manual-pdf-sync manual-release-status manual-release-check manual-release-prepare metrics-scimago-fetch metrics-update metrics-update-all metrics-check
@@ -130,6 +140,9 @@ distribution-check: ## Validate component/version parity, release selections, an
 
 manual-inputs-prepare: ## Explicit pinned input hydration/check; never render or run consumer scripts
 	@set --; case "$$INPUT_PREPARATION_FETCH" in 1) set -- --fetch;; 0) set -- --check;; *) printf '%s\n' 'INPUT_PREPARATION_FETCH must be 0 or 1' >&2; exit 1;; esac; PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.input_preparation --project "$(PROJECT)" --config "$$INPUT_PREPARATION_CONFIG" --sha256 "$$INPUT_PREPARATION_SHA256" "$$@"
+
+practice-artifact-plan practice-artifact-stage: ## Plan/stage one explicitly routed practice artifact, offline
+	@set --; if test "$@" = practice-artifact-stage; then set -- --stage "$$PRACTICE_ARTIFACT_STAGE"; fi; PYTHONPATH="$(CURDIR)/src" $(PYTHON) -m unaltraweb_mcp.artifact_publication "$(@:practice-artifact-%=%)" --project "$(PROJECT)" --config "$$PRACTICE_ARTIFACT_CONFIG" --sha256 "$$PRACTICE_ARTIFACT_SHA256" --artifact "$$PRACTICE_ARTIFACT_ID" "$$@"
 
 distribution-release-check: ## Require every selected component to be ready for coordinated publication
 	@PYTHONPATH="$(CURDIR)/src" $(PYTHON) scripts/validate_distribution.py --require-release-ready

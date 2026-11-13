@@ -24,8 +24,18 @@ override INPUT_PREPARATION_CONFIG := $(value INPUT_PREPARATION_CONFIG)
 override INPUT_PREPARATION_SHA256 := $(value INPUT_PREPARATION_SHA256)
 override INPUT_PREPARATION_FETCH := $(value INPUT_PREPARATION_FETCH)
 export INPUT_PREPARATION_CONFIG INPUT_PREPARATION_SHA256 INPUT_PREPARATION_FETCH
+PRACTICE_ARTIFACT_CONFIG ?= .unaltraweb/practice-artifacts.json
+PRACTICE_ARTIFACT_SHA256 ?=
+PRACTICE_ARTIFACT_ID ?=
+PRACTICE_ARTIFACT_STAGE ?=
+override PRACTICE_ARTIFACT_CONFIG := $(value PRACTICE_ARTIFACT_CONFIG)
+override PRACTICE_ARTIFACT_SHA256 := $(value PRACTICE_ARTIFACT_SHA256)
+override PRACTICE_ARTIFACT_ID := $(value PRACTICE_ARTIFACT_ID)
+override PRACTICE_ARTIFACT_STAGE := $(value PRACTICE_ARTIFACT_STAGE)
+export PRACTICE_ARTIFACT_CONFIG PRACTICE_ARTIFACT_SHA256 PRACTICE_ARTIFACT_ID PRACTICE_ARTIFACT_STAGE
 
 .PHONY: runtime-image local-gemfile site-check-native build-native serve-capture-native serve-native test-native manual-pdf-preview-prepare manual-pdf-preview-clean manual-inputs-prepare build serve test down clean
+.PHONY: practice-artifact-plan practice-artifact-stage
 
 runtime-image:
 	@docker image inspect "$(MCP_IMAGE)" >/dev/null 2>&1 || docker pull "$(MCP_IMAGE)" >/dev/null 2>&1 || { printf '%s\n' 'Unable to use $(MCP_IMAGE). If this is an unpublished candidate, build it with make mcp-build in the unaltraweb factory checkout.' >&2; exit 1; }
@@ -49,6 +59,9 @@ test-native: build-native
 
 manual-inputs-prepare: runtime-image
 	@set --; network=none; case "$$INPUT_PREPARATION_FETCH" in 1) set -- --fetch; network=bridge;; 0) set -- --check;; *) printf '%s\n' 'INPUT_PREPARATION_FETCH must be 0 or 1' >&2; exit 1;; esac; mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$${PWD}" /workspace); docker run --rm --pull never --read-only --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --pids-limit 128 --network "$$network" --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp --mount "$$mount" -w /workspace --entrypoint unaltraweb-prepare-inputs "$(MCP_IMAGE)" --project /workspace --config "$$INPUT_PREPARATION_CONFIG" --sha256 "$$INPUT_PREPARATION_SHA256" "$$@"
+
+practice-artifact-plan practice-artifact-stage: runtime-image
+	@set --; if test "$@" = practice-artifact-stage; then set -- --stage "$$PRACTICE_ARTIFACT_STAGE"; fi; mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$${PWD}" /workspace); docker run --rm --pull never --read-only --cap-drop ALL --security-opt no-new-privileges --memory 512m --cpus 1 --pids-limit 128 --network none --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp --mount "$$mount" -w /workspace --entrypoint unaltraweb-practice-artifacts "$(MCP_IMAGE)" "$(@:practice-artifact-%=%)" --project /workspace --config "$$PRACTICE_ARTIFACT_CONFIG" --sha256 "$$PRACTICE_ARTIFACT_SHA256" --artifact "$$PRACTICE_ARTIFACT_ID" "$$@"
 
 manual-pdf-preview-prepare: runtime-image
 	@host_project=$$(pwd -P); docker_socket="$${UNALTRAWEB_DOCKER_SOCKET:-/var/run/docker.sock}"; project_mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$$host_project" "$$host_project"); set -- docker run --rm --user "$(LOCAL_UID):$(LOCAL_GID)" -e HOME=/tmp -e "MCP_CONSUMER_WORKSPACE=$$host_project" -e "UNALTRAWEB_DOCKER_ROOT=$$host_project" -e "MANUAL_PDF_IMAGE=$(MANUAL_PDF_IMAGE)" --mount "$$project_mount"; if test -S "$$docker_socket"; then socket_path=$$(realpath -e -- "$$docker_socket") || { printf '%s\n' "Cannot resolve Docker socket: $$docker_socket" >&2; exit 1; }; test "$$(stat -c '%h' "$$socket_path")" = 1 || { printf '%s\n' 'UNALTRAWEB_DOCKER_SOCKET must not have hard-link aliases that could enter the consumer project.' >&2; exit 1; }; case "$$socket_path" in "$$host_project"|"$$host_project"/*) printf '%s\n' 'UNALTRAWEB_DOCKER_SOCKET must be outside the consumer project so the persistent preview cannot inherit it.' >&2; exit 1;; esac; socket_group=$$(stat -c '%g' "$$socket_path"); socket_mount=$$(/bin/sh "$(DOCKER_MOUNT_HELPER)" "$$socket_path" /var/run/docker.sock); set -- "$$@" --group-add "$$socket_group" --mount "$$socket_mount"; fi; "$$@" -w "$$host_project" --entrypoint unaltraweb-mcp "$(MCP_IMAGE)" --project "$$host_project" mcp manual-pdf-preview-prepare

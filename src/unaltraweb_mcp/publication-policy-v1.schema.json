@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Per-project publication policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "project_id", "default_target", "targets"],
+  "properties": {
+    "kind": {"const": "gacontext.publication-policy"},
+    "schema_version": {"type": "integer", "const": 1},
+    "project_id": {"$ref": "#/$defs/token"},
+    "default_target": {"$ref": "#/$defs/token"},
+    "targets": {
+      "type": "object", "minProperties": 1, "maxProperties": 32,
+      "propertyNames": {"$ref": "#/$defs/token"},
+      "additionalProperties": {"oneOf": [{"$ref": "#/$defs/github"}, {"$ref": "#/$defs/s3"}]}
+    }
+  },
+  "$defs": {
+    "token": {"type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,199}$"},
+    "visibility": {"enum": ["public", "private"]},
+    "audiences": {"type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true,
+      "items": {"enum": ["public", "private", "student", "teacher"]}},
+    "github": {
+      "type": "object", "additionalProperties": false,
+      "required": ["driver", "visibility", "audiences", "auth_ref", "repository", "release"],
+      "properties": {
+        "driver": {"const": "github-release"},
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "audiences": {"$ref": "#/$defs/audiences"},
+        "auth_ref": {"$ref": "#/$defs/token"},
+        "repository": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}$"},
+        "release": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"}
+      }
+    },
+    "s3": {
+      "type": "object", "additionalProperties": false,
+      "required": ["driver", "visibility", "audiences", "auth_ref", "endpoint", "region", "bucket", "prefix"],
+      "properties": {
+        "driver": {"const": "s3"},
+        "visibility": {"$ref": "#/$defs/visibility"},
+        "audiences": {"$ref": "#/$defs/audiences"},
+        "auth_ref": {"$ref": "#/$defs/token"},
+        "endpoint": {"type": "string", "minLength": 8, "maxLength": 2048, "pattern": "^https://[^\\s]+$"},
+        "region": {"$ref": "#/$defs/token"},
+        "bucket": {"type": "string", "minLength": 3, "maxLength": 63, "pattern": "^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$"},
+        "prefix": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    }
+  }
+}
