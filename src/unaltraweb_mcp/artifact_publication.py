@@ -24,6 +24,13 @@ CONFIG = ".unaltraweb/practice-artifacts.json"
 TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}\Z")
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 MAX_FILE = 2 * 1024**3 - 1
+STORAGE_PROFILES = {"anonymous-delivery-v1", "authenticated-private-v1"}
+
+
+class ArtifactPolicyError(ValueError):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
 
 
 def require(condition, message):
@@ -71,6 +78,55 @@ def publication_policy(value):
     return value
 
 
+def _repository_url(raw):
+    """Parse native remote metadata, without aliases, folder guesses or network."""
+    scp = re.fullmatch(r"git@(github\.com|bitbucket\.org):([^\s]+)", raw)
+    if scp:
+        host, repository = scp.groups()
+    else:
+        url = urlsplit(raw)
+        require(url.scheme in {"https", "ssh"} and url.hostname in {"github.com", "bitbucket.org"}
+                and url.port is None and not url.password and not url.query and not url.fragment
+                and (url.username is None if url.scheme == "https" else url.username == "git"),
+                "Unsupported native consumer repository URL")
+        host, repository = url.hostname, url.path.removeprefix("/")
+    repository = repository.removesuffix(".git")
+    require(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}", repository),
+            "Invalid native consumer repository name")
+    return host, repository
+
+
+def consumer_repository(project, declaration):
+    if not isinstance(declaration, dict) or set(declaration) != {"remote", "host", "repository"}:
+        raise ArtifactPolicyError("manual-repository-missing", "Manual S3 storage requires explicit v2 consumer_repository metadata")
+    remote = declaration["remote"]
+    require(isinstance(remote, str) and TOKEN.fullmatch(remote), "Invalid declared consumer remote")
+    require(declaration["host"] in {"github.com", "bitbucket.org"} and isinstance(declaration["repository"], str)
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}", declaration["repository"]),
+            "Invalid explicit consumer repository metadata")
+    urls = {}
+    for key in ("url", "pushurl"):
+        observed = fs._run_git(project, ["config", "--local", "--null", "--get-all", f"remote.{remote}.{key}"], allowed={0, 1})
+        urls[key] = [item for item in observed.stdout.decode("utf-8").split("\0") if item]
+    if not urls["url"]:
+        raise ArtifactPolicyError("manual-repository-missing", "The declared consumer Git remote has no native repository URL")
+    if len(urls["url"]) != 1 or len(urls["pushurl"]) > 1:
+        raise ArtifactPolicyError("manual-repository-ambiguous", "The declared consumer Git remote has multiple repository URLs")
+    try:
+        identities = {_repository_url(url) for url in urls["url"] + urls["pushurl"]}
+    except ValueError:
+        raise ArtifactPolicyError("manual-repository-unverified", "Native consumer remote metadata is not a supported explicit repository identity") from None
+    if len(identities) != 1:
+        raise ArtifactPolicyError("manual-repository-ambiguous", "Native consumer fetch/push repository identities disagree")
+    identity = next(iter(identities))
+    if identity != (declaration["host"], declaration["repository"]):
+        raise ArtifactPolicyError("manual-repository-mismatch", "Declared consumer repository differs from its native Git remote")
+    if identity == ("github.com", "dosquartsdedocs/unaltraweb"):
+        raise ArtifactPolicyError("manual-repository-core", "Select the manual consumer repository, not the Web core")
+    return {**declaration, "slug": identity[1].split("/")[1], "verified": True,
+            "verification": "native-git-local-remote-urls"}
+
+
 def load(project, config, expected):
     require(project.is_absolute(), "Select an absolute consumer workspace")
     fs._require_git_root(project)
@@ -80,19 +136,32 @@ def load(project, config, expected):
         sha, _, raw = workspace.read(config, 1024**2, collect=True)
         require(isinstance(expected, str) and HASH.fullmatch(expected) and sha == expected, "Artifact routing differs from its reviewed SHA-256")
         value = strict_json(raw.decode())
-        require(isinstance(value, dict) and set(value) == {"kind", "schema_version", "publication", "artifacts"}
-                and type(value["schema_version"]) is int and value["schema_version"] == 1
+        require(isinstance(value, dict) and type(value.get("schema_version")) is int and value["schema_version"] in {1, 2},
+                "Unsupported practice artifact routing version")
+        version = value["schema_version"]
+        require(set(value) == {"kind", "schema_version", "publication", "artifacts"} | ({"consumer_repository"} if version == 2 else set())
                 and value["kind"] == "unaltraweb.practice-artifact-storage", "Unsupported practice artifact routing schema")
         require(isinstance(value["artifacts"], dict) and len(value["artifacts"]) <= 256, "Invalid bounded artifact selection")
         if value["publication"] is None:
             require(not value["artifacts"], "Unconfigured publication cannot route artifacts")
         else:
             publication_policy(value["publication"])
+        repository = consumer_repository(project, value["consumer_repository"]) if version == 2 and value["consumer_repository"] is not None else None
         for name, route in value["artifacts"].items():
             require(TOKEN.fullmatch(name), "Invalid logical artifact ID")
-            require(isinstance(route, dict) and set(route) == {"target", "audience", "receipt", "receipt_sha256", "format"}, "Unknown artifact routing fields")
+            require(isinstance(route, dict) and set(route) == {"target", "audience", "receipt", "receipt_sha256", "format"}
+                    | ({"storage_profile"} if version == 2 else set()), "Unknown artifact routing fields")
             require(route["target"] in value["publication"]["targets"], "Artifact must select one configured target; no fallback")
             target = value["publication"]["targets"][route["target"]]
+            profile = route.get("storage_profile", "anonymous-delivery-v1")
+            require(profile in STORAGE_PROFILES, "Unsupported explicit storage capability profile")
+            require(profile != "authenticated-private-v1" or target["driver"] == "s3" and target["visibility"] == "private",
+                    "Authenticated private storage requires a private S3 target")
+            if target["driver"] == "s3":
+                if repository is None:
+                    repository = consumer_repository(project, value.get("consumer_repository"))
+                if target["bucket"] != repository["slug"]:
+                    raise ArtifactPolicyError("manual-bucket-mismatch", "Manual S3 bucket must exactly equal the verified consumer repository slug")
             require(route["audience"] in target["audiences"], "Artifact audience is not admitted by its target")
             require(route["format"] in {"zip", "pdf"} and isinstance(route["receipt_sha256"], str)
                     and HASH.fullmatch(route["receipt_sha256"]), "Invalid artifact format/receipt pin")
@@ -101,7 +170,7 @@ def load(project, config, expected):
     return value
 
 
-def plan(project: Path, config: str, sha256: str, artifact: str):
+def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None, manifest_sha256=None):
     selection = load(project, config, sha256)
     require(artifact in selection["artifacts"], "Artifact has no explicit storage policy")
     route = selection["artifacts"][artifact]
@@ -148,10 +217,32 @@ def plan(project: Path, config: str, sha256: str, artifact: str):
                 "native": {"format": "unaltraweb-practice-artifact-v1", "manifest_sha256": digest(metadata)}}
     shape(manifest, "product-publication-v1.schema.json")
     content = canonical(manifest)
+    if staged is not None:
+        h.safe_path(staged)
+        require(staged.startswith("sandbox/artifacts/"), "Select a retained artifact stage")
+        fs._require_generated_path(project, Path(staged), label="Retained practice artifact stage")
+        with closing(h.Workspace(str(project))) as workspace:
+            observed, _, raw = workspace.read(staged + "/product.json", 1024**2, collect=True)
+            require(observed == manifest_sha256, "Retained product differs from the reviewed manifest SHA-256")
+            retained = strict_json(raw.decode())
+            shape(retained, "product-publication-v1.schema.json")
+            require(retained["producer"]["name"] == "unaltraweb" and all(retained[key] == value for key, value in manifest.items() if key != "producer"),
+                    "Retained product differs from the selected native artifact")
+            files, directories = workspace.inventory(staged)
+            require(not directories and files == {"product.json", *[row["path"] for row in retained["files"]]}, "Unexpected staged artifact files")
+            for row in retained["files"]:
+                actual, size, _ = workspace.read(staged + "/" + row["path"], MAX_FILE)
+                require((actual, size) == (row["sha256"], row["bytes"]), "Retained artifact bytes differ from their reviewed manifest")
+            workspace.recheck()
+        # An upgraded control plane does not rewrite a previous producer identity.
+        manifest = retained
+        content = raw
     return {"ok": True, "read_only": True, "publication_performed": False, "credentials_resolved": False,
             "artifact_id": artifact, "config_sha256": sha256, "manifest_sha256": digest(content),
             "publication": {"target_name": route["target"], "destination": target, "destination_sha256": digest(canonical(target)),
-                            "policy_sha256": digest(canonical(selection["publication"]))},
+                            "policy_sha256": digest(canonical(selection["publication"])),
+                            "storage_profile": route.get("storage_profile", "anonymous-delivery-v1"),
+                            "consumer_repository": consumer_repository(project, selection.get("consumer_repository")) if target["driver"] == "s3" else None},
             "manifest": manifest, "metadata": metadata.decode(), "source": source}
 
 
@@ -195,14 +286,13 @@ def stage(project: Path, config: str, sha256: str, artifact: str, destination: s
 
 
 def transfer(project, config, sha256, artifact, staged, manifest_sha256, *, auth_file=None, verify_only=False, connector=None):
-    prepared = plan(project, config, sha256, artifact)
-    require(prepared["manifest_sha256"] == manifest_sha256, "Staged manifest differs from the reviewed artifact plan")
+    prepared = plan(project, config, sha256, artifact, staged=staged, manifest_sha256=manifest_sha256)
     staged = h.safe_path(staged)
     require(staged.startswith("sandbox/artifacts/"), "Select a retained artifact stage")
     fs._require_generated_path(project, Path(staged), label="Retained practice artifact stage")
     with closing(h.Workspace(str(project))) as workspace:
         actual, _, raw = workspace.read(staged + "/product.json", 1024**2, collect=True)
-        require(actual == manifest_sha256 and raw == canonical(prepared["manifest"]), "Staged product manifest changed")
+        require(actual == manifest_sha256 and strict_json(raw.decode()) == prepared["manifest"], "Staged product manifest changed")
         files, directories = workspace.inventory(staged)
         require(not directories and files == {"product.json", *[row["path"] for row in prepared["manifest"]["files"]]}, "Unexpected staged artifact files")
         records = [*prepared["manifest"]["files"], {"path": "product.json", "sha256": actual, "bytes": len(raw), "media_type": "application/json", "role": "evidence"}]
@@ -224,7 +314,7 @@ def transfer(project, config, sha256, artifact, staged, manifest_sha256, *, auth
                 require(observation.get("verified") is True, "Provider did not verify artifact readback")
                 observations.append({**row, **observation})
             workspace.recheck()
-            require(plan(project, config, sha256, artifact) == prepared, "Artifact routing/source changed during transfer")
+            require(plan(project, config, sha256, artifact, staged=staged, manifest_sha256=manifest_sha256) == prepared, "Artifact routing/source changed during transfer")
         finally:
             store.close()
     return {"ok": True, "kind": "unaltraweb.practice-artifact-receipt", "schema_version": 1,
@@ -246,19 +336,22 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.operation in {"plan", "stage"}:
-            require(not args.auth_file and not args.manifest_sha256, "Planning/staging does not resolve credentials")
+            require(not args.auth_file, "Planning/staging does not resolve credentials")
             if args.operation == "stage":
-                require(args.stage, "stage requires --stage")
+                require(args.stage and not args.manifest_sha256, "stage requires a new --stage, without an existing manifest pin")
                 result = stage(args.project, args.config, args.sha256, args.artifact, args.stage)
             else:
-                require(not args.stage, "plan does not create a stage")
-                result = plan(args.project, args.config, args.sha256, args.artifact)
+                require(bool(args.stage) == bool(args.manifest_sha256), "Retained planning requires both --stage and --manifest-sha256")
+                result = plan(args.project, args.config, args.sha256, args.artifact, staged=args.stage, manifest_sha256=args.manifest_sha256)
         else:
             require(args.stage and args.manifest_sha256 and args.auth_file, "Transfers require --stage, --manifest-sha256 and explicit --auth-file")
             result = transfer(args.project, args.config, args.sha256, args.artifact, args.stage, args.manifest_sha256,
                               auth_file=args.auth_file, verify_only=args.operation == "verify")
         print(json.dumps(result, sort_keys=True))
         return 0
+    except ArtifactPolicyError as exc:
+        print(json.dumps({"ok": False, "error": {"code": exc.code, "message": str(exc)}, "publication_performed": False}), file=sys.stderr)
+        return 1
     except (ValueError, OSError, KeyError, TypeError, h.HandoffError, RuntimeError):
         # Provider responses and local credential paths must never enter diagnostics.
         print(json.dumps({"ok": False, "error": "Artifact operation refused; inspect the exact sources, policy and provider. No fallback or catalogue update."}), file=sys.stderr)

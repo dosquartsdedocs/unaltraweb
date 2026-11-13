@@ -238,6 +238,7 @@ mcp:
     - web://practice-tabular-edition-schema
     - web://input-preparation-schema
     - web://practice-artifact-storage-schema
+    - web://practice-artifact-storage-v2-schema
     - web://product-publication-schema
     - web://publication-policy-schema
     - web://practice-verifier-runtime

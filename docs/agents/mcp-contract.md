@@ -95,6 +95,7 @@ baseline format nor runtime cleanup changes.
 | `web://practice-tabular-edition-schema` | Explicit v2 tabular-file composition without a GIS descriptor, runtime or calculation. |
 | `web://input-preparation-schema` | Versioned, hash-bound early input hydration configuration; separate from source-only CI. |
 | `web://practice-artifact-storage-schema` | Explicit destination and audience per sealed practice PDF/ZIP. |
+| `web://practice-artifact-storage-v2-schema` | Verified native consumer repository/bucket identity and explicit authenticated-private versus anonymous-delivery capability. |
 | `web://product-publication-schema` | Frozen gaContExt v1 selected-output manifest; independent of storage target. |
 | `web://publication-policy-schema` | Frozen gaContExt v1 GitHub Release/S3-compatible destination policy. |
 | `web://practice-verifier-runtime` | Static private controller/package/profile identities and distinct release metadata; acquisition belongs to the hub. |
@@ -135,6 +136,12 @@ student products. Product manifests and source-free sidecars preserve the select
 PDF/ZIP bytes; private native receipts remain local. MCP exposes the schemas above;
 session start and normal builds do not publish artifacts. See
 [the storage contract](../_documentation/en/50-practice-artifact-storage.md).
+Route v2 requires every selected manual S3 bucket to equal its explicitly declared,
+native-Git-verified consumer repository slug. `authenticated-private-v1` checks
+authenticated bytes/headers and native private ACL/policy, without probing or
+qualifying object URLs. `anonymous-delivery-v1` keeps strict anonymous delivery
+checks; raw API HTTP 400 is never a denial proof. The common v1 schemas and
+retained stage identities are preserved across this additive Web contract.
 
 Private teaching editions use `manual_practice_compose(config, dry_run=false)`
 (CLI `mcp manual-practice-compose`, factory Make `manual-practice-compose`).

@@ -512,6 +512,11 @@ def run_server(project: Path, factory: Path) -> None:
         """Per-artifact practice destination/recipient policy, independent of manual releases."""
         return Path(__file__).with_name("practice-artifact-storage-v1.schema.json").read_text(encoding="utf-8")
 
+    @mcp.resource("web://practice-artifact-storage-v2-schema")
+    def practice_artifact_storage_v2_schema_resource() -> str:
+        """Verified consumer repository buckets and explicit private/public storage capability."""
+        return Path(__file__).with_name("practice-artifact-storage-v2.schema.json").read_text(encoding="utf-8")
+
     @mcp.resource("web://product-publication-schema")
     def product_publication_schema_resource() -> str:
         """Adopted gaContExt product-publication v1, with destination-neutral byte identity."""

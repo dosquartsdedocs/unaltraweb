@@ -121,6 +121,7 @@ def main() -> int:
             "unaltraweb_mcp/artifact_publication.py",
             "unaltraweb_mcp/artifact_transports.py",
             "unaltraweb_mcp/practice-artifact-storage-v1.schema.json",
+            "unaltraweb_mcp/practice-artifact-storage-v2.schema.json",
             "unaltraweb_mcp/product-publication-v1.schema.json",
             "unaltraweb_mcp/publication-policy-v1.schema.json",
             "unaltraweb_mcp/scaffolds/common/.unaltraweb/practice-artifacts.json",

@@ -15,7 +15,7 @@ import stat
 import unicodedata
 from urllib.parse import quote, urlsplit
 
-from .artifact_publication import require
+from .artifact_publication import STORAGE_PROFILES, require
 from . import artifact_handoff_v1 as h
 
 MULTIPART_THRESHOLD = 64 * 1024**2
@@ -107,7 +107,7 @@ def connect(publication, project_id, auth_file):
         aws_session_token=credentials.get("session_token_env"),
         config=Config(signature_version="s3v4", connect_timeout=10, read_timeout=60, retries={"total_max_attempts": 1},
                       request_checksum_calculation="when_required", response_checksum_validation="when_required", s3={"addressing_style": "path"}))
-    return S3(target, client)
+    return S3(target, client, profile=publication.get("storage_profile", "anonymous-delivery-v1"))
 
 
 class GitHub:
@@ -186,9 +186,35 @@ class GitHub:
 
 
 class S3:
-    def __init__(self, target, client, *, anonymous=None):
+    def __init__(self, target, client, *, anonymous=None, profile="anonymous-delivery-v1"):
+        require(profile in STORAGE_PROFILES and (profile != "authenticated-private-v1" or target["visibility"] == "private"),
+                "Invalid private S3 capability selection")
         self.target, self.client = target, client
+        self.profile = profile
+        self.private_preflight = False
         self.anonymous = anonymous or http_session()
+
+    @staticmethod
+    def private_acl(acl):
+        require(isinstance(acl, dict) and isinstance(acl.get("Grants"), list)
+                and all(isinstance(grant, dict) and isinstance(grant.get("Grantee"), dict) for grant in acl["Grants"]),
+                "Native S3 ACL could not be qualified")
+        require(not any(grant["Grantee"].get("URI", "").endswith(("/AllUsers", "/AuthenticatedUsers")) for grant in acl["Grants"]),
+                "Selected private S3 object has public grants")
+
+    def access(self, key, row, *, named):
+        if self.profile == "authenticated-private-v1":
+            require(self.private_preflight, "Private S3 policy preflight is required")
+            try:
+                acl = self.client.get_object_acl(Bucket=self.target["bucket"], Key=key)
+            except Exception:
+                raise RuntimeError("Native private S3 object ACL could not be inspected") from None
+            self.private_acl(acl)
+            return {"profile": self.profile, "authenticated_read_verified": True, "native_object_acl_private": True,
+                    "bucket_policy_private": True, "object_url_published": False, "anonymous_probe_performed": False,
+                    "anonymous_object_url_qualified": False, "anonymous_read_verified": False, "public_url": None}
+        url = self.target["endpoint"].rstrip("/") + "/" + self.target["bucket"] + "/" + quote(key, safe="/")
+        return anonymous_check(self.anonymous, url, row, self.target["visibility"] == "public", named=named)
 
     @staticmethod
     def public_grant(statement):
@@ -212,7 +238,9 @@ class S3:
         require(isinstance(statements, list) and all(isinstance(row, dict) for row in statements), "Unsupported bucket policy shape")
         public = [row for row in statements if self.public_grant(row)]
         if self.target["visibility"] == "private":
+            self.private_acl(acl)
             require(not public_acl and not public, "Selected private bucket has public grants")
+            self.private_preflight = True
         else:
             resource = "arn:aws:s3:::" + bucket + "/" + self.target["prefix"] + "/*"
             require(not public_acl and any(row.get("Action") in ("s3:GetObject", ["s3:GetObject"])
@@ -269,8 +297,7 @@ class S3:
             require(write, "Selected S3 artifact is absent")
             self.put(key, row, source)
             require(self.check(key, row), "S3 artifact disappeared after upload")
-        url = self.target["endpoint"].rstrip("/") + "/" + self.target["bucket"] + "/" + quote(key, safe="/")
-        access = anonymous_check(self.anonymous, url, row, self.target["visibility"] == "public", named=True)
+        access = self.access(key, row, named=True)
         if row["path"] == "product.json":
             # The common authenticated fetch interface locates the original
             # manifest here, then verifies its named projection independently.
@@ -280,8 +307,7 @@ class S3:
                 source.seek(0)
                 self.put(canonical_key, row, source)
                 require(self.check(canonical_key, row, headers=False), "Canonical S3 manifest readback failed")
-            canonical_url = self.target["endpoint"].rstrip("/") + "/" + self.target["bucket"] + "/" + quote(canonical_key, safe="/")
-            anonymous_check(self.anonymous, canonical_url, row, self.target["visibility"] == "public")
+            self.access(canonical_key, row, named=False)
         return {"verified": True, "reused": reused, "locator": key, "access": access}
 
     def close(self):

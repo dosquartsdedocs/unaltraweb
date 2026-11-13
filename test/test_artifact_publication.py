@@ -66,6 +66,9 @@ class MemoryS3:
     def get_bucket_policy(self, **kwargs):
         raise SDKError("NoSuchBucketPolicy")
 
+    def get_object_acl(self, **kwargs):
+        return {"Grants": [{"Grantee": {"Type": "CanonicalUser", "ID": "synthetic-owner"}, "Permission": "FULL_CONTROL"}]}
+
     def get_object(self, **kwargs):
         key = kwargs["Key"]
         if key not in self.objects:
@@ -136,17 +139,19 @@ class ArtifactPublicationTests(unittest.TestCase):
         fixture = TabularEditionTests()
         self.addCleanup(fixture.doCleanups)
         self.root, _, _ = fixture.fixture("ca")
+        subprocess.run(["git", "-C", str(self.root), "remote", "add", "origin", "git@github.com:example/tigit.git"], check=True)
         with patch.object(practice_editions.practice_pdf, "build", side_effect=fixture.renderer(self.root)):
             self.edition = practice_editions.compose(self.root, self.root, "edition.json")
         self.config = artifacts.CONFIG
         self.selection = {
-            "kind": "unaltraweb.practice-artifact-storage", "schema_version": 1,
+            "kind": "unaltraweb.practice-artifact-storage", "schema_version": 2,
+            "consumer_repository": {"remote": "origin", "host": "github.com", "repository": "example/tigit"},
             "publication": {"kind": "gacontext.publication-policy", "schema_version": 1,
                 "project_id": "synthetic-course", "default_target": "github", "targets": {
                     "github": {"driver": "github-release", "repository": "example/manual", "release": "practices-2026",
                                "visibility": "public", "audiences": ["public", "student"], "auth_ref": "project-ci"},
                     "s4": {"driver": "s3", "endpoint": "https://s3.example.invalid", "region": "example-1",
-                           "bucket": "private-practices", "prefix": "practices/v1", "visibility": "private",
+                           "bucket": "tigit", "prefix": "practices/v1", "visibility": "private",
                            "audiences": ["student", "teacher", "private"], "auth_ref": "course-s4"}}},
             "artifacts": {}}
         for artifact, who, format, target in (("student-guide", "alumnat", "pdf", "github"),
@@ -154,6 +159,7 @@ class ArtifactPublicationTests(unittest.TestCase):
                                               ("teacher-data", "docent", "zip", "s4")):
             packet = self.edition["packages"][who]
             self.selection["artifacts"][artifact] = {"target": target, "audience": "teacher" if who == "docent" else "student",
+                "storage_profile": "anonymous-delivery-v1" if target == "github" else "authenticated-private-v1",
                 "receipt": self.edition["path"] + "/" + packet["receipt"], "receipt_sha256": packet["receipt_sha256"], "format": format}
         self.write_config()
 
@@ -183,10 +189,185 @@ class ArtifactPublicationTests(unittest.TestCase):
         self.assertEqual(plans["teacher-data"]["manifest"]["audience"], "teacher")
         self.assertFalse((self.root / "sandbox/artifacts").exists())
 
+    def test_bucket_is_exact_native_repository_slug_not_folder_or_logical_project(self):
+        planned = self.plan()
+        identity = planned["publication"]["consumer_repository"]
+        self.assertEqual((identity["repository"], identity["slug"], identity["verified"]), ("example/tigit", "tigit", True))
+        self.assertNotEqual(self.root.name, "tigit")
+        self.assertNotEqual(planned["manifest"]["project_id"], "tigit")
+        for wrong in ("tig", "geodisseny", "unaltraweb", "synthetic-course", "manual"):
+            self.selection["publication"]["targets"]["s4"]["bucket"] = wrong
+            self.write_config()
+            with self.subTest(bucket=wrong), self.assertRaises(artifacts.ArtifactPolicyError) as error:
+                self.plan()
+            self.assertEqual(error.exception.code, "manual-bucket-mismatch")
+
+    def test_repository_identity_requires_unambiguous_native_metadata_and_reports_missing(self):
+        subprocess.run(["git", "-C", str(self.root), "remote", "remove", "origin"], check=True)
+        with self.assertRaises(artifacts.ArtifactPolicyError) as error:
+            self.plan()
+        self.assertEqual(error.exception.code, "manual-repository-missing")
+        with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            code = artifacts.main(["plan", "--project", str(self.root), "--sha256", self.sha, "--artifact", "student-data"])
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(stderr.getvalue())["error"]["code"], "manual-repository-missing")
+        subprocess.run(["git", "-C", str(self.root), "remote", "add", "origin", "git@github.com:example/tigit.git"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "config", "--add", "remote.origin.url", "https://github.com/example/tig.git"], check=True)
+        with self.assertRaises(artifacts.ArtifactPolicyError) as error:
+            self.plan()
+        self.assertEqual(error.exception.code, "manual-repository-ambiguous")
+
+    def test_repository_declaration_cannot_select_core_alias_or_different_push_repository(self):
+        for url, expected in (("git@github.com:example/tig.git", "manual-repository-mismatch"),
+                              ("git@manual-alias:example/tigit.git", "manual-repository-unverified")):
+            subprocess.run(["git", "-C", str(self.root), "remote", "set-url", "origin", url], check=True)
+            with self.subTest(url=url), self.assertRaises(artifacts.ArtifactPolicyError) as error:
+                self.plan()
+            self.assertEqual(error.exception.code, expected)
+        subprocess.run(["git", "-C", str(self.root), "remote", "set-url", "origin", "git@github.com:example/tigit.git"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "config", "remote.origin.pushurl", "git@github.com:example/tig.git"], check=True)
+        with self.assertRaises(artifacts.ArtifactPolicyError) as error:
+            self.plan()
+        self.assertEqual(error.exception.code, "manual-repository-ambiguous")
+        subprocess.run(["git", "-C", str(self.root), "config", "--unset", "remote.origin.pushurl"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "remote", "set-url", "origin", "git@github.com:dosquartsdedocs/unaltraweb.git"], check=True)
+        self.selection["consumer_repository"]["repository"] = "dosquartsdedocs/unaltraweb"
+        self.write_config()
+        with self.assertRaises(artifacts.ArtifactPolicyError) as error:
+            self.plan()
+        self.assertEqual(error.exception.code, "manual-repository-core")
+
+    def test_native_repository_protocols_preserve_exact_slug_without_normalising_bucket(self):
+        for host, url in (("github.com", "https://github.com/example/tigit.git"),
+                          ("github.com", "ssh://git@github.com/example/tigit.git"),
+                          ("bitbucket.org", "git@bitbucket.org:example/tigit.git")):
+            subprocess.run(["git", "-C", str(self.root), "remote", "set-url", "origin", url], check=True)
+            self.selection["consumer_repository"]["host"] = host
+            self.write_config()
+            self.assertEqual(self.plan()["publication"]["consumer_repository"]["slug"], "tigit")
+        subprocess.run(["git", "-C", str(self.root), "remote", "set-url", "origin", "git@bitbucket.org:example/TIGIT.git"], check=True)
+        self.selection["consumer_repository"]["repository"] = "example/TIGIT"
+        self.write_config()
+        with self.assertRaises(artifacts.ArtifactPolicyError) as error:
+            self.plan()
+        self.assertEqual(error.exception.code, "manual-bucket-mismatch")
+
+    def test_authenticated_private_profile_stores_native_pdf_and_zip_without_object_urls(self):
+        self.selection["artifacts"]["student-guide"].update(target="s4", storage_profile="authenticated-private-v1")
+        self.write_config()
+        for name in self.selection["artifacts"]:
+            prepared = self.stage(name)
+            client, unsigned = MemoryS3(), Anonymous()
+            with patch.object(unsigned, "get", return_value=Response(400, raw=b"InvalidRequest: Please use AWS Signature Version 4")) as probe, \
+                    patch.object(client, "get_object_acl", wraps=client.get_object_acl) as acls:
+                connector = lambda publication, *args: transports.S3(publication["destination"], client, anonymous=unsigned, profile=publication["storage_profile"])
+                result = self.transfer(prepared, connector)
+                repeated = self.transfer(prepared, connector, verify_only=True)
+            self.assertTrue(result["verified"] and repeated["verified"])
+            probe.assert_not_called()
+            self.assertEqual(acls.call_count, 8)  # named output/metadata/manifest and canonical manifest, twice
+            for row in result["files"]:
+                access = row["access"]
+                self.assertTrue(access["authenticated_read_verified"] and access["native_object_acl_private"] and access["bucket_policy_private"])
+                self.assertFalse(access["anonymous_probe_performed"] or access["anonymous_object_url_qualified"] or access["object_url_published"])
+                self.assertIsNone(access["public_url"])
+                self.assertNotIn("anonymous_status", access)
+            output = prepared["manifest"]["files"][0]
+            stored = next(row for key, row in client.objects.items() if key.endswith("/" + output["path"]))
+            self.assertEqual(stored["Body"], (self.root / prepared["source"]).read_bytes())
+            self.assertEqual(stored["ContentType"], "application/pdf" if name == "student-guide" else "application/zip")
+
+    def test_authenticated_private_checks_wrong_bytes_headers_and_actual_acl_proof(self):
+        prepared = self.stage()
+        client, unsigned = MemoryS3(), Anonymous()
+        connector = lambda publication, *args: transports.S3(publication["destination"], client, anonymous=unsigned, profile=publication["storage_profile"])
+        self.transfer(prepared, connector)
+        original = copy.deepcopy(client.objects)
+        for wrong in ("bytes", "headers", "public-acl", "unverifiable-acl"):
+            client.objects = copy.deepcopy(original)
+            client.corrupt = wrong == "bytes"
+            if wrong == "headers":
+                next(iter(client.objects.values()))["ContentType"] = "text/plain"
+            acl = {"Grants": [{"Grantee": {"URI": "http://acs.amazonaws.com/groups/global/AllUsers"}}]} if wrong == "public-acl" else {}
+            with self.subTest(wrong=wrong), patch.object(client, "get_object_acl", return_value=acl), \
+                    patch.object(unsigned, "get", side_effect=AssertionError("No object URL probe")), self.assertRaises((ValueError, RuntimeError)):
+                self.transfer(prepared, connector, verify_only=True)
+        self.assertEqual(len(client.puts), 4)
+
+    def test_api_400_is_never_anonymous_denial_or_public_delivery_evidence(self):
+        row = {"path": "guide.pdf", "bytes": 3, "sha256": artifacts.digest(b"pdf"), "media_type": "application/pdf"}
+        for public in (False, True):
+            unsigned = Anonymous()
+            with patch.object(unsigned, "get", return_value=Response(400, raw=b"InvalidRequest: Signature Version 4 required")), self.assertRaises(ValueError):
+                transports.anonymous_check(unsigned, "https://s3.example.invalid/tigit/guide.pdf", row, public, named=True)
+        with self.assertRaisesRegex(ValueError, "capability"):
+            transports.S3({**self.plan()["publication"]["destination"], "visibility": "public"}, MemoryS3(), profile="authenticated-private-v1")
+
+    def test_legacy_schema_cannot_bypass_manual_bucket_binding_or_infer_a_profile(self):
+        original = copy.deepcopy(self.selection)
+        self.selection["schema_version"] = 1
+        del self.selection["consumer_repository"]
+        for route in self.selection["artifacts"].values():
+            del route["storage_profile"]
+        self.write_config()
+        with self.assertRaises(artifacts.ArtifactPolicyError) as error:
+            self.plan()
+        self.assertEqual(error.exception.code, "manual-repository-missing")
+        self.selection = original
+        del self.selection["artifacts"]["student-data"]["storage_profile"]
+        self.write_config()
+        with self.assertRaisesRegex(ValueError, "routing fields"):
+            self.plan()
+
+    def test_previous_v1_stage_identity_survives_v2_route_and_control_plane_upgrade(self):
+        current = copy.deepcopy(self.selection)
+        legacy = copy.deepcopy(current)
+        legacy["schema_version"] = 1
+        del legacy["consumer_repository"]
+        legacy["artifacts"] = {"student-data": legacy["artifacts"]["student-data"]}
+        legacy["artifacts"]["student-data"]["target"] = "github"
+        del legacy["artifacts"]["student-data"]["storage_profile"]
+        self.selection = legacy
+        self.write_config()
+        prepared = self.stage()
+        directory = self.root / prepared["stage"]
+        manifest = json.loads((directory / "product.json").read_bytes())
+        manifest["producer"].update(version="0.8.0", revision="sha256:" + "a" * 64)
+        raw = (json.dumps(manifest, indent=4) + "\n").encode()
+        (directory / "product.json").write_bytes(raw)
+        before = {path.name: (path.read_bytes(), path.stat().st_mtime_ns) for path in directory.iterdir()}
+        self.selection = current
+        self.write_config()
+        reviewed_sha = artifacts.digest(raw)
+        planned = artifacts.plan(self.root, self.config, self.sha, "student-data", staged=prepared["stage"], manifest_sha256=reviewed_sha)
+        self.assertEqual(planned["manifest_sha256"], reviewed_sha)
+        self.assertEqual(planned["manifest"]["producer"], manifest["producer"])
+        client = MemoryS3()
+        result = artifacts.transfer(self.root, self.config, self.sha, "student-data", prepared["stage"], reviewed_sha,
+            connector=lambda publication, *args: transports.S3(publication["destination"], client, anonymous=Anonymous(), profile=publication["storage_profile"]))
+        self.assertTrue(result["verified"])
+        self.assertEqual({path.name: (path.read_bytes(), path.stat().st_mtime_ns) for path in directory.iterdir()}, before)
+        self.assertEqual(next(row["Body"] for key, row in client.objects.items() if "/manifests/" in key), raw)
+
+    def test_untyped_geodisseny_manifest_requires_native_intake_not_receipt_relabelling(self):
+        path = self.root / "dist/practiques/legacy/ca/manifest.json"
+        path.parent.mkdir(parents=True)
+        raw = artifacts.canonical({"activity": "legacy", "version": "r1", "run": "retained", "packages": [],
+            "proof": "retained/proof.json", "proof_sha256": "0" * 64, "human_approved": False,
+            "exact_historical_bundle": False, "local_candidate": True})
+        path.write_bytes(raw)
+        self.selection["artifacts"]["student-data"].update(receipt=path.relative_to(self.root).as_posix(), receipt_sha256=artifacts.digest(raw))
+        self.write_config()
+        with self.assertRaisesRegex(ValueError, "native practice edition receipt"):
+            self.plan()
+        self.assertEqual(path.read_bytes(), raw)
+        self.assertFalse((self.root / "sandbox/artifacts").exists())
+
     def test_destination_change_keeps_manifest_identity_and_preserves_prior_stage(self):
         first = self.stage()
         before = (self.root / first["stage"] / "product.json").read_bytes()
         self.selection["artifacts"]["student-data"]["target"] = "github"
+        self.selection["artifacts"]["student-data"]["storage_profile"] = "anonymous-delivery-v1"
         self.write_config()
         second = self.stage(run="r2")
         self.assertEqual(first["manifest_sha256"], second["manifest_sha256"])
@@ -209,7 +390,7 @@ class ArtifactPublicationTests(unittest.TestCase):
 
     def test_teacher_cannot_be_public_even_with_explicit_reclassification(self):
         route = self.selection["artifacts"]["teacher-data"]
-        route.update(target="github", audience="student")
+        route.update(target="github", audience="student", storage_profile="anonymous-delivery-v1")
         self.write_config()
         with self.assertRaisesRegex(ValueError, "Teacher"):
             self.plan("teacher-data")
@@ -253,7 +434,7 @@ class ArtifactPublicationTests(unittest.TestCase):
             prepared = self.stage(name)
             def connector(publication, project, auth):
                 target = publication["destination"]
-                return transports.S3(target, s3, anonymous=Anonymous()) if target["driver"] == "s3" else transports.GitHub(target, "synthetic-token", session=github, anonymous=Anonymous(github.public))
+                return transports.S3(target, s3, anonymous=Anonymous(), profile=publication["storage_profile"]) if target["driver"] == "s3" else transports.GitHub(target, "synthetic-token", session=github, anonymous=Anonymous(github.public))
             first = self.transfer(prepared, connector)
             self.assertTrue(first["verified"])
             self.assertFalse(first["catalogue_updated"])
@@ -284,7 +465,7 @@ class ArtifactPublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "selected-prefix"):
             store.preflight()
         policy = {"Statement": [{"Effect": "Allow", "Principal": "*", "Action": "s3:GetObject",
-            "Resource": "arn:aws:s3:::private-practices/practices/v1/*"}]}
+            "Resource": "arn:aws:s3:::tigit/practices/v1/*"}]}
         with patch.object(client, "get_bucket_policy", return_value={"Policy": json.dumps(policy)}):
             store.preflight()
         key = store.key(prepared["manifest"], prepared["manifest_sha256"], row)
@@ -358,11 +539,14 @@ class ArtifactPublicationTests(unittest.TestCase):
 
     def test_shared_contract_bytes_are_pinned_and_scaffold_is_unconfigured(self):
         package = Path(artifacts.__file__).parent
-        for name, sha in {"product-publication-v1.schema.json": "b75a43fb755f650a20690b03920830eb42f4638b4bb315575ae26e3043139ef0",
+        for name, sha in {"practice-artifact-storage-v1.schema.json": "d71c0a0c59fc16ba78d93f94c08db4edce6b5c2c096a03dd78d8ab8540c5f7e4",
+                          "product-publication-v1.schema.json": "b75a43fb755f650a20690b03920830eb42f4638b4bb315575ae26e3043139ef0",
                           "publication-policy-v1.schema.json": "3bff0bfba6be332ef1b4cbfb7d01bee7e8edfe3251dbfed4a8c5c0b89a620d34"}.items():
             self.assertEqual(artifacts.digest((package / name).read_bytes()), sha)
         scaffold = json.loads((package / "scaffolds/common/.unaltraweb/practice-artifacts.json").read_bytes())
         self.assertIsNone(scaffold["publication"])
+        self.assertEqual(scaffold["schema_version"], 2)
+        self.assertIsNone(scaffold["consumer_repository"])
         self.assertEqual(scaffold["artifacts"], {})
 
     def test_auth_binding_is_private_and_destination_bound_before_any_network(self):
@@ -403,7 +587,7 @@ class ArtifactPublicationTests(unittest.TestCase):
             self.assertEqual(next(iter(client.objects.values()))["Body"], content)
             with patch.object(client, "upload_part", side_effect=SDKError("AccessDenied")), self.assertRaises(SDKError):
                 store.put("another-exact-key", row, io.BytesIO(content))
-        self.assertEqual(client.aborted, [{"Bucket": "private-practices", "Key": "another-exact-key", "UploadId": "owned-attempt"}])
+        self.assertEqual(client.aborted, [{"Bucket": "tigit", "Key": "another-exact-key", "UploadId": "owned-attempt"}])
 
     @unittest.skipUnless(importlib.util.find_spec("botocore"), "optional public S3 SDK is absent")
     def test_real_sdk_model_accepts_streamed_conditional_write_and_exact_readback(self):
@@ -414,7 +598,8 @@ class ArtifactPublicationTests(unittest.TestCase):
         target = prepared["publication"]["destination"]
         client = botocore.session.get_session().create_client("s3", endpoint_url=target["endpoint"], region_name=target["region"],
             aws_access_key_id="synthetic", aws_secret_access_key="synthetic", config=Config(retries={"total_max_attempts": 1}))
-        store = transports.S3(target, client, anonymous=Anonymous())
+        unsigned = Anonymous()
+        store = transports.S3(target, client, anonymous=unsigned, profile="authenticated-private-v1")
         raw = b"synthetic native ZIP bytes"
         row = {"path": "packet.zip", "bytes": len(raw), "sha256": artifacts.digest(raw), "media_type": "application/zip"}
         key = store.key(prepared["manifest"], prepared["manifest_sha256"], row)
@@ -426,9 +611,11 @@ class ArtifactPublicationTests(unittest.TestCase):
                 "ContentType": row["media_type"], "ContentDisposition": transports.disposition(row), "IfNoneMatch": "*"})
             stub.add_response("get_object", {"Body": io.BytesIO(raw), "ContentLength": len(raw), "ContentType": row["media_type"],
                 "ContentDisposition": transports.disposition(row)}, {"Bucket": target["bucket"], "Key": key})
+            stub.add_response("get_object_acl", MemoryS3().get_object_acl(), {"Bucket": target["bucket"], "Key": key})
             store.preflight()
             self.assertTrue(store.transfer(prepared["manifest"], prepared["manifest_sha256"], row, io.BytesIO(raw), write=True)["verified"])
             stub.assert_no_pending_responses()
+        self.assertFalse(unsigned.calls)
 
 
 if __name__ == "__main__":
