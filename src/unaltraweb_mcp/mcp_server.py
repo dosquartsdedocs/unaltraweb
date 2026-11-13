@@ -522,6 +522,11 @@ def run_server(project: Path, factory: Path) -> None:
         """Adopted gaContExt product-publication v1, with destination-neutral byte identity."""
         return Path(__file__).with_name("product-publication-v1.schema.json").read_text(encoding="utf-8")
 
+    @mcp.resource("web://retained-private-intake-schema")
+    def retained_private_intake_schema_resource() -> str:
+        """Explicit local retained paired-output admission for private archive, never author/scientific approval."""
+        return Path(__file__).with_name("retained-private-intake-v1.schema.json").read_text(encoding="utf-8")
+
     @mcp.resource("web://publication-policy-schema")
     def publication_policy_schema_resource() -> str:
         """Adopted gaContExt project destinations; each Web artifact explicitly selects one."""

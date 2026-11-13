@@ -13,6 +13,7 @@ import os
 import posixpath
 from pathlib import Path
 import stat
+import struct
 import re
 from urllib.parse import unquote, urlsplit
 import xml.etree.ElementTree as ET
@@ -331,14 +332,73 @@ def zip_files(project, directory, filename, entries):
         os.fsync(output.fileno())
         output.seek(0)
         with zipfile.ZipFile(output) as archive:
-            require(set(archive.namelist()) == {row["destination"] for row in entries}, "Final ZIP inventory differs")
-            for row in entries:
-                with archive.open(row["destination"]) as member:
-                    hasher = hashlib.sha256()
-                    while piece := member.read(65536):
-                        hasher.update(piece)
-                    require(hasher.hexdigest() == row["sha256"], "Final ZIP member differs from selected bytes")
+            verify_zip_inventory(archive, {row["destination"]: row["sha256"] for row in entries},
+                                 sizes={row["destination"]: row["bytes"] for row in entries})
         return _output_record(output, filename)
+
+
+def check_zip_directory(source):
+    """Bound untrusted central-directory allocation before ZipFile parses it."""
+    source.seek(0, os.SEEK_END)
+    size = source.tell()
+    require(22 <= size <= handoff.MAX_FILE_BYTES, "ZIP container exceeds retained input limits")
+    source.seek(max(0, size - 65557))
+    tail = source.read(65557)
+    marker = tail.rfind(b"PK\x05\x06")
+    require(marker >= 0 and len(tail) - marker >= 22, "ZIP end record is missing")
+    _, disk, directory_disk, on_disk, entries, directory_bytes, offset, comment = struct.unpack("<4s4H2LH", tail[marker:marker + 22])
+    require(disk == directory_disk == 0 and on_disk == entries and 0 < entries <= handoff.MAX_ENTRIES
+            and 0 < directory_bytes <= 16 * 1024**2 and offset != 0xffffffff
+            and marker + 22 + comment == len(tail) and offset + directory_bytes <= size - len(tail) + marker,
+            "ZIP multi-disk/ZIP64/excessive or inconsistent central directory is not admitted")
+    end_offset = size - len(tail) + marker
+    if end_offset >= 20:
+        source.seek(end_offset - 20)
+        require(source.read(4) != b"PK\x06\x07", "ZIP64 end-directory allocation requires a separately qualified profile")
+    source.seek(0)
+
+
+def verify_zip_inventory(archive, hashes, *, sizes=None):
+    """Shared bounded byte inventory, not GIS validation or extraction."""
+    infos = archive.infolist()
+    require(isinstance(hashes, dict) and 0 < len(infos) <= handoff.MAX_ENTRIES, "Invalid bounded ZIP inventory")
+    require(len({item.filename for item in infos}) == len(infos), "Duplicate ZIP member")
+    files, directories = {}, set()
+    for item in infos:
+        name = item.filename.removesuffix("/") if item.is_dir() else item.filename
+        handoff.safe_path(name)
+        mode = item.external_attr >> 16
+        require(not item.flag_bits & 1 and stat.S_IFMT(mode) in {0, stat.S_IFREG, stat.S_IFDIR}
+                and item.compress_type in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}, "ZIP links, encryption or unsupported entries refused")
+        require(0 <= item.file_size <= handoff.MAX_TOTAL_BYTES, "ZIP member exceeds its byte budget")
+        if item.is_dir():
+            require(item.file_size == 0 and (item.filename not in hashes or hashes[item.filename] == digest(b"")), "Invalid ZIP directory declaration")
+            directories.add(name)
+        else:
+            require(stat.S_IFMT(mode) != stat.S_IFDIR, "ZIP file has conflicting directory type")
+            files[item.filename] = item
+    handoff.unique_paths(list(files))
+    aliases = {}
+    for name in [*files, *directories]:
+        parts = name.split("/")
+        for length in range(1, len(parts) + 1):
+            prefix = "/".join(parts[:length])
+            require(aliases.setdefault(prefix.casefold(), prefix) == prefix, "ZIP has case-aliased paths")
+    require(not directories.intersection(files) and set(files) == {name for name in hashes if not name.endswith("/")}
+            and set(hashes) <= {item.filename for item in infos}, "ZIP inventory differs from original member declarations")
+    require(sum(item.file_size for item in files.values()) <= handoff.MAX_TOTAL_BYTES, "ZIP exceeds its total expanded byte budget")
+    for name, item in files.items():
+        require(isinstance(hashes[name], str) and re.fullmatch(r"[0-9a-f]{64}", hashes[name]), "Invalid ZIP member hash")
+        require(sizes is None or item.file_size == sizes[name], "ZIP member size differs")
+        hasher, count = hashlib.sha256(), 0
+        with archive.open(item) as source:
+            while piece := source.read(65536):
+                count += len(piece)
+                require(count <= item.file_size, "ZIP member grew beyond its declared size")
+                hasher.update(piece)
+        require(count == item.file_size and hasher.hexdigest() == hashes[name], "ZIP member differs from original declared bytes")
+    return {"files": len(files), "directories": len(directories), "expanded_bytes": sum(item.file_size for item in files.values()),
+            "member_content_hashes": "freshly-checked", "extracted": False, "scientific_validation": "not-performed"}
 
 
 def sealed_reading(workspace, result):

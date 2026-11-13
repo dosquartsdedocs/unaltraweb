@@ -371,5 +371,8 @@ Read-only observation of TIGIT, TIG and Geodisseny is recorded in
 still require deliberate runtime/configuration adoption. TIGIT/TIG need a closed
 native practice product before upload. Geodisseny's existing simple local
 `manifest.json` is not a typed Web edition receipt: preserve its exact files and
-proofs, and qualify a native intake/resealing interface separately. Changing its
-receipt kind or assuming `human_approved:false` means approved is not admission.
+proofs. The additional [retained paired-output private intake](../retained-private-intake/)
+can plan/admit this class locally for private archive only, emitting a new honest
+receipt without relabelling the original manifest or approving teaching material.
+Actual owner request/evidence selection and containing source/runtime adoption
+remain separate gates; `human_approved:false` stays false.

@@ -183,20 +183,32 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
         actual, _, raw = workspace.read(route["receipt"], 1024**2, collect=True)
         require(actual == route["receipt_sha256"], "Native practice receipt differs from its selected seal")
         receipt = strict_json(raw.decode())
-        require(isinstance(receipt, dict) and receipt.get("kind") == "unaltraweb-practice-edition-receipt" and type(receipt.get("schema_version")) is int
-                and receipt["schema_version"] == 1 and receipt.get("recipient") in {"alumnat", "docent"}, "Select a native practice edition receipt")
-        require(receipt["recipient"] != "docent" or route["audience"] in {"teacher", "private"}, "Teacher artifacts cannot be reclassified as student/public")
-        require(receipt["recipient"] != "alumnat" or route["audience"] in {"student", "public", "private"}, "Student artifact audience differs from its native recipient")
-        for key in ("slug", "version", "language"):
-            h.safe_path(receipt[key])
-        parent = Path("dist/practiques") / receipt["slug"] / receipt["version"] / receipt["language"]
-        require(Path(route["receipt"]).parent == parent, "Practice receipt is outside its exact retained edition")
-        fs._require_generated_path(project, parent, label="Retained native practice edition")
-        row = receipt["zip"] if route["format"] == "zip" else receipt["reading"]["delivery"]
+        from . import retained_intake
+        retained = isinstance(receipt, dict) and receipt.get("kind") == retained_intake.KIND
+        if retained:
+            selected = retained_intake.artifact(workspace, project, route["receipt"], route["receipt_sha256"])
+            target = selection["publication"]["targets"][route["target"]]
+            require(target["driver"] == "s3" and target["visibility"] == "private"
+                    and route.get("storage_profile") == "authenticated-private-v1", "Retained handoffs are authenticated private S3 archives only")
+            require(selected["format"] == route["format"], "Retained output format differs from its explicit receipt")
+            current_repo = consumer_repository(project, selection.get("consumer_repository"))
+            require(all(selected["consumer_repository"].get(key) == current_repo[key] for key in ("host", "repository")), "Retained admission belongs to a different consumer repository")
+            who, row, source = selected["recipient"], selected["row"], selected["source"]
+        else:
+            require(isinstance(receipt, dict) and receipt.get("kind") == "unaltraweb-practice-edition-receipt" and type(receipt.get("schema_version")) is int
+                    and receipt["schema_version"] == 1 and receipt.get("recipient") in {"alumnat", "docent"}, "Select a native practice edition receipt")
+            for key in ("slug", "version", "language"):
+                h.safe_path(receipt[key])
+            parent = Path("dist/practiques") / receipt["slug"] / receipt["version"] / receipt["language"]
+            require(Path(route["receipt"]).parent == parent, "Practice receipt is outside its exact retained edition")
+            fs._require_generated_path(project, parent, label="Retained native practice edition")
+            row = receipt["zip"] if route["format"] == "zip" else receipt["reading"]["delivery"]
+            require(Path(route["receipt"]).name == receipt["zip"]["path"] + ".receipt.json", "Receipt filename differs from native ZIP seal")
+            who, source = receipt["recipient"], (parent / row["path"]).as_posix()
+        require(who != "docent" or route["audience"] in {"teacher", "private"}, "Teacher artifacts cannot be reclassified as student/public")
+        require(who != "alumnat" or route["audience"] in ({"student", "private"} if retained else {"student", "public", "private"}), "Student artifact audience differs from its native recipient")
         h.safe_path(row["path"])
         require(Path(row["path"]).name == row["path"] and row["path"].endswith("." + route["format"]), "Invalid native delivery filename")
-        require(Path(route["receipt"]).name == receipt["zip"]["path"] + ".receipt.json", "Receipt filename differs from native ZIP seal")
-        source = (parent / row["path"]).as_posix()
         actual, size, _ = workspace.read(source, MAX_FILE)
         require(type(row["bytes"]) is int and (actual, size) == (row["sha256"], row["bytes"]), "Practice artifact bytes differ from their native seal")
         _, _, site_raw = workspace.read("_config.yml", 1024**2, collect=True)
@@ -206,9 +218,19 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
         require(not issues, "; ".join(issues))
         workspace.recheck()
     target = selection["publication"]["targets"][route["target"]]
-    metadata = canonical({"kind": "unaltraweb.practice-artifact", "schema_version": 1, "artifact_id": artifact,
-                          **{key: receipt[key] for key in ("slug", "version", "language", "recipient")},
-                          "format": route["format"], "native_receipt_sha256": route["receipt_sha256"]})
+    if retained:
+        handoff = selected["handoff"]
+        metadata = canonical({"kind": "unaltraweb.retained-private-artifact", "schema_version": 1, "purpose": "private-archive", "artifact_id": artifact,
+                              "handoff_slug": handoff["slug"], "activity": handoff["activity"], "version": handoff["version"], "language": handoff["language"],
+                              "recipient": who, "format": route["format"], "native_receipt_sha256": route["receipt_sha256"],
+                              "human_approved": selected["claims"]["human_approved"], "approval_origin": "original-manifest", "approved_by_intake": False,
+                              "local_candidate": selected["claims"]["local_candidate"], "historical_bundle_claim": selected["claims"]["exact_historical_bundle"],
+                              "native_scientific_validation": "not-performed", "inherited_claims_recertified": False,
+                              "inherited_proof_state": selected["claims"]["references"]["proof"]["state"], "public_edition": False})
+    else:
+        metadata = canonical({"kind": "unaltraweb.practice-artifact", "schema_version": 1, "artifact_id": artifact,
+                              **{key: receipt[key] for key in ("slug", "version", "language", "recipient")},
+                              "format": route["format"], "native_receipt_sha256": route["receipt_sha256"]})
     from .runtime_identity import fingerprint
     code = fingerprint(Path(__file__).parent)
     require(code["available"], "Producer package code cannot be fingerprinted safely")
@@ -218,7 +240,7 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
                 "files": [{"path": row["path"], "bytes": size, "sha256": actual, "role": "output",
                            "media_type": "application/zip" if route["format"] == "zip" else "application/pdf"},
                           {"path": "artifact.json", "bytes": len(metadata), "sha256": digest(metadata), "role": "evidence", "media_type": "application/json"}],
-                "native": {"format": "unaltraweb-practice-artifact-v1", "manifest_sha256": digest(metadata)}}
+                "native": {"format": "unaltraweb-retained-private-artifact-v1" if retained else "unaltraweb-practice-artifact-v1", "manifest_sha256": digest(metadata)}}
     shape(manifest, "product-publication-v1.schema.json")
     content = canonical(manifest)
     if staged is not None:

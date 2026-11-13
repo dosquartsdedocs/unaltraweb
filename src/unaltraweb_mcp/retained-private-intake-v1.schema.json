@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Explicit retained paired-output private intake v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["kind", "schema_version", "purpose", "consumer_repository", "handoff", "snapshot", "packages", "evidence", "sources"],
+  "properties": {
+    "kind": {"const": "unaltraweb.retained-private-intake"},
+    "schema_version": {"type": "integer", "const": 1},
+    "purpose": {"const": "private-archive"},
+    "consumer_repository": {
+      "type": "object", "additionalProperties": false, "required": ["remote", "host", "repository"],
+      "properties": {"remote": {"$ref": "#/$defs/id"}, "host": {"enum": ["github.com", "bitbucket.org"]},
+        "repository": {"type": "string", "minLength": 3, "maxLength": 201}}
+    },
+    "handoff": {
+      "type": "object", "additionalProperties": false, "required": ["slug", "activity", "language", "manifest"],
+      "properties": {"slug": {"$ref": "#/$defs/id"}, "activity": {"$ref": "#/$defs/id"},
+        "language": {"enum": ["ca", "es", "en"]}, "manifest": {"$ref": "#/$defs/file"}}
+    },
+    "snapshot": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "packages": {"type": "array", "minItems": 1, "maxItems": 2, "items": {"$ref": "#/$defs/package"}},
+    "evidence": {"type": "array", "maxItems": 16, "items": {
+      "type": "object", "additionalProperties": false, "required": ["role", "file"],
+      "properties": {"role": {"enum": ["proof", "current-handoff", "checksums"]}, "file": {"$ref": "#/$defs/file"}}
+    }},
+    "sources": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/file"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"},
+    "file": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "bytes"],
+      "properties": {"path": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "bytes": {"type": "integer", "minimum": 0, "maximum": 536870912}}},
+    "package": {
+      "type": "object", "additionalProperties": false,
+      "required": ["recipient", "archive", "pdf", "pdf_receipt", "pdf_artifact", "reading_member", "selected"],
+      "properties": {"recipient": {"enum": ["alumnat", "docent"]},
+        "archive": {"$ref": "#/$defs/file"}, "pdf": {"$ref": "#/$defs/file"}, "pdf_receipt": {"$ref": "#/$defs/file"},
+        "pdf_artifact": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "reading_member": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "selected": {"type": "array", "minItems": 1, "maxItems": 2, "items": {
+          "type": "object", "additionalProperties": false, "required": ["id", "format"],
+          "properties": {"id": {"$ref": "#/$defs/id"}, "format": {"enum": ["pdf", "zip"]}}
+        }}
+      }
+    }
+  }
+}
