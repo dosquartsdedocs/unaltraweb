@@ -64,6 +64,7 @@ workspace_rule:
     - assets
     - context
   generated_paths:
+    - sandbox/artifact-attempts
     - sandbox/artifacts
     - sandbox/practiques
     - dist/practiques
@@ -84,6 +85,11 @@ workspace_rule:
     - .vegavisuals.lock.json and outputs declared by .vegavisuals.yml
   allowed_external_writes: []
   path_policies:
+    - path: sandbox/artifact-attempts
+      type: directory
+      role: private-local-artifact-attempt-evidence
+      git: ignored
+      cleanup: explicit
     - path: .unaltraweb/practice-artifacts.json
       type: file
       role: per-artifact-practice-storage-policy

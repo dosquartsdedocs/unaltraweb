@@ -107,6 +107,12 @@ slug**: `tig`, `tigit`, or `geodisseny` for these manuals. The declared remote m
 have one native local Git repository URL, and any explicit push URL must agree.
 Standard GitHub/Bitbucket HTTPS and Git SSH URL forms are supported. Missing,
 unsupported, conflicting or multiple identities are reported explicitly.
+The official Bitbucket SSH endpoint `ssh.bitbucket.org` (scp or `ssh://git@`
+with an omitted/default port 22) identifies the same logical `bitbucket.org`
+repository as its web URL. Explicit default SSH port 22 is also supported on
+the other admitted SSH hosts. HTTPS IDs/port rules stay unchanged. Workstation
+aliases, lookalike hosts, password-bearing URLs and nondefault SSH ports fail;
+repository/bucket spelling is preserved exactly. No remote is rewritten.
 
 The implementation reuses the native confined Git/root helpers; it performs no
 remote lookup, SSH repair or URL alias expansion. It does not derive the bucket
@@ -270,6 +276,66 @@ reports `catalogue_updated:false`. Updating reader-facing links/catalogues remai
 a separate owner action after qualification. Existing URLs and stored editions
 are retained when choosing a new target; publication never deletes/reuploads an
 old asset to emulate CAS or frees storage implicitly.
+
+## Private local S3 attempt evidence
+
+S3 `publish` and remote-read-only `verify` retain a new local attempt under
+`sandbox/artifact-attempts/<random-id>/`, outside the immutable three-file product
+stage. The user-owned directory is mode 0700; `intent.json` and append-only
+`events.jsonl` are mode 0600, ignored and explicit-retention evidence. They are
+never included in a ZIP, product manifest, upload list or remote record.
+
+Before a mutating request, fsynced intent and observations bind the workspace,
+operation, source hashes/size, reviewed config, destination/policy, original
+manifest and exact object keys. An observed multipart UploadId is fsynced with
+its **exact bucket/key/id tuple before sending any part**. Progress records
+contain bounded acknowledged counts/bytes and phases, not source bodies,
+credentials, auth-file contents or provider error/response bodies. The log is
+bounded to 1 MiB/1024 observations with a hash chain; evidence and source/control
+bindings are checked before mutations. Failures retain the last durable state.
+
+- Lost create response: the UploadId is **unknown**; none is invented and no
+  guessed abort is sent.
+- Failed part: the observed owned tuple is retained before an owned abort request.
+  An acknowledged abort is recorded as such, not as verified absence/cleanup.
+  A failed/lost abort keeps the exact tuple and `abort-uncertain` state.
+- Failed/lost completion: final object bytes may already exist. Record
+  `completion-uncertain` and send no automatic abort, retry or resume.
+- Readback failure: retain the acknowledged/uncertain write and exact readback key.
+  Readback failure never authorises overwrite, delete/reupload or another backend.
+- Changed evidence or source/configuration/destination binding: stop further
+  mutation. A damaged/unsettled journal is not labelled intact or cleaned up.
+
+Successful results and safe CLI failures include a `local_attempt` pointer with
+the relative directory, intent hash, full event-log hash and last phase. Raw SDK
+errors are replaced with a fixed message and pointer. Compare the hashes to the
+retained result when inspecting the records; local evidence is not a provider
+receipt, independent author approval or recovery authority.
+
+```bash
+unaltraweb-practice-artifacts inspect-attempt \
+  --project /absolute/course \
+  --attempt sandbox/artifact-attempts/EXACT_ATTEMPT_ID \
+  --intent-sha256 RETAINED_INTENT_SHA256 \
+  --attempt-sha256 RETAINED_EVENTS_SHA256
+```
+
+This inspection is confined and local-only: it reads the bound files/hashes and
+observation chain, and never resolves credentials or connects to a provider.
+It validates historical local evidence, not current source freshness or remote state.
+`verify` with the original stage/manifest/config pins performs explicit remote
+read-only inspection and retains its own new local evidence. If a completed
+output exists but later product metadata is missing, its exact bytes can be
+verified while the complete product remains refused; verification does not
+repair it. Inspect the exact tuple/phase before any separately authorised action.
+There is no autonomous recovery, registry, upload listing, retry/resume/abort
+executor or blanket cleanup operation. Keep earlier attempts and old stages.
+
+Interruption or local disk failure can leave an incomplete last observation;
+no further mutation is admitted after an evidence write/check failure. Such a
+record grants no ownership or cleanup claim beyond its actual durable observations.
+The mechanism changes local/Web receipts only, preserving the original remote
+product schema, manifest/producer identity and bytes, including old retained stages.
 
 ## Shared contract and adoption
 

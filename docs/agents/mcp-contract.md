@@ -142,6 +142,11 @@ authenticated bytes/headers and native private ACL/policy, without probing or
 qualifying object URLs. `anonymous-delivery-v1` keeps strict anonymous delivery
 checks; raw API HTTP 400 is never a denial proof. The common v1 schemas and
 retained stage identities are preserved across this additive Web contract.
+S3 transfers additionally retain private, bounded local intent/observations under
+`sandbox/artifact-attempts`, never inside product stages or remote archives. CLI
+`inspect-attempt` is local-only inspection against retained intent/event hashes;
+failure pointers do not grant retry, recovery or cleanup authority. The existing
+MCP inventory is unchanged by this local evidence mechanism.
 
 Private teaching editions use `manual_practice_compose(config, dry_run=false)`
 (CLI `mcp manual-practice-compose`, factory Make `manual-practice-compose`).

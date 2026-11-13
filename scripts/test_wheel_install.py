@@ -119,6 +119,7 @@ def main() -> int:
             "unaltraweb_mcp/input_preparation.py",
             "unaltraweb_mcp/input-preparation-v1.schema.json",
             "unaltraweb_mcp/artifact_publication.py",
+            "unaltraweb_mcp/artifact_attempts.py",
             "unaltraweb_mcp/artifact_transports.py",
             "unaltraweb_mcp/practice-artifact-storage-v1.schema.json",
             "unaltraweb_mcp/practice-artifact-storage-v2.schema.json",
@@ -164,7 +165,7 @@ def main() -> int:
         if "--sha256" not in preparation_help or "--fetch" not in preparation_help:
             raise RuntimeError("Installed early-preparation CLI is missing its explicit hash/fetch interface")
         artifacts_help = run([str(environment / "bin/unaltraweb-practice-artifacts"), "--help"], cwd=temp).stdout
-        if "--artifact" not in artifacts_help or "--manifest-sha256" not in artifacts_help:
+        if "--artifact" not in artifacts_help or "--manifest-sha256" not in artifacts_help or "inspect-attempt" not in artifacts_help or "--attempt-sha256" not in artifacts_help:
             raise RuntimeError("Installed per-artifact publication CLI is missing its bounded interface")
         docker_cli = environment / "bin/unaltraweb-mcp-docker"
         launcher = Path(run([str(docker_cli), "path"], cwd=temp).stdout.strip())
