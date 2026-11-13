@@ -120,6 +120,8 @@ def main() -> int:
             "unaltraweb_mcp/input-preparation-v1.schema.json",
             "unaltraweb_mcp/artifact_publication.py",
             "unaltraweb_mcp/artifact_attempts.py",
+            "unaltraweb_mcp/retained_intake.py",
+            "unaltraweb_mcp/retained-private-intake-v1.schema.json",
             "unaltraweb_mcp/artifact_transports.py",
             "unaltraweb_mcp/practice-artifact-storage-v1.schema.json",
             "unaltraweb_mcp/practice-artifact-storage-v2.schema.json",
@@ -167,6 +169,9 @@ def main() -> int:
         artifacts_help = run([str(environment / "bin/unaltraweb-practice-artifacts"), "--help"], cwd=temp).stdout
         if "--artifact" not in artifacts_help or "--manifest-sha256" not in artifacts_help or "inspect-attempt" not in artifacts_help or "--attempt-sha256" not in artifacts_help:
             raise RuntimeError("Installed per-artifact publication CLI is missing its bounded interface")
+        intake_help = run([str(environment / "bin/unaltraweb-retained-intake"), "--help"], cwd=temp).stdout
+        if "--expected-plan-sha256" not in intake_help or "snapshot" not in intake_help:
+            raise RuntimeError("Installed private retained-intake CLI is missing its local reviewed-plan interface")
         docker_cli = environment / "bin/unaltraweb-mcp-docker"
         launcher = Path(run([str(docker_cli), "path"], cwd=temp).stdout.strip())
         if launcher != environment / "share/unaltraweb-launcher":

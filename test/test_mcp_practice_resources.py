@@ -20,6 +20,7 @@ async def assert_practice_resources(session) -> None:
         "web://input-preparation-schema": CONTRACT.with_name("input-preparation-v1.schema.json"),
         "web://practice-artifact-storage-schema": CONTRACT.with_name("practice-artifact-storage-v1.schema.json"),
         "web://practice-artifact-storage-v2-schema": CONTRACT.with_name("practice-artifact-storage-v2.schema.json"),
+        "web://retained-private-intake-schema": CONTRACT.with_name("retained-private-intake-v1.schema.json"),
         "web://product-publication-schema": CONTRACT.with_name("product-publication-v1.schema.json"),
         "web://publication-policy-schema": CONTRACT.with_name("publication-policy-v1.schema.json"),
         "web://practice-verifier-runtime": CONTRACT,

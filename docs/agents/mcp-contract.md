@@ -96,6 +96,7 @@ baseline format nor runtime cleanup changes.
 | `web://input-preparation-schema` | Versioned, hash-bound early input hydration configuration; separate from source-only CI. |
 | `web://practice-artifact-storage-schema` | Explicit destination and audience per sealed practice PDF/ZIP. |
 | `web://practice-artifact-storage-v2-schema` | Verified native consumer repository/bucket identity and explicit authenticated-private versus anonymous-delivery capability. |
+| `web://retained-private-intake-schema` | Explicit local retained paired-output plan/snapshot admission for private archive, preserving original approval/proof state. |
 | `web://product-publication-schema` | Frozen gaContExt v1 selected-output manifest; independent of storage target. |
 | `web://publication-policy-schema` | Frozen gaContExt v1 GitHub Release/S3-compatible destination policy. |
 | `web://practice-verifier-runtime` | Static private controller/package/profile identities and distinct release metadata; acquisition belongs to the hub. |
@@ -147,6 +148,15 @@ S3 transfers additionally retain private, bounded local intent/observations unde
 `inspect-attempt` is local-only inspection against retained intent/event hashes;
 failure pointers do not grant retry, recovery or cleanup authority. The existing
 MCP inventory is unchanged by this local evidence mechanism.
+
+The additional public `unaltraweb-retained-intake` CLI/API provides read-only
+`plan` and separately explicit create-only `snapshot` with a reviewed plan digest.
+It admits pinned retained paired outputs to a new private byte/provenance receipt,
+not a native edition or author/scientific certificate. It never calls transport,
+auth, rendering, runtime or catalogue activation. Existing per-artifact plan/stage
+accepts its per-output receipt only for authenticated-private S3 archive. The
+schema resource above is discoverable through MCP; actual consumer requests,
+runtime adoption, buckets/auth and real readback remain separate owner actions.
 
 Private teaching editions use `manual_practice_compose(config, dry_run=false)`
 (CLI `mcp manual-practice-compose`, factory Make `manual-practice-compose`).
