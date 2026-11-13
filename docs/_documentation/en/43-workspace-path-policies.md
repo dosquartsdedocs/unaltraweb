@@ -46,6 +46,8 @@ which is not evidence that a future Git repository is compliant.
 | `practiques` | directory | private-practice-sources | versioned | never |
 | `sandbox/practiques` | directory | retained-private-practice-jobs | ignored | explicit |
 | `dist/practiques` | directory | private-practice-deliveries | ignored | explicit |
+| `.unaltraweb/practice-artifacts.json` | file | per-artifact-practice-storage-policy | versioned | never |
+| `sandbox/artifacts` | directory | retained-practice-artifact-stages | ignored | explicit |
 | `.cache/scimago` | directory | external-bibliometrics-input-cache | ignored | explicit |
 | `.cache/unaltraweb/manual-pdf-publication-intent.json` | file | pdf-publication-recovery-intent | ignored | explicit |
 | `.cache/unaltraweb/manual-pdf-publication.json` | file | pdf-publication-provenance | ignored | explicit |

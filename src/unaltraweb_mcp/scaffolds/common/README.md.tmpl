@@ -120,6 +120,17 @@ __PROFILE_PUBLISHING_GUIDANCE__
 
 ## Maintainer-Only Local Review And Deployment
 
+Practice PDFs and data ZIPs can select separate storage targets through
+`.unaltraweb/practice-artifacts.json`: public GitHub Releases or an explicit
+S3-compatible destination, including S4. The initial policy selects no artifacts.
+`make practice-artifact-plan` and `make practice-artifact-stage` use
+`PRACTICE_ARTIFACT_ID`, the reviewed `PRACTICE_ARTIFACT_SHA256`, and, for staging,
+`PRACTICE_ARTIFACT_STAGE=sandbox/artifacts/<id>/<run>`. Both run offline; staging
+preserves the sealed practice bytes and their audience. Explicit publication uses
+`unaltraweb-practice-artifacts` with project-scoped host/CI credentials and a
+reviewed manifest hash. See the core reference's **Per-artifact practice storage**.
+These commands require a runtime containing that interface.
+
 Content editors stop after requesting pull request review. A maintainer then:
 
 1. Checks out the task branch locally and confirms that it contains only the reserved files.

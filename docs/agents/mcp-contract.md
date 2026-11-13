@@ -94,6 +94,9 @@ baseline format nor runtime cleanup changes.
 | `web://practice-edition-schema` | Versioned Web recipient/edition configuration, separate from the producer-owned GIS descriptor. |
 | `web://practice-tabular-edition-schema` | Explicit v2 tabular-file composition without a GIS descriptor, runtime or calculation. |
 | `web://input-preparation-schema` | Versioned, hash-bound early input hydration configuration; separate from source-only CI. |
+| `web://practice-artifact-storage-schema` | Explicit destination and audience per sealed practice PDF/ZIP. |
+| `web://product-publication-schema` | Frozen gaContExt v1 selected-output manifest; independent of storage target. |
+| `web://publication-policy-schema` | Frozen gaContExt v1 GitHub Release/S3-compatible destination policy. |
 | `web://practice-verifier-runtime` | Static private controller/package/profile identities and distinct release metadata; acquisition belongs to the hub. |
 | `web://runtime-identity` | Bounded identity of this serving process: startup/current code, instance/PID namespaces, binding, runtime selections and cooperative lifecycle. |
 | `web://distribution` | Package-owned component BOM plus offline, feature-aware doctor findings for the current factory and project. |
@@ -121,6 +124,17 @@ baseline format nor runtime cleanup changes.
 | `web://new-web-scaffolds` | Package-owned scaffold availability and contract paths for every supported site profile. |
 
 ## Tools
+
+Durable practice storage uses the public `unaltraweb-practice-artifacts` CLI and
+`artifact_publication` Python API (`plan`, `stage`, `publish`, `verify`). The
+project-owned `.unaltraweb/practice-artifacts.json` explicitly routes each logical
+artifact to one GitHub Release or S3/S4 target. Planning/staging are offline;
+transfer requires reviewed config/manifest hashes and explicit destination-bound
+host/CI credentials. Native teacher receipts cannot be relabelled as public or
+student products. Product manifests and source-free sidecars preserve the selected
+PDF/ZIP bytes; private native receipts remain local. MCP exposes the schemas above;
+session start and normal builds do not publish artifacts. See
+[the storage contract](../_documentation/en/50-practice-artifact-storage.md).
 
 Private teaching editions use `manual_practice_compose(config, dry_run=false)`
 (CLI `mcp manual-practice-compose`, factory Make `manual-practice-compose`).
