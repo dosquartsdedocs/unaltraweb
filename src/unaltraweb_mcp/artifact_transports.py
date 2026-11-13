@@ -16,6 +16,7 @@ import unicodedata
 from urllib.parse import quote, urlsplit
 
 from .artifact_publication import STORAGE_PROFILES, require
+from .artifact_attempts import EvidenceError
 from . import artifact_handoff_v1 as h
 
 MULTIPART_THRESHOLD = 64 * 1024**2
@@ -192,7 +193,19 @@ class S3:
         self.target, self.client = target, client
         self.profile = profile
         self.private_preflight = False
+        self.attempt = None
         self.anonymous = anonymous or http_session()
+
+    def bind_attempt(self, attempt):
+        require(self.attempt is None, "An S3 store cannot change its local attempt binding")
+        require(attempt.intent["destination"] == {key: self.target[key] for key in attempt.intent["destination"]}, "S3 attempt belongs to another destination")
+        self.attempt = attempt
+
+    def before_mutation(self, phase, **data):
+        if self.attempt.intent["destination"] != {key: self.target[key] for key in self.attempt.intent["destination"]}:
+            self.attempt.record("binding-changed", after_phase=self.attempt.phase)
+            raise EvidenceError("S3 destination changed before mutation")
+        self.attempt.before(phase, **data)
 
     @staticmethod
     def private_acl(acl):
@@ -267,37 +280,96 @@ class S3:
         return True
 
     def put(self, key, row, source):
+        require(self.attempt is not None, "S3 mutation requires retained local attempt evidence")
+        try:
+            self._put(key, row, source)
+        except Exception:
+            raise self.attempt.failure() from None
+
+    def _put(self, key, row, source):
         args = {"Bucket": self.target["bucket"], "Key": key, "ContentType": row["media_type"], "ContentDisposition": disposition(row)}
         if row["bytes"] < MULTIPART_THRESHOLD:
-            self.client.put_object(**args, Body=source, ContentLength=row["bytes"], IfNoneMatch="*")
+            self.before_mutation("put-requested", key=key)
+            try:
+                self.client.put_object(**args, Body=source, ContentLength=row["bytes"], IfNoneMatch="*")
+            except Exception:
+                self.attempt.record("put-uncertain", key=key)
+                raise
+            self.attempt.record("put-acknowledged", key=key)
             return
-        upload = self.client.create_multipart_upload(**args)["UploadId"]
-        owned = {"Bucket": args["Bucket"], "Key": key, "UploadId": upload}
+        self.before_mutation("create-requested", key=key)
         try:
-            parts, size = [], 0
+            upload = self.client.create_multipart_upload(**args)["UploadId"]
+            owned_record = {"bucket": args["Bucket"], "key": key, "upload_id": upload}
+            self.attempt.record("upload-observed", key=key, owned_upload=owned_record)
+        except EvidenceError:
+            raise
+        except Exception:
+            self.attempt.record("create-uncertain", key=key)
+            raise
+        owned = {"Bucket": args["Bucket"], "Key": key, "UploadId": upload}
+        parts, size, acknowledged = [], 0, 0
+        try:
             while chunk := source.read(PART_BYTES):
                 size += len(chunk)
                 require(size <= row["bytes"], "Multipart artifact grew during upload")
                 number = len(parts) + 1
+                self.before_mutation("part-requested", key=key, owned_upload=owned_record, part_number=number,
+                                    acknowledged_parts=len(parts), bytes_acknowledged=acknowledged)
                 response = self.client.upload_part(**owned, PartNumber=number, Body=chunk, ContentLength=len(chunk))
                 parts.append({"PartNumber": number, "ETag": response["ETag"]})
+                acknowledged = size
+                self.attempt.record("part-acknowledged", key=key, owned_upload=owned_record,
+                                    acknowledged_parts=len(parts), bytes_acknowledged=acknowledged)
             require(size == row["bytes"], "Multipart artifact size changed")
-            self.client.complete_multipart_upload(**owned, MultipartUpload={"Parts": parts}, IfNoneMatch="*")
-        except BaseException:
-            try:
-                self.client.abort_multipart_upload(**owned)
-            except Exception:
-                pass  # Retained local stage remains the recovery authority.
+        except EvidenceError:
             raise
+        except Exception:
+            self.attempt.record("part-uncertain", key=key, owned_upload=owned_record,
+                                acknowledged_parts=len(parts), bytes_acknowledged=acknowledged)
+            try:
+                self.before_mutation("abort-requested", key=key, owned_upload=owned_record)
+                self.client.abort_multipart_upload(**owned)
+            except EvidenceError:
+                raise
+            except Exception:
+                self.attempt.record("abort-uncertain", key=key, owned_upload=owned_record)
+            else:
+                self.attempt.record("abort-acknowledged", key=key, owned_upload=owned_record)
+            raise
+        self.before_mutation("complete-requested", key=key, owned_upload=owned_record,
+                            acknowledged_parts=len(parts), bytes_acknowledged=acknowledged)
+        try:
+            self.client.complete_multipart_upload(**owned, MultipartUpload={"Parts": parts}, IfNoneMatch="*")
+        except Exception:
+            # Completion may have installed the final bytes: do not retry or abort.
+            self.attempt.record("completion-uncertain", key=key, owned_upload=owned_record)
+            raise
+        self.attempt.record("complete-acknowledged", key=key, owned_upload=owned_record)
 
     def transfer(self, manifest, manifest_sha, row, source, *, write):
         key = self.key(manifest, manifest_sha, row)
+        if self.attempt:
+            self.attempt.record("object-check", key=key)
         reused = self.check(key, row)
         if not reused:
+            if self.attempt:
+                self.attempt.record("object-absent", key=key)
             require(write, "Selected S3 artifact is absent")
             self.put(key, row, source)
-            require(self.check(key, row), "S3 artifact disappeared after upload")
-        access = self.access(key, row, named=True)
+            self.attempt.record("readback-requested", key=key)
+            try:
+                require(self.check(key, row), "S3 artifact disappeared after upload")
+            except Exception:
+                self.attempt.record("readback-uncertain", key=key)
+                raise
+            self.attempt.record("readback-verified", key=key)
+        try:
+            access = self.access(key, row, named=True)
+        except Exception:
+            if self.attempt:
+                self.attempt.record("access-uncertain", key=key)
+            raise
         if row["path"] == "product.json":
             # The common authenticated fetch interface locates the original
             # manifest here, then verifies its named projection independently.
@@ -306,8 +378,16 @@ class S3:
                 require(write, "Canonical S3 product manifest is absent")
                 source.seek(0)
                 self.put(canonical_key, row, source)
-                require(self.check(canonical_key, row, headers=False), "Canonical S3 manifest readback failed")
+                self.attempt.record("readback-requested", key=canonical_key)
+                try:
+                    require(self.check(canonical_key, row, headers=False), "Canonical S3 manifest readback failed")
+                except Exception:
+                    self.attempt.record("readback-uncertain", key=canonical_key)
+                    raise
+                self.attempt.record("readback-verified", key=canonical_key)
             self.access(canonical_key, row, named=False)
+        if self.attempt:
+            self.attempt.record("object-verified", key=key)
         return {"verified": True, "reused": reused, "locator": key, "access": access}
 
     def close(self):

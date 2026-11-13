@@ -19,6 +19,7 @@ import uuid
 
 from . import __version__, artifact_handoff_v1 as h, manual_pdf_preview as fs
 from .editorial_sources import strict_json
+from .artifact_attempts import Attempt, TransferFailure, inspect as inspect_attempt
 
 CONFIG = ".unaltraweb/practice-artifacts.json"
 TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}\Z")
@@ -80,20 +81,23 @@ def publication_policy(value):
 
 def _repository_url(raw):
     """Parse native remote metadata, without aliases, folder guesses or network."""
-    scp = re.fullmatch(r"git@(github\.com|bitbucket\.org):([^\s]+)", raw)
+    require(isinstance(raw, str) and not any(char.isspace() or ord(char) < 32 for char in raw), "Invalid native repository URL spelling")
+    scp = re.fullmatch(r"git@(github\.com|bitbucket\.org|ssh\.bitbucket\.org):([^\s]+)", raw)
     if scp:
         host, repository = scp.groups()
     else:
         url = urlsplit(raw)
-        require(url.scheme in {"https", "ssh"} and url.hostname in {"github.com", "bitbucket.org"}
-                and url.port is None and not url.password and not url.query and not url.fragment
-                and (url.username is None if url.scheme == "https" else url.username == "git"),
+        require(url.password is None and not url.query and not url.fragment
+                and (url.scheme == "https" and url.hostname in {"github.com", "bitbucket.org"}
+                     and url.port is None and url.username is None
+                     or url.scheme == "ssh" and url.hostname in {"github.com", "bitbucket.org", "ssh.bitbucket.org"}
+                     and url.port in {None, 22} and url.username == "git"),
                 "Unsupported native consumer repository URL")
         host, repository = url.hostname, url.path.removeprefix("/")
     repository = repository.removesuffix(".git")
     require(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}", repository),
             "Invalid native consumer repository name")
-    return host, repository
+    return "bitbucket.org" if host == "ssh.bitbucket.org" else host, repository
 
 
 def consumer_repository(project, declaration):
@@ -285,6 +289,23 @@ def stage(project: Path, config: str, sha256: str, artifact: str, destination: s
     return {**prepared, "read_only": False, "stage": path.as_posix()}
 
 
+def local_attempt(project, prepared, config, config_sha256, staged, records, store, guard, *, verify_only=False):
+    """Whitelist local bindings, never credential/response bodies or product data."""
+    target = prepared["publication"]["destination"]
+    objects = [{"key": store.key(prepared["manifest"], prepared["manifest_sha256"], row),
+                **{key: row[key] for key in ("path", "sha256", "bytes", "media_type")}} for row in records]
+    objects.append({**objects[-1], "key": target["prefix"] + "/manifests/" + prepared["manifest_sha256"] + ".json"})
+    context = {"operation": "verify" if verify_only else "publish", "project_id": prepared["manifest"]["project_id"],
+               "artifact_id": prepared["artifact_id"], "configuration": {"path": config, "sha256": config_sha256},
+               "stage": {"path": staged, "manifest_sha256": prepared["manifest_sha256"]},
+               "source": {"path": prepared["source"], "sha256": objects[0]["sha256"], "bytes": objects[0]["bytes"]},
+               "destination": {key: target[key] for key in ("driver", "endpoint", "region", "bucket", "prefix", "visibility")},
+               "destination_sha256": prepared["publication"]["destination_sha256"],
+               "policy_sha256": prepared["publication"]["policy_sha256"], "objects": objects}
+    guard()
+    return Attempt(project, context, guard)
+
+
 def transfer(project, config, sha256, artifact, staged, manifest_sha256, *, auth_file=None, verify_only=False, connector=None):
     prepared = plan(project, config, sha256, artifact, staged=staged, manifest_sha256=manifest_sha256)
     staged = h.safe_path(staged)
@@ -301,9 +322,18 @@ def transfer(project, config, sha256, artifact, staged, manifest_sha256, *, auth
             require((actual, size) == (row["sha256"], row["bytes"]), "Staged artifact changed before transfer")
         from .artifact_transports import connect
         store = (connector or connect)(prepared["publication"], prepared["manifest"]["project_id"], auth_file)
-        observations = []
+        observations, attempt, pointer = [], None, None
         try:
+            if prepared["publication"]["destination"]["driver"] == "s3":
+                def guard():
+                    workspace.recheck()
+                    load(project, config, sha256)
+                attempt = local_attempt(project, prepared, config, sha256, staged, records, store, guard, verify_only=verify_only)
+                store.bind_attempt(attempt)
+                attempt.record("preflight-started")
             store.preflight()
+            if attempt:
+                attempt.record("preflight-verified")
             for row in records:
                 with workspace.directory(staged) as directory:
                     descriptor = os.open(row["path"], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
@@ -315,26 +345,50 @@ def transfer(project, config, sha256, artifact, staged, manifest_sha256, *, auth
                 observations.append({**row, **observation})
             workspace.recheck()
             require(plan(project, config, sha256, artifact, staged=staged, manifest_sha256=manifest_sha256) == prepared, "Artifact routing/source changed during transfer")
+            if attempt:
+                attempt.before("verified")
+                pointer = attempt.pointer()
+        except TransferFailure:
+            raise
+        except Exception:
+            if attempt:
+                raise attempt.failure() from None
+            raise
         finally:
-            store.close()
+            try:
+                store.close()
+            finally:
+                if attempt:
+                    attempt.close()
     return {"ok": True, "kind": "unaltraweb.practice-artifact-receipt", "schema_version": 1,
             "artifact_id": artifact, "project_id": prepared["manifest"]["project_id"], "audience": prepared["manifest"]["audience"],
             "config_sha256": sha256, "manifest_sha256": manifest_sha256, **prepared["publication"],
-            "verified": True, "publication_performed": not verify_only, "catalogue_updated": False, "files": observations}
+            "verified": True, "publication_performed": not verify_only and (attempt.mutation_requested if attempt else any(not row["reused"] for row in observations)),
+            "catalogue_updated": False, "files": observations, "local_attempt": pointer}
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("plan", "stage", "publish", "verify"))
+    parser.add_argument("operation", choices=("plan", "stage", "publish", "verify", "inspect-attempt"))
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--config", default=CONFIG)
-    parser.add_argument("--sha256", required=True, help="Reviewed routing configuration SHA-256")
-    parser.add_argument("--artifact", required=True)
+    parser.add_argument("--sha256", help="Reviewed routing configuration SHA-256")
+    parser.add_argument("--artifact")
     parser.add_argument("--stage", help="Project-relative, retained sandbox/artifacts/<id>/<run>")
     parser.add_argument("--manifest-sha256")
     parser.add_argument("--auth-file", type=Path)
+    parser.add_argument("--attempt", help="Exact private local attempt directory")
+    parser.add_argument("--intent-sha256")
+    parser.add_argument("--attempt-sha256", help="Retained events SHA-256; local inspection only")
     args = parser.parse_args(argv)
     try:
+        if args.operation == "inspect-attempt":
+            require(args.attempt and args.intent_sha256 and args.attempt_sha256 and not any((args.sha256, args.artifact, args.stage, args.manifest_sha256, args.auth_file)),
+                    "Local inspection requires the exact attempt directory and both retained hashes, without transfer options")
+            result = inspect_attempt(args.project, args.attempt, args.intent_sha256, args.attempt_sha256)
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        require(args.sha256 and args.artifact and not any((args.attempt, args.intent_sha256, args.attempt_sha256)), "Artifact operations require explicit config/artifact pins")
         if args.operation in {"plan", "stage"}:
             require(not args.auth_file, "Planning/staging does not resolve credentials")
             if args.operation == "stage":
@@ -349,6 +403,10 @@ def main(argv=None):
                               auth_file=args.auth_file, verify_only=args.operation == "verify")
         print(json.dumps(result, sort_keys=True))
         return 0
+    except TransferFailure as exc:
+        print(json.dumps({"ok": False, "error": {"code": "artifact-transfer-failed", "message": str(exc)},
+                          "phase": exc.phase, "local_attempt": exc.attempt, "catalogue_updated": False}), file=sys.stderr)
+        return 1
     except ArtifactPolicyError as exc:
         print(json.dumps({"ok": False, "error": {"code": exc.code, "message": str(exc)}, "publication_performed": False}), file=sys.stderr)
         return 1
