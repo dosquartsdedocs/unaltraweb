@@ -96,6 +96,7 @@ baseline format nor runtime cleanup changes.
 | `web://input-preparation-schema` | Versioned, hash-bound early input hydration configuration; separate from source-only CI. |
 | `web://practice-artifact-storage-schema` | Explicit destination and audience per sealed practice PDF/ZIP. |
 | `web://practice-artifact-storage-v2-schema` | Verified native consumer repository/bucket identity and explicit authenticated-private versus anonymous-delivery capability. |
+| `web://practice-artifact-storage-v3-schema` | Explicit per-artifact named-v1 versus private files-v1 delivery; selected outputs at plain original paths, all metadata local. |
 | `web://retained-private-intake-schema` | Explicit local retained paired-output plan/snapshot admission for private archive, preserving original approval/proof state. |
 | `web://product-publication-schema` | Frozen gaContExt v1 selected-output manifest; independent of storage target. |
 | `web://publication-policy-schema` | Frozen gaContExt v1 GitHub Release/S3-compatible destination policy. |

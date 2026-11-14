@@ -2,7 +2,8 @@
 
 Adopts gaContExt product/publication v1. Destination selection is outside product
 identity. Native practice receipts remain private; only selected output bytes
-and a source-free metadata sidecar travel. Planning never resolves credentials.
+and, in named-v1, a source-free metadata sidecar travel. Explicit files-v1 keeps
+all metadata local and stores only outputs. Planning never resolves credentials.
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}\Z")
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 MAX_FILE = 2 * 1024**3 - 1
 STORAGE_PROFILES = {"anonymous-delivery-v1", "authenticated-private-v1"}
+DELIVERY_LAYOUTS = {"named-v1", "files-v1"}
 
 
 class ArtifactPolicyError(ValueError):
@@ -140,27 +142,31 @@ def load(project, config, expected):
         sha, _, raw = workspace.read(config, 1024**2, collect=True)
         require(isinstance(expected, str) and HASH.fullmatch(expected) and sha == expected, "Artifact routing differs from its reviewed SHA-256")
         value = strict_json(raw.decode())
-        require(isinstance(value, dict) and type(value.get("schema_version")) is int and value["schema_version"] in {1, 2},
+        require(isinstance(value, dict) and type(value.get("schema_version")) is int and value["schema_version"] in {1, 2, 3},
                 "Unsupported practice artifact routing version")
         version = value["schema_version"]
-        require(set(value) == {"kind", "schema_version", "publication", "artifacts"} | ({"consumer_repository"} if version == 2 else set())
+        require(set(value) == {"kind", "schema_version", "publication", "artifacts"} | ({"consumer_repository"} if version >= 2 else set())
                 and value["kind"] == "unaltraweb.practice-artifact-storage", "Unsupported practice artifact routing schema")
         require(isinstance(value["artifacts"], dict) and len(value["artifacts"]) <= 256, "Invalid bounded artifact selection")
         if value["publication"] is None:
             require(not value["artifacts"], "Unconfigured publication cannot route artifacts")
         else:
             publication_policy(value["publication"])
-        repository = consumer_repository(project, value["consumer_repository"]) if version == 2 and value["consumer_repository"] is not None else None
+        repository = consumer_repository(project, value["consumer_repository"]) if version >= 2 and value["consumer_repository"] is not None else None
         for name, route in value["artifacts"].items():
             require(TOKEN.fullmatch(name), "Invalid logical artifact ID")
             require(isinstance(route, dict) and set(route) == {"target", "audience", "receipt", "receipt_sha256", "format"}
-                    | ({"storage_profile"} if version == 2 else set()), "Unknown artifact routing fields")
+                    | ({"storage_profile"} if version >= 2 else set()) | ({"delivery_layout"} if version == 3 else set()), "Unknown artifact routing fields")
             require(route["target"] in value["publication"]["targets"], "Artifact must select one configured target; no fallback")
             target = value["publication"]["targets"][route["target"]]
             profile = route.get("storage_profile", "anonymous-delivery-v1")
             require(profile in STORAGE_PROFILES, "Unsupported explicit storage capability profile")
             require(profile != "authenticated-private-v1" or target["driver"] == "s3" and target["visibility"] == "private",
-                    "Authenticated private storage requires a private S3 target")
+                     "Authenticated private storage requires a private S3 target")
+            layout = route.get("delivery_layout", "named-v1")
+            require(layout in DELIVERY_LAYOUTS, "Unknown explicit delivery layout")
+            require(layout != "files-v1" or target["driver"] == "s3" and target["visibility"] == "private" and profile == "authenticated-private-v1",
+                    "files-v1 requires explicit authenticated-private-v1/private S3 storage")
             if target["driver"] == "s3":
                 if repository is None:
                     repository = consumer_repository(project, value.get("consumer_repository"))
@@ -174,10 +180,21 @@ def load(project, config, expected):
     return value
 
 
+def delivery_seal(manifest, manifest_sha256):
+    """Local-only opt-in binding; never part of native product identity/upload."""
+    return canonical({"kind": "unaltraweb.practice-artifact-delivery", "schema_version": 1, "layout": "files-v1",
+                      "manifest_sha256": manifest_sha256, "output_paths": [row["path"] for row in manifest["files"] if row["role"] == "output"]})
+
+
+def stage_paths(manifest, layout):
+    return {"product.json", *[row["path"] for row in manifest["files"]]} | ({"delivery.json"} if layout == "files-v1" else set())
+
+
 def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None, manifest_sha256=None):
     selection = load(project, config, sha256)
     require(artifact in selection["artifacts"], "Artifact has no explicit storage policy")
     route = selection["artifacts"][artifact]
+    layout = route.get("delivery_layout", "named-v1")
     from .editorial_sources import yaml_mapping
     with closing(h.Workspace(str(project))) as workspace:
         actual, _, raw = workspace.read(route["receipt"], 1024**2, collect=True)
@@ -218,6 +235,7 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
         require(not issues, "; ".join(issues))
         workspace.recheck()
     target = selection["publication"]["targets"][route["target"]]
+    require(layout != "files-v1" or len((target["prefix"] + "/" + row["path"]).encode()) <= 1024, "Selected-file S3 key exceeds its bound")
     if retained:
         handoff = selected["handoff"]
         metadata = canonical({"kind": "unaltraweb.retained-private-artifact", "schema_version": 1, "purpose": "private-archive", "artifact_id": artifact,
@@ -256,7 +274,10 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
             require(retained["producer"]["name"] == "unaltraweb" and all(retained[key] == value for key, value in manifest.items() if key != "producer"),
                     "Retained product differs from the selected native artifact")
             files, directories = workspace.inventory(staged)
-            require(not directories and files == {"product.json", *[row["path"] for row in retained["files"]]}, "Unexpected staged artifact files")
+            require(not directories and files == stage_paths(retained, layout), "Unexpected stage files/layout; create and review an explicit layout-bound stage")
+            if layout == "files-v1":
+                _, _, seal = workspace.read(staged + "/delivery.json", 65536, collect=True)
+                require(seal == delivery_seal(retained, manifest_sha256), "Retained files-v1 local delivery seal changed")
             for row in retained["files"]:
                 actual, size, _ = workspace.read(staged + "/" + row["path"], MAX_FILE)
                 require((actual, size) == (row["sha256"], row["bytes"]), "Retained artifact bytes differ from their reviewed manifest")
@@ -268,8 +289,12 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
             "artifact_id": artifact, "config_sha256": sha256, "manifest_sha256": digest(content),
             "publication": {"target_name": route["target"], "destination": target, "destination_sha256": digest(canonical(target)),
                             "policy_sha256": digest(canonical(selection["publication"])),
-                            "storage_profile": route.get("storage_profile", "anonymous-delivery-v1"),
-                            "consumer_repository": consumer_repository(project, selection.get("consumer_repository")) if target["driver"] == "s3" else None},
+                             "storage_profile": route.get("storage_profile", "anonymous-delivery-v1"),
+                             **({"delivery_layout": layout} if "delivery_layout" in route else {}),
+                             "consumer_repository": consumer_repository(project, selection.get("consumer_repository")) if target["driver"] == "s3" else None},
+            **({"delivery": {"layout": layout, "remote_keys": [target["prefix"] + "/" + row["path"] for row in manifest["files"] if row["role"] == "output"],
+                              "remote_metadata_created": False, "metadata_location": "local-only", "local_inventory_required_for_fetch": True,
+                              "collision_action": "refuse-different-object; no replacement/delete authority"}} if layout == "files-v1" else {}),
             "manifest": manifest, "metadata": metadata.decode(), "source": source}
 
 
@@ -294,6 +319,8 @@ def stage(project: Path, config: str, sha256: str, artifact: str, destination: s
                 os.fsync(output.fileno())
             write_new(directory, "artifact.json", prepared["metadata"].encode())
             write_new(directory, "product.json", canonical(prepared["manifest"]))
+            if prepared["publication"].get("delivery_layout") == "files-v1":
+                write_new(directory, "delivery.json", delivery_seal(prepared["manifest"], prepared["manifest_sha256"]))
             require(plan(project, config, sha256, artifact) == prepared, "Artifact source/policy changed during staging")
             workspace.recheck()
             fs._require_generated_path(project, path, label="Practice artifact stage")
@@ -317,14 +344,18 @@ def local_attempt(project, prepared, config, config_sha256, staged, records, sto
     target = prepared["publication"]["destination"]
     objects = [{"key": store.key(prepared["manifest"], prepared["manifest_sha256"], row),
                 **{key: row[key] for key in ("path", "sha256", "bytes", "media_type")}} for row in records]
-    objects.append({**objects[-1], "key": target["prefix"] + "/manifests/" + prepared["manifest_sha256"] + ".json"})
+    layout = prepared["publication"].get("delivery_layout", "named-v1")
+    require(getattr(store, "layout", "named-v1") == layout, "S3 adapter layout differs from the reviewed route")
+    if layout == "named-v1":
+        objects.append({**objects[-1], "key": target["prefix"] + "/manifests/" + prepared["manifest_sha256"] + ".json"})
     context = {"operation": "verify" if verify_only else "publish", "project_id": prepared["manifest"]["project_id"],
                "artifact_id": prepared["artifact_id"], "configuration": {"path": config, "sha256": config_sha256},
                "stage": {"path": staged, "manifest_sha256": prepared["manifest_sha256"]},
                "source": {"path": prepared["source"], "sha256": objects[0]["sha256"], "bytes": objects[0]["bytes"]},
                "destination": {key: target[key] for key in ("driver", "endpoint", "region", "bucket", "prefix", "visibility")},
                "destination_sha256": prepared["publication"]["destination_sha256"],
-               "policy_sha256": prepared["publication"]["policy_sha256"], "objects": objects}
+                "policy_sha256": prepared["publication"]["policy_sha256"], "objects": objects,
+                **({"delivery_layout": layout} if layout == "files-v1" else {})}
     guard()
     return Attempt(project, context, guard)
 
@@ -334,15 +365,20 @@ def transfer(project, config, sha256, artifact, staged, manifest_sha256, *, auth
     staged = h.safe_path(staged)
     require(staged.startswith("sandbox/artifacts/"), "Select a retained artifact stage")
     fs._require_generated_path(project, Path(staged), label="Retained practice artifact stage")
+    layout = prepared["publication"].get("delivery_layout", "named-v1")
     with closing(h.Workspace(str(project))) as workspace:
         actual, _, raw = workspace.read(staged + "/product.json", 1024**2, collect=True)
         require(actual == manifest_sha256 and strict_json(raw.decode()) == prepared["manifest"], "Staged product manifest changed")
         files, directories = workspace.inventory(staged)
-        require(not directories and files == {"product.json", *[row["path"] for row in prepared["manifest"]["files"]]}, "Unexpected staged artifact files")
-        records = [*prepared["manifest"]["files"], {"path": "product.json", "sha256": actual, "bytes": len(raw), "media_type": "application/json", "role": "evidence"}]
-        for row in records:
+        require(not directories and files == stage_paths(prepared["manifest"], layout), "Unexpected staged artifact files/layout")
+        local_records = [*prepared["manifest"]["files"], {"path": "product.json", "sha256": actual, "bytes": len(raw), "media_type": "application/json", "role": "evidence"}]
+        if layout == "files-v1":
+            seal = delivery_seal(prepared["manifest"], manifest_sha256)
+            local_records.append({"path": "delivery.json", "sha256": digest(seal), "bytes": len(seal)})
+        for row in local_records:
             actual, size, _ = workspace.read(staged + "/" + row["path"], MAX_FILE)
             require((actual, size) == (row["sha256"], row["bytes"]), "Staged artifact changed before transfer")
+        records = [row for row in local_records if row.get("role") == "output"] if layout == "files-v1" else local_records
         from .artifact_transports import connect
         store = (connector or connect)(prepared["publication"], prepared["manifest"]["project_id"], auth_file)
         observations, attempt, pointer = [], None, None
@@ -386,8 +422,10 @@ def transfer(project, config, sha256, artifact, staged, manifest_sha256, *, auth
     return {"ok": True, "kind": "unaltraweb.practice-artifact-receipt", "schema_version": 1,
             "artifact_id": artifact, "project_id": prepared["manifest"]["project_id"], "audience": prepared["manifest"]["audience"],
             "config_sha256": sha256, "manifest_sha256": manifest_sha256, **prepared["publication"],
-            "verified": True, "publication_performed": not verify_only and (attempt.mutation_requested if attempt else any(not row["reused"] for row in observations)),
-            "catalogue_updated": False, "files": observations, "local_attempt": pointer}
+             "verified": True, "publication_performed": not verify_only and (attempt.mutation_requested if attempt else any(not row["reused"] for row in observations)),
+            **({"layout": layout, "remote_metadata_created": False, "remote_deletes": 0, "metadata_location": "local-only",
+                "local_inventory_required_for_fetch": True, "full_remote_metadata_restoration": False} if layout == "files-v1" else {}),
+             "catalogue_updated": False, "files": observations, "local_attempt": pointer}
 
 
 def main(argv=None):

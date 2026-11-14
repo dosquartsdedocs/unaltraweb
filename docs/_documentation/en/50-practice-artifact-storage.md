@@ -23,6 +23,11 @@ their exact native edition receipt. It is separate from temporary Actions
 candidates and the stable manual/Pages publication protocol. Large practice
 materials do not need to enter Git or the Jekyll site to be stored here.
 
+For original self-contained ZIPs and plain private paths with **local-only
+metadata**, select the explicit [route-v3 files-v1 profile](../selected-file-private-storage/).
+The named-v1 routing and product identity described below remain readable in their
+original format; changing route versions alone never flattens a retained stage.
+
 ## Project-owned policy
 
 The scaffold includes `.unaltraweb/practice-artifacts.json` v2 with

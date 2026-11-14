@@ -257,6 +257,7 @@ mcp:
     - web://input-preparation-schema
     - web://practice-artifact-storage-schema
     - web://practice-artifact-storage-v2-schema
+    - web://practice-artifact-storage-v3-schema
     - web://retained-private-intake-schema
     - web://product-publication-schema
     - web://publication-policy-schema
