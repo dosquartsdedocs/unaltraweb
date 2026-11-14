@@ -28,6 +28,32 @@ MAX_METADATA = 1024**2
 PRIVATE_INPUTS = ("dist/practiques/", "sandbox/", "context/", "tmp/")
 VALIDATION = {"raw_bytes_and_references": "checked", "zip_member_content_hashes": "freshly-checked-without-extraction",
               "pdf_structure": "not-revalidated; original worker-bound bytes/header checked", "native_scientific": "not-performed", "author_approval": "not-granted"}
+LOCAL_REFS = {"reading_source", "reading_sha256", "pdf_receipt", "pdf_receipt_sha256"}
+ERRORS = {
+    "retained-manifest-format": "Unsupported or incomplete original retained-manifest family",
+    "retained-archive-reference": "Original archive/file names or archive hashes conflict with the exact selection",
+    "retained-reading-ambiguous": "The selected original reading reference is missing or ambiguous",
+    "retained-reading-reference": "Original reading PDF/job references differ from the selected worker output",
+    "retained-recipient-mismatch": "Original reading role/audience differs from the selected recipient",
+    "retained-language-mismatch": "Original reading language differs from the selected handoff language",
+    "retained-worker-reference": "Original worker receipt path/hash or provenance metadata differs",
+    "retained-source-reference": "Original worker/source hash references differ from the selected reading",
+    "retained-output-reference": "Selected PDF differs from original worker output seal or ZIP reading reference",
+    "retained-input-changed": "Retained input differs from its exact reviewed SHA-256/size pin",
+    "retained-admission-lineage": "Retained original reference/declaration lineage differs from its original evidence",
+}
+
+
+class RetainedIntakeError(ValueError):
+    """Fixed safe diagnostics; original opaque data never enters the message."""
+    def __init__(self, code):
+        self.code = code
+        super().__init__(ERRORS[code])
+
+
+def guard(condition, code):
+    if not condition:
+        raise RetainedIntakeError(code)
 
 
 @contextmanager
@@ -49,12 +75,14 @@ def opened(workspace, path):
 def pin(workspace, row, *, collect=False, limit=h.MAX_FILE_BYTES):
     h.safe_path(row["path"])
     actual, size, raw = workspace.read(row["path"], limit, collect=collect)
-    require(type(row["bytes"]) is int and (actual, size) == (row["sha256"], row["bytes"]), "Retained input differs from its exact SHA-256/size pin")
+    guard(type(row["bytes"]) is int and (actual, size) == (row["sha256"], row["bytes"]), "retained-input-changed")
     return raw
 
 
 def claims(manifest, evidence):
     flags = {key: manifest.get(key) for key in ("human_approved", "exact_historical_bundle", "local_candidate")}
+    if "publishes" in manifest:
+        flags["publishes"] = manifest["publishes"]
     require(all(type(value) is bool or value is None for value in flags.values()), "Invalid inherited editorial/provenance status")
     refs = {}
     for field in ("proof", "moodle_statement"):
@@ -67,10 +95,31 @@ def claims(manifest, evidence):
             "native_scientific_validation": "not-performed", "inherited_claims_recertified": False, "references": refs}
 
 
+def handoff_identity(request, manifest):
+    # An explicit new snapshot run is never invented historical provenance.
+    return {**request["handoff"], "version": manifest["version"], **({"run": manifest["run"]} if "run" in manifest else {})}
+
+
+def declarations(manifest):
+    return {key: {"present": key in manifest, "value": manifest.get(key)}
+            for key in ("run", "human_approved", "local_candidate", "exact_historical_bundle", "publishes")}
+
+
+def reference_family(original, manifest):
+    if LOCAL_REFS.intersection(original):
+        guard(LOCAL_REFS <= original.keys() and "archive" in original, "retained-manifest-format")
+        return "package-local-reading-v1"
+    guard("file" in original and isinstance(manifest.get("reading_receipts"), list)
+          and 1 <= len(manifest["reading_receipts"]) <= 256, "retained-manifest-format")
+    return "file-root-reading-receipts-v1"
+
+
 def specification(request, manifest):
-    require(isinstance(manifest, dict) and {"activity", "version", "run", "packages"} <= manifest.keys(), "Invalid retained handoff manifest")
+    guard(isinstance(manifest, dict) and {"activity", "version", "packages"} <= manifest.keys(), "retained-manifest-format")
     require(manifest["activity"] == request["handoff"]["activity"], "Declared activity differs; handoff/activity aliases must be explicit")
-    require(all(isinstance(manifest[key], str) and 0 < len(manifest[key]) <= 200 for key in ("activity", "version", "run")), "Invalid original handoff identity")
+    guard(all(isinstance(manifest[key], str) and 0 < len(manifest[key]) <= 200 for key in ("activity", "version"))
+          and ("run" not in manifest or manifest["run"] is None or isinstance(manifest["run"], str) and 0 < len(manifest["run"]) <= 200),
+          "retained-manifest-format")
     require(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", manifest["version"]), "Original version is not an exportable identity label; never normalise it silently")
     packages = manifest["packages"]
     require(isinstance(packages, list) and 1 <= len(packages) <= 2 and all(isinstance(row, dict) for row in packages), "Invalid original recipient package list")
@@ -82,19 +131,22 @@ def specification(request, manifest):
     outputs, dependencies = [], []
     for item in request["packages"]:
         original = by_who.get(item["recipient"])
-        require(original is not None and {"archive", "sha256", "members", "reading_source", "reading_sha256", "pdf_receipt", "pdf_receipt_sha256"} <= original.keys(), "Missing original package/receipt references")
-        require(isinstance(original["reading_source"], str) and re.fullmatch(r"[0-9a-f]{64}", original["reading_sha256"]), "Invalid original reading reference")
+        guard(original is not None and {"sha256", "members"} <= original.keys(), "retained-manifest-format")
+        family = reference_family(original, manifest)
+        aliases = [original[key] for key in ("archive", "file") if key in original]
+        guard(aliases and all(name == Path(item["archive"]["path"]).name for name in aliases)
+              and item["archive"]["sha256"] == original["sha256"], "retained-archive-reference")
         for key, suffix in (("archive", ".zip"), ("pdf", ".pdf")):
             row = item[key]
             h.safe_path(row["path"])
             require(Path(row["path"]).parent == base and row["path"].endswith(suffix), "Selected output is outside the retained handoff or has the wrong format")
             dependencies.append(row["path"])
-        require(Path(item["archive"]["path"]).name == original["archive"] and item["archive"]["sha256"] == original["sha256"], "Archive differs from original manifest")
-        require(item["pdf_receipt"]["path"] == original["pdf_receipt"] and item["pdf_receipt"]["sha256"] == original["pdf_receipt_sha256"], "Original PDF receipt reference differs")
+        if family == "package-local-reading-v1":
+            guard(item["pdf_receipt"]["path"] == original["pdf_receipt"] and item["pdf_receipt"]["sha256"] == original["pdf_receipt_sha256"], "retained-worker-reference")
         h.safe_path(item["pdf_artifact"])
         h.safe_path(item["reading_member"])
-        require(item["pdf_artifact"].startswith("outputs/") and item["pdf_artifact"].endswith(".pdf")
-                and isinstance(original["members"], dict) and original["members"].get(item["reading_member"]) == item["pdf"]["sha256"], "PDF/ZIP reading references differ")
+        guard(item["pdf_artifact"].startswith("outputs/") and item["pdf_artifact"].endswith(".pdf")
+              and isinstance(original["members"], dict) and original["members"].get(item["reading_member"]) == item["pdf"]["sha256"], "retained-output-reference")
         require(len({row["format"] for row in item["selected"]}) == len(item["selected"]), "Duplicate selected output format")
         for selected in item["selected"]:
             row = item["pdf" if selected["format"] == "pdf" else "archive"]
@@ -105,15 +157,43 @@ def specification(request, manifest):
     return outputs, by_who
 
 
-def worker_receipt(raw, item, original):
+def worker_receipt(raw, item, original, *, manifest, language):
     value = h.parse_json(raw)
-    require(type(value.get("schema_version")) is int and value["schema_version"] == 1 and value.get("kind") == "private-practice-pdf",
-            "Select the original private-practice PDF worker receipt, not an edition label")
-    require(value.get("source") == original["reading_source"] and isinstance(value.get("original_inputs"), dict)
-            and value["original_inputs"].get(original["reading_source"]) == original["reading_sha256"], "Worker/source hash references differ from original handoff")
-    require(isinstance(value.get("artifacts"), dict) and value["artifacts"].get(item["pdf_artifact"]) == item["pdf"]["sha256"], "Selected PDF differs from original worker output seal")
-    require(all(isinstance(value.get(key), dict) for key in ("renderer", "effective_source", "factory_inputs")), "Original worker provenance metadata is incomplete")
-    return {"receipt_bytes": "checked", "selected_pdf_and_source_references": "checked", "renderer_effective_source_factory_claims": "inherited-not-reexecuted"}
+    guard(type(value.get("schema_version")) is int and value["schema_version"] == 1 and value.get("kind") == "private-practice-pdf"
+          and all(isinstance(value.get(key), dict) for key in ("renderer", "effective_source", "factory_inputs", "original_inputs")), "retained-worker-reference")
+    family = reference_family(original, manifest)
+    package_pointer = "/packages/" + str(next(index for index, row in enumerate(manifest["packages"]) if row is original))
+    if family == "package-local-reading-v1":
+        reading_pointer, source = package_pointer, original["reading_source"]
+        source_sha = original["reading_sha256"]
+        source_origin = {"document": "original-manifest", "pointer": package_pointer + "/reading_sha256"}
+        worker_origin = package_pointer + "/pdf_receipt"
+    else:
+        pdf_path = (Path(item["pdf_receipt"]["path"]).parent / item["pdf_artifact"]).as_posix()
+        # Only selected exact path anchors are authority. Other/case rows remain
+        # opaque original data, never audiences or file/command instructions.
+        matches = [(index, row) for index, row in enumerate(manifest["reading_receipts"]) if isinstance(row, dict)
+                   and (row.get("receipt") == item["pdf_receipt"]["path"] or row.get("pdf") == pdf_path)]
+        guard(len(matches) == 1, "retained-reading-ambiguous")
+        index, reading = matches[0]
+        guard(reading.get("role") == reading.get("audience") == item["recipient"], "retained-recipient-mismatch")
+        guard(reading.get("language") == language, "retained-language-mismatch")
+        guard(reading.get("receipt") == item["pdf_receipt"]["path"] and reading.get("receipt_sha256") == item["pdf_receipt"]["sha256"], "retained-worker-reference")
+        guard(reading.get("pdf") == pdf_path and reading.get("pdf_sha256") == item["pdf"]["sha256"]
+              and ("job" not in reading or reading["job"] == str(Path(item["pdf_receipt"]["path"]).parent)), "retained-reading-reference")
+        reading_pointer, source = "/reading_receipts/" + str(index), reading.get("source")
+        source_sha = value["original_inputs"].get(source) if isinstance(source, str) else None
+        source_origin = {"document": "original-worker-receipt", "sha256": item["pdf_receipt"]["sha256"],
+                         "pointer": "/original_inputs/" + source.replace("~", "~0").replace("/", "~1") if isinstance(source, str) else None}
+        worker_origin = reading_pointer + "/receipt"
+    guard(isinstance(source, str) and source and isinstance(source_sha, str) and re.fullmatch(r"[0-9a-f]{64}", source_sha)
+          and value.get("source") == source and value["original_inputs"].get(source) == source_sha, "retained-source-reference")
+    guard(isinstance(value.get("artifacts"), dict) and value["artifacts"].get(item["pdf_artifact"]) == item["pdf"]["sha256"], "retained-output-reference")
+    references = {"family": family, "package_pointer": package_pointer, "archive_fields": [key for key in ("archive", "file") if key in original],
+                  "reading_pointer": reading_pointer, "source": source, "source_sha256": source_sha, "source_sha256_origin": source_origin,
+                  "worker_reference_origin": worker_origin, "worker_receipt": item["pdf_receipt"], "pdf_artifact": item["pdf_artifact"],
+                  "reading_member": item["reading_member"], "recipient": item["recipient"], "language": language}
+    return {"receipt_bytes": "checked", "selected_pdf_and_source_references": "checked", "renderer_effective_source_factory_claims": "inherited-not-reexecuted"}, references
 
 
 def copies_for(request, request_pin, outputs):
@@ -172,7 +252,7 @@ def plan(project: Path, request_path: str, sha256: str):
         outputs, original_packages = specification(request, manifest)
         request_pin = {"path": request_path, "sha256": sha256, "bytes": size}
         copies = copies_for(request, request_pin, outputs)
-        reports = {}
+        reports, references = {}, {}
         for item in request["packages"]:
             pin(workspace, item["archive"])
             pin(workspace, item["pdf"])
@@ -180,9 +260,10 @@ def plan(project: Path, request_path: str, sha256: str):
                 require(source.read(5) == b"%PDF-", "Original worker-bound PDF has no PDF header")
             require(item["pdf_receipt"]["path"].startswith(PRIVATE_INPUTS) and item["pdf_receipt"]["path"].endswith(".json"), "Select confined local PDF receipt evidence")
             worker = pin(workspace, item["pdf_receipt"], collect=True, limit=MAX_METADATA)
-            reports[item["recipient"]] = {"worker": worker_receipt(worker, item, original_packages[item["recipient"]])}
-            reading = original_packages[item["recipient"]]
-            reports[item["recipient"]]["worker"]["reading_source_bytes"] = "fresh-exact-path" if any(row["path"] == reading["reading_source"] and row["sha256"] == reading["reading_sha256"] for row in request["sources"]) else "inherited-reference-only"
+            report, reading = worker_receipt(worker, item, original_packages[item["recipient"]], manifest=manifest, language=request["handoff"]["language"])
+            references[item["recipient"]] = reading
+            reports[item["recipient"]] = {"worker": report}
+            report["reading_source_bytes"] = "fresh-exact-path" if any(row["path"] == reading["source"] and row["sha256"] == reading["source_sha256"] for row in request["sources"]) else "inherited-reference-only"
             with opened(workspace, item["archive"]["path"]) as source:
                 check_zip_directory(source)
                 with zipfile.ZipFile(source) as archive:
@@ -204,12 +285,11 @@ def plan(project: Path, request_path: str, sha256: str):
                     require(name not in sums, "Duplicate checksum declaration")
                     sums[name] = match[1]
                 require(all(sums.get(Path(out["path"]).name) == out["sha256"] for out in outputs), "Selected output differs from original checksums")
-        readings = {row["reading_source"]: row["reading_sha256"] for row in original_packages.values()}
+        readings = {row["source"]: row["source_sha256"] for row in references.values()}
         for row in request["sources"]:
             require(row["path"].startswith(("practiques/", "_practices/", "sandbox/", "tmp/")) and row["path"].endswith((".md", ".markdown")), "Only explicit bounded reading source pins are inspected; sources are not exported")
             pin(workspace, row, limit=2 * MAX_METADATA)
-            require(row["sha256"] in readings.values(), "Selected source pin is not a declared reading source hash")
-            require(row["path"] not in readings or row["sha256"] == readings[row["path"]], "Selected reading source differs from its inherited worker reference")
+            guard(row["sha256"] in readings.values() and (row["path"] not in readings or row["sha256"] == readings[row["path"]]), "retained-source-reference")
         require(len({row["path"] for row in request["sources"]}) == len(request["sources"]), "Duplicate source pins")
         workspace.recheck()
     from .runtime_identity import fingerprint
@@ -218,8 +298,9 @@ def plan(project: Path, request_path: str, sha256: str):
     payload = {"kind": "unaltraweb-retained-private-intake-plan", "schema_version": 1, "purpose": "private-archive",
                "request": request_pin, "specification": request,
                "consumer_repository": repository, "site_config_sha256": config_sha,
-               "handoff": {**request["handoff"], "version": manifest["version"], "run": manifest["run"]},
+               "handoff": handoff_identity(request, manifest),
                "outputs": outputs, "copies": copies, "package_checks": reports, "source_pins": request["sources"],
+               "original_references": references, "original_declarations": declarations(manifest),
                "claims": claims(manifest, request["evidence"]), "producer": {"name": "unaltraweb", "version": __version__, "revision": "sha256:" + code["sha256"]},
                "validation": VALIDATION}
     return {"ok": True, "read_only": True, "network": False, "credentials_resolved": False, "publishes": False,
@@ -322,14 +403,28 @@ def artifact(workspace, project, path, expected):
     _, _, manifest_raw = workspace.read(base + "/" + manifest_copy["path"], MAX_METADATA, collect=True)
     manifest = h.parse_json(manifest_raw)
     outputs, originals = specification(payload["specification"], manifest)
-    require(outputs == payload["outputs"] and claims(manifest, payload["specification"]["evidence"]) == payload["claims"], "Admission role/approval lineage differs from original evidence")
-    require(payload["handoff"] == {**payload["specification"]["handoff"], "version": manifest["version"], "run": manifest["run"]}, "Admission handoff/activity identity differs from original inputs")
+    legacy = "original_references" not in payload and "original_declarations" not in payload
+    original_claims = claims(manifest, payload["specification"]["evidence"])
+    if legacy:
+        # PR134 did not project an original publishes declaration. Keep its
+        # immutable receipt/sidecar exactly, even when the raw manifest had one.
+        original_claims.pop("publishes", None)
+    require(outputs == payload["outputs"] and original_claims == payload["claims"], "Admission role/approval lineage differs from original evidence")
+    require(payload["handoff"] == handoff_identity(payload["specification"], manifest), "Admission handoff/activity identity differs from original inputs")
     require(all(payload["consumer_repository"].get(key) == value for key, value in payload["specification"]["consumer_repository"].items()), "Admission repository declaration differs from its request")
     require(inventory == copies_for(payload["specification"], payload["request"], outputs), "Admission copy inventory differs from its exact selected request")
+    references = {}
     for item in payload["specification"]["packages"]:
         copied = next(row for row in inventory if row["source"] == item["pdf_receipt"]["path"])
         _, _, raw = workspace.read(base + "/" + copied["path"], MAX_METADATA, collect=True)
-        worker_receipt(raw, item, originals[item["recipient"]])
+        _, references[item["recipient"]] = worker_receipt(raw, item, originals[item["recipient"]], manifest=manifest,
+                                                       language=payload["specification"]["handoff"]["language"])
+    if not legacy:
+        guard(payload.get("original_references") == references and payload.get("original_declarations") == declarations(manifest), "retained-admission-lineage")
+    else:
+        # Original PR134 admissions have the package-local family and historical
+        # run. Their receipt/stage/sidecar identity is not rewritten on upgrade.
+        guard(isinstance(manifest.get("run"), str) and all(row["family"] == "package-local-reading-v1" for row in references.values()), "retained-admission-lineage")
     expected_files = {row["path"] for row in inventory} | {"admission.json"}
     for out in outputs:
         filename = "receipts/" + out["id"] + ".json"
@@ -365,8 +460,11 @@ def main(argv=None):
             result = snapshot(args.project, args.request, args.sha256, args.expected_plan_sha256)
         print(json.dumps(result, sort_keys=True))
         return 0
+    except RetainedIntakeError as exc:
+        print(json.dumps({"ok": False, "publishes": False, "error": {"code": exc.code, "message": str(exc)}}), file=sys.stderr)
+        return 1
     except (ValueError, OSError, KeyError, TypeError, StopIteration, RuntimeError, h.HandoffError, zipfile.BadZipFile):
-        print(json.dumps({"ok": False, "publishes": False, "error": "Retained private intake refused; inspect the exact request, pinned bytes and native references"}), file=sys.stderr)
+        print(json.dumps({"ok": False, "publishes": False, "error": {"code": "retained-intake-refused", "message": "Retained private intake refused; inspect the exact request, pinned bytes and native references"}}), file=sys.stderr)
         return 1
 
 

@@ -48,6 +48,10 @@ retain their formats. Actual publish/auth remains a later explicit operation.
 
 ## Exact next Geodisseny owner action
 
+Historical first-intake steps below preceded the real owner reservation. The
+subsequent producer compatibility correction and **same already-indexed request**
+rerun are recorded in [retained-compatibility.md](retained-compatibility.md).
+
 1. In the existing Geodisseny owner workspace, inspect its selected current
    handoff/proof inventory and choose **one small current handoff**, initially a
    student guide or one pair; do not reserve all eight or copy source trees.

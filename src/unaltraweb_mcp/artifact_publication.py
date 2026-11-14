@@ -225,6 +225,7 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
                               "recipient": who, "format": route["format"], "native_receipt_sha256": route["receipt_sha256"],
                               "human_approved": selected["claims"]["human_approved"], "approval_origin": "original-manifest", "approved_by_intake": False,
                               "local_candidate": selected["claims"]["local_candidate"], "historical_bundle_claim": selected["claims"]["exact_historical_bundle"],
+                              **({"original_publishes": selected["claims"]["publishes"]} if "publishes" in selected["claims"] else {}),
                               "native_scientific_validation": "not-performed", "inherited_claims_recertified": False,
                               "inherited_proof_state": selected["claims"]["references"]["proof"]["state"], "public_edition": False})
     else:
@@ -390,6 +391,7 @@ def transfer(project, config, sha256, artifact, staged, manifest_sha256, *, auth
 
 
 def main(argv=None):
+    from .retained_intake import RetainedIntakeError
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("operation", choices=("plan", "stage", "publish", "verify", "inspect-attempt"))
     parser.add_argument("--project", type=Path, required=True)
@@ -428,6 +430,9 @@ def main(argv=None):
     except TransferFailure as exc:
         print(json.dumps({"ok": False, "error": {"code": "artifact-transfer-failed", "message": str(exc)},
                           "phase": exc.phase, "local_attempt": exc.attempt, "catalogue_updated": False}), file=sys.stderr)
+        return 1
+    except RetainedIntakeError as exc:
+        print(json.dumps({"ok": False, "error": {"code": exc.code, "message": str(exc)}, "publication_performed": False}), file=sys.stderr)
         return 1
     except ArtifactPolicyError as exc:
         print(json.dumps({"ok": False, "error": {"code": exc.code, "message": str(exc)}, "publication_performed": False}), file=sys.stderr)
