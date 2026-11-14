@@ -86,7 +86,8 @@ roots; no version folder or renamed deliverable is imposed on it.
 
 Each package explicitly selects its original ZIP, standalone PDF, worker receipt,
 worker PDF artifact key and ZIP reading member. The original manifest's recipient,
-archive SHA, reading source/hash and worker-receipt path/hash must agree. The
+archive SHA, reading source/hash and worker-receipt path/hash must agree through
+one of the two original reference families below. The
 PDF's exact hash must match both the ZIP reading member declaration and the
 original `private-practice-pdf` schema-1 artifact seal. Select PDF and/or ZIP with
 independent IDs. `docent` remains teacher/private; role conflicts and duplicate
@@ -105,6 +106,51 @@ reading hash; exact original-path matches are labelled fresh. Unselected or
 historically relocated source references remain inherited rather than guessed.
 Hash-only/missing old proof paths remain unresolved in the new receipt. A missing
 `sealed.json` is not fabricated or required as an invented dependency.
+
+### Original manifest reference families
+
+The request schema/fields stay identical for these two explicit families:
+
+- **Package-local reading references:** original packages declare `archive`,
+  `sha256`, `members`, `reading_source`, `reading_sha256`, `pdf_receipt` and
+  `pdf_receipt_sha256`. These original manifest fields bind the pinned worker and
+  its `original_inputs[source]`/selected output artifact hashes.
+- **File plus root reading receipts:** original packages declare `file`, `sha256`
+  and `members`; root `reading_receipts` contains original build metadata with
+  `role`, `audience`, `language`, `source`, `receipt`, `receipt_sha256`, `pdf` and
+  `pdf_sha256`. Exactly one row anchored to the selected worker receipt path or
+  declared worker PDF output path must match the explicit recipient/language,
+  receipt path/hash, PDF hash, source and optional original `job`. The Markdown
+  SHA comes from that **original pinned worker** `original_inputs[source]`, not a
+  fabricated manifest field. The ZIP member, standalone PDF and selected worker
+  artifact must bind the same exact bytes.
+
+An original `archive`/`file` alias may coexist only when both spell the same
+selected filename. Partial/mixed package-local reference fields, conflicting
+aliases, duplicate/conflicting selected reading rows, incorrect role/language or
+worker/source/PDF/member mappings fail. Other teacher/case reading rows stay
+opaque original data: they do not become new audiences, require their payloads
+in a student-only request, or select a different/latest run by inference.
+
+New plan/admission `original_references` records the selected family and exact
+original JSON-pointer/worker-hash origins; `original_declarations` distinguishes
+absent declarations from declared null/false/value. An absent original `run`
+stays absent in historical identity; a snapshot run label is not provenance.
+Absent `local_candidate` remains unknown. Original `publishes:false` remains an
+original declaration and conveys neither content approval nor a cloud operation.
+Original commands/stdout/renderer/proof claims are retained as bounded local
+**data**, never executed or interpreted as instructions or approval. The original
+manifest and receipts are copied unchanged, without normalising their shape.
+
+Format/reference diagnostics are fixed safe `{code,message}` objects. Codes
+include `retained-manifest-format`, `retained-archive-reference`,
+`retained-reading-ambiguous`, `retained-reading-reference`,
+`retained-recipient-mismatch`, `retained-language-mismatch`,
+`retained-worker-reference`, `retained-source-reference`,
+`retained-output-reference`, `retained-input-changed` and
+`retained-admission-lineage`; other bounded refusals use
+`retained-intake-refused`. Messages contain no original teacher/provider bodies,
+opaque command/stdout text or credential material.
 
 ## Read-only plan, then explicit admission
 
@@ -200,6 +246,11 @@ Its new source-free native sidecar format is
 recipient/format, original approval values and explicit no-intake-approval/no-
 scientific-validation status. Private paths, source Markdown, raw original
 receipts, evidence bodies and renderer details never enter the remote sidecar.
+When originally declared, the safe `original_publishes` scalar preserves that
+claim without confusing it with the later transport's `publication_performed`.
+Earlier PR134 package-local admissions/stages remain readable with their exact
+original receipt/sidecar/manifest and producer identity; missing additive origin
+projections are not retroactively inserted into retained products.
 
 Original typed edition-v1 composition, ordinary artifact stages and retained
 original manifest/producer identities keep their separate formats. This admission
