@@ -1,7 +1,8 @@
 """Public, optional binary transports for the adopted product-publication contract.
 
 No ambient credentials, bucket/Release creation, ACL writes, cleanup or fallback.
-GitHub uses the common flat content layout; S3/S4 uses named-v1 delivery.
+GitHub uses the common flat content layout; S3/S4 uses named-v1 or explicit
+authenticated-private files-v1, with only selected original outputs remotely.
 """
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ import stat
 import unicodedata
 from urllib.parse import quote, urlsplit
 
-from .artifact_publication import STORAGE_PROFILES, require
+from .artifact_publication import DELIVERY_LAYOUTS, STORAGE_PROFILES, require
 from .artifact_attempts import EvidenceError
 from . import artifact_handoff_v1 as h
 
@@ -108,7 +109,7 @@ def connect(publication, project_id, auth_file):
         aws_session_token=credentials.get("session_token_env"),
         config=Config(signature_version="s3v4", connect_timeout=10, read_timeout=60, retries={"total_max_attempts": 1},
                       request_checksum_calculation="when_required", response_checksum_validation="when_required", s3={"addressing_style": "path"}))
-    return S3(target, client, profile=publication.get("storage_profile", "anonymous-delivery-v1"))
+    return S3(target, client, profile=publication.get("storage_profile", "anonymous-delivery-v1"), layout=publication.get("delivery_layout", "named-v1"))
 
 
 class GitHub:
@@ -187,11 +188,14 @@ class GitHub:
 
 
 class S3:
-    def __init__(self, target, client, *, anonymous=None, profile="anonymous-delivery-v1"):
+    def __init__(self, target, client, *, anonymous=None, profile="anonymous-delivery-v1", layout="named-v1"):
         require(profile in STORAGE_PROFILES and (profile != "authenticated-private-v1" or target["visibility"] == "private"),
                 "Invalid private S3 capability selection")
         self.target, self.client = target, client
         self.profile = profile
+        require(layout in DELIVERY_LAYOUTS and (layout != "files-v1" or profile == "authenticated-private-v1" and target["visibility"] == "private"),
+                "files-v1 requires explicit private S3 capability and layout")
+        self.layout = layout
         self.private_preflight = False
         self.attempt = None
         self.anonymous = anonymous or http_session()
@@ -199,10 +203,13 @@ class S3:
     def bind_attempt(self, attempt):
         require(self.attempt is None, "An S3 store cannot change its local attempt binding")
         require(attempt.intent["destination"] == {key: self.target[key] for key in attempt.intent["destination"]}, "S3 attempt belongs to another destination")
+        require(attempt.intent.get("delivery_layout", "named-v1") == self.layout, "S3 attempt belongs to another delivery layout")
         self.attempt = attempt
 
     def before_mutation(self, phase, **data):
-        if self.attempt.intent["destination"] != {key: self.target[key] for key in self.attempt.intent["destination"]}:
+        if (self.attempt.intent["destination"] != {key: self.target[key] for key in self.attempt.intent["destination"]}
+                or self.attempt.intent.get("delivery_layout", "named-v1") != self.layout
+                or self.layout == "files-v1" and self.profile != "authenticated-private-v1"):
             self.attempt.record("binding-changed", after_phase=self.attempt.phase)
             raise EvidenceError("S3 destination changed before mutation")
         self.attempt.before(phase, **data)
@@ -216,6 +223,7 @@ class S3:
                 "Selected private S3 object has public grants")
 
     def access(self, key, row, *, named):
+        require(self.layout != "files-v1" or self.profile == "authenticated-private-v1", "Selected-file private capability changed")
         if self.profile == "authenticated-private-v1":
             require(self.private_preflight, "Private S3 policy preflight is required")
             try:
@@ -261,6 +269,12 @@ class S3:
                     "Public S3 delivery needs an explicit readable selected-prefix policy")
 
     def key(self, manifest, manifest_sha, row):
+        if self.layout == "files-v1":
+            require(row.get("role") == "output", "files-v1 transfers only selected output entries; metadata stays local")
+            h.safe_path(row["path"])
+            key = self.target["prefix"] + "/" + row["path"]
+            require(len(key.encode()) <= 1024, "Selected-file S3 key exceeds its bound")
+            return key
         key = self.target["prefix"] + "/named/v1/" + manifest["project_id"] + "/" + manifest["product_id"] + "/" + manifest_sha + "/" + row["path"]
         require(len(key.encode()) <= 1024, "Named S3 artifact key exceeds its bound")
         return key
@@ -370,7 +384,7 @@ class S3:
             if self.attempt:
                 self.attempt.record("access-uncertain", key=key)
             raise
-        if row["path"] == "product.json":
+        if self.layout == "named-v1" and row["path"] == "product.json":
             # The common authenticated fetch interface locates the original
             # manifest here, then verifies its named projection independently.
             canonical_key = self.target["prefix"] + "/manifests/" + manifest_sha + ".json"

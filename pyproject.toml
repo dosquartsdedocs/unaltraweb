@@ -64,6 +64,7 @@ unaltraweb_mcp = [
   "input-preparation-v1.schema.json",
   "practice-artifact-storage-v1.schema.json",
   "practice-artifact-storage-v2.schema.json",
+  "practice-artifact-storage-v3.schema.json",
   "retained-private-intake-v1.schema.json",
   "product-publication-v1.schema.json",
   "publication-policy-v1.schema.json",

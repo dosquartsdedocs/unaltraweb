@@ -527,6 +527,11 @@ def run_server(project: Path, factory: Path) -> None:
         """Explicit local retained paired-output admission for private archive, never author/scientific approval."""
         return Path(__file__).with_name("retained-private-intake-v1.schema.json").read_text(encoding="utf-8")
 
+    @mcp.resource("web://practice-artifact-storage-v3-schema")
+    def practice_artifact_storage_v3_schema_resource() -> str:
+        """Explicit named-v1 versus private selected-file files-v1 delivery per artifact."""
+        return Path(__file__).with_name("practice-artifact-storage-v3.schema.json").read_text(encoding="utf-8")
+
     @mcp.resource("web://publication-policy-schema")
     def publication_policy_schema_resource() -> str:
         """Adopted gaContExt project destinations; each Web artifact explicitly selects one."""
