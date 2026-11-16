@@ -51,6 +51,8 @@ which is not evidence that a future Git repository is compliant.
 | `sandbox/artifact-attempts` | directory | private-local-artifact-attempt-evidence | ignored | explicit |
 | `.unaltraweb/retained-intake.json` | file | explicit-retained-private-intake-request | versioned | never |
 | `sandbox/retained-handoffs` | directory | retained-private-handoff-admissions | ignored | explicit |
+| `.unaltraweb/original-archive.json` | file | explicit-original-private-archive-request | versioned | never |
+| `sandbox/original-archives` | directory | original-private-archive-admissions | ignored | explicit |
 | `.cache/scimago` | directory | external-bibliometrics-input-cache | ignored | explicit |
 | `.cache/unaltraweb/manual-pdf-publication-intent.json` | file | pdf-publication-recovery-intent | ignored | explicit |
 | `.cache/unaltraweb/manual-pdf-publication.json` | file | pdf-publication-provenance | ignored | explicit |

@@ -17,6 +17,10 @@ When an original student/teacher ZIP already contains its PDF reading, select
 receipts and editorial/proof evidence locally. This changes remote selection,
 not native packaging, original ZIP roots/names, language, recipient or approval.
 
+An original non-paired starter/data ZIP can instead use the explicit
+[original private archive admission](../original-private-archives/), which has no
+PDF/worker prerequisite and does not invent practice/native lineage.
+
 The existing per-artifact CLI/API adds an explicit route-v3
 `delivery_layout:"files-v1"`. It stores each selected `role:output` at exactly:
 

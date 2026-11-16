@@ -532,6 +532,11 @@ def run_server(project: Path, factory: Path) -> None:
         """Explicit named-v1 versus private selected-file files-v1 delivery per artifact."""
         return Path(__file__).with_name("practice-artifact-storage-v3.schema.json").read_text(encoding="utf-8")
 
+    @mcp.resource("web://original-private-archive-schema")
+    def original_private_archive_schema_resource() -> str:
+        """One original private ZIP, new byte admission and caller classification, without invented PDF/native lineage."""
+        return Path(__file__).with_name("original-private-archive-v1.schema.json").read_text(encoding="utf-8")
+
     @mcp.resource("web://publication-policy-schema")
     def publication_policy_schema_resource() -> str:
         """Adopted gaContExt project destinations; each Web artifact explicitly selects one."""
