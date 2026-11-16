@@ -41,6 +41,7 @@ ERRORS = {
     "retained-output-reference": "Selected PDF differs from original worker output seal or ZIP reading reference",
     "retained-input-changed": "Retained input differs from its exact reviewed SHA-256/size pin",
     "retained-admission-lineage": "Retained original reference/declaration lineage differs from its original evidence",
+    "retained-reading-hash-reference": "Original reading hash matches neither or ambiguously matches the independently bound PDF/source bytes",
 }
 
 
@@ -106,12 +107,32 @@ def declarations(manifest):
 
 
 def reference_family(original, manifest):
+    if "reading_receipt" in original:
+        guard("archive" in original and any(key in original for key in ("reading_receipt_sha256", "receipt_sha256", "pdf_receipt_sha256")), "retained-manifest-format")
+        return "package-reading-receipt-v1"
     if LOCAL_REFS.intersection(original):
         guard(LOCAL_REFS <= original.keys() and "archive" in original, "retained-manifest-format")
         return "package-local-reading-v1"
     guard("file" in original and isinstance(manifest.get("reading_receipts"), list)
           and 1 <= len(manifest["reading_receipts"]) <= 256, "retained-manifest-format")
     return "file-root-reading-receipts-v1"
+
+
+def recipient(original):
+    fields = [key for key in ("recipient", "role") if key in original]
+    guard(bool(fields) and isinstance(original[fields[0]], str) and original[fields[0]] in {"alumnat", "docent"}
+          and all(original[key] == original[fields[0]] for key in fields), "retained-recipient-mismatch")
+    return original[fields[0]]
+
+
+def worker_fields(original, item):
+    fields = {}
+    for label, names, expected in (("path", ("pdf_receipt", "reading_receipt"), item["pdf_receipt"]["path"]),
+                                  ("sha256", ("pdf_receipt_sha256", "reading_receipt_sha256", "receipt_sha256"), item["pdf_receipt"]["sha256"])):
+        present = [key for key in names if key in original]
+        guard(bool(present) and all(original[key] == expected for key in present), "retained-worker-reference")
+        fields[label] = present
+    return fields
 
 
 def specification(request, manifest):
@@ -123,7 +144,7 @@ def specification(request, manifest):
     require(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,199}", manifest["version"]), "Original version is not an exportable identity label; never normalise it silently")
     packages = manifest["packages"]
     require(isinstance(packages, list) and 1 <= len(packages) <= 2 and all(isinstance(row, dict) for row in packages), "Invalid original recipient package list")
-    by_who = {row.get("recipient"): row for row in packages}
+    by_who = {recipient(row): row for row in packages}
     require(len(by_who) == len(packages) and set(by_who) <= {"alumnat", "docent"}, "Conflicting original recipient assignments")
     require(len({row["recipient"] for row in request["packages"]}) == len(request["packages"]), "Duplicate requested recipient")
     base = Path(request["handoff"]["manifest"]["path"]).parent
@@ -141,8 +162,8 @@ def specification(request, manifest):
             h.safe_path(row["path"])
             require(Path(row["path"]).parent == base and row["path"].endswith(suffix), "Selected output is outside the retained handoff or has the wrong format")
             dependencies.append(row["path"])
-        if family == "package-local-reading-v1":
-            guard(item["pdf_receipt"]["path"] == original["pdf_receipt"] and item["pdf_receipt"]["sha256"] == original["pdf_receipt_sha256"], "retained-worker-reference")
+        if family in {"package-local-reading-v1", "package-reading-receipt-v1"}:
+            worker_fields(original, item)
         h.safe_path(item["pdf_artifact"])
         h.safe_path(item["reading_member"])
         guard(item["pdf_artifact"].startswith("outputs/") and item["pdf_artifact"].endswith(".pdf")
@@ -163,11 +184,39 @@ def worker_receipt(raw, item, original, *, manifest, language):
           and all(isinstance(value.get(key), dict) for key in ("renderer", "effective_source", "factory_inputs", "original_inputs")), "retained-worker-reference")
     family = reference_family(original, manifest)
     package_pointer = "/packages/" + str(next(index for index, row in enumerate(manifest["packages"]) if row is original))
-    if family == "package-local-reading-v1":
-        reading_pointer, source = package_pointer, original["reading_source"]
-        source_sha = original["reading_sha256"]
-        source_origin = {"document": "original-manifest", "pointer": package_pointer + "/reading_sha256"}
-        worker_origin = package_pointer + "/pdf_receipt"
+    additions = {}
+    if family in {"package-local-reading-v1", "package-reading-receipt-v1"}:
+        fields = worker_fields(original, item)
+        reading_pointer, source = package_pointer, original.get("reading_source", value.get("source"))
+        source_sha = value["original_inputs"].get(source) if isinstance(source, str) else None
+        source_origin = {"document": "original-worker-receipt", "sha256": item["pdf_receipt"]["sha256"],
+                         "pointer": "/original_inputs/" + source.replace("~", "~0").replace("/", "~1") if isinstance(source, str) else None}
+        worker_origin = package_pointer + "/" + fields["path"][0]
+        declared_hash = original.get("reading_sha256")
+        meaning = "not-declared"
+        if "reading_sha256" in original:
+            is_source = isinstance(source_sha, str) and declared_hash == source_sha
+            is_pdf = declared_hash == item["pdf"]["sha256"]
+            guard(is_source != is_pdf, "retained-reading-hash-reference")
+            meaning = "markdown-source" if is_source else "delivered-pdf"
+            if is_source and family == "package-local-reading-v1":
+                # Preserve the original supported projection exactly, including
+                # its manifest source-hash origin, for old receipts/stages.
+                source_origin = {"document": "original-manifest", "pointer": package_pointer + "/reading_sha256"}
+            elif is_pdf and family == "package-local-reading-v1":
+                family = "package-local-pdf-reading-v1"
+        if family == "package-local-reading-v1" and "recipient" not in original:
+            family = "package-local-role-v1"
+        if family != "package-local-reading-v1":
+            additions = {"original_field_origins": {
+                "recipient": [package_pointer + "/" + key for key in ("recipient", "role") if key in original],
+                "worker_path": [package_pointer + "/" + key for key in fields["path"]],
+                "worker_sha256": [package_pointer + "/" + key for key in fields["sha256"]],
+                "source": {"document": "original-manifest", "pointer": package_pointer + "/reading_source"} if "reading_source" in original
+                          else {"document": "original-worker-receipt", "sha256": item["pdf_receipt"]["sha256"], "pointer": "/source"},
+                "reading_hash": {"present": "reading_sha256" in original, "value": declared_hash,
+                                 "pointer": package_pointer + "/reading_sha256" if "reading_sha256" in original else None, "semantics": meaning}},
+                "delivered_pdf_sha256": item["pdf"]["sha256"], "delivered_pdf_origin": {"document": "original-worker-receipt", "sha256": item["pdf_receipt"]["sha256"], "pointer": "/artifacts/" + item["pdf_artifact"].replace("~", "~0").replace("/", "~1")}}
     else:
         pdf_path = (Path(item["pdf_receipt"]["path"]).parent / item["pdf_artifact"]).as_posix()
         # Only selected exact path anchors are authority. Other/case rows remain
@@ -192,7 +241,7 @@ def worker_receipt(raw, item, original, *, manifest, language):
     references = {"family": family, "package_pointer": package_pointer, "archive_fields": [key for key in ("archive", "file") if key in original],
                   "reading_pointer": reading_pointer, "source": source, "source_sha256": source_sha, "source_sha256_origin": source_origin,
                   "worker_reference_origin": worker_origin, "worker_receipt": item["pdf_receipt"], "pdf_artifact": item["pdf_artifact"],
-                  "reading_member": item["reading_member"], "recipient": item["recipient"], "language": language}
+                  "reading_member": item["reading_member"], "recipient": item["recipient"], "language": language, **additions}
     return {"receipt_bytes": "checked", "selected_pdf_and_source_references": "checked", "renderer_effective_source_factory_claims": "inherited-not-reexecuted"}, references
 
 

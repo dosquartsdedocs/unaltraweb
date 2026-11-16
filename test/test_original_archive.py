@@ -254,6 +254,39 @@ class OriginalArchiveTests(unittest.TestCase):
         for value in ("PRIVATE_", "build.py", "wms.example", str(f.root)):
             self.assertNotIn(value, stderr.getvalue())
 
+    def test_existing_public_student_asset_empty_directories_needs_no_pdf_or_visibility_change(self):
+        from tigit_like_archive_fixtures import public_student_download
+        import xml.etree.ElementTree as ET
+        f = self.f
+        public_student_download(f)
+        original = (f.root / f.path).read_bytes()
+        site = (f.root / "_config.yml").read_bytes()
+        planned = self.plan()
+        self.assertEqual((planned["plan"]["checks"]["zip"]["files"], planned["plan"]["checks"]["zip"]["directories"]), (3, 7))
+        self.assertEqual(planned["plan"]["specification"]["classification"]["role"], "student")
+        self.assertEqual(planned["plan"]["specification"]["classification"]["language"], "unknown")
+        self.assertFalse(planned["plan"]["truth"]["pdf_required"] or planned["plan"]["truth"]["scientific_validation_performed"])
+        admitted = self.snapshot()
+        _, sha = f.route(admitted)
+        staged = pub.stage(f.root, pub.CONFIG, sha, "starter", "sandbox/artifacts/public-original/private-copy")
+        client = providers.MemoryS3()
+        result = pub.transfer(f.root, pub.CONFIG, sha, "starter", staged["stage"], staged["manifest_sha256"], connector=lambda selected,*args:
+            artifact_transports.S3(selected["destination"], client, profile=selected["storage_profile"], layout=selected["delivery_layout"], anonymous=providers.Anonymous()))
+        self.assertTrue(result["verified"])
+        self.assertEqual(set(client.objects), {"originals/course-starter-student.zip"})
+        self.assertEqual(client.objects["originals/course-starter-student.zip"]["Body"], original)
+        with zipfile.ZipFile(io.BytesIO(original)) as archive:
+            self.assertEqual(sum(item.is_dir() for item in archive.infolist()), 7)
+            with zipfile.ZipFile(io.BytesIO(archive.read("starter.xlsx"))) as workbook:
+                self.assertEqual(len(ET.fromstring(workbook.read("xl/workbook.xml")).findall("./sheets/sheet")), 13)
+                self.assertFalse(any(ET.fromstring(workbook.read(name)).findall(".//f") for name in workbook.namelist() if name.startswith("xl/worksheets/")))
+        self.assertEqual((f.root / f.path).read_bytes(), original)
+        self.assertEqual((f.root / "_config.yml").read_bytes(), site)
+        self.assertEqual((f.root / admitted["snapshot"]).stat().st_mode & 0o777, 0o700)
+        metadata = json.loads(staged["metadata"])
+        self.assertNotIn("original_private", metadata)
+        self.assertEqual(metadata["classification_origin"], "caller-selection-not-original-seal")
+
 
 if __name__ == "__main__":
     unittest.main()

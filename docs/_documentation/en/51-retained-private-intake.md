@@ -109,7 +109,8 @@ Hash-only/missing old proof paths remain unresolved in the new receipt. A missin
 
 ### Original manifest reference families
 
-The request schema/fields stay identical for these two explicit families:
+The request schema/fields stay identical for these original reference families
+and their explicit package-field variants:
 
 - **Package-local reading references:** original packages declare `archive`,
   `sha256`, `members`, `reading_source`, `reading_sha256`, `pdf_receipt` and
@@ -124,6 +125,32 @@ The request schema/fields stay identical for these two explicit families:
   SHA comes from that **original pinned worker** `original_inputs[source]`, not a
   fabricated manifest field. The ZIP member, standalone PDF and selected worker
   artifact must bind the same exact bytes.
+
+Original package variants may instead declare `role` (rather than `recipient`),
+`reading_receipt` (rather than `pdf_receipt`) and either
+`reading_receipt_sha256` or `receipt_sha256`. Those are original field names,
+not instructions to rewrite the manifest. Present recipient/role aliases must
+agree exactly and be `alumnat`/`docent`; all present worker path/hash aliases must
+match the exact selected worker pin. Missing/conflicting aliases refuse. When
+these original packages contain no reading source/hash declaration, the original
+pinned worker's `source` and `original_inputs[source]` supply that reference with
+their worker origin explicitly recorded locally.
+
+An original package's `reading_sha256` is not assumed to mean Markdown. It must
+match exactly one of the independently sealed PDF or worker Markdown hashes.
+The PDF must already match the selected original PDF, ZIP member and worker
+artifact. If the field denotes PDF, its exact original value/pointer/semantics
+remain `delivered-pdf` while the separate source SHA retains its original worker
+`original_inputs` origin. Neither value replaces the other. A hash matching
+neither or ambiguously both refuses as `retained-reading-hash-reference`; using
+the PDF hash as a source pin does not bypass actual source verification.
+
+New variant projections retain original JSON field origins and the independent
+PDF/source values. Existing canonical package-local Markdown and root-reading
+projections stay byte-exact, so retained receipts/staged producer/manifest identity
+do not change merely because more original shapes are now understood. Raw
+manifests, folders and delivery names are never normalized or renamed. Handoff
+slug and activity remain explicitly separate, including true historical aliases.
 
 An original `archive`/`file` alias may coexist only when both spell the same
 selected filename. Partial/mixed package-local reference fields, conflicting
@@ -148,7 +175,7 @@ include `retained-manifest-format`, `retained-archive-reference`,
 `retained-recipient-mismatch`, `retained-language-mismatch`,
 `retained-worker-reference`, `retained-source-reference`,
 `retained-output-reference`, `retained-input-changed` and
-`retained-admission-lineage`; other bounded refusals use
+`retained-admission-lineage`, plus `retained-reading-hash-reference`; other bounded refusals use
 `retained-intake-refused`. Messages contain no original teacher/provider bodies,
 opaque command/stdout text or credential material.
 
