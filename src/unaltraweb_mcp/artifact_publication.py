@@ -200,9 +200,21 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
         actual, _, raw = workspace.read(route["receipt"], 1024**2, collect=True)
         require(actual == route["receipt_sha256"], "Native practice receipt differs from its selected seal")
         receipt = strict_json(raw.decode())
-        from . import retained_intake
+        from . import original_archive, retained_intake
+        original = isinstance(receipt, dict) and receipt.get("kind") == original_archive.KIND
         retained = isinstance(receipt, dict) and receipt.get("kind") == retained_intake.KIND
-        if retained:
+        if original:
+            selected = original_archive.artifact(workspace, project, route["receipt"], route["receipt_sha256"])
+            target = selection["publication"]["targets"][route["target"]]
+            require(layout == "files-v1" and route["format"] == "zip" and target["driver"] == "s3" and target["visibility"] == "private"
+                    and route.get("storage_profile") == "authenticated-private-v1", "Original archives require explicit private authenticated files-v1 ZIP storage")
+            current_repo = consumer_repository(project, selection.get("consumer_repository"))
+            require(all(selected["consumer_repository"].get(key) == current_repo[key] for key in ("host", "repository")), "Original archive belongs to another consumer repository")
+            role = selected["classification"]["role"]
+            allowed = {"teacher", "private"} if role == "teacher" else {"student", "private"} if role == "student" else {"private"}
+            require(route["audience"] in allowed, "Original archive caller role is unknown/private or differs from selected private audience")
+            who, row, source = None, selected["row"], selected["source"]
+        elif retained:
             selected = retained_intake.artifact(workspace, project, route["receipt"], route["receipt_sha256"])
             target = selection["publication"]["targets"][route["target"]]
             require(target["driver"] == "s3" and target["visibility"] == "private"
@@ -236,7 +248,11 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
         workspace.recheck()
     target = selection["publication"]["targets"][route["target"]]
     require(layout != "files-v1" or len((target["prefix"] + "/" + row["path"]).encode()) <= 1024, "Selected-file S3 key exceeds its bound")
-    if retained:
+    if original:
+        metadata = canonical({"kind": "unaltraweb.original-private-archive", "schema_version": 1, "purpose": "private-archive",
+                              "artifact_id": artifact, "archive_id": selected["archive_id"], "classification": selected["classification"],
+                              "admission_receipt_sha256": route["receipt_sha256"], **selected["truth"]})
+    elif retained:
         handoff = selected["handoff"]
         metadata = canonical({"kind": "unaltraweb.retained-private-artifact", "schema_version": 1, "purpose": "private-archive", "artifact_id": artifact,
                               "handoff_slug": handoff["slug"], "activity": handoff["activity"], "version": handoff["version"], "language": handoff["language"],
@@ -259,7 +275,7 @@ def plan(project: Path, config: str, sha256: str, artifact: str, *, staged=None,
                 "files": [{"path": row["path"], "bytes": size, "sha256": actual, "role": "output",
                            "media_type": "application/zip" if route["format"] == "zip" else "application/pdf"},
                           {"path": "artifact.json", "bytes": len(metadata), "sha256": digest(metadata), "role": "evidence", "media_type": "application/json"}],
-                "native": {"format": "unaltraweb-retained-private-artifact-v1" if retained else "unaltraweb-practice-artifact-v1", "manifest_sha256": digest(metadata)}}
+                "native": {"format": "unaltraweb-original-private-archive-v1" if original else "unaltraweb-retained-private-artifact-v1" if retained else "unaltraweb-practice-artifact-v1", "manifest_sha256": digest(metadata)}}
     shape(manifest, "product-publication-v1.schema.json")
     content = canonical(manifest)
     if staged is not None:

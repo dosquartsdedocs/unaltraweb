@@ -121,6 +121,8 @@ def main() -> int:
             "unaltraweb_mcp/artifact_publication.py",
             "unaltraweb_mcp/artifact_attempts.py",
             "unaltraweb_mcp/retained_intake.py",
+            "unaltraweb_mcp/original_archive.py",
+            "unaltraweb_mcp/original-private-archive-v1.schema.json",
             "unaltraweb_mcp/retained-private-intake-v1.schema.json",
             "unaltraweb_mcp/artifact_transports.py",
             "unaltraweb_mcp/practice-artifact-storage-v1.schema.json",
@@ -173,6 +175,9 @@ def main() -> int:
         intake_help = run([str(environment / "bin/unaltraweb-retained-intake"), "--help"], cwd=temp).stdout
         if "--expected-plan-sha256" not in intake_help or "snapshot" not in intake_help:
             raise RuntimeError("Installed private retained-intake CLI is missing its local reviewed-plan interface")
+        archive_help = run([str(environment / "bin/unaltraweb-original-archive"), "--help"], cwd=temp).stdout
+        if "--expected-plan-sha256" not in archive_help or "snapshot" not in archive_help:
+            raise RuntimeError("Installed original-private-archive CLI is missing its explicit local admission interface")
         docker_cli = environment / "bin/unaltraweb-mcp-docker"
         launcher = Path(run([str(docker_cli), "path"], cwd=temp).stdout.strip())
         if launcher != environment / "share/unaltraweb-launcher":

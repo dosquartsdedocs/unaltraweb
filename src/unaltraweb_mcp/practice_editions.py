@@ -359,9 +359,9 @@ def check_zip_directory(source):
 
 
 def verify_zip_inventory(archive, hashes, *, sizes=None):
-    """Shared bounded byte inventory, not GIS validation or extraction."""
+    """Shared bounded byte inventory; None observes NEW hashes, never an old seal."""
     infos = archive.infolist()
-    require(isinstance(hashes, dict) and 0 < len(infos) <= handoff.MAX_ENTRIES, "Invalid bounded ZIP inventory")
+    require((hashes is None or isinstance(hashes, dict)) and 0 < len(infos) <= handoff.MAX_ENTRIES, "Invalid bounded ZIP inventory")
     require(len({item.filename for item in infos}) == len(infos), "Duplicate ZIP member")
     files, directories = {}, set()
     for item in infos:
@@ -372,7 +372,7 @@ def verify_zip_inventory(archive, hashes, *, sizes=None):
                 and item.compress_type in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}, "ZIP links, encryption or unsupported entries refused")
         require(0 <= item.file_size <= handoff.MAX_TOTAL_BYTES, "ZIP member exceeds its byte budget")
         if item.is_dir():
-            require(item.file_size == 0 and (item.filename not in hashes or hashes[item.filename] == digest(b"")), "Invalid ZIP directory declaration")
+            require(item.file_size == 0 and (hashes is None or item.filename not in hashes or hashes[item.filename] == digest(b"")), "Invalid ZIP directory declaration")
             directories.add(name)
         else:
             require(stat.S_IFMT(mode) != stat.S_IFDIR, "ZIP file has conflicting directory type")
@@ -384,11 +384,12 @@ def verify_zip_inventory(archive, hashes, *, sizes=None):
         for length in range(1, len(parts) + 1):
             prefix = "/".join(parts[:length])
             require(aliases.setdefault(prefix.casefold(), prefix) == prefix, "ZIP has case-aliased paths")
-    require(not directories.intersection(files) and set(files) == {name for name in hashes if not name.endswith("/")}
-            and set(hashes) <= {item.filename for item in infos}, "ZIP inventory differs from original member declarations")
+    require(not directories.intersection(files) and (hashes is None or set(files) == {name for name in hashes if not name.endswith("/")}
+            and set(hashes) <= {item.filename for item in infos}), "ZIP inventory differs from original member declarations")
     require(sum(item.file_size for item in files.values()) <= handoff.MAX_TOTAL_BYTES, "ZIP exceeds its total expanded byte budget")
+    observed = {}
     for name, item in files.items():
-        require(isinstance(hashes[name], str) and re.fullmatch(r"[0-9a-f]{64}", hashes[name]), "Invalid ZIP member hash")
+        require(hashes is None or isinstance(hashes[name], str) and re.fullmatch(r"[0-9a-f]{64}", hashes[name]), "Invalid ZIP member hash")
         require(sizes is None or item.file_size == sizes[name], "ZIP member size differs")
         hasher, count = hashlib.sha256(), 0
         with archive.open(item) as source:
@@ -396,9 +397,11 @@ def verify_zip_inventory(archive, hashes, *, sizes=None):
                 count += len(piece)
                 require(count <= item.file_size, "ZIP member grew beyond its declared size")
                 hasher.update(piece)
-        require(count == item.file_size and hasher.hexdigest() == hashes[name], "ZIP member differs from original declared bytes")
+        require(count == item.file_size and (hashes is None or hasher.hexdigest() == hashes[name]), "ZIP member differs from original declared bytes")
+        observed[name] = {"sha256": hasher.hexdigest(), "bytes": count}
     return {"files": len(files), "directories": len(directories), "expanded_bytes": sum(item.file_size for item in files.values()),
-            "member_content_hashes": "freshly-checked", "extracted": False, "scientific_validation": "not-performed"}
+            "member_content_hashes": "freshly-checked", "extracted": False, "scientific_validation": "not-performed",
+            **({"observed_members": observed} if hashes is None else {})}
 
 
 def sealed_reading(workspace, result):

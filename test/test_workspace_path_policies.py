@@ -120,6 +120,7 @@ class WorkspacePolicyContractTests(unittest.TestCase):
         self.assertEqual((POLICIES["sandbox/artifacts"]["git"], POLICIES["sandbox/artifacts"]["cleanup"]), ("ignored", "explicit"))
         self.assertEqual((POLICIES["sandbox/artifact-attempts"]["git"], POLICIES["sandbox/artifact-attempts"]["cleanup"]), ("ignored", "explicit"))
         self.assertEqual((POLICIES["sandbox/retained-handoffs"]["git"], POLICIES["sandbox/retained-handoffs"]["cleanup"]), ("ignored", "explicit"))
+        self.assertEqual((POLICIES["sandbox/original-archives"]["git"], POLICIES["sandbox/original-archives"]["cleanup"]), ("ignored", "explicit"))
         self.assertEqual((POLICIES[".unaltraweb/practice-artifacts.json"]["git"], POLICIES[".unaltraweb/practice-artifacts.json"]["cleanup"]), ("versioned", "never"))
         self.assertEqual((POLICIES[".unaltraweb/artifacts"]["git"], POLICIES[".unaltraweb/artifacts"]["cleanup"]), ("versioned", "never"))
         self.assertIn(".unaltraweb/artifacts", rule["source_paths"])

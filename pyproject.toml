@@ -34,6 +34,7 @@ unaltraweb-source-checks = "unaltraweb_mcp.source_checks:main"
 unaltraweb-prepare-inputs = "unaltraweb_mcp.input_preparation:main"
 unaltraweb-practice-artifacts = "unaltraweb_mcp.artifact_publication:main"
 unaltraweb-retained-intake = "unaltraweb_mcp.retained_intake:main"
+unaltraweb-original-archive = "unaltraweb_mcp.original_archive:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -66,6 +67,7 @@ unaltraweb_mcp = [
   "practice-artifact-storage-v2.schema.json",
   "practice-artifact-storage-v3.schema.json",
   "retained-private-intake-v1.schema.json",
+  "original-private-archive-v1.schema.json",
   "product-publication-v1.schema.json",
   "publication-policy-v1.schema.json",
   "manual-context-v1.schema.json",

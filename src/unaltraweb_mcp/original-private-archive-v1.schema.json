@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Explicit original private archive admission v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["kind", "schema_version", "purpose", "consumer_repository", "archive_id", "archive", "snapshot", "classification", "evidence", "member_references", "checksums"],
+  "properties": {
+    "kind": {"const": "unaltraweb.original-private-archive"},
+    "schema_version": {"type": "integer", "const": 1},
+    "purpose": {"const": "private-archive"},
+    "consumer_repository": {"type": "object", "additionalProperties": false, "required": ["remote", "host", "repository"],
+      "properties": {"remote": {"$ref": "#/$defs/id"}, "host": {"enum": ["github.com", "bitbucket.org"]}, "repository": {"type": "string", "minLength": 3, "maxLength": 201}}},
+    "archive_id": {"$ref": "#/$defs/id"},
+    "archive": {"$ref": "#/$defs/file"},
+    "snapshot": {"type": "string", "minLength": 1, "maxLength": 1024},
+    "classification": {"type": "object", "additionalProperties": false,
+      "required": ["kind", "role", "language", "human_approval", "native_reopen", "scientific_validation", "full_offline"],
+      "properties": {
+        "kind": {"enum": ["initial-project", "data-archive"]},
+        "role": {"enum": ["unknown", "private", "student", "teacher"]},
+        "language": {"enum": ["unknown", "ca", "es", "en"]},
+        "human_approval": {"enum": ["unknown", "not-approved", "caller-reported"]},
+        "native_reopen": {"enum": ["unknown", "not-performed", "caller-reported"]},
+        "scientific_validation": {"enum": ["unknown", "not-performed", "caller-reported"]},
+        "full_offline": {"enum": ["unknown", "not-qualified", "requires-network", "caller-reported"]}
+      }},
+    "evidence": {"type": "array", "maxItems": 8, "items": {"type": "object", "additionalProperties": false, "required": ["id", "role", "file"],
+      "properties": {"id": {"$ref": "#/$defs/id"}, "role": {"enum": ["provenance", "metadata", "checksums"]}, "file": {"$ref": "#/$defs/file"}}}},
+    "member_references": {"type": "array", "maxItems": 16, "items": {"type": "object", "additionalProperties": false, "required": ["role", "path", "sha256"],
+      "properties": {"role": {"enum": ["provenance", "metadata", "checksums"]}, "path": {"type": "string", "minLength": 1, "maxLength": 1024}, "sha256": {"$ref": "#/$defs/hash"}}}},
+    "checksums": {"type": "array", "maxItems": 4, "items": {"type": "object", "additionalProperties": false, "required": ["source", "path", "scope", "base"],
+      "properties": {"source": {"enum": ["member", "evidence"]}, "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "scope": {"enum": ["members", "archive"]}, "base": {"type": "string", "maxLength": 1024}}}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"},
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "file": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "bytes"],
+      "properties": {"path": {"type": "string", "minLength": 1, "maxLength": 1024}, "sha256": {"$ref": "#/$defs/hash"},
+        "bytes": {"type": "integer", "minimum": 0, "maximum": 536870912}}}
+  }
+}
