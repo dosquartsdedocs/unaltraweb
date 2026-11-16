@@ -25,6 +25,13 @@ teaching/author/native/scientific/public approval or offline qualification is
 granted. Plan/snapshot perform no GIS, rendering, authoring, network, credential,
 storage or catalogue operation.
 
+An original reader-downloadable/public student asset can be archived privately
+without declaring its original source private or changing site visibility.
+Safe empty ZIP directory entries are retained along with the exact original file
+bytes. Explicit caller-known student role/unknown language remains classification,
+not a newly invented approval/recalculation/offline certificate. The snapshot and
+its new metadata still require ignored/excluded/private local storage.
+
 The existing paired intake remains strict about PDF/worker/member lineage. The
 retained-letter importer likewise requires its own authentic native bundle and
 rendering profile. This additional class fills only the original-ZIP admission
