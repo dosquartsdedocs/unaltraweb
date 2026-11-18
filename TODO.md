@@ -8,13 +8,29 @@ Use the term **site profile** for prepared website families such as `unaltreself
 
 The goal is not to maintain one personal site here. The goal is to make a self-owned alternative to the inherited `al-folio` base, supporting academic personal sites, research project sites and documentation/course sites.
 
+## Active review and per-artifact practice storage — 2026-11-12
+
+- PR129 (temporary release-candidate transport) and PR130 (early input preparation
+  and tabular editions) have passing remote CI and remain open. Local review:
+  [review and adoption record](docs/agents/practice-artifact-storage-review.md).
+- The working source corrects #114 by pruning explicitly excluded private trees
+  before traversal, retaining strict validation of admitted sources/site output.
+- Durable practice artifacts now have explicit per-artifact GitHub Release or
+  S3/S4 routes, adopting gaContExt's frozen product/publication v1 schemas.
+  Selected PDFs/ZIPs retain their native seals; teacher material stays restricted.
+  See [the contract and commands](docs/_documentation/en/50-practice-artifact-storage.md).
+- Next gates: review/integration, a runtime containing the interface, and owner
+  selection/qualification of the practice bucket/prefix and CI/host bindings.
+  Real manual/practice adoption and rendered teaching review remain owner work.
+
 ## Portable manual context — #121
 
-Candidate **0.8.1** implements the real-pilot P1 check-only computation-input role
+Published **0.8.1** implements the real-pilot P1 check-only computation-input role
 and P2 HTML metadata restoration, preserving the v1 schema and public boundaries.
 See [repair evidence](docs/agents/manual-context-fix-121.md). Review125 and #116
-remain separate checkpoints. Publication, new hub intake and a real TIGIT export
-are still explicit next gates; the selected public launcher remains 0.8.0.
+remain separate checkpoints. The release was published on 2026-11-04 and PR128
+selected its verified MCP digest. New hub intake and a real TIGIT export remain
+separate owner gates.
 
 Published [0.8.0](https://github.com/dosquartsdedocs/unaltraweb/releases/tag/v0.8.0)
 adds bound MCP/CLI context-v1 exports with native
