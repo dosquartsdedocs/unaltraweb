@@ -8,20 +8,25 @@ Use the term **site profile** for prepared website families such as `unaltreself
 
 The goal is not to maintain one personal site here. The goal is to make a self-owned alternative to the inherited `al-folio` base, supporting academic personal sites, research project sites and documentation/course sites.
 
-## Active review and per-artifact practice storage — 2026-11-12
+## Open practice source reviews — 2026-11-18
 
-- PR129 (temporary release-candidate transport) and PR130 (early input preparation
-  and tabular editions) have passing remote CI and remain open. Local review:
-  [review and adoption record](docs/agents/practice-artifact-storage-review.md).
-- The working source corrects #114 by pruning explicitly excluded private trees
-  before traversal, retaining strict validation of admitted sources/site output.
-- Durable practice artifacts now have explicit per-artifact GitHub Release or
-  S3/S4 routes, adopting gaContExt's frozen product/publication v1 schemas.
-  Selected PDFs/ZIPs retain their native seals; teacher material stays restricted.
-  See [the contract and commands](docs/_documentation/en/50-practice-artifact-storage.md).
-- Next gates: review/integration, a runtime containing the interface, and owner
-  selection/qualification of the practice bucket/prefix and CI/host bindings.
-  Real manual/practice adoption and rendered teaching review remain owner work.
+- PR129 (temporary candidates) and PR130 (pinned input preparation/tabular
+  editions) remain independent open reviews. PR131–138 form the later draft stack;
+  green source CI is not merge, publication or consumer adoption approval.
+- Reviewed source head `e588127` is already remote PR138, not nine unpublished
+  commits to push to PR130. Keep those earlier review refs and receipts intact.
+- The stack adds the #114 private-source fix, repository-bound private S4,
+  ZIP-only files-v1, honest original-ZIP admission and retained reference variants
+  with separate original PDF/Markdown hash origins. These APIs are not in the
+  immutable published v0.8.1 release.
+- Original ZIP bytes/names stay exact; inventories, receipts and delivery metadata
+  stay local. Common files-v1 fetch needs retained local inventory, not remote-only
+  metadata recovery. See [source review](docs/agents/practice-artifact-storage-review.md),
+  [original archives](docs/_documentation/en/53-original-private-archives.md) and
+  [reference variants](docs/agents/retained-variant-batch.md).
+- Next gates: exact source integration and a new reviewed version/matching MCP-PDF
+  tuple, then owner-selected TIG/TIGIT plans, admissions, buckets `tig`/`tigit`,
+  prefixes and auth. Teaching review, public links and cloud writes stay separate.
 
 ## Portable manual context — #121
 
