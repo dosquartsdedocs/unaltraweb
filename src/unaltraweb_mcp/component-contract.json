@@ -8,10 +8,10 @@
   "consumer_integration": {
     "schema_version": 1,
     "core_repository": "https://github.com/dosquartsdedocs/unaltraweb.git",
-    "core_sha": "9d97197dec5fc9346ab795191a3afd18884c27fb",
+    "core_sha": "7db24abf329ad46395e20665ad718a449b906a1f",
     "site_deploy_workflow": "dosquartsdedocs/unaltraweb/.github/workflows/site-deploy.yml",
-    "site_deploy_workflow_sha": "3332e0b93933f12317e05f1ce8d38ce80046feab",
-    "manual_pdf_image": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:1bb3f2dafd741e96c28639ec1cc8ccaeb81cbaa73e649f787c0b4ef59997bd4b",
+    "site_deploy_workflow_sha": "7db24abf329ad46395e20665ad718a449b906a1f",
+    "manual_pdf_image": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:38f62cba21cd2b50a3512bd00743a3a8413c89b99f51b55d1bb47d1bb72bad3c",
     "vegavisuals_sha": "a448cc50a5f511743a6fcfc213baeb9be80f4a27"
   },
   "deployment_contract": {
@@ -28,6 +28,10 @@
       {
         "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:1bb3f2dafd741e96c28639ec1cc8ccaeb81cbaa73e649f787c0b4ef59997bd4b",
         "producer_sha": "b7ec1d7a139c65b3b0b88699cdbeb19080f13be1"
+      },
+      {
+        "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:38f62cba21cd2b50a3512bd00743a3a8413c89b99f51b55d1bb47d1bb72bad3c",
+        "producer_sha": "987412c72bee7f643125c5d7ce2cb1ee75416360"
       }
     ],
     "caller_migrations": [
@@ -144,10 +148,10 @@
     "manual_pdf": {
       "kind": "container",
       "name": "unaltraweb manual PDF worker",
-      "version": "0.7.1",
-      "release": "v0.7.1",
+      "version": "0.9.0",
+      "release": "v0.9.0",
       "release_status": "released",
-      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:1bb3f2dafd741e96c28639ec1cc8ccaeb81cbaa73e649f787c0b4ef59997bd4b",
+      "reference": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:38f62cba21cd2b50a3512bd00743a3a8413c89b99f51b55d1bb47d1bb72bad3c",
       "image_repository": "ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf",
       "repository": "https://github.com/dosquartsdedocs/unaltraweb",
       "included_in_wheel": false,

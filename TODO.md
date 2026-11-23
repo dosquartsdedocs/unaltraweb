@@ -10,11 +10,12 @@ The goal is not to maintain one personal site here. The goal is to make a self-o
 
 ## Software integration candidate 0.9.0 — 2026-11-23
 
-Owner-authorized integration retains the original PR129 and dependency-ordered
-PR130–139 histories. The additive APIs use a new 0.9.0 software candidate; public
-0.8.1 remains immutable. Protected exact-head CI, a matching new PDF builder and
-the normal signed-candidate/receipt/tag/package procedures remain release gates.
-See [the release scope](docs/agents/software-release-090.md).
+PR142 integrated the original PR129 and dependency-ordered PR130–139 histories
+normally at `987412c72bee7f643125c5d7ce2cb1ee75416360`. Exact-main CI/CodeQL and initial
+signed image workflow45185571925 passed. The 0.9.0 candidate now selects the
+verified new PDF and its record-bearing core/workflow ancestor. Public0.8.1
+remains unchanged; final candidate/receipt/tag/package and public-byte gates
+still precede stable publication. See [the release scope](docs/agents/software-release-090.md).
 
 The intended English technical directory is `practices/`; current original
 `practiques/` contracts/receipts and explicit `_practices/` legacy mappings remain
