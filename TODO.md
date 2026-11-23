@@ -8,6 +8,20 @@ Use the term **site profile** for prepared website families such as `unaltreself
 
 The goal is not to maintain one personal site here. The goal is to make a self-owned alternative to the inherited `al-folio` base, supporting academic personal sites, research project sites and documentation/course sites.
 
+## Software integration candidate 0.9.0 — 2026-11-23
+
+Owner-authorized integration retains the original PR129 and dependency-ordered
+PR130–139 histories. The additive APIs use a new 0.9.0 software candidate; public
+0.8.1 remains immutable. Protected exact-head CI, a matching new PDF builder and
+the normal signed-candidate/receipt/tag/package procedures remain release gates.
+See [the release scope](docs/agents/software-release-090.md).
+
+The intended English technical directory is `practices/`; current original
+`practiques/` contracts/receipts and explicit `_practices/` legacy mappings remain
+unchanged pending a compatible producer correction. Thin manual facades and the
+installed context-export closure are separately bounded work. No consumer
+migration, manual editing, pin update or teaching S4 operation follows implicitly.
+
 ## Open practice source reviews — 2026-11-18
 
 - PR129 (temporary candidates) and PR130 (pinned input preparation/tabular
