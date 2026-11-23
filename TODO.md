@@ -8,14 +8,26 @@ Use the term **site profile** for prepared website families such as `unaltreself
 
 The goal is not to maintain one personal site here. The goal is to make a self-owned alternative to the inherited `al-folio` base, supporting academic personal sites, research project sites and documentation/course sites.
 
-## Software integration candidate 0.9.0 — 2026-11-23
+## Published software 0.9.0 and source-only defaults — 2026-11-23
 
-PR142 integrated the original PR129 and dependency-ordered PR130–139 histories
-normally at `987412c72bee7f643125c5d7ce2cb1ee75416360`. Exact-main CI/CodeQL and initial
-signed image workflow45185571925 passed. The 0.9.0 candidate now selects the
-verified new PDF and its record-bearing core/workflow ancestor. Public0.8.1
-remains unchanged; final candidate/receipt/tag/package and public-byte gates
-still precede stable publication. See [the release scope](docs/agents/software-release-090.md).
+PR142 preserved the original PR129 and dependency-ordered PR130–139 histories;
+PR143 selected the compatible PDF/core/workflow tuple. Artifact source
+`0466b782507dcf3537e25926bbdee59aabdb253e` and receipt-only PR144 produced tag
+target `d9406db1e74facf18f19a5f436bf0e41f19fb839`. Release455729358 delivers the
+three original gem/wheel/SHA256SUMS assets. Native promotion45216846677 and
+TrustedPublishing45217719156 passed; anonymous registry package bytes, OCI
+manifest/config bytes and all three Release asset hashes/sizes were verified.
+Public0.8.1 remains immutable. See [the software handoff](docs/agents/software-release-090.md).
+
+The separate postrelease SOURCE default change selects immutable MCP digest
+`29b1559b4e91b98247baf227039dc553da504e9df1972299bcbb20a2ed5b029c` in the root
+Makefile and bare source bootstrap. It does not retag or republish0.9.0: the
+immutable tag/wheel bare-bootstrap fallback still selects0.8.1 without an
+override, while normal installed CLI/wheelMake pass0.9 explicitly. Old-tag source
+users can pass `--image` or `MCP_RELEASE_IMAGE` explicitly; no automatic version
+fallback is introduced. Original fourth installed acceptance is reused, not a
+fifth case. No actual client/consumer/manual adoption, universal H2 tarball or
+additional helper/SDK/Podman/GC/practice qualification is implied.
 
 The intended English technical directory is `practices/`; current original
 `practiques/` contracts/receipts and explicit `_practices/` legacy mappings remain
