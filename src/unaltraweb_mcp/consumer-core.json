@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
   "kind": "unaltraweb-consumer-core",
-  "core_sha": "9d97197dec5fc9346ab795191a3afd18884c27fb",
-  "gem_version": "0.7.3"
+  "core_sha": "7db24abf329ad46395e20665ad718a449b906a1f",
+  "gem_version": "0.9.0"
 }

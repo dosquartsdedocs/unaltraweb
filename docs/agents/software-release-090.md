@@ -31,13 +31,14 @@ The canonical BOM selects the software version. Candidate images and packages
 must pass the existing protected source checks and signed candidate procedures;
 this document alone claims no native acceptance, publication or installation.
 
-The initial 0.9.0 candidate source preserves the independently published PDF
-0.7.1 selection. It is not the final coherent release tuple: its controller/PDF
-builder freshness mismatch is already documented and must not be overridden.
-The existing image workflow builds and explicitly tests a same-source new PDF
-candidate. A subsequent reviewed selection must bind that candidate's exact
-digest/producer and the compatible core/workflow ancestors before the final
-candidate/receipt-only/tag/trusted-publication sequence.
+The initial signed candidates from `987412c72bee7f643125c5d7ce2cb1ee75416360` passed image workflow
+45185571925, including exact provenance, Ruby/PDF/MCP/docs tests and digest
+promotion. The selected new PDF is `ghcr.io/dosquartsdedocs/unaltraweb-manual-pdf@sha256:38f62cba21cd2b50a3512bd00743a3a8413c89b99f51b55d1bb47d1bb72bad3c`,
+producer `987412c72bee7f643125c5d7ce2cb1ee75416360`, native source version 0.9.0.
+It is not the old 0.7.1 worker. Its record ancestor `7db24abf329ad46395e20665ad718a449b906a1f`
+is the independent reviewed core/workflow selection and native gem 0.9.0.
+Final core/package candidates, the receipt-only commit, annotated tag and
+trusted publication remain required; initial MCP bytes are not the final tuple.
 
 Unchanged compute Python/R, capture, classic private QGIS and visual-helper
 selections retain their own actual versions and identities. SDK/W1/H2 and full
