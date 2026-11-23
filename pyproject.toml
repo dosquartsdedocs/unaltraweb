@@ -26,6 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 mcp = ["mcp>=1.0.0,<2"]
 artifact-publication = ["botocore==1.40.75"]
+artifact-storage = ["boto3==1.40.75", "botocore==1.40.75", "s3transfer==0.14.0", "jmespath==1.0.1", "python-dateutil==2.9.0.post0", "six==1.17.0", "urllib3==2.8.0"]
 
 [project.scripts]
 unaltraweb-mcp = "unaltraweb_mcp.cli:main"
@@ -35,6 +36,7 @@ unaltraweb-prepare-inputs = "unaltraweb_mcp.input_preparation:main"
 unaltraweb-practice-artifacts = "unaltraweb_mcp.artifact_publication:main"
 unaltraweb-retained-intake = "unaltraweb_mcp.retained_intake:main"
 unaltraweb-original-archive = "unaltraweb_mcp.original_archive:main"
+unaltraweb-candidate-storage = "unaltraweb_mcp.candidate_storage:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -73,6 +75,7 @@ unaltraweb_mcp = [
   "manual-context-v1.schema.json",
   "practice-verifier-runtime.json",
   "source-check-policy-v1.schema.json",
+  "artifact-storage-v1.schema.json",
   "scaffolds/common/*",
   "scaffolds/common/.gitignore.tmpl",
   "scaffolds/common/.unaltraweb/*.sh",

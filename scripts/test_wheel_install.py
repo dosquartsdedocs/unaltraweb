@@ -133,6 +133,9 @@ def main() -> int:
             "unaltraweb_mcp/scaffolds/common/.unaltraweb/practice-artifacts.json",
             "unaltraweb_mcp/practice-edition-v2.schema.json",
             "unaltraweb_mcp/scaffolds/common/.unaltraweb/input-preparation.json",
+            "unaltraweb_mcp/candidate_storage.py",
+            "unaltraweb_mcp/artifact-storage-v1.schema.json",
+            "unaltraweb_mcp/scaffolds/common/.unaltraweb/artifact-storage.json",
             "unaltraweb_mcp/practice_verifier.py",
             "unaltraweb_mcp/practice-verifier-runtime.json",
             "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
@@ -178,6 +181,10 @@ def main() -> int:
         archive_help = run([str(environment / "bin/unaltraweb-original-archive"), "--help"], cwd=temp).stdout
         if "--expected-plan-sha256" not in archive_help or "snapshot" not in archive_help:
             raise RuntimeError("Installed original-private-archive CLI is missing its explicit local admission interface")
+        storage_cli = environment / "bin/unaltraweb-candidate-storage"
+        storage_default = json.loads(run([str(storage_cli), "plan", "--project", str(temp)], cwd=temp).stdout)
+        if storage_default["transport"] != "github-actions" or storage_default["retention_days"] != 14:
+            raise RuntimeError("Factory-free storage default requires an unintended S3 dependency")
         docker_cli = environment / "bin/unaltraweb-mcp-docker"
         launcher = Path(run([str(docker_cli), "path"], cwd=temp).stdout.strip())
         if launcher != environment / "share/unaltraweb-launcher":

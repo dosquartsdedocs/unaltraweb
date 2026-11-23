@@ -14,6 +14,13 @@ Private `practiques/`, `sandbox/` and `dist/` must stay excluded from Jekyll.
 This command requires a reviewed runtime containing the input-preparation CLI;
 scaffold synchronization never selects a newer runtime/workflow pin implicitly.
 
+`.unaltraweb/artifact-storage.json` is a project-owned v1 temporary-candidate policy.
+It defaults to GitHub Actions (14 days) and is not native publication metadata.
+Private S3/S4 is optional and requires explicit project CI credentials and lifecycle
+qualification; it does not replace the native Pages upload/deploy protocol or
+choose a public delivery destination. Existing runtime/workflow pins remain
+reviewed selections; changing this policy does not upgrade them.
+
 GitHub Web is suitable for small, coordinated content updates. Follow this workflow before changing a file:
 
 1. Open or choose an issue that describes one focused task.
