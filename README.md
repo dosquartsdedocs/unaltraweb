@@ -32,6 +32,8 @@ The default distribution is Docker-first. Generated sites run their normal build
 
 `unaltremanual` sites can also build language-specific PDF editions and matching web-cover images in an isolated Pandoc/XeLaTeX container. PDF status is offline; build and local review are available through Make and the MCP control plane. When PDF output is enabled, default generated PDF and cover outputs are not versioned. The selected `latest` or stable selector is rendered into both the website and PDF metadata.
 
+The source interface also supports [per-artifact practice storage](docs/_documentation/en/50-practice-artifact-storage.md): individual sealed practice PDFs and data ZIPs select GitHub Releases or S3-compatible storage such as S4. Destinations and credentials are separate from product identity; one course can combine public GitHub artifacts with private S4 packets. Generated-site use requires a reviewed runtime containing the interface.
+
 ## Current Status
 
 - Published releases provide receipt-bound Docker images, Ruby gems and Python wheels. The 0.7.4 source unit corrects the native core/gem tuple and adds reviewed scaffold conflict resolution; see [the acceptance and migration record](docs/agents/scaffold-closeout-118.md) for publication status and exact boundaries.

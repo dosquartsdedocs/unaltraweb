@@ -1,4 +1,4 @@
-"""Compose two private teaching editions from an opaque, verified GIS producer.
+"""Compose private editions from verified GIS v1 or explicit tabular v2 inputs.
 
 GIS execution, project parsing and closure discovery belong to the installed
 producer. This editor consumes its public check result and never filters a
@@ -13,6 +13,7 @@ import os
 import posixpath
 from pathlib import Path
 import stat
+import struct
 import re
 from urllib.parse import unquote, urlsplit
 import xml.etree.ElementTree as ET
@@ -39,8 +40,10 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def schema():
-    return handoff.parse_json(SCHEMA.read_bytes())
+def schema(version=1):
+    require(type(version) is int and version in {1, 2}, "Unsupported practice edition schema version")
+    path = SCHEMA if version == 1 else SCHEMA.with_name("practice-edition-v2.schema.json")
+    return handoff.parse_json(path.read_bytes())
 
 
 def load_config(project, config_path):
@@ -49,10 +52,12 @@ def load_config(project, config_path):
         raw = reader.read(config_path)
         document = yaml_mapping(raw.decode("utf-8"))
         site = yaml_mapping(reader.text("_config.yml"))
-    rules = schema()
+    rules = schema(document.get("schema_version"))
     handoff.check_shape(document, rules, rules["$defs"])
-    for value in (document["slug"], document["version"], document["gis"]["bundle"]):
+    for value in (document["slug"], document["version"]):
         handoff.safe_path(value)
+    if document["schema_version"] == 1:
+        handoff.safe_path(document["gis"]["bundle"])
     for who in RECIPIENTS:
         handoff.safe_path(document["readings"][who]["source"])
         ids = document["selection"][who]
@@ -103,6 +108,33 @@ def verifier_identity(project, expected, profile="qgis-practice-v1"):
             and origin["controller"]["observed_image_id"] == expected["image_id"],
             "Prepared QGIS verifier image/package/profile identity differs from the edition pin")
     return {"profile": profile, "package": package, "schema_sha256": observed["schema_sha256"], "origin": origin}
+
+
+def tabular_closures(workspace, spec):
+    """Byte/recipient checks, not spreadsheet execution or a fabricated GIS seal."""
+    allowed = {"initial-data": {".csv", ".csvt", ".tsv"}, "initial-workbook": {".xlsx", ".ods"},
+               "resolved-workbook": {".xlsx", ".ods"}, "demonstration-workbook": {".xlsx", ".ods"},
+               "reference-document": {".pdf", ".png", ".jpg", ".jpeg"}}
+    materials = spec["materials"]
+    require(len({row["id"] for row in materials}) == len(materials), "Duplicate tabular material ID")
+    handoff.unique_paths([row["path"] for row in materials])
+    handoff.unique_paths([row["destination"] for row in materials])
+    for row in materials:
+        require(row["path"].startswith(("sandbox/practiques/", "practiques/", "_practices/", "assets/")), "Tabular materials require explicit practice/assets sources")
+        require(row["destination"].startswith("resources/") and Path(row["path"]).suffix.lower() == Path(row["destination"]).suffix.lower()
+                and Path(row["path"]).suffix.lower() in allowed[row["role"]], "Tabular material role/format/destination is not a classroom file")
+        require(len(row["recipients"]) == len(set(row["recipients"])), "Duplicate tabular material recipient")
+        require(row["role"] != "resolved-workbook" or row["recipients"] == ["docent"], "Resolved workbook is teacher-only; classroom demonstrations require explicit demonstration-workbook selection")
+        actual, size, _ = workspace.read(row["path"], handoff.MAX_FILE_BYTES)
+        require((actual, size) == (row["sha256"], row["bytes"]), "Tabular material hash/size differs from its approved selection")
+    by_id = {row["id"]: row for row in materials}
+    closures, reports = {}, {}
+    for who in RECIPIENTS:
+        require(all(key in by_id and who in by_id[key]["recipients"] for key in spec["selection"][who]), "Unknown or cross-recipient tabular selection")
+        closures[who] = [by_id[key] for key in spec["selection"][who]]
+        reports[who] = {"profile": "tabular-files-v1", "selected": spec["selection"][who], "closure": closures[who],
+                        "verification": "Web byte/size/recipient checks only; no workbook calculation, GIS producer or semantic validation"}
+    return closures, reports
 
 
 def validate_closure(report, manifest, roots, recipient, teacher_only=(), *, profile="qgis-practice-v1"):
@@ -300,14 +332,76 @@ def zip_files(project, directory, filename, entries):
         os.fsync(output.fileno())
         output.seek(0)
         with zipfile.ZipFile(output) as archive:
-            require(set(archive.namelist()) == {row["destination"] for row in entries}, "Final ZIP inventory differs")
-            for row in entries:
-                with archive.open(row["destination"]) as member:
-                    hasher = hashlib.sha256()
-                    while piece := member.read(65536):
-                        hasher.update(piece)
-                    require(hasher.hexdigest() == row["sha256"], "Final ZIP member differs from selected bytes")
+            verify_zip_inventory(archive, {row["destination"]: row["sha256"] for row in entries},
+                                 sizes={row["destination"]: row["bytes"] for row in entries})
         return _output_record(output, filename)
+
+
+def check_zip_directory(source):
+    """Bound untrusted central-directory allocation before ZipFile parses it."""
+    source.seek(0, os.SEEK_END)
+    size = source.tell()
+    require(22 <= size <= handoff.MAX_FILE_BYTES, "ZIP container exceeds retained input limits")
+    source.seek(max(0, size - 65557))
+    tail = source.read(65557)
+    marker = tail.rfind(b"PK\x05\x06")
+    require(marker >= 0 and len(tail) - marker >= 22, "ZIP end record is missing")
+    _, disk, directory_disk, on_disk, entries, directory_bytes, offset, comment = struct.unpack("<4s4H2LH", tail[marker:marker + 22])
+    require(disk == directory_disk == 0 and on_disk == entries and 0 < entries <= handoff.MAX_ENTRIES
+            and 0 < directory_bytes <= 16 * 1024**2 and offset != 0xffffffff
+            and marker + 22 + comment == len(tail) and offset + directory_bytes <= size - len(tail) + marker,
+            "ZIP multi-disk/ZIP64/excessive or inconsistent central directory is not admitted")
+    end_offset = size - len(tail) + marker
+    if end_offset >= 20:
+        source.seek(end_offset - 20)
+        require(source.read(4) != b"PK\x06\x07", "ZIP64 end-directory allocation requires a separately qualified profile")
+    source.seek(0)
+
+
+def verify_zip_inventory(archive, hashes, *, sizes=None):
+    """Shared bounded byte inventory; None observes NEW hashes, never an old seal."""
+    infos = archive.infolist()
+    require((hashes is None or isinstance(hashes, dict)) and 0 < len(infos) <= handoff.MAX_ENTRIES, "Invalid bounded ZIP inventory")
+    require(len({item.filename for item in infos}) == len(infos), "Duplicate ZIP member")
+    files, directories = {}, set()
+    for item in infos:
+        name = item.filename.removesuffix("/") if item.is_dir() else item.filename
+        handoff.safe_path(name)
+        mode = item.external_attr >> 16
+        require(not item.flag_bits & 1 and stat.S_IFMT(mode) in {0, stat.S_IFREG, stat.S_IFDIR}
+                and item.compress_type in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}, "ZIP links, encryption or unsupported entries refused")
+        require(0 <= item.file_size <= handoff.MAX_TOTAL_BYTES, "ZIP member exceeds its byte budget")
+        if item.is_dir():
+            require(item.file_size == 0 and (hashes is None or item.filename not in hashes or hashes[item.filename] == digest(b"")), "Invalid ZIP directory declaration")
+            directories.add(name)
+        else:
+            require(stat.S_IFMT(mode) != stat.S_IFDIR, "ZIP file has conflicting directory type")
+            files[item.filename] = item
+    handoff.unique_paths(list(files))
+    aliases = {}
+    for name in [*files, *directories]:
+        parts = name.split("/")
+        for length in range(1, len(parts) + 1):
+            prefix = "/".join(parts[:length])
+            require(aliases.setdefault(prefix.casefold(), prefix) == prefix, "ZIP has case-aliased paths")
+    require(not directories.intersection(files) and (hashes is None or set(files) == {name for name in hashes if not name.endswith("/")}
+            and set(hashes) <= {item.filename for item in infos}), "ZIP inventory differs from original member declarations")
+    require(sum(item.file_size for item in files.values()) <= handoff.MAX_TOTAL_BYTES, "ZIP exceeds its total expanded byte budget")
+    observed = {}
+    for name, item in files.items():
+        require(hashes is None or isinstance(hashes[name], str) and re.fullmatch(r"[0-9a-f]{64}", hashes[name]), "Invalid ZIP member hash")
+        require(sizes is None or item.file_size == sizes[name], "ZIP member size differs")
+        hasher, count = hashlib.sha256(), 0
+        with archive.open(item) as source:
+            while piece := source.read(65536):
+                count += len(piece)
+                require(count <= item.file_size, "ZIP member grew beyond its declared size")
+                hasher.update(piece)
+        require(count == item.file_size and (hashes is None or hasher.hexdigest() == hashes[name]), "ZIP member differs from original declared bytes")
+        observed[name] = {"sha256": hasher.hexdigest(), "bytes": count}
+    return {"files": len(files), "directories": len(directories), "expanded_bytes": sum(item.file_size for item in files.values()),
+            "member_content_hashes": "freshly-checked", "extracted": False, "scientific_validation": "not-performed",
+            **({"observed_members": observed} if hashes is None else {})}
 
 
 def sealed_reading(workspace, result):
@@ -351,19 +445,27 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
                     raise ValueError("Edition destination already exists; versions are create-only")
             finally:
                 os.close(parent)
-        profile = spec["gis"].get("profile", "qgis-practice-v1")
-        verifier = verifier_identity(project, spec["gis"]["verifier"], profile)
+        tabular = spec["schema_version"] == 2
+        profile = "tabular-files-v1" if tabular else spec["gis"].get("profile", "qgis-practice-v1")
+        verifier = None if tabular else verifier_identity(project, spec["gis"]["verifier"], profile)
         closures, reports, readings, verification_runs = {}, {}, {}, {}
         with closing(handoff.Workspace(str(project))) as workspace:
-            common = handoff.Verifier(workspace)
-            manifest, _, _ = common.bundle(spec["gis"]["bundle"], spec["gis"]["sha256"])
-            require(manifest["producer"]["name"] == "unaltracaptura-qgis", "Unsupported GIS producer")
-            base = Path(spec["gis"]["bundle"]).parent
+            if tabular:
+                closures, reports = tabular_closures(workspace, spec)
+                manifest = {"files": spec["materials"]}
+                base = Path(".")
+                verification_runs = {who: {"kind": "web-tabular-byte-verification"} for who in RECIPIENTS}
+            else:
+                common = handoff.Verifier(workspace)
+                manifest, _, _ = common.bundle(spec["gis"]["bundle"], spec["gis"]["sha256"])
+                require(manifest["producer"]["name"] == "unaltracaptura-qgis", "Unsupported GIS producer")
+                base = Path(spec["gis"]["bundle"]).parent
             for who in RECIPIENTS:
-                response = provider_command(project, "check", bundle=spec["gis"]["bundle"], sha256=spec["gis"]["sha256"], selected=spec["selection"][who])
-                reports[who], verification_runs[who] = response["result"], response["origin"]
-                require(reports[who].get("bundle", {}).get("sha256") == spec["gis"]["sha256"], "Producer checked a different bundle")
-                closures[who] = validate_closure(reports[who], manifest, spec["selection"][who], who, spec["gis"].get("teacher_only", []), profile=profile)
+                if not tabular:
+                    response = provider_command(project, "check", bundle=spec["gis"]["bundle"], sha256=spec["gis"]["sha256"], selected=spec["selection"][who])
+                    reports[who], verification_runs[who] = response["result"], response["origin"]
+                    require(reports[who].get("bundle", {}).get("sha256") == spec["gis"]["sha256"], "Producer checked a different bundle")
+                    closures[who] = validate_closure(reports[who], manifest, spec["selection"][who], who, spec["gis"].get("teacher_only", []), profile=profile)
                 source = spec["readings"][who]["source"]
                 actual, _, _ = workspace.read(source, 2*1024*1024)
                 require(actual == spec["readings"][who]["approved_sha256"], "Reading differs from its explicitly approved source hash")
@@ -372,7 +474,7 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
             known_sources = {(base / row["path"]).as_posix() for row in manifest["files"]}
             known_sources.update(row["source"] for rows in auxiliary.values() for row in rows)
             for who in RECIPIENTS:
-                targets = [{"source": (base / row["path"]).as_posix(), "destination": row["path"], "sha256": row["sha256"], "bytes": row["bytes"]}
+                targets = [{"source": (base / row["path"]).as_posix(), "destination": row["destination"] if tabular else row["path"], "sha256": row["sha256"], "bytes": row["bytes"]}
                            for row in closures[who]] + auxiliary[who]
                 portable[who] = {row["source"]: {key: row[key] for key in ("destination", "sha256", "bytes")} for row in targets}
                 require(len(portable[who]) == len(targets), "Portable reading source mapping is ambiguous")
@@ -388,8 +490,9 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
                                 for path, row in planned_readings[who]["portable_links"]["targets"].items() if path not in portable[who]] for who in RECIPIENTS}
             workspace.recheck()
             result = {"ok": True, "dry_run": dry_run, "publishes": False, "path": relative.as_posix(),
-                      "operation": "Web composition of existing GIS products; no GIS calculation invoked", "gis_verifier": verifier,
-                      "gis": {"bundle": spec["gis"], "producer": manifest["producer"], "activity": reports["alumnat"]["activity"], "job": reports["alumnat"]["job"]},
+                       "operation": "Web composition of explicit tabular files; no calculations invoked" if tabular else "Web composition of existing GIS products; no GIS calculation invoked", "gis_verifier": verifier,
+                       "gis": None if tabular else {"bundle": spec["gis"], "producer": manifest["producer"], "activity": reports["alumnat"]["activity"], "job": reports["alumnat"]["job"]},
+                       "edition_schema_version": spec["schema_version"],
                        "selection": spec["selection"], "closure": closures, "author_resources": auxiliary,
                        "verification_runs": verification_runs,
                       "reading_resources": reading_resources,
@@ -414,7 +517,7 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
             packages = {}
             try:
                 for who in RECIPIENTS:
-                    rows = [{"id": item["id"], "source": (base / item["path"]).as_posix(), "destination": item["path"],
+                    rows = [{"id": item["id"], "source": (base / item["path"]).as_posix(), "destination": item["destination"] if tabular else item["path"],
                                  "sha256": item["sha256"], "bytes": item["bytes"], "role": item["role"]} for item in closures[who]]
                     rows.extend(auxiliary[who])
                     rows.extend(reading_resources[who])
@@ -455,8 +558,9 @@ def compose(project: Path, factory: Path, config_path: str, *, dry_run=False):
                 workspace.recheck()
                 # Re-run complete common and domain verification before commit;
                 # neither filtered results nor stale acknowledgements are authority.
-                handoff.check(str(project), "bundle", spec["gis"]["bundle"], spec["gis"]["sha256"])
-                verifier_identity(project, spec["gis"]["verifier"], profile)
+                if not tabular:
+                    handoff.check(str(project), "bundle", spec["gis"]["bundle"], spec["gis"]["sha256"])
+                    verifier_identity(project, spec["gis"]["verifier"], profile)
                 with Reader(project) as reader:
                     require(digest(reader.read(config_path)) == config_sha, "Edition selection changed before publication")
                     for who in RECIPIENTS:

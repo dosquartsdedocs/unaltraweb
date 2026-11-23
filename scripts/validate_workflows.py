@@ -1402,6 +1402,26 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             errors.append("site-deploy.yml: PDF worker provenance must run before publication output processing")
         elif build_step_names.index("Verify manual PDF image provenance") > build_step_names.index("Reject versioned manual publication outputs"):
             errors.append("site-deploy.yml: PDF worker provenance must run before publication output processing")
+        for name in ("prepare-inputs", "prepare-inputs-sha256"):
+            declaration = deploy.get("on", {}).get("workflow_call", {}).get("inputs", {}).get(name, {})
+            if declaration.get("type") != "string" or declaration.get("required") is not False or declaration.get("default") != "":
+                errors.append("site-deploy.yml: optional pinned early preparation input pair is missing")
+        early = _named_step(deploy_build, "Prepare pinned manual inputs before checks")
+        checkout = _named_step(deploy_build, "Checkout provider-owned input preparation")
+        if (checkout.get("uses") != "actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+                or checkout.get("with") != {"repository": "${{ job.workflow_repository }}", "ref": "${{ job.workflow_sha }}",
+                                            "path": ".unaltraweb-inputs-core", "persist-credentials": False}
+                or checkout.get("if") != "${{ inputs.prepare-inputs != '' }}"):
+            errors.append("site-deploy.yml: input preparation must use the defining immutable provider revision")
+        if (early.get("if") != "${{ inputs.prepare-inputs != '' }}" or "continue-on-error" in early
+                or early.get("env") != {"PREPARE_INPUTS": "${{ inputs.prepare-inputs }}", "PREPARE_INPUTS_SHA256": "${{ inputs.prepare-inputs-sha256 }}", "WORKFLOW_SHA": "${{ job.workflow_sha }}"}
+                or not all(marker in str(early.get("run", "")) for marker in ("unaltraweb_mcp.input_preparation", '--config "$PREPARE_INPUTS"', '--sha256 "$PREPARE_INPUTS_SHA256"', "--fetch"))):
+            errors.append("site-deploy.yml: early preparation must be explicit, hash-bound and fail closed")
+        early_position = build_step_names.index("Prepare pinned manual inputs before checks") if "Prepare pinned manual inputs before checks" in build_step_names else len(build_step_names)
+        if early_position == len(build_step_names) or any(early_position >= build_step_names.index(name)
+               for name in ("Check computation freshness", "Check Vega visualization freshness", "Check published manual PDFs", "Sync manual PDFs")
+               if name in build_step_names):
+            errors.append("site-deploy.yml: input preparation must precede all freshness and PDF controls")
 
     stable = workflows.get("site-release.yml")
     if stable is None:
@@ -1414,8 +1434,12 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         if set(stable_on) != {"workflow_call"}:
             errors.append("site-release.yml: stable publication must be workflow_call-only")
         workflow_call = stable_on.get("workflow_call", {})
-        if set(workflow_call) != {"inputs"}:
-            errors.append("site-release.yml: stable workflow_call may only declare reviewed inputs")
+        if set(workflow_call) != {"inputs", "secrets"} or workflow_call.get("secrets") != {
+            name: {"required": False} for name in (
+                "candidate_s3_access_key_id", "candidate_s3_secret_access_key", "candidate_s3_session_token"
+            )
+        }:
+            errors.append("site-release.yml: stable workflow_call may only declare reviewed inputs and optional project S3 secrets")
         stable_inputs = workflow_call.get("inputs", {})
         expected_stable_inputs = {
             "selector",
@@ -1427,9 +1451,15 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             "vegavisuals_sha",
             "ruby_version",
             "python_version",
+            "prepare_inputs",
+            "prepare_inputs_sha256",
         }
         if set(stable_inputs) != expected_stable_inputs:
             errors.append("site-release.yml: stable workflow input inventory differs from the reviewed contract")
+        for name in ("prepare_inputs", "prepare_inputs_sha256"):
+            declaration = stable_inputs.get(name, {})
+            if declaration.get("type") != "string" or declaration.get("required") is not False or declaration.get("default") != "":
+                errors.append("site-release.yml: optional pinned early preparation input pair is missing")
         for input_name in ["selector", "reviewed_sha", "candidate_manifest_sha256", "core_sha", "manual_pdf_image", "site_build_image"]:
             if stable_inputs.get(input_name, {}).get("required") is not True:
                 errors.append(f"site-release.yml: {input_name} must be required")
@@ -1488,6 +1518,49 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         for marker in ["CORE_SHA", "WORKFLOW_SHA", "WORKFLOW_REF", "WORKFLOW_REPOSITORY", "WORKFLOW_FILE_PATH"]:
             if marker not in request_text:
                 errors.append(f"site-release.yml: stable request identity check missing {marker}")
+        early = _named_step(prepare, "Prepare pinned manual inputs before checks")
+        if (early.get("if") is not None or "continue-on-error" in early
+                or early.get("env") != {"PREPARE_INPUTS": "${{ inputs.prepare_inputs }}", "PREPARE_INPUTS_SHA256": "${{ inputs.prepare_inputs_sha256 }}"}
+                or not all(marker in str(early.get("run", "")) for marker in ("unaltraweb_mcp.input_preparation", '--sha256 "$PREPARE_INPUTS_SHA256"', "--fetch"))):
+            errors.append("site-release.yml: early preparation must be explicit, hash-bound and fail closed")
+        names = [step.get("name") for step in prepare.get("steps", []) if isinstance(step, dict)]
+        if "Prepare pinned manual inputs before checks" not in names or names.index("Prepare pinned manual inputs before checks") >= names.index("Verify Vega visualization outputs"):
+            errors.append("site-release.yml: input preparation must precede Vega and PDF controls")
+
+        storage_cli = 'PYTHONPATH="$UNALTRAWEB_CORE_DIR/src" python -m unaltraweb_mcp.candidate_storage'
+        github_if = "${{ steps.storage.outputs.transport == 'github-actions' }}"
+        s3_if = "${{ steps.storage.outputs.transport == 's3-private' }}"
+        s3_secrets = {f"UNALTRAWEB_S3_{key}": "${{ secrets.candidate_s3_" + key.lower() + " }}" for key in ("ACCESS_KEY_ID", "SECRET_ACCESS_KEY", "SESSION_TOKEN")}
+        expected_transfer_steps = [
+            {"name": "Freeze project candidate storage policy", "id": "storage", "run": storage_cli + ' plan --project "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/candidate-storage.json" --github-output "$GITHUB_OUTPUT"'},
+            {"name": "Install optional candidate storage SDK", "if": s3_if, "run": 'python -m pip install -r "$UNALTRAWEB_CORE_DIR/scripts/manual/candidate-storage-s3-requirements.txt"'},
+            {"name": "Seal exact release candidate transfer", "id": "seal", "run": storage_cli + ' seal --policy "$RUNNER_TEMP/candidate-storage.json" --assets "$RUNNER_TEMP/release-assets" --output "$RUNNER_TEMP/release-transfer" --github-output "$GITHUB_OUTPUT"'},
+            {"name": "Upload immutable release candidate", "id": "candidate_upload", "if": github_if,
+             "uses": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02", "with": {
+                 "name": "stable-manual-${{ inputs.selector }}-${{ inputs.reviewed_sha }}-${{ github.run_id }}-${{ github.run_attempt }}",
+                 "path": "${{ runner.temp }}/release-transfer", "if-no-files-found": "error",
+                 "retention-days": "${{ steps.storage.outputs.retention_days }}", "overwrite": False}},
+            {"name": "Require exact prepared GitHub artifact ID", "if": github_if,
+             "env": {"ARTIFACT_ID": "${{ steps.candidate_upload.outputs.artifact-id }}"}, "run": '[[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]'},
+            {"name": "Read back exact GitHub candidate", "if": github_if,
+             "uses": "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", "with": {
+                 "artifact-ids": "${{ steps.candidate_upload.outputs.artifact-id }}", "merge-multiple": True, "path": "${{ runner.temp }}/release-readback"}},
+            {"name": "Verify GitHub transfer readback", "if": github_if, "env": {"TRANSFER_SHA256": "${{ steps.seal.outputs.sha256 }}"},
+             "run": storage_cli + ' verify --policy "$RUNNER_TEMP/candidate-storage.json" --package "$RUNNER_TEMP/release-readback" --sha256 "$TRANSFER_SHA256"'},
+            {"name": "Upload and read back private S3 candidate", "if": s3_if,
+             "env": {"TRANSFER_SHA256": "${{ steps.seal.outputs.sha256 }}", **s3_secrets},
+             "run": storage_cli + ' s3-upload --policy "$RUNNER_TEMP/candidate-storage.json" --package "$RUNNER_TEMP/release-transfer" --sha256 "$TRANSFER_SHA256"'},
+        ]
+        for expected in expected_transfer_steps:
+            if _named_step(prepare, expected["name"]) != expected:
+                errors.append("site-release.yml: candidate transfer differs from exact versioned storage policy: " + expected["name"])
+        positions = {step.get("name"): index for index, step in enumerate(prepare.get("steps", [])) if isinstance(step, dict)}
+        if not (positions.get("Freeze project candidate storage policy", 10000) < positions.get("Verify stable site-build image runtime", -1)
+                < positions.get("Seal exact release candidate transfer", -1)):
+            errors.append("site-release.yml: candidate policy must be frozen before untrusted builds and seal after builds")
+        for step in prepare.get("steps", []):
+            if isinstance(step, dict) and "secrets." in json.dumps(step) and step.get("name") != "Upload and read back private S3 candidate":
+                errors.append("site-release.yml: S3 credentials must be scoped only to the private transfer step")
 
         expected_publish = {
             "needs": "prepare",
@@ -1504,16 +1577,11 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
                 "SELECTOR": "${{ inputs.selector }}",
                 "SITE_BUILD_IMAGE": "${{ inputs.site_build_image }}",
                 "VEGAVISUALS_SHA": "${{ inputs.vegavisuals_sha }}",
+                "STORAGE_POLICY_JSON": "${{ needs.prepare.outputs.policy_json }}",
+                "TRANSFER_SHA256": "${{ needs.prepare.outputs.transfer_sha256 }}",
+                "TRANSFER_ENVELOPE_BYTES": "${{ needs.prepare.outputs.envelope_bytes }}",
             },
             "steps": [
-                {
-                    "name": "Download prepared candidate",
-                    "uses": "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
-                    "with": {
-                        "name": "stable-manual-${{ inputs.selector }}-${{ inputs.reviewed_sha }}-${{ github.run_id }}-${{ github.run_attempt }}",
-                        "path": "release-assets",
-                    },
-                },
                 {
                     "name": "Checkout reviewed release verifier",
                     "uses": "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
@@ -1528,6 +1596,33 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
                     "name": "Setup privileged verifier Python",
                     "uses": "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065",
                     "with": {"python-version": "${{ inputs.python_version }}"},
+                },
+                {
+                    "name": "Require exact prepared GitHub artifact ID",
+                    "if": "${{ needs.prepare.outputs.transport == 'github-actions' }}",
+                    "env": {"ARTIFACT_ID": "${{ needs.prepare.outputs.github_artifact_id }}"},
+                    "run": '[[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]',
+                },
+                {
+                    "name": "Download prepared candidate",
+                    "if": "${{ needs.prepare.outputs.transport == 'github-actions' }}",
+                    "uses": "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093",
+                    "with": {"artifact-ids": "${{ needs.prepare.outputs.github_artifact_id }}", "merge-multiple": True, "path": "${{ runner.temp }}/release-transfer"},
+                },
+                {
+                    "name": "Install privileged optional candidate SDK",
+                    "if": "${{ needs.prepare.outputs.transport == 's3-private' }}",
+                    "run": "python -m pip install -r .unaltraweb-release-core/scripts/manual/candidate-storage-s3-requirements.txt",
+                },
+                {
+                    "name": "Download exact private S3 candidate",
+                    "if": "${{ needs.prepare.outputs.transport == 's3-private' }}",
+                    "env": s3_secrets,
+                    "run": 'PYTHONPATH=.unaltraweb-release-core/src python -m unaltraweb_mcp.candidate_storage s3-download --policy-json-env STORAGE_POLICY_JSON --sha256 "$TRANSFER_SHA256" --envelope-bytes "$TRANSFER_ENVELOPE_BYTES" --output "$RUNNER_TEMP/release-transfer"',
+                },
+                {
+                    "name": "Verify and receive native release assets",
+                    "run": 'PYTHONPATH=.unaltraweb-release-core/src python -m unaltraweb_mcp.candidate_storage receive --policy-json-env STORAGE_POLICY_JSON --package "$RUNNER_TEMP/release-transfer" --sha256 "$TRANSFER_SHA256" --output release-assets',
                 },
                 {
                     "name": "Publish verified stable release",

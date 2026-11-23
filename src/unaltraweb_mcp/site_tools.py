@@ -6105,6 +6105,13 @@ def list_tools() -> dict[str, Any]:
     inventory["tools"].append("manual_context_export")
     inventory["resources"].append("web://manual-context-schema")
     inventory["resources"].append("web://practice-edition-schema")
+    inventory["resources"].append("web://practice-tabular-edition-schema")
+    inventory["resources"].append("web://input-preparation-schema")
+    inventory["resources"].extend(["web://practice-artifact-storage-schema", "web://product-publication-schema", "web://publication-policy-schema"])
+    inventory["resources"].append("web://practice-artifact-storage-v2-schema")
+    inventory["resources"].append("web://practice-artifact-storage-v3-schema")
+    inventory["resources"].append("web://original-private-archive-schema")
+    inventory["resources"].append("web://retained-private-intake-schema")
     inventory["resources"].append("web://practice-verifier-runtime")
     return inventory
 

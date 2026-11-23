@@ -1,7 +1,7 @@
 schema_version: 1
 name: unaltraweb
 kind: codex-mcp-factory
-version: 0.8.1
+version: 0.9.0
 description: Reusable Jekyll website factory with package-owned site creation and MCP tooling for content, profiles, captures, visualizations, bibliography, bibliometrics, build checks, and local manual release candidates.
 repository: https://github.com/dosquartsdedocs/unaltraweb
 install_scope: user
@@ -19,6 +19,8 @@ workspace_rule:
     - .github/workflows/deploy.yml
     - .github/workflows/source-checks.yml
     - .unaltraweb/source-checks.json
+    - .unaltraweb/input-preparation.json
+    - .unaltraweb/practice-artifacts.json
     - _config.yml
     - Makefile
     - Gemfile
@@ -38,6 +40,8 @@ workspace_rule:
     - .github/workflows
     - .unaltraweb/scaffold.json
   source_paths:
+    - .unaltraweb/original-archive.json
+    - .unaltraweb/retained-intake.json
     - practiques
     - .unaltraweb/artifacts
     - AGENTS.md
@@ -47,6 +51,8 @@ workspace_rule:
     - .unaltraweb/computations.yml
     - .vegavisuals.yml
     - .unaltraweb/source-checks.json
+    - .unaltraweb/input-preparation.json
+    - .unaltraweb/practice-artifacts.json
     - _pages
     - _posts
     - _news
@@ -60,6 +66,10 @@ workspace_rule:
     - assets
     - context
   generated_paths:
+    - sandbox/original-archives
+    - sandbox/retained-handoffs
+    - sandbox/artifact-attempts
+    - sandbox/artifacts
     - sandbox/practiques
     - dist/practiques
     - _site
@@ -79,6 +89,46 @@ workspace_rule:
     - .vegavisuals.lock.json and outputs declared by .vegavisuals.yml
   allowed_external_writes: []
   path_policies:
+    - path: .unaltraweb/original-archive.json
+      type: file
+      role: explicit-original-private-archive-request
+      git: versioned
+      cleanup: never
+    - path: sandbox/original-archives
+      type: directory
+      role: original-private-archive-admissions
+      git: ignored
+      cleanup: explicit
+    - path: .unaltraweb/retained-intake.json
+      type: file
+      role: explicit-retained-private-intake-request
+      git: versioned
+      cleanup: never
+    - path: sandbox/retained-handoffs
+      type: directory
+      role: retained-private-handoff-admissions
+      git: ignored
+      cleanup: explicit
+    - path: sandbox/artifact-attempts
+      type: directory
+      role: private-local-artifact-attempt-evidence
+      git: ignored
+      cleanup: explicit
+    - path: .unaltraweb/practice-artifacts.json
+      type: file
+      role: per-artifact-practice-storage-policy
+      git: versioned
+      cleanup: never
+    - path: sandbox/artifacts
+      type: directory
+      role: retained-practice-artifact-stages
+      git: ignored
+      cleanup: explicit
+    - path: .unaltraweb/input-preparation.json
+      type: file
+      role: explicit-pinned-input-preparation
+      git: versioned
+      cleanup: never
     - path: practiques
       type: directory
       role: private-practice-sources
@@ -167,7 +217,7 @@ workspace_rule:
 runtime:
   kind: container
   package_manager: docker
-  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.8.1
+  image: ghcr.io/dosquartsdedocs/unaltraweb-mcp:0.9.0
   package: unaltraweb-mcp
   module: unaltraweb_mcp
 transport:
@@ -204,7 +254,7 @@ discovery:
     - Manual release tools prepare local candidates only; publication remains a human-controlled GitHub Actions operation.
     - Private practice verification uses the hub-prepared native QGIS controller declared by web://practice-verifier-runtime; public Web images never acquire its private package.
 release:
-  default: v0.8.1
+  default: v0.9.0
 contracts:
   component_bom: 1
   distribution_doctor: 1
@@ -215,6 +265,15 @@ mcp:
   resources:
     - web://manual-context-schema
     - web://practice-edition-schema
+    - web://practice-tabular-edition-schema
+    - web://input-preparation-schema
+    - web://practice-artifact-storage-schema
+    - web://practice-artifact-storage-v2-schema
+    - web://practice-artifact-storage-v3-schema
+    - web://original-private-archive-schema
+    - web://retained-private-intake-schema
+    - web://product-publication-schema
+    - web://publication-policy-schema
     - web://practice-verifier-runtime
     - web://runtime-identity
     - web://artifact-imports

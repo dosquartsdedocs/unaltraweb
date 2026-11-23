@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Per-artifact practice storage v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "publication", "artifacts"],
+  "properties": {
+    "kind": {"const": "unaltraweb.practice-artifact-storage"},
+    "schema_version": {"type": "integer", "const": 1},
+    "publication": {"oneOf": [{"type": "null"}, {"$ref": "publication-policy-v1.schema.json"}]},
+    "artifacts": {
+      "type": "object", "maxProperties": 256,
+      "propertyNames": {"pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,199}$"},
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false,
+        "required": ["target", "audience", "receipt", "receipt_sha256", "format"],
+        "properties": {
+          "target": {"type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,199}$"},
+          "audience": {"enum": ["public", "private", "student", "teacher"]},
+          "receipt": {"type": "string", "minLength": 1, "maxLength": 1024},
+          "receipt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "format": {"enum": ["zip", "pdf"]}
+        }
+      }
+    }
+  }
+}

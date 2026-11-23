@@ -630,6 +630,34 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertTrue(any("bind core authority" in error for error in errors))
 
+    def test_early_preparation_cannot_run_after_freshness_or_use_caller_tooling(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workflows = self.copied_repository(root)
+            path = workflows / "site-deploy.yml"
+            text = path.read_text()
+            text = text.replace("      - name: Prepare pinned manual inputs before checks\n", "      - name: Preparation removed from early gate\n", 1)
+            text = text.replace("repository: ${{ job.workflow_repository }}", "repository: ${{ github.repository }}", 1)
+            path.write_text(text)
+            with patch("scripts.validate_workflows.ROOT", root):
+                errors = validate_workflows(workflows)
+        self.assertTrue(any("precede all freshness" in error for error in errors), errors)
+        self.assertTrue(any("defining immutable provider" in error for error in errors), errors)
+        errors = self.stable_mutation_errors([(' --sha256 "$PREPARE_INPUTS_SHA256" --fetch', ' --sha256 "$UNREVIEWED" --fetch')])
+        self.assertTrue(any("hash-bound" in error for error in errors), errors)
+
+    def test_candidate_storage_policy_rejects_overwrite_fallback_and_unbound_readback(self) -> None:
+        for old, new in [
+            ("          overwrite: false", "          overwrite: true"),
+            ("          retention-days: ${{ steps.storage.outputs.retention_days }}", "          retention-days: 90"),
+            ("artifact-ids: ${{ steps.candidate_upload.outputs.artifact-id }}", "name: latest-candidate"),
+            ("          merge-multiple: true", "          merge-multiple: false"),
+            ("        run: PYTHONPATH=\"$UNALTRAWEB_CORE_DIR/src\" python -m unaltraweb_mcp.candidate_storage verify", "        run: ':' # bypass verify"),
+        ]:
+            with self.subTest(new=new):
+                errors = self.stable_mutation_errors([(old, new)])
+                self.assertTrue(any("candidate transfer differs" in error for error in errors), errors)
+
     def test_stable_policy_rejects_conditional_or_extended_publication_job(self) -> None:
         errors = self.stable_mutation_errors(
             [

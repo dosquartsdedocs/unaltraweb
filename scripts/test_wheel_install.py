@@ -116,6 +116,26 @@ def main() -> int:
             "unaltraweb_mcp/image_probe.py",
             "unaltraweb_mcp/source_checks.py",
             "unaltraweb_mcp/source-check-policy-v1.schema.json",
+            "unaltraweb_mcp/input_preparation.py",
+            "unaltraweb_mcp/input-preparation-v1.schema.json",
+            "unaltraweb_mcp/artifact_publication.py",
+            "unaltraweb_mcp/artifact_attempts.py",
+            "unaltraweb_mcp/retained_intake.py",
+            "unaltraweb_mcp/original_archive.py",
+            "unaltraweb_mcp/original-private-archive-v1.schema.json",
+            "unaltraweb_mcp/retained-private-intake-v1.schema.json",
+            "unaltraweb_mcp/artifact_transports.py",
+            "unaltraweb_mcp/practice-artifact-storage-v1.schema.json",
+            "unaltraweb_mcp/practice-artifact-storage-v2.schema.json",
+            "unaltraweb_mcp/practice-artifact-storage-v3.schema.json",
+            "unaltraweb_mcp/product-publication-v1.schema.json",
+            "unaltraweb_mcp/publication-policy-v1.schema.json",
+            "unaltraweb_mcp/scaffolds/common/.unaltraweb/practice-artifacts.json",
+            "unaltraweb_mcp/practice-edition-v2.schema.json",
+            "unaltraweb_mcp/scaffolds/common/.unaltraweb/input-preparation.json",
+            "unaltraweb_mcp/candidate_storage.py",
+            "unaltraweb_mcp/artifact-storage-v1.schema.json",
+            "unaltraweb_mcp/scaffolds/common/.unaltraweb/artifact-storage.json",
             "unaltraweb_mcp/practice_verifier.py",
             "unaltraweb_mcp/practice-verifier-runtime.json",
             "unaltraweb_mcp/scaffolds/common/AGENTS.md.tmpl",
@@ -149,6 +169,22 @@ def main() -> int:
         source_help = run([str(source_cli), "--help"], cwd=temp).stdout
         if "--base-sha" not in source_help or "--reports" not in source_help:
             raise RuntimeError("Installed source-CI entrypoint is missing its bounded interface")
+        preparation_help = run([str(environment / "bin/unaltraweb-prepare-inputs"), "--help"], cwd=temp).stdout
+        if "--sha256" not in preparation_help or "--fetch" not in preparation_help:
+            raise RuntimeError("Installed early-preparation CLI is missing its explicit hash/fetch interface")
+        artifacts_help = run([str(environment / "bin/unaltraweb-practice-artifacts"), "--help"], cwd=temp).stdout
+        if "--artifact" not in artifacts_help or "--manifest-sha256" not in artifacts_help or "inspect-attempt" not in artifacts_help or "--attempt-sha256" not in artifacts_help:
+            raise RuntimeError("Installed per-artifact publication CLI is missing its bounded interface")
+        intake_help = run([str(environment / "bin/unaltraweb-retained-intake"), "--help"], cwd=temp).stdout
+        if "--expected-plan-sha256" not in intake_help or "snapshot" not in intake_help:
+            raise RuntimeError("Installed private retained-intake CLI is missing its local reviewed-plan interface")
+        archive_help = run([str(environment / "bin/unaltraweb-original-archive"), "--help"], cwd=temp).stdout
+        if "--expected-plan-sha256" not in archive_help or "snapshot" not in archive_help:
+            raise RuntimeError("Installed original-private-archive CLI is missing its explicit local admission interface")
+        storage_cli = environment / "bin/unaltraweb-candidate-storage"
+        storage_default = json.loads(run([str(storage_cli), "plan", "--project", str(temp)], cwd=temp).stdout)
+        if storage_default["transport"] != "github-actions" or storage_default["retention_days"] != 14:
+            raise RuntimeError("Factory-free storage default requires an unintended S3 dependency")
         docker_cli = environment / "bin/unaltraweb-mcp-docker"
         launcher = Path(run([str(docker_cli), "path"], cwd=temp).stdout.strip())
         if launcher != environment / "share/unaltraweb-launcher":

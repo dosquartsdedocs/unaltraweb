@@ -16,6 +16,15 @@ async def assert_practice_resources(session) -> None:
     """Shared by source regression and installed-image MCP smoke."""
     schemas = {
         "web://practice-edition-schema": CONTRACT.with_name("practice-edition-v1.schema.json"),
+        "web://practice-tabular-edition-schema": CONTRACT.with_name("practice-edition-v2.schema.json"),
+        "web://input-preparation-schema": CONTRACT.with_name("input-preparation-v1.schema.json"),
+        "web://practice-artifact-storage-schema": CONTRACT.with_name("practice-artifact-storage-v1.schema.json"),
+        "web://practice-artifact-storage-v2-schema": CONTRACT.with_name("practice-artifact-storage-v2.schema.json"),
+        "web://practice-artifact-storage-v3-schema": CONTRACT.with_name("practice-artifact-storage-v3.schema.json"),
+        "web://original-private-archive-schema": CONTRACT.with_name("original-private-archive-v1.schema.json"),
+        "web://retained-private-intake-schema": CONTRACT.with_name("retained-private-intake-v1.schema.json"),
+        "web://product-publication-schema": CONTRACT.with_name("product-publication-v1.schema.json"),
+        "web://publication-policy-schema": CONTRACT.with_name("publication-policy-v1.schema.json"),
         "web://practice-verifier-runtime": CONTRACT,
     }
     resources = {str(item.uri) for item in (await session.list_resources()).resources}

@@ -4,6 +4,23 @@ This site uses the **`__SITE_PROFILE__`** profile: __PROFILE_DESCRIPTION__
 
 The package-managed collaboration contract is `.github/CONTRIBUTING.md`. It defines branch names, exact path reservations, single-checkout session coordination, generated figure bundles, and provider integrations.
 
+`.unaltraweb/input-preparation.json` is a project-owned optional v1 input plan;
+the empty default never fetches or executes anything. Reviewed immutable
+resource inventories can be hydrated explicitly with `make manual-inputs-prepare
+INPUT_PREPARATION_SHA256=<reviewed-hash> INPUT_PREPARATION_FETCH=1`, before local
+freshness/build checks. The equivalent shared deploy inputs are `prepare-inputs`
+and `prepare-inputs-sha256`; source-only CI never hydrates datasets or renders.
+Private `practiques/`, `sandbox/` and `dist/` must stay excluded from Jekyll.
+This command requires a reviewed runtime containing the input-preparation CLI;
+scaffold synchronization never selects a newer runtime/workflow pin implicitly.
+
+`.unaltraweb/artifact-storage.json` is a project-owned v1 temporary-candidate policy.
+It defaults to GitHub Actions (14 days) and is not native publication metadata.
+Private S3/S4 is optional and requires explicit project CI credentials and lifecycle
+qualification; it does not replace the native Pages upload/deploy protocol or
+choose a public delivery destination. Existing runtime/workflow pins remain
+reviewed selections; changing this policy does not upgrade them.
+
 GitHub Web is suitable for small, coordinated content updates. Follow this workflow before changing a file:
 
 1. Open or choose an issue that describes one focused task.
@@ -109,6 +126,22 @@ Never add passwords, access tokens, API keys, private keys, credentials, or `.en
 __PROFILE_PUBLISHING_GUIDANCE__
 
 ## Maintainer-Only Local Review And Deployment
+
+Practice PDFs and data ZIPs can select separate storage targets through
+`.unaltraweb/practice-artifacts.json`: public GitHub Releases or an explicit
+S3-compatible destination, including S4. The initial policy selects no artifacts.
+Policy v2 binds a declared Git remote/repository to the exact repository-named
+manual bucket. Each artifact selects `anonymous-delivery-v1` or private S3/S4
+`authenticated-private-v1`; the latter verifies bytes/headers/native ACL without
+claiming an object URL. Missing or ambiguous repository identity needs maintainer
+review before selecting storage.
+`make practice-artifact-plan` and `make practice-artifact-stage` use
+`PRACTICE_ARTIFACT_ID`, the reviewed `PRACTICE_ARTIFACT_SHA256`, and, for staging,
+`PRACTICE_ARTIFACT_STAGE=sandbox/artifacts/<id>/<run>`. Both run offline; staging
+preserves the sealed practice bytes and their audience. Explicit publication uses
+`unaltraweb-practice-artifacts` with project-scoped host/CI credentials and a
+reviewed manifest hash. See the core reference's **Per-artifact practice storage**.
+These commands require a runtime containing that interface.
 
 Content editors stop after requesting pull request review. A maintainer then:
 

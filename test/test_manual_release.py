@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import socket
 import subprocess
 import tempfile
 import unittest
@@ -214,6 +215,67 @@ class ManualReleaseTests(unittest.TestCase):
 
         self.assertEqual(manual_release.source_snapshot(self.project)["sha256"], source_before)
         self.assertEqual(manual_release.site_snapshot(self.project)["sha256"], site_before)
+
+    def test_excluded_private_socket_does_not_block_build_receipt_or_latest_readiness(self) -> None:
+        config_path = self.project / "_config.yml"
+        config = yaml.safe_load(config_path.read_text())
+        config["exclude"] = [".unaltramesa/", "**/.unaltramesa/**", "context/", "practiques/", "dist/"]
+        config_path.write_text(yaml.safe_dump(config))
+        before = {tracked: manual_release.source_snapshot(self.project, tracked_only=tracked)
+                  for tracked in (False, True)}
+        private = self.project / ".unaltramesa/project"
+        private.mkdir(parents=True)
+        path = private / "operator.sock"
+        with socket.socket(socket.AF_UNIX) as server:
+            server.bind(str(path))
+            identity = path.lstat().st_ino
+            for tracked_only in (False, True):
+                snapshot = manual_release.source_snapshot(self.project, tracked_only=tracked_only)
+                self.assertEqual(snapshot["sha256"], before[tracked_only]["sha256"])
+                self.assertFalse(any(row["path"].startswith(".unaltramesa") for row in snapshot["files"]))
+            manual_release.write_site_build_receipt(self.project, "latest")
+            (private / "private.json").write_text('{"private":"synthetic assessment"}')
+            self.assertTrue(manual_release.site_build_receipt_status(self.project)["ok"])
+            self.assertTrue(manual_release.release_status(self.project, "latest", self.pdf_status)["ready"])
+            self.assertEqual(path.lstat().st_ino, identity)
+            self.assertEqual(manual_release.source_snapshot(self.project)["sha256"], before[False]["sha256"])
+
+    def test_admitted_sockets_symlinks_and_private_site_leaks_still_fail(self) -> None:
+        (self.project / "public").mkdir()
+        with socket.socket(socket.AF_UNIX) as server:
+            server.bind(str(self.project / "public/operator.sock"))
+            with self.assertRaisesRegex(manual_release.ManualReleaseError, "special files: public/operator.sock"):
+                manual_release.source_snapshot(self.project)
+        (self.project / "public/operator.sock").unlink()
+        (self.project / "public/link").symlink_to(self.project / "_chapters")
+        with self.assertRaisesRegex(manual_release.ManualReleaseError, "symlinks"):
+            manual_release.source_snapshot(self.project)
+        (self.project / "_site/.unaltramesa").mkdir()
+        (self.project / "_site/.unaltramesa/private.json").write_text("synthetic private state")
+        with self.assertRaisesRegex(manual_release.ManualReleaseError, "release-forbidden"):
+            manual_release.site_snapshot(self.project)
+
+    def test_private_exclusion_is_explicit_and_cannot_hide_build_inputs(self) -> None:
+        private = self.project / ".unaltramesa"
+        private.mkdir()
+        with socket.socket(socket.AF_UNIX) as server:
+            server.bind(str(private / "operator.sock"))
+            with self.assertRaisesRegex(manual_release.ManualReleaseError, "special files"):
+                manual_release.source_snapshot(self.project)
+        (private / "operator.sock").unlink()
+        config_path = self.project / "_config.yml"
+        config = yaml.safe_load(config_path.read_text())
+        config["exclude"] = [".unaltramesa/", "_includes/"]
+        config_path.write_text(yaml.safe_dump(config))
+        before = manual_release.source_snapshot(self.project)["sha256"]
+        (self.project / "_includes").mkdir()
+        (self.project / "_includes/figure.liquid").write_text("real build input")
+        self.assertNotEqual(manual_release.source_snapshot(self.project)["sha256"], before)
+        for included in (".unaltramesa/", ".unaltramesa/project/private.md", "**/*.md", "**/*.json", "."):
+            config["include"] = [included]
+            config_path.write_text(yaml.safe_dump(config))
+            with self.subTest(included=included), self.assertRaisesRegex(manual_release.ManualReleaseError, "conflicts"):
+                manual_release.source_snapshot(self.project)
 
     def test_receipt_detects_stale_source_and_site(self) -> None:
         self.assertTrue(manual_release.site_build_receipt_status(self.project)["ok"])

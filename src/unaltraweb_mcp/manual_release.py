@@ -4,6 +4,7 @@ import argparse
 import ctypes
 import errno
 import fcntl
+import fnmatch
 import hashlib
 import json
 import os
@@ -47,7 +48,8 @@ SOURCE_EXCLUDED_DIRECTORIES = {
     "tmp",
     "vendor",
 }
-FORBIDDEN_SITE_ROOTS = SOURCE_EXCLUDED_DIRECTORIES - {"_site"}
+PRIVATE_SOURCE_ROOTS = {".unaltramesa", "context", "practiques", "_practices", "dist"}
+FORBIDDEN_SITE_ROOTS = (SOURCE_EXCLUDED_DIRECTORIES - {"_site"}) | PRIVATE_SOURCE_ROOTS
 FORBIDDEN_SITE_COMPONENTS = {".git", ".hg", ".svn"}
 
 
@@ -382,9 +384,36 @@ def _expected_pdf_paths(config: dict[str, Any], language: str) -> dict[str, Path
     }
 
 
+def _excluded_private_roots(config: dict[str, Any]) -> set[str]:
+    """Prune explicitly excluded private trees, never Jekyll implementation inputs.
+
+    Jekyll's exclude list also names build inputs such as Gemfile and Sass. It
+    cannot be used as a general fingerprint ignore list. Private roots have an
+    existing non-public contract; only whole-tree exclusions qualify here.
+    """
+    excluded, included = config.get("exclude") or [], config.get("include") or []
+    if not isinstance(excluded, list) or not isinstance(included, list):
+        raise ManualReleaseError("Jekyll include/exclude must be lists for source snapshots.")
+    roots = set()
+    for root in PRIVATE_SOURCE_ROOTS:
+        patterns = [value.rstrip("/") for value in excluded if isinstance(value, str)]
+        if not any(fnmatch.fnmatchcase(root, pattern) or pattern in {root + "/**", "**/" + root + "/**"}
+                   for pattern in patterns):
+            continue
+        if any(isinstance(value, str) and (value == "." or value.rstrip("/").startswith(root + "/")
+               or fnmatch.fnmatchcase(root, value.strip("/").split("/")[0])
+               or any(fnmatch.fnmatchcase(probe, value.rstrip("/")) for probe in (root, root + "/input.md", root + "/project/operator.sock")))
+               for value in included):
+            raise ManualReleaseError("Jekyll include conflicts with a private source exclusion.")
+        roots.add(root)
+    return roots
+
+
 def source_snapshot(project: Path | str, *, tracked_only: bool = False) -> dict[str, Any]:
     project = _project_path(project)
-    excluded_files = _public_outputs(_load_config(project))
+    config = _load_config(project)
+    excluded_files = _public_outputs(config)
+    private_roots = _excluded_private_roots(config)
     tracked_files = _tracked_source_paths(project) if tracked_only else None
     tracked_directories: set[str] = set()
     if tracked_files is not None:
@@ -396,7 +425,7 @@ def source_snapshot(project: Path | str, *, tracked_only: bool = False) -> dict[
 
         def reject_filesystem_only(relative: str, is_directory: bool) -> bool:
             parts = relative.split("/")
-            if is_directory and parts[0].casefold() in SOURCE_EXCLUDED_DIRECTORIES:
+            if is_directory and (parts[0].casefold() in SOURCE_EXCLUDED_DIRECTORIES or parts[0] in private_roots):
                 return True
             if len(parts) == 1 and parts[0].casefold() in FORBIDDEN_SITE_COMPONENTS:
                 return True
@@ -412,7 +441,7 @@ def source_snapshot(project: Path | str, *, tracked_only: bool = False) -> dict[
 
     def exclude(relative: str, is_directory: bool) -> bool:
         parts = relative.split("/")
-        if is_directory and parts[0].casefold() in SOURCE_EXCLUDED_DIRECTORIES:
+        if is_directory and (parts[0].casefold() in SOURCE_EXCLUDED_DIRECTORIES or parts[0] in private_roots):
             return True
         if len(parts) == 1 and parts[0].casefold() in FORBIDDEN_SITE_COMPONENTS:
             return True

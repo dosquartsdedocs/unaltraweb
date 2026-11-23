@@ -57,6 +57,16 @@ on:
         required: false
         type: string
         default: ""
+      prepare-inputs:
+        description: Optional versioned input-preparation v1 configuration; runs before all freshness/PDF checks.
+        required: false
+        type: string
+        default: ""
+      prepare-inputs-sha256:
+        description: Reviewed SHA-256 of prepare-inputs; required together with that path.
+        required: false
+        type: string
+        default: ""
       output-folder:
         description: Folder to publish.
         required: false
@@ -207,6 +217,37 @@ jobs:
           if test -f requirements.txt; then
             python -m pip install -r requirements.txt
           fi
+
+      - name: Validate explicit early input preparation
+        env:
+          PREPARE_INPUTS: ${{ inputs.prepare-inputs }}
+          PREPARE_INPUTS_SHA256: ${{ inputs.prepare-inputs-sha256 }}
+        run: |
+          if [[ -n "$PREPARE_INPUTS" || -n "$PREPARE_INPUTS_SHA256" ]]; then
+            test -n "$PREPARE_INPUTS"
+            [[ "$PREPARE_INPUTS_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          fi
+
+      - name: Checkout provider-owned input preparation
+        if: ${{ inputs.prepare-inputs != '' }}
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .unaltraweb-inputs-core
+          persist-credentials: false
+
+      - name: Prepare pinned manual inputs before checks
+        if: ${{ inputs.prepare-inputs != '' }}
+        env:
+          PREPARE_INPUTS: ${{ inputs.prepare-inputs }}
+          PREPARE_INPUTS_SHA256: ${{ inputs.prepare-inputs-sha256 }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          test "$(git -C .unaltraweb-inputs-core rev-parse HEAD)" = "$WORKFLOW_SHA"
+          mv .unaltraweb-inputs-core "$RUNNER_TEMP/unaltraweb-inputs-core"
+          python -c 'import yaml' 2>/dev/null || python -m pip install PyYAML==6.0.2
+          PYTHONPATH="$RUNNER_TEMP/unaltraweb-inputs-core/src" python -m unaltraweb_mcp.input_preparation --project "$GITHUB_WORKSPACE" --config "$PREPARE_INPUTS" --sha256 "$PREPARE_INPUTS_SHA256" --fetch
 
       - name: Reject versioned manual publication outputs
         run: |
