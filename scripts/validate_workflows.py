@@ -210,6 +210,92 @@ def _executes_candidate(step: dict[str, Any]) -> bool:
     return any(re.search(rf"(?<![\w-]){re.escape(target)}(?![\w-])", run) for target in CANDIDATE_EXECUTION_TARGETS)
 
 
+def ci_scope_errors(workflow: dict[str, Any] | None) -> list[str]:
+    """Bound scheduling without allowing a selected run to shrink its suite."""
+    prefix = "ci.yml: "
+    if not isinstance(workflow, dict):
+        return [prefix + "missing full CI workflow"]
+    errors: list[str] = []
+    if workflow.get("on") != {
+        "push": {"branches": ["main"]}, "pull_request": None, "workflow_dispatch": None,
+    }:
+        errors.append(prefix + "scheduling must keep unfiltered PRs, main-only pushes and input-free manual full-suite dispatch")
+    if workflow.get("permissions") != {"contents": "read"}:
+        errors.append(prefix + "full CI must retain only contents: read")
+    jobs = workflow.get("jobs", {})
+    if not isinstance(jobs, dict) or any(not isinstance(job, dict) for job in jobs.values()):
+        return errors + [prefix + "full suite jobs must be mappings"]
+    if set(jobs) != {"python", "distribution", "gem", "docker"}:
+        errors.append(prefix + "full suite must retain python, distribution, gem and docker jobs")
+    if jobs.get("python", {}).get("strategy") != {
+        "fail-fast": False, "matrix": {"python-version": ["3.10", "3.13"]},
+    }:
+        errors.append(prefix + "Python matrix must retain 3.10 and 3.13 without exclusions")
+    if jobs.get("docker", {}).get("needs") != ["python", "distribution", "gem"]:
+        errors.append(prefix + "Docker must depend on python, distribution and gem")
+    required_steps = {
+        "python": ["Compile Python", "Run unit tests", "Check patch whitespace",
+                   "Prepare synthetic native candidate for Actions v4", "Upload synthetic native candidate",
+                   "Read back synthetic native candidate by exact ID", "Verify real Actions v4 native candidate bytes"],
+        "distribution": ["Validate workflow policy", "Validate distribution structure",
+                         "Declare private QGIS checks not run in public CI", "Build and test wheel",
+                         "Test published PDF deployment provenance"],
+        "gem": ["Build and inspect gem"],
+        "docker": ["Build runtime image", "Test all Ruby files", "Build manual PDF image",
+                   "Test all manual PDF integrations", "Build MCP image from the tested runtime",
+                   "Check reproducible packaged Jekyll build", "Smoke test MCP", "Build docs"],
+    }
+    synthetic = set(required_steps["python"][3:])
+    for job_name, job in jobs.items():
+        expected_keys = {"name", "runs-on", "timeout-minutes", "steps"}
+        if job_name == "python":
+            expected_keys.add("strategy")
+        elif job_name == "docker":
+            expected_keys.add("needs")
+        if set(job) != expected_keys:
+            errors.append(prefix + f"{job_name}: job boundary cannot skip checks or add authority")
+        steps = job.get("steps", [])
+        if not isinstance(steps, list) or any(not isinstance(step, dict) for step in steps):
+            errors.append(prefix + f"{job_name}: suite steps must be mappings")
+            continue
+        names = [step.get("name") for step in steps]
+        for name in required_steps.get(job_name, []):
+            if names.count(name) != 1:
+                errors.append(prefix + f"{job_name}: missing or repeated required suite step {name}")
+        for step in steps:
+            expected_if = "${{ matrix.python-version == '3.13' }}" if job_name == "python" and step.get("name") in synthetic else None
+            if step.get("if") != expected_if or "continue-on-error" in step:
+                errors.append(prefix + f"{job_name}: step conditions and failure handling must remain unchanged")
+    return errors
+
+
+def triage_report_errors(workflow: dict[str, Any] | None, name: str) -> list[str]:
+    """Keep the two triage uploads intact apart from their seven-day retention."""
+    uploads = {
+        "metrics-update.yml": ("metrics", {
+            "name": "Upload diagnostics", "if": "${{ always() }}",
+            "uses": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "with": {"name": "publication-metrics-diagnostics", "if-no-files-found": "ignore",
+                     "retention-days": 7,
+                     "path": "_data/metrics.yml\ntmp/metrics-report.json\ntmp/metrics-unmatched.tsv\n"},
+        }),
+        "source-checks.yml.tmpl": ("public-sources", {
+            "name": "Retain source-check reports", "if": "always()",
+            "uses": "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+            "with": {"name": "public-source-checks-${{ github.run_id }}-${{ github.run_attempt }}",
+                     "path": "${{ runner.temp }}/unaltraweb-source-reports/",
+                     "if-no-files-found": "error", "retention-days": 7},
+        }),
+    }
+    job_name, expected = uploads[name]
+    if not isinstance(workflow, dict) or not isinstance(workflow.get("jobs"), dict):
+        return [name + ": missing triage report workflow"]
+    reports = [(job, step) for job, step in _steps(workflow) if step.get("name") == expected["name"]]
+    if reports != [(job_name, expected)]:
+        return [name + ": triage upload must retain always(), exact paths/pin and seven-day retention"]
+    return []
+
+
 def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
     errors: list[str] = []
     try:
@@ -1038,6 +1124,8 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
             errors.append(f"codeql.yml: missing {language} analysis")
 
     ci = workflows.get("ci.yml", {})
+    errors.extend(ci_scope_errors(ci))
+    errors.extend(triage_report_errors(workflows.get("metrics-update.yml"), "metrics-update.yml"))
     ci_on = ci.get("on", {})
     for event in ["push", "pull_request"]:
         if event not in ci_on:
@@ -1639,6 +1727,14 @@ def validate_workflows(root: Path = WORKFLOW_ROOT) -> list[str]:
         }
         if publish != expected_publish:
             errors.append("site-release.yml: privileged publication job differs from the exact reviewed structure")
+
+    source_path = ROOT / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/source-checks.yml.tmpl"
+    try:
+        source_control = load_workflow(source_path)
+    except Exception as exc:
+        errors.append(f"scaffold source-checks.yml: invalid YAML: {exc}")
+    else:
+        errors.extend(triage_report_errors(source_control, "source-checks.yml.tmpl"))
 
     scaffold_path = ROOT / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/deploy.yml.tmpl"
     try:

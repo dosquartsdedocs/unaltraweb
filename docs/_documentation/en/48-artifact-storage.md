@@ -24,6 +24,23 @@ at its published URLs while those URLs are referenced.
 | Private practice packet | Existing ignored, retained practice editions for the named recipient; never made public by this selector. |
 | GitHub Pages site | Native `upload-pages-artifact` / `deploy-pages` protocol, unchanged. |
 
+## Compute, reports and cache are separate
+
+| Resource | Existing scope and cost driver |
+| --- | --- |
+| Runner computation | Workflow frequency, matrices and build/test/render/analyse steps; retention or S3/S4 transport does not remove these operations. |
+| CI artifacts | Uploaded byte counts, frequency and retained days; metrics/source-check triage reports retain seven days, without dropping failure evidence. |
+| Cache | Pip, Bundler and Buildx GHA caches; not selected by `release_candidate` policy. Disabling cache can increase rebuild work. |
+| Published outputs | GHCR images, durable Release assets and native Pages delivery are distinct from triage reports and candidate transport. |
+
+The selector does not redirect generic CI reports, package intermediates, Pages
+artifacts or caches. Synthetic Actions transfer retention remains one day,
+Buildx records seven, package candidates fourteen and verified package
+intermediates seven. Stable candidates keep their selected 1–14-day window
+(default fourteen), exact IDs, receipts, readback and native publication gates.
+No cleanup, provider provisioning or billing measurement follows from changing
+this local policy. A different transport is not a promise of zero quota.
+
 ## Project-owned policy
 
 New package scaffolds include `.unaltraweb/artifact-storage.json`. This is an

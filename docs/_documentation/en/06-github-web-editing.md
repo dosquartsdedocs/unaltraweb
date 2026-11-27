@@ -82,6 +82,21 @@ After the editor requests review, the maintainer:
 
 Pushing a branch or merging to `main` does not publish a generated site. Local checks and renders do not deploy it either.
 
+**The existing local serve/preview is sufficient for rendered review.** Remote
+HTTPS hosting, access/TTL decisions and a new preview backend are not required.
+Diagnostic CI reports do not replace that review or approve publication.
+
+## Optional Local Compilation And Branch Layout
+
+A maintainer can use the supported local Jekyll build/serve route for review,
+or separately request a qualified GHA build. A possible publishing model keeps
+sources and compiled web output in different branches, with the compiled branch
+replaceable after review. This is only an option note, not an implemented migration
+or a change to the generated manual Pages workflow and its reviewed-`main` gates.
+Any branch replacement, push/force-push, deletion or Pages configuration change
+requires a separate explicit decision. Local compilation or a two-branch layout
+alone does not prove that GHA compilation, artifacts or other quota use stopped.
+
 ## unaltremanual Publishing
 
 - `latest` is a manual-only deployment from the reviewed `main` branch.
