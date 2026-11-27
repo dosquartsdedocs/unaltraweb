@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from unaltraweb_mcp import source_checks as ci, site_tools
 from unaltraweb_mcp.artifact_handoff_v1 import HandoffError
-from scripts.validate_workflows import load_workflow_text
+from scripts.validate_workflows import load_workflow_text, triage_report_errors
 
 
 def blob(value="a"):
@@ -208,6 +208,10 @@ class SourceScaffoldTests(unittest.TestCase):
                 self.assertFalse(list(project.rglob("source-checks.yml.tmpl")))
             self.assertEqual(len(set(controls)), 1)
             workflow = load_workflow_text(controls[0].decode())
+            self.assertEqual(triage_report_errors(workflow, "source-checks.yml.tmpl"), [])
+            report = next(step for step in workflow["jobs"]["public-sources"]["steps"] if step.get("name") == "Retain source-check reports")
+            self.assertEqual(report["with"]["retention-days"], 7)
+            self.assertEqual(report["if"], "always()")
             self.assertIn("pull_request", workflow["on"])
             self.assertNotIn("pull_request_target", workflow["on"])
             self.assertEqual(workflow["permissions"], {"contents": "read"})
@@ -222,6 +226,27 @@ class SourceScaffoldTests(unittest.TestCase):
             self.assertIn("python", str(steps))
             self.assertIn("-I -m unaltraweb_mcp.source_checks", controls[0].decode())
             self.assertIn(ci.CHECKER_IMAGE, controls[0].decode())
+
+    def test_source_report_policy_rejects_lost_retention_or_failure_evidence(self):
+        template = Path(__file__).resolve().parents[1]/"src/unaltraweb_mcp/scaffolds/common/.github/workflows/source-checks.yml.tmpl"
+        workflow = load_workflow_text(template.read_text())
+        self.assertEqual(triage_report_errors(workflow, "source-checks.yml.tmpl"), [])
+        steps = workflow["jobs"]["public-sources"]["steps"]
+        index = next(i for i, step in enumerate(steps) if step.get("name") == "Retain source-check reports")
+        for field, value in (("retention-days", None), ("retention-days", 14), ("path", "summary.json"), ("if-no-files-found", "ignore")):
+            with self.subTest(field=field, value=value):
+                changed = copy.deepcopy(workflow)
+                changed["jobs"]["public-sources"]["steps"][index]["with"][field] = value
+                self.assertTrue(triage_report_errors(changed, "source-checks.yml.tmpl"))
+        for field, value in (("if", "success()"), ("uses", "actions/upload-artifact@v4"), ("continue-on-error", True)):
+            with self.subTest(field=field):
+                changed = copy.deepcopy(workflow)
+                changed["jobs"]["public-sources"]["steps"][index][field] = value
+                self.assertTrue(triage_report_errors(changed, "source-checks.yml.tmpl"))
+        for reports in ([], [steps[index], steps[index]]):
+            changed = copy.deepcopy(workflow)
+            changed["jobs"]["public-sources"]["steps"][index:index + 1] = reports
+            self.assertTrue(triage_report_errors(changed, "source-checks.yml.tmpl"))
 
     def test_custom_policy_is_preserved_and_custom_control_conflicts_on_upstream_change(self):
         with tempfile.TemporaryDirectory() as temporary:

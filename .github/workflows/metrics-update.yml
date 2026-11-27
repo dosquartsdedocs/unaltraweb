@@ -152,6 +152,7 @@ jobs:
         with:
           name: publication-metrics-diagnostics
           if-no-files-found: ignore
+          retention-days: 7
           path: |
             _data/metrics.yml
             tmp/metrics-report.json

@@ -18,6 +18,34 @@ Child sites should keep workflow files thin and call reusable workflows from the
 
 These wrappers should normally be manual-only. Use `workflow_dispatch` so a push or Dependabot pull request does not start a deploy unless someone explicitly asks for it.
 
+## CI scheduling and retained reports
+
+Core `ci.yml` runs automatically for pushes to `main` and all pull requests.
+Use its input-free manual dispatch for a selected branch when a full GHA run is
+wanted. A feature-branch push without a PR no longer starts this suite
+automatically. Every admitted run keeps the same Python 3.10/3.13 matrix,
+distribution, gem and dependent Docker jobs, including provenance, Ruby/PDF,
+reproducibility, MCP smoke and docs checks. There is no reduced manual suite.
+PR integration and source-head SHAs can differ; per-ref concurrency does not
+merge push and PR runs. No measured quota saving is implied by this policy.
+CodeQL remains separate, with all three languages and its existing triggers.
+
+All four package profiles share one thin source-check control: PR plus manual,
+source-only and read-only, without secrets or deployment. Its failure/coverage
+reports and metrics diagnostics use explicit **seven-day triage retention**;
+`always()` and report contents/paths are unchanged. Existing child sites are not
+automatically migrated; authored workflow changes still require conflict review.
+Package/release candidate windows, immutable artifact IDs and readback stay
+unchanged. The synthetic transfer still retains one day and build records seven.
+
+Runner computation, artifacts, caches and publication storage are different
+cost planes; see [artifact storage]({{ '/artifact-storage/' | relative_url }}).
+Changing candidate transport does not remove builds or redirect every CI upload.
+
+The existing local build/serve is sufficient for rendered human review.
+This scheduling and retention change does not require a remote-preview service,
+new endpoint or hosting policy. Manual publication gates remain separate.
+
 ## Site deploy
 
 {% raw %}

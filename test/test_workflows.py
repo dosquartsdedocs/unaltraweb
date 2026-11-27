@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import shutil
 import subprocess
@@ -14,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.validate_workflows import JOB_ENV_RUNNER_CONTEXT, load_workflow, validate_workflows
+from scripts.validate_workflows import ci_scope_errors, triage_report_errors
 
 
 class WorkflowTests(unittest.TestCase):
@@ -163,6 +165,132 @@ class WorkflowTests(unittest.TestCase):
 
         self.assertTrue(any("missing reviewed-main gate refs/heads/main" in error for error in errors))
         self.assertTrue(any("preparation job must have only contents: read" in error for error in errors))
+
+    def test_ci_scope_keeps_pr_main_and_manual_runs_on_the_full_suite(self) -> None:
+        workflow = load_workflow(ROOT / ".github/workflows/ci.yml")
+        self.assertEqual(workflow["on"], {
+            "push": {"branches": ["main"]}, "pull_request": None, "workflow_dispatch": None,
+        })
+        self.assertEqual(ci_scope_errors(workflow), [])
+        self.assertEqual(workflow["jobs"]["python"]["strategy"], {
+            "fail-fast": False, "matrix": {"python-version": ["3.10", "3.13"]},
+        })
+        self.assertEqual(workflow["jobs"]["docker"]["needs"], ["python", "distribution", "gem"])
+
+
+    def test_ci_scope_rejects_removed_filtered_or_expanded_admission(self) -> None:
+        workflow = load_workflow(ROOT / ".github/workflows/ci.yml")
+        self.assertEqual(ci_scope_errors(workflow), [])
+        events = workflow["on"]
+        mutations = [None, *({key: value for key, value in events.items() if key != removed} for removed in events)]
+        mutations += [
+            {**events, "push": None},
+            {**events, "push": {"branches": ["main", "feature"]}},
+            {**events, "push": {"branches": ["main"], "paths-ignore": ["docs/**"]}},
+            {**events, "pull_request": {"branches": ["main"]}},
+            {**events, "pull_request": {"paths": ["src/**"]}},
+            {**events, "workflow_dispatch": {"inputs": {"skip_native": {"type": "boolean"}}}},
+            {**events, "pull_request_target": None},
+        ]
+        for events in mutations:
+            with self.subTest(events=events):
+                changed = copy.deepcopy(workflow)
+                changed["on"] = events
+                self.assertTrue(any("scheduling must keep" in error for error in ci_scope_errors(changed)))
+
+
+    def test_ci_scope_rejects_suite_matrix_dependency_or_authority_reductions(self) -> None:
+        workflow = load_workflow(ROOT / ".github/workflows/ci.yml")
+        self.assertEqual(ci_scope_errors(workflow), [])
+        for job in workflow["jobs"]:
+            with self.subTest(removed_job=job):
+                changed = copy.deepcopy(workflow)
+                del changed["jobs"][job]
+                self.assertTrue(any("full suite must retain" in error for error in ci_scope_errors(changed)))
+        for strategy in (
+            {"fail-fast": False, "matrix": {"python-version": ["3.13"]}},
+            {"fail-fast": False, "matrix": {"python-version": ["3.10", "3.13"], "exclude": [{"python-version": "3.10"}]}},
+            {"fail-fast": True, "matrix": {"python-version": ["3.10", "3.13"]}},
+        ):
+            with self.subTest(strategy=strategy):
+                changed = copy.deepcopy(workflow)
+                changed["jobs"]["python"]["strategy"] = strategy
+                self.assertTrue(any("Python matrix must retain" in error for error in ci_scope_errors(changed)))
+        changed = copy.deepcopy(workflow)
+        changed["jobs"]["docker"]["needs"] = ["python"]
+        self.assertTrue(any("Docker must depend" in error for error in ci_scope_errors(changed)))
+        changed = copy.deepcopy(workflow)
+        changed["permissions"] = {"contents": "write"}
+        self.assertTrue(any("only contents: read" in error for error in ci_scope_errors(changed)))
+
+
+    def test_ci_scope_rejects_job_and_step_skips_or_ignored_failures(self) -> None:
+        workflow = load_workflow(ROOT / ".github/workflows/ci.yml")
+        self.assertEqual(ci_scope_errors(workflow), [])
+        for job_name, job in workflow["jobs"].items():
+            for field, value in (("if", False), ("continue-on-error", True), ("permissions", {"contents": "write"})):
+                with self.subTest(job=job_name, field=field):
+                    changed = copy.deepcopy(workflow)
+                    changed["jobs"][job_name][field] = value
+                    self.assertTrue(any("job boundary cannot skip" in error for error in ci_scope_errors(changed)))
+            for index, step in enumerate(job["steps"]):
+                for field, value in (("if", False), ("continue-on-error", True)):
+                    with self.subTest(job=job_name, step=step["name"], field=field):
+                        changed = copy.deepcopy(workflow)
+                        changed["jobs"][job_name]["steps"][index][field] = value
+                        self.assertTrue(any("step conditions and failure handling" in error for error in ci_scope_errors(changed)))
+            # Each removal case targets an actual required verification.
+            required = {"Compile Python", "Run unit tests", "Test all Ruby files", "Test all manual PDF integrations"}
+            for index, step in enumerate(job["steps"]):
+                if step["name"] in required:
+                    with self.subTest(removed_check=step["name"]):
+                        changed = copy.deepcopy(workflow)
+                        del changed["jobs"][job_name]["steps"][index]
+                        self.assertTrue(any("required suite step" in error for error in ci_scope_errors(changed)))
+
+
+    def test_metrics_triage_upload_keeps_failure_reports_and_seven_days(self) -> None:
+        workflow = load_workflow(ROOT / ".github/workflows/metrics-update.yml")
+        self.assertEqual(triage_report_errors(workflow, "metrics-update.yml"), [])
+        steps = workflow["jobs"]["metrics"]["steps"]
+        index = next(i for i, step in enumerate(steps) if step["name"] == "Upload diagnostics")
+        report = steps[index]
+        self.assertEqual(report["with"]["retention-days"], 7)
+        self.assertEqual(report["if"], "${{ always() }}")
+        self.assertEqual(report["with"]["path"], "_data/metrics.yml\ntmp/metrics-report.json\ntmp/metrics-unmatched.tsv\n")
+        for field, value in (("retention-days", None), ("retention-days", 14), ("path", "tmp/summary.json"), ("if-no-files-found", "error")):
+            with self.subTest(field=field, value=value):
+                changed = copy.deepcopy(workflow)
+                changed["jobs"]["metrics"]["steps"][index]["with"][field] = value
+                self.assertTrue(triage_report_errors(changed, "metrics-update.yml"))
+        for field, value in (("if", "success()"), ("uses", "actions/upload-artifact@v4"), ("continue-on-error", True)):
+            with self.subTest(field=field):
+                changed = copy.deepcopy(workflow)
+                changed["jobs"]["metrics"]["steps"][index][field] = value
+                self.assertTrue(triage_report_errors(changed, "metrics-update.yml"))
+        for reports in ([], [report, report]):
+            changed = copy.deepcopy(workflow)
+            changed["jobs"]["metrics"]["steps"][index:index + 1] = reports
+            self.assertTrue(triage_report_errors(changed, "metrics-update.yml"))
+
+
+    def test_scheduling_and_both_triage_policies_are_wired_into_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            workflows = self.copied_repository(root)
+            ci = workflows / "ci.yml"
+            text = ci.read_text(encoding="utf-8")
+            self.assertIn("  workflow_dispatch:\n", text)
+            ci.write_text(text.replace("  workflow_dispatch:\n", "", 1), encoding="utf-8")
+            for path in (workflows / "metrics-update.yml", root / "src/unaltraweb_mcp/scaffolds/common/.github/workflows/source-checks.yml.tmpl"):
+                text = path.read_text(encoding="utf-8")
+                self.assertIn("          retention-days: 7\n", text)
+                path.write_text(text.replace("          retention-days: 7\n", "          retention-days: 14\n", 1), encoding="utf-8")
+            with patch("scripts.validate_workflows.ROOT", root):
+                errors = validate_workflows(workflows)
+        self.assertTrue(any("ci.yml: scheduling must keep" in error for error in errors), errors)
+        for name in ("metrics-update.yml", "source-checks.yml.tmpl"):
+            self.assertTrue(any(name + ": triage upload must retain" in error for error in errors), errors)
 
     def test_ci_policy_requires_all_ruby_and_manual_pdf_integration_suites(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
